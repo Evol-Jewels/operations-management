@@ -3,6 +3,7 @@
 import { AlertTriangle, CheckCircle2, LayoutGrid, List } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { KanbanBoard } from "@/components/dashboard/KanbanBoard";
 import { OrderList } from "@/components/dashboard/OrderList";
 import { PipelineSummary } from "@/components/dashboard/PipelineSummary";
@@ -286,8 +287,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <TooltipProvider>
-      <div className="space-y-5">
+    <RequireInternalAuth>
+      <TooltipProvider>
+        <div className="space-y-5">
         {/* Success toast for kanban moves */}
         {lastMoved && (
           <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400">
@@ -501,7 +503,8 @@ export default function DashboardPage() {
             )}
           </p>
         )}
-      </div>
-    </TooltipProvider>
+        </div>
+      </TooltipProvider>
+    </RequireInternalAuth>
   );
 }

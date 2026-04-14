@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { Button } from "@/components/ui/button";
 import { FormField, FormSection } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
@@ -209,7 +210,8 @@ export default function NewEnquiryPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-0">
+    <RequireInternalAuth>
+      <div className="mx-auto max-w-2xl space-y-0">
       {/* Back */}
       <div className="mb-6">
         <Button
@@ -543,6 +545,7 @@ export default function NewEnquiryPage() {
 
       {/* Bottom breathing room */}
       <div className="h-12" />
-    </div>
+      </div>
+    </RequireInternalAuth>
   );
 }
