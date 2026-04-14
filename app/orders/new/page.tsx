@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, Hash } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormField, FormSection } from "@/components/ui/form-field";
@@ -855,8 +856,10 @@ function NewOrderForm() {
 
 export default function NewOrderPage() {
   return (
-    <Suspense>
-      <NewOrderForm />
-    </Suspense>
+    <RequireInternalAuth>
+      <Suspense>
+        <NewOrderForm />
+      </Suspense>
+    </RequireInternalAuth>
   );
 }
