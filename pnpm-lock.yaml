@@ -17,6 +17,9 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.3)
+      '@intl-tel-input/react':
+        specifier: ^28.0.4
+        version: 28.0.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       better-auth:
         specifier: ^1.6.2
         version: 1.6.2(@opentelemetry/api@1.9.1)(next@16.1.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -29,6 +32,9 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      intl-tel-input:
+        specifier: ^28.0.4
+        version: 28.0.4
       lucide-react:
         specifier: ^0.574.0
         version: 0.574.0(react@19.2.3)
@@ -595,6 +601,12 @@ packages:
     peerDependenciesMeta:
       '@types/node':
         optional: true
+
+  '@intl-tel-input/react@28.0.4':
+    resolution: {integrity: sha512-3UgzffCn3isrsDe7TG2OHY4ESvaZh+bkZBOnEPeaze2Z5Z7qgCEM1+mfxaK3QmV8KQbREJBVWAh74kWFmbJuUw==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -2144,6 +2156,9 @@ packages:
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
 
+  intl-tel-input@28.0.4:
+    resolution: {integrity: sha512-7uRoetfwFHJ0+H3V+ptg/PaqEDeDy9AeFmUG2X+9Xs2Nev+A4w7SAdy492YpMffq9104XKS1P7G4ZXEa+bFOOQ==}
+
   ip-address@10.0.1:
     resolution: {integrity: sha512-NWv9YLW4PoW2B7xtzaS3NCot75m6nK7Icdv0o3lfMceJVRfSoQwqD4wEH5rLwoKJwUiZ/rfpiVBhnaF0FK4HoA==}
     engines: {node: '>= 12'}
@@ -3515,6 +3530,12 @@ snapshots:
   '@inquirer/type@3.0.10(@types/node@20.19.33)':
     optionalDependencies:
       '@types/node': 20.19.33
+
+  '@intl-tel-input/react@28.0.4(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      intl-tel-input: 28.0.4
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -5011,6 +5032,8 @@ snapshots:
       resolve-from: 4.0.0
 
   inherits@2.0.4: {}
+
+  intl-tel-input@28.0.4: {}
 
   ip-address@10.0.1: {}
 

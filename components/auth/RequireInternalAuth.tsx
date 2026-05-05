@@ -20,8 +20,8 @@ function UnauthorizedState() {
         Internal access required
       </h1>
       <p className="text-sm text-muted-foreground">
-        Your account is signed in, but it does not have access to the
-        operations dashboard.
+        Your account is signed in, but it does not have access to the operations
+        dashboard.
       </p>
       <Link
         href="/orders/evl-001-priya-ring"

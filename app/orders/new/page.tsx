@@ -8,6 +8,7 @@ import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormField, FormSection } from "@/components/ui/form-field";
+import { PhoneInput, validatePhone } from "@/components/ui/phone-input";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -195,8 +196,8 @@ function validate(form: OrderFormState): Errors {
   const errors: Errors = {};
   if (!form.customerName.trim())
     errors.customerName = "Customer name is required";
-  if (!form.customerPhone.trim())
-    errors.customerPhone = "Phone number is required";
+  const phoneError = validatePhone(form.customerPhone);
+  if (phoneError) errors.customerPhone = phoneError;
   if (!form.category) errors.category = "Select a jewellery category";
   if (!form.metalType) errors.metalType = "Select a metal type";
   if (!form.salespersonName) errors.salespersonName = "Assign a salesperson";
@@ -382,13 +383,9 @@ function NewOrderForm() {
             required
             error={errors.customerPhone}
           >
-            <Input
-              id="customerPhone"
-              type="tel"
-              placeholder="+91 98200 00000"
+            <PhoneInput
               value={form.customerPhone}
-              onChange={(e) => set("customerPhone", e.target.value)}
-              className="h-9"
+              onChange={(value) => set("customerPhone", value)}
             />
           </FormField>
           <FormField label="Email address" htmlFor="customerEmail" optional>
