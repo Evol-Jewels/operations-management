@@ -11,10 +11,11 @@ import { DownloadPDFButton } from "@/components/order/DownloadPDFButton";
 import { OrderDetails } from "@/components/order/OrderDetails";
 import { OrderPrintView } from "@/components/order/OrderPrintView";
 import { ProductionSpecCard } from "@/components/order/ProductionSpecCard";
+import { CloseEnquiryDialog } from "@/components/order/CloseEnquiryDialog";
 import { StageBar } from "@/components/order/StageBar";
 import { StageHint } from "@/components/order/StageHint";
 import { Button } from "@/components/ui/button";
-import { getOrderByToken } from "@/lib/mock-data";
+import { useOrdersStore } from "@/lib/stores/orders-store";
 import {
   cn,
   formatDate,
@@ -112,11 +113,20 @@ function ActorsBar({ order }: { order: Order }) {
 export default function OrderPage() {
   const params = useParams();
   const token = params.token as string;
+  const hasHydrated = useOrdersStore((state) => state.hasHydrated);
+  const order = useOrdersStore((state) =>
+    state.records.find((record) => record.shareableToken === token),
+  );
+  const updateRecord = useOrdersStore((state) => state.updateRecord);
 
-  const initialOrder = getOrderByToken(token);
-  if (!initialOrder) notFound();
-
-  const [order, setOrder] = useState<Order>(initialOrder);
+  if (!order && hasHydrated) notFound();
+  if (!order) {
+    return (
+      <div className="mx-auto max-w-3xl py-20 text-center text-sm text-muted-foreground">
+        Loading record...
+      </div>
+    );
+  }
 
   const urgency = getUrgencyLevel(order.deliveryDate);
   const daysLabel = formatDaysRemaining(order.deliveryDate);
@@ -132,6 +142,8 @@ export default function OrderPage() {
     note: string;
     newStage: Stage | null;
   }) {
+    if (!order) return;
+
     const timestamp = new Date().toISOString();
     const newEntries: ActivityEntry[] = [];
 
@@ -161,7 +173,7 @@ export default function OrderPage() {
 
     if (newEntries.length === 0) return;
 
-    setOrder((prev) => ({
+    updateRecord(order.id, (prev) => ({
       ...prev,
       currentStage: newStage ?? prev.currentStage,
       lastUpdatedAt: timestamp,
@@ -241,15 +253,20 @@ export default function OrderPage() {
           {/* Actions — pushed right, wraps on mobile if needed */}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {order.type === "enquiry" && (
-              <Button size="sm" asChild className="h-8 gap-1.5 text-xs">
-                <Link href={`/orders/new?from=${order.id}`}>
-                  <GitPullRequest className="h-3.5 w-3.5" />
-                  <span className="hidden xs:inline sm:inline">
-                    Convert to Order
-                  </span>
-                  <span className="xs:hidden sm:hidden">Convert</span>
-                </Link>
-              </Button>
+              <>
+                <Button size="sm" asChild className="h-8 gap-1.5 text-xs">
+                  <Link href={`/orders/new?from=${order.id}`}>
+                    <GitPullRequest className="h-3.5 w-3.5" />
+                    <span className="hidden xs:inline sm:inline">
+                      Convert to Order
+                    </span>
+                    <span className="xs:hidden sm:hidden">Convert</span>
+                  </Link>
+                </Button>
+                {order.status !== "closed" && (
+                  <CloseEnquiryDialog orderId={order.id} />
+                )}
+              </>
             )}
             <CopyLinkButton />
             <DownloadPDFButton />

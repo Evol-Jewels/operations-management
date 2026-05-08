@@ -12,20 +12,14 @@ import { authClient } from "@/lib/auth-client";
 type Step = "email" | "otp";
 
 function getRedirectTarget(raw: string | null) {
-  if (!raw) return "/";
+  const value = raw?.trim();
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/";
+  return value;
+}
 
-  const value = raw.trim();
-  if (!value.startsWith("/")) return "/";
-
-  const trustedOrigin = "https://internal.local";
-
-  try {
-    const parsed = new URL(value, trustedOrigin);
-    if (parsed.origin !== trustedOrigin) return "/";
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-  } catch {
-    return "/";
-  }
+function toAbsoluteCallbackURL(path: string) {
+  if (typeof window === "undefined") return path;
+  return new URL(path, window.location.origin).toString();
 }
 
 function LoginForm() {
@@ -100,7 +94,7 @@ function LoginForm() {
 
     const result = await authClient.signIn.social({
       provider: "google",
-      callbackURL: redirectTo,
+      callbackURL: toAbsoluteCallbackURL(redirectTo),
     });
 
     if (result.error) {

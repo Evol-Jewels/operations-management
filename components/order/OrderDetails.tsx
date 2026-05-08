@@ -1,9 +1,11 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getEnquiryMedia } from "@/lib/storage/enquiry-media";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import type { Order } from "@/types";
+import type { EnquirySelectedProduct, MetalPurity, Order } from "@/types";
+import { EstimationForm } from "@/components/order/EstimationForm";
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
 
@@ -39,6 +41,229 @@ function Section({
       </h3>
       <dl className="space-y-2.5">{children}</dl>
     </div>
+  );
+}
+
+function formatMetalTypeLabel(metalType: string): string {
+  return metalType === "Gold" ? "Yellow Gold" : metalType;
+}
+
+function ProductThumbnail({ product }: { product: EnquirySelectedProduct }) {
+  if (product.imageUrl) {
+    return (
+      <img
+        src={product.imageUrl}
+        alt={product.name}
+        className="h-12 w-12 flex-shrink-0 rounded-md border border-border/60 bg-muted object-cover"
+        loading="lazy"
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted text-xs font-semibold text-muted-foreground">
+      {product.productCode.slice(0, 4)}
+    </div>
+  );
+}
+
+function EnquiryReferences({ order }: { order: Order }) {
+  const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const objectUrls: string[] = [];
+
+    async function loadMedia() {
+      const refs =
+        order.customProducts?.flatMap((product) =>
+          product.references.filter((reference) => reference.mediaId),
+        ) ?? [];
+
+      if (refs.length === 0) {
+        setMediaUrls({});
+        return;
+      }
+
+      const nextUrls: Record<string, string> = {};
+
+      for (const reference of refs) {
+        if (!reference.mediaId) continue;
+        const media = await getEnquiryMedia(reference.mediaId);
+        if (!media) continue;
+
+        const objectUrl = URL.createObjectURL(media.blob);
+        objectUrls.push(objectUrl);
+        nextUrls[reference.id] = objectUrl;
+      }
+
+      if (!cancelled) {
+        setMediaUrls(nextUrls);
+      }
+    }
+
+    loadMedia();
+
+    return () => {
+      cancelled = true;
+      for (const objectUrl of objectUrls) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [order.customProducts]);
+
+  if (
+    (!order.selectedProducts || order.selectedProducts.length === 0) &&
+    (!order.customProducts || order.customProducts.length === 0)
+  ) {
+    return null;
+  }
+
+  return (
+    <div className="sm:col-span-2">
+      <Section title="Enquiry References">
+        {order.selectedProducts && order.selectedProducts.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Existing products</p>
+                {order.selectedProducts.map((product) => {
+                  const estimation = order.estimations?.find(e => e.productId === product.id);
+                  return (
+                    <div
+                      key={product.id}
+                      className="space-y-2 rounded-lg border border-border bg-muted/20 p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <ProductThumbnail product={product} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground">
+                            {product.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {product.productCode} · {product.category} · {formatMetalTypeLabel(product.metalType)}{" "}
+                            {product.metalPurity}
+                          </p>
+                        </div>
+                        {order.status !== "closed" && (
+                          <EstimationForm
+                            orderId={order.id}
+                            productId={product.id}
+                            initialPurity={product.metalPurity}
+                          />
+                        )}
+                      </div>
+                      {estimation && (
+                        <div className="text-xs text-muted-foreground pl-14">
+                          Estimation: ₹{estimation.finalAmount.toLocaleString()} · {estimation.purity}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+          </div>
+        )}
+
+                {order.customProducts && order.customProducts.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">Custom products</p>
+                    {order.customProducts.map((product) => {
+                      const estimation = order.estimations?.find(e => e.productId === product.id);
+                      return (
+                        <div
+                          key={product.id}
+                          className="space-y-3 rounded-lg border border-border bg-muted/20 p-3"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-foreground">
+                                {[product.category || "Custom", product.metalType, product.metalPurity]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {[
+                                  product.polish || null,
+                                  product.stoneDescription || null,
+                                  product.stoneCut || null,
+                                  product.stoneQuality || null,
+                                  product.stoneCaratEstimate
+                                    ? `~${product.stoneCaratEstimate} ct`
+                                    : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ") || "No extra stone specs"}
+                              </p>
+                            </div>
+                            {order.status !== "closed" && (
+                              <EstimationForm
+                                orderId={order.id}
+                                productId={product.id}
+                                initialPurity={product.metalPurity as MetalPurity}
+                              />
+                            )}
+                          </div>
+                          {estimation && (
+                            <div className="text-xs text-muted-foreground">
+                              Estimation: ₹{estimation.finalAmount.toLocaleString()} · {estimation.purity}
+                            </div>
+                          )}
+                          {product.references.length > 0 && (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {product.references.map((reference) => {
+                                const mediaUrl = mediaUrls[reference.id];
+                                return (
+                                  <div
+                                    key={reference.id}
+                                    className="overflow-hidden rounded-lg border border-border bg-card"
+                                  >
+                                    {reference.type === "image" && mediaUrl && (
+                                      <img
+                                        src={mediaUrl}
+                                        alt={reference.name}
+                                        className="h-32 w-full object-cover"
+                                      />
+                                    )}
+                                    {reference.type === "video" && mediaUrl && (
+                                      <video
+                                        src={mediaUrl}
+                                        controls
+                                        className="h-32 w-full bg-black object-cover"
+                                      />
+                                    )}
+                                    <div className="space-y-1 p-3">
+                                      <p className="text-sm font-medium text-foreground">
+                                        {reference.type === "link"
+                                          ? "Reference link"
+                                          : reference.name}
+                                      </p>
+                                      {reference.type === "link" && reference.url ? (
+                                        <a
+                                          href={reference.url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="block truncate text-xs text-primary hover:underline"
+                                        >
+                                          {reference.url}
+                                        </a>
+                                      ) : (
+                                        <p className="text-xs text-muted-foreground">
+                                          {[reference.mimeType, reference.size ? `${Math.round(reference.size / 1024)} KB` : null]
+                                            .filter(Boolean)
+                                            .join(" · ")}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  )}
+       </Section>
+     </div>
   );
 }
 
@@ -141,6 +366,10 @@ export function OrderDetails({
               <DetailRow label="Phone" value={order.customerPhone} />
               <DetailRow label="Email" value={order.customerEmail} />
               <DetailRow label="Address" value={order.customerAddress} />
+              <DetailRow label="Date of birth" value={order.customerDob} />
+              <DetailRow label="Location" value={order.customerLocation} />
+              <DetailRow label="Category" value={order.customerCategory} />
+              <DetailRow label="Customer notes" value={order.customerNotes} />
             </Section>
 
             <Section title="Order">
@@ -225,6 +454,8 @@ export function OrderDetails({
                 </Section>
               </div>
             )}
+
+            <EnquiryReferences order={order} />
           </div>
         </div>
       )}

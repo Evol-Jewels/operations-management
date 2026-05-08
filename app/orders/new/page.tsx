@@ -8,6 +8,7 @@ import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormField, FormSection } from "@/components/ui/form-field";
+import { PhoneInput, validatePhone } from "@/components/ui/phone-input";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -17,12 +18,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getOrderById } from "@/lib/mock-data";
+import { useOrdersStore } from "@/lib/stores/orders-store";
 import type {
   CertificationType,
   JewelleryCategory,
   MetalPurity,
   MetalType,
+  Order,
 } from "@/types";
 
 // ─── Static options ───────────────────────────────────────────────────────────
@@ -46,11 +48,10 @@ const METAL_TYPES: MetalType[] = [
   "Platinum",
 ];
 const METAL_PURITIES: MetalPurity[] = [
+  "14K",
   "18K",
   "22K",
   "24K",
-  "925 Sterling",
-  "950 Platinum",
   "Other",
 ];
 const CERTIFICATIONS: CertificationType[] = [
@@ -121,6 +122,18 @@ function generateOrderNumber() {
   const year = new Date().getFullYear();
   const seq = String(Math.floor(Math.random() * 900) + 100);
   return `EVL-${year}-${seq}`;
+}
+
+function generateOrderId() {
+  return `ord-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 // ─── Form state ───────────────────────────────────────────────────────────────
@@ -195,8 +208,8 @@ function validate(form: OrderFormState): Errors {
   const errors: Errors = {};
   if (!form.customerName.trim())
     errors.customerName = "Customer name is required";
-  if (!form.customerPhone.trim())
-    errors.customerPhone = "Phone number is required";
+  const phoneError = validatePhone(form.customerPhone);
+  if (phoneError) errors.customerPhone = phoneError;
   if (!form.category) errors.category = "Select a jewellery category";
   if (!form.metalType) errors.metalType = "Select a metal type";
   if (!form.salespersonName) errors.salespersonName = "Assign a salesperson";
@@ -228,39 +241,45 @@ function NewOrderForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromEnquiryId = searchParams.get("from");
+  const hasHydrated = useOrdersStore((state) => state.hasHydrated);
+  const addOrder = useOrdersStore((state) => state.addOrder);
+  const enquiry = useOrdersStore((state) =>
+    fromEnquiryId
+      ? state.records.find((record) => record.id === fromEnquiryId)
+      : undefined,
+  );
 
   const [orderNumber] = useState(generateOrderNumber);
-  const [form, setForm] = useState<OrderFormState>(() => {
-    // Pre-fill from enquiry if ?from= param present
-    if (fromEnquiryId) {
-      const enquiry = getOrderById(fromEnquiryId);
-      if (enquiry) {
-        return {
-          ...EMPTY,
-          customerName: enquiry.customerName,
-          customerPhone: enquiry.customerPhone ?? "",
-          customerEmail: enquiry.customerEmail ?? "",
-          customerAddress: enquiry.customerAddress ?? "",
-          salespersonName: enquiry.salespersonName,
-          category: enquiry.category,
-          metalType: enquiry.metalType,
-          metalPurity: enquiry.metalPurity,
-          polish: enquiry.polish ?? "",
-          stoneDescription: enquiry.stoneDescription ?? "",
-          stoneCut: enquiry.stoneCut ?? "",
-          stoneQuality: enquiry.stoneQuality ?? "",
-          stoneCaratPerStone: enquiry.stoneCaratEstimate
-            ? String(enquiry.stoneCaratEstimate)
-            : "",
-        };
-      }
-    }
-    return EMPTY;
-  });
+  const [form, setForm] = useState<OrderFormState>(EMPTY);
+  const [prefillApplied, setPrefillApplied] = useState(false);
 
   const [errors, setErrors] = useState<Errors>({});
   const [submitted, setSubmitted] = useState(false);
   const [newToken, setNewToken] = useState("");
+
+  useEffect(() => {
+    if (!enquiry || prefillApplied) return;
+
+    setForm({
+      ...EMPTY,
+      customerName: enquiry.customerName,
+      customerPhone: enquiry.customerPhone ?? "",
+      customerEmail: enquiry.customerEmail ?? "",
+      customerAddress: enquiry.customerAddress ?? "",
+      salespersonName: enquiry.salespersonName,
+      category: enquiry.category,
+      metalType: enquiry.metalType,
+      metalPurity: enquiry.metalPurity,
+      polish: enquiry.polish ?? "",
+      stoneDescription: enquiry.stoneDescription ?? "",
+      stoneCut: enquiry.stoneCut ?? "",
+      stoneQuality: enquiry.stoneQuality ?? "",
+      stoneCaratPerStone: enquiry.stoneCaratEstimate
+        ? String(enquiry.stoneCaratEstimate)
+        : "",
+    });
+    setPrefillApplied(true);
+  }, [enquiry, prefillApplied]);
 
   function set<K extends keyof OrderFormState>(
     field: K,
@@ -268,6 +287,14 @@ function NewOrderForm() {
   ) {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+  }
+
+  if (fromEnquiryId && !enquiry && !hasHydrated) {
+    return (
+      <div className="mx-auto max-w-2xl py-20 text-center text-sm text-muted-foreground">
+        Loading enquiry...
+      </div>
+    );
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -280,8 +307,69 @@ function NewOrderForm() {
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    // Generate a mock shareable token
-    const token = `evl-new-${form.customerName.toLowerCase().replace(/\s+/g, "-")}-${form.category.toLowerCase()}`;
+    const createdAt = new Date().toISOString();
+    const token = `evl-${slugify(form.customerName)}-${slugify(form.category)}-${Date.now()}`;
+    const orderRecord: Order = {
+      id: generateOrderId(),
+      type: "order",
+      orderNumber,
+      shareableToken: token,
+      customerName: form.customerName.trim(),
+      customerPhone: form.customerPhone.trim() || undefined,
+      customerEmail: form.customerEmail.trim() || undefined,
+      customerAddress: form.customerAddress.trim() || undefined,
+      customerCategory: enquiry?.customerCategory,
+      customerNotes: enquiry?.customerNotes,
+      customerDob: enquiry?.customerDob,
+      customerLocation: enquiry?.customerLocation,
+      salespersonName: form.salespersonName,
+      vendorName: form.vendorName.trim() || undefined,
+      category: form.category as JewelleryCategory,
+      metalType: form.metalType as MetalType,
+      metalPurity: (form.metalPurity || "Other") as MetalPurity,
+      metalWeight: form.metalWeight ? Number(form.metalWeight) : undefined,
+      polish: form.polish || undefined,
+      stoneDescription: form.stoneDescription || undefined,
+      stoneCut: form.stoneCut || undefined,
+      stoneQuality: form.stoneQuality || undefined,
+      stoneCaratEstimate: form.stoneCaratPerStone
+        ? Number(form.stoneCaratPerStone)
+        : undefined,
+      ringSize: form.ringSize || undefined,
+      chainLength: form.chainLength || undefined,
+      bangleSize: form.bangleSize || undefined,
+      certification: form.certification as CertificationType,
+      cadDesignRequired: form.cadDesignRequired,
+      advancePaid: form.advancePaid ? Number(form.advancePaid) : undefined,
+      totalEstimate: form.totalEstimate ? Number(form.totalEstimate) : undefined,
+      deliveryDate: form.deliveryDate,
+      currentStage: form.cadDesignRequired ? "CAD Design" : "Order Confirmed",
+      createdAt,
+      lastUpdatedAt: createdAt,
+      activityFeed: [
+        {
+          id: `act-${Date.now()}-create-order`,
+          orderId: "",
+          postedBy: form.salespersonName,
+          actorRole: "sales",
+          timestamp: createdAt,
+          type: "order_created",
+          note: fromEnquiryId
+            ? `Order created from enquiry ${enquiry?.customerName ?? ""}.`
+            : "Order created.",
+        },
+      ],
+      specialInstructions: form.specialInstructions.trim() || undefined,
+      sourceEnquiryId: fromEnquiryId || undefined,
+      selectedProducts: enquiry?.selectedProducts,
+      customProducts: enquiry?.customProducts,
+      budgetRange: enquiry?.budgetRange,
+      occasion: enquiry?.occasion,
+      timelineNotes: enquiry?.timelineNotes,
+    };
+    orderRecord.activityFeed[0].orderId = orderRecord.id;
+
+    addOrder(orderRecord);
     setNewToken(token);
     setSubmitted(true);
   }
@@ -382,13 +470,9 @@ function NewOrderForm() {
             required
             error={errors.customerPhone}
           >
-            <Input
-              id="customerPhone"
-              type="tel"
-              placeholder="+91 98200 00000"
+            <PhoneInput
               value={form.customerPhone}
-              onChange={(e) => set("customerPhone", e.target.value)}
-              className="h-9"
+              onChange={(value) => set("customerPhone", value)}
             />
           </FormField>
           <FormField label="Email address" htmlFor="customerEmail" optional>
