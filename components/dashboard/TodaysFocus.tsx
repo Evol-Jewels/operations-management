@@ -1,26 +1,23 @@
 "use client";
 
-import { AlertTriangle, Clock, Zap } from "lucide-react";
+import { AlertTriangle, ArrowRight, Clock, Zap } from "lucide-react";
 import Link from "next/link";
 import {
   cn,
   computeRiskSignal,
+  formatRelativeTime,
   getDaysInCurrentStage,
   getDaysSinceLastActivity,
   getUrgencyLevel,
 } from "@/lib/utils";
 import type { Order, RiskSignal } from "@/types";
 
-// ─── Single order chip ────────────────────────────────────────────────────────
-
 function RiskChip({ order, signal }: { order: Order; signal: RiskSignal }) {
   const isStale = signal === "stale";
   const urgency = getUrgencyLevel(order.deliveryDate);
-
   const daysSince = isStale
     ? getDaysSinceLastActivity(order)
     : getDaysInCurrentStage(order);
-
   const signalLabel = isStale
     ? `${daysSince}d silent`
     : `${daysSince}d in stage`;
@@ -29,15 +26,13 @@ function RiskChip({ order, signal }: { order: Order; signal: RiskSignal }) {
     <Link
       href={`/orders/${order.shareableToken}`}
       className={cn(
-        "group flex flex-shrink-0 items-center gap-2 rounded-lg border bg-card px-3 py-2 transition-all",
+        "group flex min-w-[240px] flex-shrink-0 items-center gap-2 rounded-xl border bg-background/70 px-3 py-2.5 transition-all",
         "hover:-translate-y-px hover:shadow-sm",
-        // left accent via border-left override
         isStale
           ? "border-l-[3px] border-l-orange-400 border-t-border border-r-border border-b-border"
           : "border-l-[3px] border-l-amber-400 border-t-border border-r-border border-b-border",
       )}
     >
-      {/* Signal icon */}
       <span
         className={cn(
           "flex-shrink-0",
@@ -53,22 +48,19 @@ function RiskChip({ order, signal }: { order: Order; signal: RiskSignal }) {
         )}
       </span>
 
-      {/* Name + order number */}
       <div className="min-w-0">
-        <p className="truncate text-xs font-semibold text-foreground leading-none">
+        <p className="truncate text-xs font-semibold leading-none text-foreground">
           {order.customerName}
         </p>
-        <p className="mt-0.5 truncate text-[10px] text-muted-foreground leading-none">
+        <p className="mt-0.5 truncate text-[10px] leading-none text-muted-foreground">
           {order.orderNumber ?? "Enquiry"} · {order.category}
         </p>
       </div>
 
-      {/* Divider */}
       <span className="h-6 w-px flex-shrink-0 bg-border" />
 
-      {/* Stage + signal */}
       <div className="flex-shrink-0 text-right">
-        <p className="text-[10px] font-medium text-foreground leading-none">
+        <p className="text-[10px] font-medium leading-none text-foreground">
           {order.currentStage}
         </p>
         <p
@@ -77,7 +69,6 @@ function RiskChip({ order, signal }: { order: Order; signal: RiskSignal }) {
             isStale
               ? "text-orange-600 dark:text-orange-400"
               : "text-amber-600 dark:text-amber-400",
-            // escalate colour if also delivery-urgent
             urgency === "overdue" && "text-red-600 dark:text-red-400",
           )}
         >
@@ -88,37 +79,84 @@ function RiskChip({ order, signal }: { order: Order; signal: RiskSignal }) {
   );
 }
 
-// ─── Overflow chip ─────────────────────────────────────────────────────────────
-
-function OverflowChip({
-  count,
-  onActivate,
+function AttentionRow({
+  order,
+  signal,
 }: {
-  count: number;
-  onActivate: () => void;
+  order: Order;
+  signal: Exclude<RiskSignal, null>;
 }) {
+  const urgency = getUrgencyLevel(order.deliveryDate);
+  const isStale = signal === "stale";
+  const timingLabel = isStale
+    ? `${getDaysSinceLastActivity(order)}d silent`
+    : `${getDaysInCurrentStage(order)}d in stage`;
+
   return (
-    <button
-      type="button"
-      onClick={onActivate}
-      className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-dashed border-border bg-transparent px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+    <Link
+      href={`/orders/${order.shareableToken}`}
+      className="group flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background/70 px-4 py-3 transition-colors hover:border-foreground/15 hover:bg-muted/30"
     >
-      +{count} more
-    </button>
+      <div className="min-w-0 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+              isStale
+                ? "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300"
+                : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
+            )}
+          >
+            {isStale ? (
+              <Clock className="h-3 w-3" />
+            ) : (
+              <AlertTriangle className="h-3 w-3" />
+            )}
+            {isStale ? "Stale" : "Stuck"}
+          </span>
+          <span className="text-[11px] font-medium text-muted-foreground">
+            {order.currentStage}
+          </span>
+        </div>
+        <div>
+          <p className="truncate text-sm font-semibold text-foreground">
+            {order.customerName}
+          </p>
+          <p className="truncate text-xs text-muted-foreground">
+            {order.orderNumber ?? "Enquiry"} · {order.category} · {timingLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-shrink-0 items-center gap-3">
+        <div className="text-right">
+          <p
+            className={cn(
+              "text-xs font-medium",
+              urgency === "overdue" && "text-red-600 dark:text-red-400",
+              urgency === "due-soon" && "text-amber-600 dark:text-amber-400",
+              urgency === "on-track" &&
+                "text-emerald-600 dark:text-emerald-400",
+              urgency === "none" && "text-muted-foreground",
+            )}
+          >
+            {order.deliveryDate ? order.deliveryDate : "No date"}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {formatRelativeTime(order.lastUpdatedAt)}
+          </p>
+        </div>
+        <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-colors group-hover:text-foreground" />
+      </div>
+    </Link>
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
-const MAX_VISIBLE = 4;
-
 interface TodaysFocusProps {
   orders: Order[];
-  /** Called when the user clicks "+N more" — should activate the risk filter */
-  onShowAll?: () => void;
 }
 
-export function TodaysFocus({ orders, onShowAll }: TodaysFocusProps) {
+export function TodaysFocus({ orders }: TodaysFocusProps) {
   const atRiskOrders = orders
     .filter((o) => o.currentStage !== "Customer Pickup")
     .map((o) => ({ order: o, signal: computeRiskSignal(o) }))
@@ -142,22 +180,31 @@ export function TodaysFocus({ orders, onShowAll }: TodaysFocusProps) {
 
   if (atRiskOrders.length === 0) return null;
 
-  const visible = atRiskOrders.slice(0, MAX_VISIBLE);
-  const overflow = atRiskOrders.length - MAX_VISIBLE;
-
   const staleCount = atRiskOrders.filter((r) => r.signal === "stale").length;
   const stuckCount = atRiskOrders.filter((r) => r.signal === "stuck").length;
 
   return (
-    <div className="space-y-2.5">
-      {/* Section label row */}
-      <div className="flex items-center gap-2">
-        <Zap className="h-3 w-3 text-orange-500 dark:text-orange-400" />
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-          Needs attention
-        </span>
-        {/* Summary counts */}
-        <div className="flex items-center gap-1.5 ml-0.5">
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-orange-500 dark:text-orange-400" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/80">
+              Action Items
+            </span>
+          </div>
+          <div>
+            <h2 className="text-base font-semibold tracking-tight text-foreground">
+              Attention needed across current work
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              All stale and stuck records stay visible here until they are
+              updated.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
           {staleCount > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700 dark:bg-orange-950/50 dark:text-orange-400">
               <Clock className="h-2.5 w-2.5" />
@@ -173,15 +220,17 @@ export function TodaysFocus({ orders, onShowAll }: TodaysFocusProps) {
         </div>
       </div>
 
-      {/* Horizontally scrollable chip strip */}
-      <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
-        {visible.map(({ order, signal }) => (
+      <div className="mt-4 hidden gap-2 overflow-x-auto pb-1 xl:flex scrollbar-none">
+        {atRiskOrders.map(({ order, signal }) => (
           <RiskChip key={order.id} order={order} signal={signal} />
         ))}
-        {overflow > 0 && onShowAll && (
-          <OverflowChip count={overflow} onActivate={onShowAll} />
-        )}
       </div>
-    </div>
+
+      <div className="mt-4 space-y-3 xl:hidden">
+        {atRiskOrders.map(({ order, signal }) => (
+          <AttentionRow key={order.id} order={order} signal={signal} />
+        ))}
+      </div>
+    </section>
   );
 }

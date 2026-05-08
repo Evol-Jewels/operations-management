@@ -123,14 +123,22 @@ export type MetalType =
   | "White Gold";
 
 export type MetalPurity =
+  | "14K"
   | "18K"
   | "22K"
   | "24K"
-  | "925 Sterling"
-  | "950 Platinum"
   | "Other";
 
 export type CertificationType = "Jewellery" | "GIA" | "IGI" | "SGL" | "None";
+
+export type CloseReason = 
+  | "Customer not interested"
+  | "Out of budget"
+  | "Product not available"
+  | "Duplicate enquiry"
+  | "Customer Ordered another product"
+  | "Customer didn't respond for a month"
+  | "Other";
 
 // ─── Activity Feed Entry ──────────────────────────────────────────────────────
 
@@ -138,7 +146,9 @@ export type ActivityEntryType =
   | "order_created" // auto-generated system event at creation
   | "stage_change" // moved to a new stage
   | "note" // human message / update
-  | "file_upload"; // file or photo attached
+  | "file_upload" // file or photo attached
+  | "enquiry_closed"
+  | "estimation_added";
 
 export interface ActivityEntry {
   id: string;
@@ -157,6 +167,64 @@ export interface ActivityEntry {
   };
 }
 
+export type CustomerCategory = "VIP" | "Middle" | "Lower";
+
+export type EnquiryReferenceType = "link" | "image" | "video";
+
+export interface EnquiryReference {
+  id: string;
+  type: EnquiryReferenceType;
+  name: string;
+  url?: string;
+  mediaId?: string;
+  mimeType?: string;
+  size?: number;
+}
+
+export interface EnquirySelectedProduct {
+  id: string;
+  productCode: string;
+  name: string;
+  category: JewelleryCategory;
+  metalType: MetalType;
+  metalPurity: MetalPurity;
+  description?: string;
+  imageUrl?: string;
+  basePrice?: number;
+}
+
+export interface EnquiryCustomProduct {
+  id: string;
+  category: string;
+  metalType: string;
+  metalPurity: string;
+  polish: string;
+  stoneDescription: string;
+  stoneCut: string;
+  stoneQuality: string;
+  stoneCaratEstimate?: number;
+  references: EnquiryReference[];
+}
+
+// ─── Estimation Types ───────────────────────────────────────────────────────
+
+export interface EstimationStoneDetail {
+  id: string;
+  type: string;
+  netWeight: number;
+  pieces: number;
+}
+
+export interface ProductEstimation {
+  id: string;
+  productId: string;
+  metalWeight: number;
+  purity: MetalPurity;
+  stoneDetails: EstimationStoneDetail[];
+  finalAmount: number;
+  createdAt: string;
+}
+
 // ─── Order / Enquiry ──────────────────────────────────────────────────────────
 
 export interface Order {
@@ -170,6 +238,10 @@ export interface Order {
   customerPhone?: string;
   customerEmail?: string;
   customerAddress?: string;
+  customerDob?: string;
+  customerLocation?: string;
+  customerCategory?: CustomerCategory;
+  customerNotes?: string;
 
   // Staff
   salespersonName: string;
@@ -213,4 +285,16 @@ export interface Order {
   budgetRange?: string;
   occasion?: string;
   timelineNotes?: string;
+  sourceEnquiryId?: string;
+   selectedProducts?: EnquirySelectedProduct[];
+   customProducts?: EnquiryCustomProduct[];
+
+  // Close enquiry
+  status?: "open" | "closed";
+  closedAt?: string;
+  closeReason?: CloseReason;
+  closeNotes?: string;
+
+  // Estimations
+  estimations?: ProductEstimation[];
 }

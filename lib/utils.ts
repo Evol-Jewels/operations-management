@@ -190,3 +190,10 @@ export function computeRiskSignal(order: Order): RiskSignal {
 
   return null;
 }
+
+// ─── Estimation Helpers ───────────────────────────────────────────────────
+
+export function calculateEstimationAmount(): number {
+  // TODO: Replace with actual calculation logic
+  return Math.floor(Math.random() * 100000) + 10000;
+}

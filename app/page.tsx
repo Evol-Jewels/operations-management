@@ -7,74 +7,58 @@ import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { KanbanBoard } from "@/components/dashboard/KanbanBoard";
 import { OrderList } from "@/components/dashboard/OrderList";
 import { PipelineSummary } from "@/components/dashboard/PipelineSummary";
+import { RecentActivities } from "@/components/dashboard/RecentActivities";
 import {
   SearchFilter,
   type TypeFilter,
 } from "@/components/dashboard/SearchFilter";
 import { TodaysFocus } from "@/components/dashboard/TodaysFocus";
-import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { mockOrders } from "@/lib/mock-data";
-import {
-  cn,
-  computeRiskSignal,
-  formatDate,
-  getUrgencyLevel,
-} from "@/lib/utils";
-import {
-  type ActivityEntry,
-  type Order,
-  STAGES,
-  type Stage,
-  type UrgencyLevel,
-} from "@/types";
+import { useOrdersStore } from "@/lib/stores/orders-store";
+import { cn, computeRiskSignal, getUrgencyLevel } from "@/lib/utils";
+import { STAGES, type Stage, type UrgencyLevel } from "@/types";
 
 export default function DashboardPage() {
   const router = useRouter();
-
-  // View mode state
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [lastMoved, setLastMoved] = useState<{
     name: string;
     stage: string;
   } | null>(null);
-  const [orders, setOrders] = useState<Order[]>(() =>
-    mockOrders.map((order) => ({
-      ...order,
-      activityFeed: [...order.activityFeed],
-    })),
-  );
 
-  // Search and filters
+  const orders = useOrdersStore((state) => state.records);
+  const moveRecordStage = useOrdersStore((state) => state.moveRecordStage);
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [stageFilter, setStageFilter] = useState<Stage | null>(null);
   const [urgencyFilter, setUrgencyFilter] = useState<UrgencyLevel | null>(null);
   const [staffSearch, setStaffSearch] = useState("");
+  const [riskFilter, setRiskFilter] = useState(false);
+
   const kanbanAllowed = typeFilter !== "enquiry";
+
   useEffect(() => {
     if (!kanbanAllowed && viewMode === "kanban") {
       setViewMode("list");
     }
   }, [kanbanAllowed, viewMode]);
 
-  // Derive counts for type toggle (unfiltered)
   const typeCounts = useMemo(() => {
     return orders.reduce(
-      (acc, o) => {
-        acc[o.type] = (acc[o.type] ?? 0) + 1;
+      (acc, order) => {
+        acc[order.type] = (acc[order.type] ?? 0) + 1;
         return acc;
       },
       {} as Record<TypeFilter, number>,
     );
   }, [orders]);
 
-  // Derive pipeline counts (filtered by type if typeFilter is active)
   const stageCounts = useMemo(() => {
     const counts = Object.fromEntries(STAGES.map((s) => [s, 0])) as Record<
       Stage,
@@ -87,7 +71,6 @@ export default function DashboardPage() {
     return counts;
   }, [orders, typeFilter]);
 
-  // All unique people (sales + vendor) for the combobox
   const allPeople = useMemo(() => {
     const sales = [...new Set(orders.map((o) => o.salespersonName))];
     const vendors = [
@@ -98,11 +81,10 @@ export default function DashboardPage() {
     return { sales, vendors };
   }, [orders]);
 
-  // Urgency breakdown (unfiltered)
   const urgencyCounts = useMemo(() => {
     return orders.reduce(
-      (acc, o) => {
-        const level = getUrgencyLevel(o.deliveryDate);
+      (acc, order) => {
+        const level = getUrgencyLevel(order.deliveryDate);
         acc[level] = (acc[level] ?? 0) + 1;
         return acc;
       },
@@ -110,48 +92,40 @@ export default function DashboardPage() {
     );
   }, [orders]);
 
-  // Risk breakdown — stale + stuck (unfiltered, excludes completed)
   const riskCount = useMemo(() => {
     return orders.filter(
-      (o) =>
-        o.currentStage !== "Customer Pickup" && computeRiskSignal(o) !== null,
+      (order) =>
+        order.currentStage !== "Customer Pickup" &&
+        computeRiskSignal(order) !== null,
     ).length;
   }, [orders]);
 
-  // Risk filter state
-  const [riskFilter, setRiskFilter] = useState(false);
-
-  // Filtered orders
   const filteredOrders = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const query = search.trim().toLowerCase();
     return orders.filter((order) => {
-      // Type filter
+      if (order.type === "enquiry" && order.status === "closed") return false;
       if (typeFilter !== "all" && order.type !== typeFilter) return false;
-
-      // Stage filter
       if (stageFilter && order.currentStage !== stageFilter) return false;
 
-      // Urgency filter
       if (urgencyFilter) {
         const level = getUrgencyLevel(order.deliveryDate);
         if (level !== urgencyFilter) return false;
       }
 
-      // Risk filter — only at-risk orders (stale or stuck)
       if (riskFilter && computeRiskSignal(order) === null) return false;
 
-      // Staff search (matches salesperson OR vendor)
       if (staffSearch.trim()) {
-        const staffQ = staffSearch.trim().toLowerCase();
+        const staffQuery = staffSearch.trim().toLowerCase();
         const matchesSales = order.salespersonName
           .toLowerCase()
-          .includes(staffQ);
-        const matchesVendor = order.vendorName?.toLowerCase().includes(staffQ);
+          .includes(staffQuery);
+        const matchesVendor = order.vendorName
+          ?.toLowerCase()
+          .includes(staffQuery);
         if (!matchesSales && !matchesVendor) return false;
       }
 
-      // General search
-      if (q) {
+      if (query) {
         const haystack = [
           order.customerName,
           order.orderNumber ?? "",
@@ -162,69 +136,25 @@ export default function DashboardPage() {
         ]
           .join(" ")
           .toLowerCase();
-        if (!haystack.includes(q)) return false;
+
+        if (!haystack.includes(query)) return false;
       }
 
       return true;
     });
   }, [
-    search,
-    typeFilter,
-    stageFilter,
-    urgencyFilter,
-    riskFilter,
-    staffSearch,
     orders,
+    riskFilter,
+    search,
+    stageFilter,
+    staffSearch,
+    typeFilter,
+    urgencyFilter,
   ]);
 
-  // Handle order move from kanban
-  const handleOrderMove = (orderId: string, newStage: Stage) => {
-    let movedOrder: Order | null = null;
-    const timestamp = new Date().toISOString();
-
-    setOrders((prev) => {
-      const index = prev.findIndex((o) => o.id === orderId);
-      if (index === -1) return prev;
-
-      const order = prev[index];
-      if (order.currentStage === newStage) return prev;
-
-      movedOrder = order;
-
-      const updatedOrder: Order = {
-        ...order,
-        currentStage: newStage,
-        lastUpdatedAt: timestamp,
-        activityFeed: [
-          ...order.activityFeed,
-          {
-            id: `act-${Date.now()}-kanban`,
-            orderId: order.id,
-            postedBy: "Dashboard User",
-            actorRole: "sales",
-            timestamp,
-            type: "stage_change",
-            previousStage: order.currentStage,
-            newStage,
-            note: `Moved from ${order.currentStage} to ${newStage} via kanban board`,
-          },
-        ],
-      };
-
-      const next = [...prev];
-      next[index] = updatedOrder;
-      return next;
-    });
-
-    if (!movedOrder) return;
-
-    setLastMoved({ name: (movedOrder as Order).customerName, stage: newStage });
-    setTimeout(() => setLastMoved(null), 3000);
-  };
-
-  // Active filters for chips
   const activeFilters = useMemo(() => {
     const filters: { key: string; label: string; onRemove: () => void }[] = [];
+
     if (typeFilter !== "all") {
       filters.push({
         key: "type",
@@ -232,6 +162,7 @@ export default function DashboardPage() {
         onRemove: () => setTypeFilter("all"),
       });
     }
+
     if (stageFilter) {
       filters.push({
         key: "stage",
@@ -239,6 +170,7 @@ export default function DashboardPage() {
         onRemove: () => setStageFilter(null),
       });
     }
+
     if (urgencyFilter) {
       const labels: Record<UrgencyLevel, string> = {
         overdue: "Overdue",
@@ -252,6 +184,7 @@ export default function DashboardPage() {
         onRemove: () => setUrgencyFilter(null),
       });
     }
+
     if (riskFilter) {
       filters.push({
         key: "risk",
@@ -259,6 +192,7 @@ export default function DashboardPage() {
         onRemove: () => setRiskFilter(false),
       });
     }
+
     if (staffSearch.trim()) {
       filters.push({
         key: "staff",
@@ -266,8 +200,9 @@ export default function DashboardPage() {
         onRemove: () => setStaffSearch(""),
       });
     }
+
     return filters;
-  }, [typeFilter, stageFilter, urgencyFilter, riskFilter, staffSearch]);
+  }, [riskFilter, stageFilter, staffSearch, typeFilter, urgencyFilter]);
 
   const hasFilters =
     !!search ||
@@ -286,11 +221,32 @@ export default function DashboardPage() {
     setStaffSearch("");
   }
 
+  const handleOrderMove = (orderId: string, newStage: Stage) => {
+    const movedOrder = orders.find((order) => order.id === orderId) ?? null;
+    if (!movedOrder || movedOrder.currentStage === newStage) return;
+
+    const timestamp = new Date().toISOString();
+
+    moveRecordStage(orderId, newStage, {
+      id: `act-${Date.now()}-kanban`,
+      orderId: movedOrder.id,
+      postedBy: "Dashboard User",
+      actorRole: "sales",
+      timestamp,
+      type: "stage_change",
+      previousStage: movedOrder.currentStage,
+      newStage,
+      note: `Moved from ${movedOrder.currentStage} to ${newStage} via kanban board`,
+    });
+
+    setLastMoved({ name: movedOrder.customerName, stage: newStage });
+    setTimeout(() => setLastMoved(null), 3000);
+  };
+
   return (
     <RequireInternalAuth>
       <TooltipProvider>
-        <div className="space-y-5">
-          {/* Success toast for kanban moves */}
+        <div className="space-y-6">
           {lastMoved && (
             <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400">
               <CheckCircle2 className="h-4 w-4" />
@@ -301,208 +257,282 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* ── Page header ──────────────────────────────────────────────── */}
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
               Operations Dashboard
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {filteredOrders.length} of {orders.length} records
-              {typeFilter !== "all" && (
-                <span className="ml-1 text-foreground">
-                  · {typeFilter === "order" ? "orders" : "enquiries"} only
-                </span>
-              )}
+              Monitor active work, recent movement, and stage bottlenecks in one
+              view.
             </p>
           </div>
 
-          {/* ── Pipeline summary (counts filtered by type) ─────────────── */}
-          <PipelineSummary
-            stageCounts={stageCounts}
-            activeFilter={stageFilter}
-            onFilterChange={setStageFilter}
-            typeFilter={typeFilter}
-          />
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(300px,0.9fr)] xl:grid-cols-[minmax(0,2.1fr)_360px]">
+            <div className="space-y-6">
+              <TodaysFocus orders={orders} />
 
-          {/* ── Needs attention — at-risk chip strip ─────────────────────── */}
-          <TodaysFocus orders={orders} onShowAll={() => setRiskFilter(true)} />
+              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/80">
+                      Current Orders and Enquiries
+                    </span>
+                    <h2 className="mt-1 text-base font-semibold tracking-tight text-foreground">
+                      {filteredOrders.length} of {orders.length} records
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Stage cards, filters, and list or board view stay grouped
+                      in one work area.
+                    </p>
+                  </div>
 
-          {/* ── Search + filters (urgency pills live in the search row) ──── */}
-          <SearchFilter
-            search={search}
-            onSearchChange={setSearch}
-            typeFilter={typeFilter}
-            onTypeChange={setTypeFilter}
-            typeCounts={typeCounts}
-            staffSearch={staffSearch}
-            onStaffChange={setStaffSearch}
-            allPeople={allPeople}
-            activeFilters={activeFilters}
-            hasFilters={hasFilters}
-            onClear={clearFilters}
-            quickFilters={
-              <>
-                {urgencyCounts.overdue > 0 && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() =>
-                          setUrgencyFilter(
-                            urgencyFilter === "overdue" ? null : "overdue",
-                          )
-                        }
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
-                          urgencyFilter === "overdue"
-                            ? "border-red-400 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950 dark:text-red-300"
-                            : "border-border bg-card text-muted-foreground hover:border-red-300 hover:bg-red-50/50",
-                        )}
-                      >
-                        <span className="h-2 w-2 rounded-full bg-red-500" />
-                        <span className="font-medium">
-                          {urgencyCounts.overdue}
-                        </span>
-                        <span>overdue</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p className="text-xs">
-                        Click to{" "}
-                        {urgencyFilter === "overdue" ? "show all" : "filter"}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-                {urgencyCounts["due-soon"] > 0 && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() =>
-                          setUrgencyFilter(
-                            urgencyFilter === "due-soon" ? null : "due-soon",
-                          )
-                        }
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
-                          urgencyFilter === "due-soon"
-                            ? "border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                            : "border-border bg-card text-muted-foreground hover:border-amber-300 hover:bg-amber-50/50",
-                        )}
-                      >
-                        <span className="h-2 w-2 rounded-full bg-amber-400" />
-                        <span className="font-medium">
-                          {urgencyCounts["due-soon"]}
-                        </span>
-                        <span>due soon</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p className="text-xs">
-                        Click to{" "}
-                        {urgencyFilter === "due-soon" ? "show all" : "filter"}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-                {urgencyCounts["on-track"] > 0 && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() =>
-                          setUrgencyFilter(
-                            urgencyFilter === "on-track" ? null : "on-track",
-                          )
-                        }
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
-                          urgencyFilter === "on-track"
-                            ? "border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                            : "border-border bg-card text-muted-foreground hover:border-emerald-300 hover:bg-emerald-50/50",
-                        )}
-                      >
-                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                        <span className="font-medium">
-                          {urgencyCounts["on-track"]}
-                        </span>
-                        <span>on track</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p className="text-xs">
-                        Click to{" "}
-                        {urgencyFilter === "on-track" ? "show all" : "filter"}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-                {riskCount > 0 && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setRiskFilter((v) => !v)}
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
-                          riskFilter
-                            ? "border-orange-400 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-300"
-                            : "border-border bg-card text-muted-foreground hover:border-orange-300 hover:bg-orange-50/50",
-                        )}
-                      >
-                        <AlertTriangle className="h-3 w-3 text-orange-500" />
-                        <span className="font-medium">{riskCount}</span>
-                        <span>at risk</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <p className="text-xs">
-                        Stale (7+ days no update) or stuck in stage
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-                {!kanbanAllowed && viewMode === "kanban" && (
-                  <p className="text-[11px] text-muted-foreground">
-                    Switch to All/Orders for board view.
-                  </p>
-                )}
-              </>
-            }
-          />
+                  <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("list")}
+                      className={cn(
+                        "flex min-h-11 items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                        viewMode === "list"
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                      title="List view"
+                    >
+                      <List className="h-3.5 w-3.5" />
+                      <span>List</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => kanbanAllowed && setViewMode("kanban")}
+                      disabled={!kanbanAllowed}
+                      className={cn(
+                        "flex min-h-11 items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                        viewMode === "kanban"
+                          ? "bg-muted text-foreground"
+                          : !kanbanAllowed
+                            ? "cursor-not-allowed opacity-40"
+                            : "text-muted-foreground hover:text-foreground",
+                      )}
+                      title={
+                        kanbanAllowed
+                          ? "Board view"
+                          : "Board view only for orders"
+                      }
+                    >
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                      <span>Board</span>
+                    </button>
+                  </div>
+                </div>
 
-          {/* ── Content: List or Kanban ──────────────────────────────────── */}
-          {viewMode === "list" ? (
-            <OrderList orders={filteredOrders} />
-          ) : (
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  Drag cards between stages to update order status
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {filteredOrders.length}{" "}
-                  {filteredOrders.length === 1 ? "item" : "items"}
-                </p>
-              </div>
-              <KanbanBoard
-                orders={filteredOrders}
-                onOrderMove={handleOrderMove}
-                onCardClick={(order) =>
-                  router.push(`/orders/${order.shareableToken}`)
-                }
+                <div className="space-y-5">
+                  <PipelineSummary
+                    stageCounts={stageCounts}
+                    activeFilter={stageFilter}
+                    onFilterChange={setStageFilter}
+                    typeFilter={typeFilter}
+                  />
+
+                  <SearchFilter
+                    search={search}
+                    onSearchChange={setSearch}
+                    typeFilter={typeFilter}
+                    onTypeChange={setTypeFilter}
+                    typeCounts={typeCounts}
+                    staffSearch={staffSearch}
+                    onStaffChange={setStaffSearch}
+                    allPeople={allPeople}
+                    activeFilters={activeFilters}
+                    hasFilters={hasFilters}
+                    onClear={clearFilters}
+                    quickFilters={
+                      <>
+                        {urgencyCounts.overdue > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setUrgencyFilter(
+                                    urgencyFilter === "overdue"
+                                      ? null
+                                      : "overdue",
+                                  )
+                                }
+                                className={cn(
+                                  "flex min-h-9 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
+                                  urgencyFilter === "overdue"
+                                    ? "border-red-400 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950 dark:text-red-300"
+                                    : "border-border bg-card text-muted-foreground hover:border-red-300 hover:bg-red-50/50",
+                                )}
+                              >
+                                <span className="h-2 w-2 rounded-full bg-red-500" />
+                                <span className="font-medium">
+                                  {urgencyCounts.overdue}
+                                </span>
+                                <span>overdue</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              <p className="text-xs">
+                                Click to{" "}
+                                {urgencyFilter === "overdue"
+                                  ? "show all"
+                                  : "filter"}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+
+                        {urgencyCounts["due-soon"] > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setUrgencyFilter(
+                                    urgencyFilter === "due-soon"
+                                      ? null
+                                      : "due-soon",
+                                  )
+                                }
+                                className={cn(
+                                  "flex min-h-9 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
+                                  urgencyFilter === "due-soon"
+                                    ? "border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                                    : "border-border bg-card text-muted-foreground hover:border-amber-300 hover:bg-amber-50/50",
+                                )}
+                              >
+                                <span className="h-2 w-2 rounded-full bg-amber-400" />
+                                <span className="font-medium">
+                                  {urgencyCounts["due-soon"]}
+                                </span>
+                                <span>due soon</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              <p className="text-xs">
+                                Click to{" "}
+                                {urgencyFilter === "due-soon"
+                                  ? "show all"
+                                  : "filter"}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+
+                        {urgencyCounts["on-track"] > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setUrgencyFilter(
+                                    urgencyFilter === "on-track"
+                                      ? null
+                                      : "on-track",
+                                  )
+                                }
+                                className={cn(
+                                  "flex min-h-9 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
+                                  urgencyFilter === "on-track"
+                                    ? "border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                                    : "border-border bg-card text-muted-foreground hover:border-emerald-300 hover:bg-emerald-50/50",
+                                )}
+                              >
+                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                <span className="font-medium">
+                                  {urgencyCounts["on-track"]}
+                                </span>
+                                <span>on track</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              <p className="text-xs">
+                                Click to{" "}
+                                {urgencyFilter === "on-track"
+                                  ? "show all"
+                                  : "filter"}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+
+                        {riskCount > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                onClick={() => setRiskFilter((v) => !v)}
+                                className={cn(
+                                  "flex min-h-9 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors",
+                                  riskFilter
+                                    ? "border-orange-400 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-300"
+                                    : "border-border bg-card text-muted-foreground hover:border-orange-300 hover:bg-orange-50/50",
+                                )}
+                              >
+                                <AlertTriangle className="h-3 w-3 text-orange-500" />
+                                <span className="font-medium">{riskCount}</span>
+                                <span>at risk</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              <p className="text-xs">
+                                Stale (7+ days no update) or stuck in stage
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </>
+                    }
+                  />
+
+                  {viewMode === "kanban" ? (
+                    <div className="rounded-2xl border border-border bg-background/60 p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">
+                          Drag cards between stages to update order status
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {filteredOrders.length}{" "}
+                          {filteredOrders.length === 1 ? "item" : "items"}
+                        </p>
+                      </div>
+                      <KanbanBoard
+                        orders={filteredOrders}
+                        onOrderMove={handleOrderMove}
+                        onCardClick={(order) =>
+                          router.push(`/orders/${order.shareableToken}`)
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <OrderList orders={filteredOrders} />
+                  )}
+
+                  {hasFilters && filteredOrders.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Showing {filteredOrders.length} of {orders.length} records
+                      {activeFilters.length > 0 && (
+                        <span className="ml-1">
+                          {" "}
+                          · filtered by{" "}
+                          {activeFilters.map((f) => f.label).join(", ")}
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </section>
+            </div>
+
+            <div className="lg:sticky lg:top-20 lg:self-start">
+              <RecentActivities
+                orders={orders}
+                className="lg:max-h-[calc(100vh-6.5rem)]"
               />
             </div>
-          )}
-
-          {/* ── Results info ─────────────────────────────────────────────── */}
-          {hasFilters && filteredOrders.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Showing {filteredOrders.length} of {orders.length} records
-              {activeFilters.length > 0 && (
-                <span className="ml-1">
-                  · filtered by {activeFilters.map((f) => f.label).join(", ")}
-                </span>
-              )}
-            </p>
-          )}
+          </div>
         </div>
       </TooltipProvider>
     </RequireInternalAuth>
