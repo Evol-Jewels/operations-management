@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Navbar } from "@/components/layout/Navbar";
+import { Suspense } from "react";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -20,7 +25,7 @@ export const metadata: Metadata = {
   description: "Order tracking and operations dashboard for EVOL Jewels.",
 };
 
-function Loading({ children }: { children: React.ReactNode }) {
+function Loading() {
   return (
     <div className="flex min-h-[40vh] items-center justify-center">
       <p className="text-sm text-muted-foreground">Loading...</p>
@@ -36,15 +41,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}
       >
         <TooltipProvider>
-          <Navbar />
-          <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-            <Suspense fallback={<Loading>{children}</Loading>}>
-              {children}
-            </Suspense>
-          </main>
+          <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset className="overflow-x-clip">
+              <SidebarTrigger className="fixed top-4 left-4 z-40 rounded-full border border-border/70 bg-background/90 shadow-sm backdrop-blur md:hidden print-hide" />
+              <div className="mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+                <Suspense fallback={<Loading />}>{children}</Suspense>
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
         </TooltipProvider>
       </body>
     </html>
