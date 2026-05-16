@@ -223,16 +223,6 @@ function LoginForm() {
             </div>
           )}
         </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          Shared order links can still be opened directly.{" "}
-          <Link
-            href="/orders/evl-001-priya-ring"
-            className="font-medium text-foreground underline underline-offset-4"
-          >
-            View demo order
-          </Link>
-        </p>
       </div>
     </div>
   );
