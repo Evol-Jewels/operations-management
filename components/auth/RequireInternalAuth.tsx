@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { getSessionRole, getUserRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 
 function LoadingState() {
@@ -59,7 +60,7 @@ export function RequireInternalAuth({
     return <LoadingState />;
   }
 
-  if (session.user.role !== "internal") {
+  if (getUserRole(session) !== "internal") {
     return <UnauthorizedState />;
   }
 

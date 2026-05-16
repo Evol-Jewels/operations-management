@@ -11,13 +11,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 
 export function Navbar() {
@@ -36,7 +32,7 @@ export function Navbar() {
         <div className="flex items-center gap-2">
           <SidebarTrigger />
           <Link
-            href="/"
+            href="/orders-and-enquiries"
             className="group flex items-center gap-2.5 transition-opacity hover:opacity-80 md:hidden"
           >
             <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground">
@@ -97,7 +93,7 @@ export function Navbar() {
                         Role
                       </span>
                       <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium capitalize text-secondary-foreground">
-                        {session.user.role}
+                        {getSessionRole(session)}
                       </span>
                     </div>
                     <Separator />

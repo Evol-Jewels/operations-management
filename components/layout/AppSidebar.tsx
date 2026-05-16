@@ -1,14 +1,13 @@
 "use client";
 
 import {
+  Boxes,
   Calculator,
   ChevronsLeft,
-  LayoutDashboard,
+  House,
   LogOut,
   MessageSquare,
-  MessageSquarePlus,
-  Package,
-  Plus,
+  ShieldUser,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -34,18 +33,35 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-  { icon: Package, label: "Orders", href: "/" },
-  { icon: MessageSquare, label: "Enquiries", href: "/" },
-  { icon: Calculator, label: "Calculator", href: "/calculator" },
-];
-
-const quickActions = [
-  { icon: Plus, label: "New Order", href: "/orders/new" },
-  { icon: MessageSquarePlus, label: "New Enquiry", href: "/enquiries/new" },
+  {
+    icon: House,
+    label: "Home",
+    href: "/",
+  },
+  {
+    icon: MessageSquare,
+    label: "Orders and Enquiries",
+    href: "/orders-and-enquiries",
+  },
+  {
+    icon: Calculator,
+    label: "Calculator",
+    href: "/calculator",
+  },
+  {
+    icon: Boxes,
+    label: "Manage Products and Price",
+    href: "/manage-products-and-price",
+  },
+  {
+    icon: ShieldUser,
+    label: "User Management",
+    href: "/user-management",
+  },
 ];
 
 function initials(name: string): string {
@@ -62,14 +78,7 @@ export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
 
   const isActive = (href: string) => {
-    if (href === "/") {
-      return (
-        pathname === "/" ||
-        pathname.startsWith("/orders") ||
-        pathname.startsWith("/enquiries")
-      );
-    }
-    return pathname.startsWith(href);
+    return pathname === href || pathname.startsWith(`${href}/`);
   };
 
   return (
@@ -94,7 +103,10 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               ) : (
                 <SidebarMenuButton size="lg" asChild>
-                  <Link href="/" className="flex w-full items-center gap-2.5">
+                  <Link
+                    href="/orders-and-enquiries"
+                    className="flex w-full items-center gap-2.5"
+                  >
                     <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-foreground text-background">
                       <span className="text-[10px] font-black tracking-widest">
                         EJ
@@ -139,34 +151,14 @@ export function AppSidebar() {
                     asChild
                     isActive={isActive(item.href)}
                     tooltip={item.label}
-                    className="bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-transparent data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-none"
+                    className="bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:shadow-none"
                   >
-                    <Link href={item.href} className="flex w-full items-center">
+                    <Link
+                      href={item.href}
+                      className="flex w-full min-w-0 items-center gap-2 overflow-hidden group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
+                    >
                       <item.icon className="h-4 w-4" />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator className="mx-3" />
-
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {quickActions.map((item) => (
-                <SidebarMenuItem key={item.label}>
-                  <SidebarMenuButton
-                    asChild
-                    tooltip={item.label}
-                    className="bg-transparent text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                  >
-                    <Link href={item.href} className="flex w-full items-center">
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.label}</span>
+                      <span className="truncate">{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -184,7 +176,7 @@ export function AppSidebar() {
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="flex w-full items-center gap-2 rounded-lg p-2 text-left transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+                className="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-lg p-2 text-left transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
               >
                 <Avatar className="h-7 w-7 flex-shrink-0 border border-sidebar-border">
                   <AvatarFallback className="bg-blue-100 text-[10px] font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
@@ -215,7 +207,7 @@ export function AppSidebar() {
                 <div className="flex items-center justify-between px-3 py-2">
                   <span className="text-xs text-muted-foreground">Role</span>
                   <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium capitalize text-secondary-foreground">
-                    {session.user.role}
+                    {getSessionRole(session)}
                   </span>
                 </div>
                 <Separator />
@@ -239,7 +231,10 @@ export function AppSidebar() {
             tooltip="Sign in"
             className="text-muted-foreground"
           >
-            <Link href="/login" className="flex w-full items-center">
+            <Link
+              href="/login"
+              className="flex w-full min-w-0 items-center justify-center overflow-hidden"
+            >
               <span className="text-sm font-medium">Sign in</span>
             </Link>
           </SidebarMenuButton>
