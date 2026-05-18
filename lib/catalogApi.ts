@@ -4,10 +4,10 @@ import type {
   CatalogueSearchResponse,
 } from "@/types";
 
-const baseUrl = process.env.NEXT_PUBLIC_CATALOG_API_BASE_URL?.replace(
-  /\/+$/,
-  "",
-);
+const baseUrl = (
+  process.env.NEXT_PUBLIC_CATALOG_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL
+)?.replace(/\/+$/, "");
 const token = process.env.NEXT_PUBLIC_CATALOG_API_TOKEN;
 
 function ensureConfig() {
