@@ -1,231 +1,269 @@
 "use client";
 
-import { Diamond, Info, Receipt, Scale } from "lucide-react";
+import { toPng } from "html-to-image";
+import { Download, ImageIcon, Loader2 } from "lucide-react";
 import Image from "next/image";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { formatCurrency } from "@/lib/utils";
-import type {
-  CalculatorFormState,
-  CalculatorPricingBreakdown,
-} from "@/types";
+import { cn, formatCurrency } from "@/lib/utils";
+import type { CalculatorFormState, CalculatorPricingBreakdown } from "@/types";
 
 interface EstimationSummaryCardProps {
   form: CalculatorFormState;
   breakdown: CalculatorPricingBreakdown;
+  gstRate: number;
+  className?: string;
 }
 
-function formatWeight(value: number, suffix: string) {
-  return `${value.toFixed(3).replace(/\.?0+$/, "")} ${suffix}`;
+function formatWeight(value: number, suffix: string, decimals = 3) {
+  return `${value.toFixed(decimals).replace(/\.?0+$/, "")} ${suffix}`;
+}
+
+function makeSlug(value: string) {
+  return (
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "summary"
+  );
 }
 
 export function EstimationSummaryCard({
   form,
   breakdown,
+  gstRate,
+  className,
 }: EstimationSummaryCardProps) {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const hasStones = breakdown.stoneDetails.some((stone) => stone.weight > 0);
+  const displayName = form.productName.trim() || "Manual Estimate";
+  const displaySubtotal = Math.round(breakdown.subTotal);
+  const displayGst = Math.round(breakdown.gst);
+  const displayTotal = displaySubtotal + displayGst;
+
+  async function downloadSummary() {
+    if (!cardRef.current) return;
+
+    setIsDownloading(true);
+    try {
+      const dataUrl = await toPng(cardRef.current, {
+        pixelRatio: 2,
+        cacheBust: true,
+      });
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `evol-estimate-${makeSlug(displayName)}-${new Date()
+        .toISOString()
+        .slice(0, 10)}.png`;
+      link.click();
+    } finally {
+      setIsDownloading(false);
+    }
+  }
 
   return (
-    <Card className="overflow-hidden border-black/10 bg-card py-0 shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-      <CardHeader className="border-b border-border/70 px-5 py-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Estimation Summary
-            </p>
-            <CardTitle className="mt-2 text-xl">
-              {form.productName.trim() || "Manual Estimate"}
-            </CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {form.purity} - Net wt {formatWeight(form.netGoldWeight, "g")}
-            </p>
-          </div>
-          <div className="rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
-            Live
-          </div>
-        </div>
-      </CardHeader>
+    <section className={cn("min-w-0", className)}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold tracking-tight">Summary</h2>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-lg"
+          className="rounded-lg"
+          onClick={downloadSummary}
+          disabled={isDownloading}
+          aria-label="Download summary"
+        >
+          {isDownloading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
 
-      <CardContent className="space-y-5 px-0 py-0">
-        {form.productImageUrl ? (
-          <div className="border-b border-border/70 bg-muted/20 px-5 py-5">
-            <div className="overflow-hidden rounded-2xl border border-border/70 bg-white">
+      <div
+        ref={cardRef}
+        className="overflow-hidden rounded-xl border border-border bg-card text-card-foreground"
+      >
+        <div className="flex items-center justify-center border-b border-border py-3">
+          <Image
+            src="/evol-logo.webp"
+            alt="Evol"
+            width={82}
+            height={30}
+            className="h-7 w-auto object-contain"
+            priority
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr]">
+          <div className="relative flex min-h-72 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0">
+            {form.productImageUrl ? (
               <Image
                 src={form.productImageUrl}
-                alt={form.productName || "Product preview"}
-                className="h-56 w-full object-cover"
-                width={960}
-                height={720}
+                alt={displayName}
+                fill
+                className="object-cover"
                 unoptimized
               />
-            </div>
+            ) : (
+              <ImageIcon className="h-9 w-9 text-muted-foreground/35" />
+            )}
           </div>
-        ) : null}
 
-        <div className="space-y-4 px-5">
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-            <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                <Scale className="h-3.5 w-3.5" />
-                Gross Weight
-              </div>
-              <p className="mt-3 text-2xl font-semibold">
-                {formatWeight(breakdown.grossWeight, "g")}
+          <div className="flex min-h-72 min-w-0 flex-col justify-between border-t border-border px-4 py-4 sm:border-t-0 sm:border-l">
+            <div className="min-w-0">
+              <p className="break-words text-sm font-semibold leading-snug">
+                {displayName}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                {form.productNote.trim() ||
+                  "Customer estimate prepared from the latest synced rates."}
               </p>
             </div>
-
-            <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                <Receipt className="h-3.5 w-3.5" />
-                Gold Rate
-              </div>
-              <p className="mt-3 text-2xl font-semibold">
-                {formatCurrency(breakdown.goldRateValue)}
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                Total
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">Per gram</p>
-            </div>
-
-            <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                <Diamond className="h-3.5 w-3.5" />
-                Stone Cost
-              </div>
-              <p className="mt-3 text-2xl font-semibold">
-                {formatCurrency(breakdown.totalStoneCost)}
+              <p className="mt-1 text-2xl font-semibold tabular">
+                {formatCurrency(displayTotal)}
               </p>
             </div>
           </div>
+        </div>
 
-          <div className="space-y-3 rounded-2xl border border-border/70 bg-white p-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Net Gold Weight</span>
-              <span className="font-medium tabular">
-                {formatWeight(form.netGoldWeight, "g")}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Gold Cost</span>
-              <span className="font-semibold tabular">
-                {formatCurrency(breakdown.goldCost)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Making Charges</span>
-              <TooltipProvider delayDuration={100}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="flex items-center gap-1 font-semibold tabular cursor-help">
-                      {formatCurrency(breakdown.makingCost)}
-                      <Info className="h-3 w-3 text-muted-foreground" />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs max-w-[200px]">
-                    <p>Flat: ₹4,000 + Per gram: ₹1,800 × {form.netGoldWeight.toFixed(2)}g</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-
-          {hasStones ? (
-            <div className="space-y-3 rounded-2xl border border-border/70 bg-white p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Stones
-              </p>
-              {breakdown.stoneDetails
-                .filter((stone) => stone.weight > 0)
-                .map((stone) => (
-                  <div
-                    key={stone.id}
-                    className="flex items-start justify-between gap-4 border-b border-border/60 pb-3 last:border-b-0 last:pb-0"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium">
-                        {stone.stoneType?.name || "Stone"}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {formatWeight(stone.weight, "ct")} • {stone.quantity}{" "}
-                        pcs
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      {stone.slabInfo ? (
-                        <>
-                          <p className="text-[10px] text-muted-foreground">
-                            {stone.slabInfo.code}
-                          </p>
-                          <p className="font-semibold tabular">
-                            {formatCurrency(stone.totalCost)}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-xs text-destructive">No slab</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-            </div>
-          ) : null}
-
-          {form.productNote.trim() ? (
-            <div className="rounded-2xl border border-dashed border-border bg-muted/15 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Note
-              </p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {form.productNote}
-              </p>
-            </div>
-          ) : null}
+        <div className="flex items-center justify-between bg-muted/35 px-4 py-3">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            Gross Weight
+          </span>
+          <span className="text-sm font-semibold tabular">
+            {formatWeight(breakdown.grossWeight, "g")}
+          </span>
         </div>
 
         <Separator />
 
-        <div className="space-y-3 px-5 pb-5">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span className="font-medium tabular">
-              {formatCurrency(breakdown.subTotal)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">GST (3%)</span>
-            <span className="font-medium tabular">
-              {formatCurrency(breakdown.gst)}
-            </span>
-          </div>
-          <div className="rounded-2xl bg-black px-4 py-4 text-white">
-            <div className="flex items-end justify-between gap-4">
-              <span className="text-sm uppercase tracking-[0.22em] text-white/60">
-                Total Estimate
+        <div className="px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            Gold
+          </p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {formatWeight(form.netGoldWeight, "g")} - {form.purity} -{" "}
+            {formatCurrency(breakdown.goldRateValue)}/g
+          </p>
+          <div className="mt-3 space-y-3">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-muted-foreground">Gold Cost</span>
+              <span className="text-sm font-semibold tabular">
+                {formatCurrency(breakdown.goldCost)}
               </span>
-              <span className="text-3xl font-semibold tabular">
-                {formatCurrency(breakdown.total)}
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-muted-foreground">
+                Making Charges
+              </span>
+              <span className="text-sm font-semibold tabular">
+                {formatCurrency(breakdown.makingCost)}
               </span>
             </div>
           </div>
-          <div className="space-y-1 text-[11px] leading-5 text-muted-foreground">
-            <p>
-              Gold weight estimated might be slightly higher than actual product
-              weight. Invoicing should be as per actuals.
-            </p>
-            <p>
-              Prices are indicative and depend on the latest synced rate card.
-            </p>
+        </div>
+
+        {hasStones ? (
+          <>
+            <Separator />
+            <div className="px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                Stones
+              </p>
+              <div className="mt-3 divide-y divide-border/70">
+                {breakdown.stoneDetails
+                  .filter((stone) => stone.weight > 0)
+                  .map((stone) => (
+                    <div
+                      key={stone.id}
+                      className="flex items-start justify-between gap-4 py-3 first:pt-0"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {stone.stoneType?.name || "Stone"}
+                        </p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {formatWeight(stone.weight, "ct")} - {stone.quantity}{" "}
+                          pcs
+                          {stone.slabInfo
+                            ? ` @ ${formatCurrency(stone.slabInfo.pricePerCarat)}/ct`
+                            : ""}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-semibold tabular">
+                        {formatCurrency(stone.totalCost)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+              <div className="mt-2 flex items-center justify-between border-t border-border pt-3">
+                <span className="text-sm text-muted-foreground">
+                  Total Stones
+                </span>
+                <span className="text-sm font-semibold tabular">
+                  {formatCurrency(breakdown.totalStoneCost)}
+                </span>
+              </div>
+            </div>
+          </>
+        ) : null}
+
+        <Separator />
+
+        <div className="space-y-3 px-4 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm text-muted-foreground">Subtotal</span>
+            <span className="text-sm font-medium tabular">
+              {formatCurrency(displaySubtotal)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-sm text-muted-foreground">
+              GST ({(gstRate * 100).toFixed(1)}%)
+            </span>
+            <span className="text-sm text-muted-foreground tabular">
+              {formatCurrency(displayGst)}
+            </span>
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="flex items-center justify-between gap-4 bg-foreground px-4 py-4 text-background">
+          <span className="text-sm font-medium">Total</span>
+          <span className="text-3xl font-semibold tabular">
+            {formatCurrency(displayTotal)}
+          </span>
+        </div>
+
+        <div className="border-t border-border bg-muted/20 px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            Terms & Conditions
+          </p>
+          <ul className="mt-2 space-y-1 text-[10px] leading-4 text-muted-foreground">
+            <li>
+              Gold weight estimated might be slightly higher than actual product
+              weight. Invoicing will be as per actuals.
+            </li>
+            <li>
+              Prices quoted are indicative and subject to rate fluctuations on
+              the date of confirmation.
+            </li>
+            <li>
+              Custom orders require advance payment to confirm the order and
+              lock applicable rates.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
   );
 }
