@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, LogOut, MessageSquarePlus, Plus } from "lucide-react";
+import { LoaderCircle, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,18 +11,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 
 export function Navbar() {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
-  const isInternal = session?.user.role === "internal";
 
   async function handleSignOut() {
     await authClient.signOut();
@@ -31,69 +27,27 @@ export function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-md supports-[backdrop-filter]:bg-background/75 print-hide">
       <div className="mx-auto flex h-12 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <Link
-          href="/"
-          className="group flex items-center gap-2.5 transition-opacity hover:opacity-80"
-        >
-          <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground">
-            <span className="text-[9px] font-black tracking-widest text-background">
-              EJ
-            </span>
-          </div>
-          <div className="flex items-baseline gap-1.5">
+        <div className="flex items-center gap-2">
+          <SidebarTrigger />
+          <Link
+            href="/orders-and-enquiries"
+            className="group flex items-center gap-2.5 transition-opacity hover:opacity-80 md:hidden"
+          >
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-foreground">
+              <span className="text-[9px] font-black tracking-widest text-background">
+                EJ
+              </span>
+            </div>
             <span className="text-sm font-semibold tracking-tight text-foreground">
               EVOL Jewels
             </span>
-            <span className="hidden text-xs text-muted-foreground/60 sm:block">
-              / ops
-            </span>
-          </div>
-        </Link>
+          </Link>
+        </div>
 
         <TooltipProvider>
           <div className="flex items-center gap-3">
-            {isInternal ? (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      asChild
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground sm:h-7 sm:w-auto sm:px-3"
-                      aria-label="New Enquiry"
-                    >
-                      <Link href="/enquiries/new">
-                        <MessageSquarePlus className="h-4 w-4 sm:mr-1.5" />
-                        <span className="hidden text-xs sm:inline">
-                          New Enquiry
-                        </span>
-                      </Link>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="sm:hidden">
-                    <p className="text-xs">New Enquiry</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Button
-                  size="sm"
-                  asChild
-                  className="h-8 gap-1.5 text-xs sm:h-7"
-                >
-                  <Link href="/orders/new">
-                    <Plus className="h-3.5 w-3.5" />
-                    <span className="hidden xs:inline sm:inline">
-                      New Order
-                    </span>
-                    <span className="sr-only sm:hidden">New Order</span>
-                  </Link>
-                </Button>
-              </>
-            ) : null}
-
             {isPending ? (
               <div className="flex h-8 items-center px-2 text-muted-foreground sm:h-7">
                 <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
@@ -139,7 +93,7 @@ export function Navbar() {
                         Role
                       </span>
                       <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium capitalize text-secondary-foreground">
-                        {session.user.role}
+                        {getSessionRole(session)}
                       </span>
                     </div>
                     <Separator />

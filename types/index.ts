@@ -122,16 +122,11 @@ export type MetalType =
   | "Rose Gold"
   | "White Gold";
 
-export type MetalPurity =
-  | "14K"
-  | "18K"
-  | "22K"
-  | "24K"
-  | "Other";
+export type MetalPurity = "14K" | "18K" | "22K" | "24K" | "Other";
 
 export type CertificationType = "Jewellery" | "GIA" | "IGI" | "SGL" | "None";
 
-export type CloseReason = 
+export type CloseReason =
   | "Customer not interested"
   | "Out of budget"
   | "Product not available"
@@ -225,6 +220,63 @@ export interface ProductEstimation {
   createdAt: string;
 }
 
+export interface CalculatorStoneSlab {
+  code: string;
+  fromWeight: number;
+  toWeight: number;
+  pricePerCarat: number;
+}
+
+export interface CalculatorStoneType {
+  stoneId: string;
+  name: string;
+  category: "Diamond" | "Gemstone";
+  slabs: CalculatorStoneSlab[];
+}
+
+export interface CalculatorSettings {
+  goldRate24k: number;
+  makingChargeFlat: number;
+  makingChargePerGram: number;
+  gstRate: number;
+  purityPercentages: Record<MetalPurity, number>;
+  stoneTypes: CalculatorStoneType[];
+}
+
+export interface CalculatorStoneInput {
+  id: string;
+  stoneTypeId: string;
+  weight: number;
+  quantity: number;
+}
+
+export interface CalculatorFormState {
+  netGoldWeight: number;
+  purity: MetalPurity;
+  stones: CalculatorStoneInput[];
+  productName: string;
+  productNote: string;
+  productImageUrl?: string;
+}
+
+export interface CalculatorPricedStoneDetail extends CalculatorStoneInput {
+  stoneType?: CalculatorStoneType;
+  totalCost: number;
+  slabInfo: CalculatorStoneSlab | null;
+}
+
+export interface CalculatorPricingBreakdown {
+  grossWeight: number;
+  goldRateValue: number;
+  goldCost: number;
+  makingCost: number;
+  stoneDetails: CalculatorPricedStoneDetail[];
+  totalStoneCost: number;
+  subTotal: number;
+  gst: number;
+  total: number;
+}
+
 // ─── Order / Enquiry ──────────────────────────────────────────────────────────
 
 export interface Order {
@@ -286,8 +338,8 @@ export interface Order {
   occasion?: string;
   timelineNotes?: string;
   sourceEnquiryId?: string;
-   selectedProducts?: EnquirySelectedProduct[];
-   customProducts?: EnquiryCustomProduct[];
+  selectedProducts?: EnquirySelectedProduct[];
+  customProducts?: EnquiryCustomProduct[];
 
   // Close enquiry
   status?: "open" | "closed";
@@ -297,4 +349,140 @@ export interface Order {
 
   // Estimations
   estimations?: ProductEstimation[];
+}
+
+// ─── Catalogue Product Types ────────────────────────────────────────────────────
+
+export interface CatalogueSearchItem {
+  id: number;
+  title: string;
+  product_code: string;
+  slug: string;
+  cdn_images: string[];
+  location: string;
+  price: string;
+  product_gross_weight: number;
+  product_Net_weight: number;
+  total_stone_weight: number;
+  total_diamond_weight: number;
+  currency: string;
+  category?: {
+    title: string;
+    description: string;
+  };
+  attribute?: {
+    stock_code: string;
+    quantity: number;
+    varient_name: string;
+    colour: string;
+  };
+}
+
+export interface CatalogueSearchResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: CatalogueSearchItem[];
+}
+
+export interface CatalogueProductDetailStone {
+  id: number;
+  bom_varient_name: string;
+  stone_pieces: number;
+  stone_weight: number;
+  stone_amount: number;
+  stone_rate: number;
+  diamond: boolean;
+  slug: string;
+}
+
+export interface CatalogueProductDetailResponse {
+  id: number;
+  title: string;
+  description: string;
+  product_code: string;
+  slug: string;
+  location: string;
+  cdn_images: string[];
+  department: string;
+  ageing: number;
+  price: string;
+  currency: string;
+  custom_duty_charges: number;
+  sales_tax: number;
+  category?: {
+    title: string;
+    description: string;
+  };
+  metal_data: {
+    gross_weight: number;
+    net_weight: number;
+    making_rate: number;
+    metal_cost: number;
+    purity_data: {
+      metal_rate: number;
+      title: string;
+      description: string;
+      purity: string;
+      colour: string;
+    };
+  };
+  attribute: {
+    total_style_value: string;
+    total_diamond_wt: number;
+    stock_code: string;
+    varient_name: string;
+    quantity: number;
+    making_amount: number;
+    wastage: number;
+    stone_total: number | null;
+    diamond_total: number | null;
+    colour: string;
+    currency_type: string;
+  };
+  stone_diamond: CatalogueProductDetailStone[];
+}
+
+export interface CatalogueLookupStoneLine {
+  id: string;
+  code: string;
+  quantity: number;
+  weight: number;
+  sourceRate: number;
+  sourceAmount: number;
+  stoneTypeId: string;
+  stoneName: string;
+  slabCode: string;
+}
+
+export interface CatalogueLookupProduct {
+  lookupKey: string;
+  slug: string;
+  productCode: string;
+  productName: string;
+  description: string;
+  imageUrl: string | null;
+  purity: string;
+  netGoldWeight: number;
+  grossWeight: number;
+  location: string;
+  categoryLabel: string;
+  sourcePrice: number | null;
+  sourceCurrency: string;
+  sourceMetalCost: number;
+  sourceMakingAmount: number;
+  sourceStoneAmount: number;
+  stones: CatalogueLookupStoneLine[];
+}
+
+export interface CatalogueMappingIssue {
+  code: string;
+  reason: string;
+}
+
+export interface CatalogueEstimateResult {
+  product: CatalogueLookupProduct;
+  stones: CalculatorStoneInput[];
+  pricing: CalculatorPricingBreakdown;
+  issues: CatalogueMappingIssue[];
 }

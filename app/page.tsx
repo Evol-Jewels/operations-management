@@ -246,9 +246,9 @@ export default function DashboardPage() {
   return (
     <RequireInternalAuth>
       <TooltipProvider>
-        <div className="space-y-6">
+        <div className="space-y-6 lg:space-y-7">
           {lastMoved && (
-            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400">
+            <div className="flex items-center gap-2 rounded-2xl border border-emerald-200/80 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400">
               <CheckCircle2 className="h-4 w-4" />
               <span>
                 <strong>{lastMoved.name}</strong> moved to{" "}
@@ -257,21 +257,55 @@ export default function DashboardPage() {
             </div>
           )}
 
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Operations Dashboard
-            </h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Monitor active work, recent movement, and stage bottlenecks in one
-              view.
-            </p>
-          </div>
+          <section className="overflow-hidden rounded-[2rem] border border-border/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.95),rgba(248,244,238,0.88)_55%,rgba(241,234,225,0.92))] p-5 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.35)] sm:p-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                  Operations Dashboard
+                </p>
+                <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-[2rem]">
+                  Monitor live work without losing the bottlenecks.
+                </h1>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+                  Active orders, recent movement, and pipeline risk stay visible
+                  in one clean workspace.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <div className="min-w-28 rounded-2xl border border-border/70 bg-white/75 px-4 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                    Open Records
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
+                    {orders.length}
+                  </p>
+                </div>
+                <div className="min-w-28 rounded-2xl border border-border/70 bg-white/75 px-4 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                    At Risk
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight text-orange-600">
+                    {riskCount}
+                  </p>
+                </div>
+                <div className="min-w-28 rounded-2xl border border-border/70 bg-white/75 px-4 py-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                    Overdue
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight text-red-600">
+                    {urgencyCounts.overdue ?? 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(300px,0.9fr)] xl:grid-cols-[minmax(0,2.1fr)_360px]">
             <div className="space-y-6">
               <TodaysFocus orders={orders} />
 
-              <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <section className="rounded-[2rem] border border-border/70 bg-card/92 p-5 shadow-[0_20px_60px_-38px_rgba(15,23,42,0.3)] backdrop-blur-sm">
                 <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/80">
@@ -286,12 +320,12 @@ export default function DashboardPage() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
+                  <div className="flex items-center gap-1 rounded-full border border-border/80 bg-background/90 p-1">
                     <button
                       type="button"
                       onClick={() => setViewMode("list")}
                       className={cn(
-                        "flex min-h-11 items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                        "flex min-h-11 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-colors",
                         viewMode === "list"
                           ? "bg-muted text-foreground"
                           : "text-muted-foreground hover:text-foreground",
@@ -306,7 +340,7 @@ export default function DashboardPage() {
                       onClick={() => kanbanAllowed && setViewMode("kanban")}
                       disabled={!kanbanAllowed}
                       className={cn(
-                        "flex min-h-11 items-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors",
+                        "flex min-h-11 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-colors",
                         viewMode === "kanban"
                           ? "bg-muted text-foreground"
                           : !kanbanAllowed
@@ -488,7 +522,7 @@ export default function DashboardPage() {
                   />
 
                   {viewMode === "kanban" ? (
-                    <div className="rounded-2xl border border-border bg-background/60 p-4">
+                    <div className="rounded-[1.5rem] border border-border/70 bg-background/70 p-4">
                       <div className="mb-3 flex items-center justify-between">
                         <p className="text-xs text-muted-foreground">
                           Drag cards between stages to update order status
@@ -526,10 +560,10 @@ export default function DashboardPage() {
               </section>
             </div>
 
-            <div className="lg:sticky lg:top-20 lg:self-start">
+            <div className="lg:sticky lg:top-6 lg:self-start">
               <RecentActivities
                 orders={orders}
-                className="lg:max-h-[calc(100vh-6.5rem)]"
+                className="lg:max-h-[calc(100vh-3rem)]"
               />
             </div>
           </div>
