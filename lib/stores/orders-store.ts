@@ -3,9 +3,21 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { mockOrders } from "@/lib/mock-data";
-import type { ActivityEntry, CloseReason, Order, ProductEstimation, Stage } from "@/types";
+import type {
+  ActivityEntry,
+  CloseReason,
+  Order,
+  ProductEstimation,
+  Stage,
+} from "@/types";
 
-import type { ActivityEntry, CloseReason, Order, ProductEstimation, Stage } from "@/types";
+import type {
+  ActivityEntry,
+  CloseReason,
+  Order,
+  ProductEstimation,
+  Stage,
+} from "@/types";
 
 interface OrdersStore {
   records: Order[];
@@ -19,11 +31,7 @@ interface OrdersStore {
     newStage: Stage,
     activity: ActivityEntry,
   ) => void;
-  closeEnquiry: (
-    recordId: string,
-    reason: CloseReason,
-    notes?: string,
-  ) => void;
+  closeEnquiry: (recordId: string, reason: CloseReason, notes?: string) => void;
   addProductEstimation: (
     recordId: string,
     estimation: ProductEstimation,

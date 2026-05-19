@@ -125,145 +125,161 @@ function EnquiryReferences({ order }: { order: Order }) {
         {order.selectedProducts && order.selectedProducts.length > 0 && (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Existing products</p>
-                {order.selectedProducts.map((product) => {
-                  const estimation = order.estimations?.find(e => e.productId === product.id);
-                  return (
-                    <div
-                      key={product.id}
-                      className="space-y-2 rounded-lg border border-border bg-muted/20 p-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <ProductThumbnail product={product} />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground">
-                            {product.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {product.productCode} · {product.category} · {formatMetalTypeLabel(product.metalType)}{" "}
-                            {product.metalPurity}
-                          </p>
-                        </div>
-                        {order.status !== "closed" && (
-                          <EstimationForm
-                            orderId={order.id}
-                            productId={product.id}
-                            initialPurity={product.metalPurity}
-                          />
-                        )}
-                      </div>
-                      {estimation && (
-                        <div className="text-xs text-muted-foreground pl-14">
-                          Estimation: ₹{estimation.finalAmount.toLocaleString()} · {estimation.purity}
-                        </div>
-                      )}
+            {order.selectedProducts.map((product) => {
+              const estimation = order.estimations?.find(
+                (e) => e.productId === product.id,
+              );
+              return (
+                <div
+                  key={product.id}
+                  className="space-y-2 rounded-lg border border-border bg-muted/20 p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <ProductThumbnail product={product} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground">
+                        {product.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {product.productCode} · {product.category} ·{" "}
+                        {formatMetalTypeLabel(product.metalType)}{" "}
+                        {product.metalPurity}
+                      </p>
                     </div>
-                  );
-                })}
+                    {order.status !== "closed" && (
+                      <EstimationForm
+                        orderId={order.id}
+                        productId={product.id}
+                        initialPurity={product.metalPurity}
+                      />
+                    )}
+                  </div>
+                  {estimation && (
+                    <div className="text-xs text-muted-foreground pl-14">
+                      Estimation: ₹{estimation.finalAmount.toLocaleString()} ·{" "}
+                      {estimation.purity}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
-                {order.customProducts && order.customProducts.length > 0 && (
-                  <div className="space-y-3">
-                    <p className="text-xs text-muted-foreground">Custom products</p>
-                    {order.customProducts.map((product) => {
-                      const estimation = order.estimations?.find(e => e.productId === product.id);
-                      return (
-                        <div
-                          key={product.id}
-                          className="space-y-3 rounded-lg border border-border bg-muted/20 p-3"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <p className="text-sm font-medium text-foreground">
-                                {[product.category || "Custom", product.metalType, product.metalPurity]
-                                  .filter(Boolean)
-                                  .join(" · ")}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {[
-                                  product.polish || null,
-                                  product.stoneDescription || null,
-                                  product.stoneCut || null,
-                                  product.stoneQuality || null,
-                                  product.stoneCaratEstimate
-                                    ? `~${product.stoneCaratEstimate} ct`
-                                    : null,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" · ") || "No extra stone specs"}
-                              </p>
-                            </div>
-                            {order.status !== "closed" && (
-                              <EstimationForm
-                                orderId={order.id}
-                                productId={product.id}
-                                initialPurity={product.metalPurity as MetalPurity}
+        {order.customProducts && order.customProducts.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">Custom products</p>
+            {order.customProducts.map((product) => {
+              const estimation = order.estimations?.find(
+                (e) => e.productId === product.id,
+              );
+              return (
+                <div
+                  key={product.id}
+                  className="space-y-3 rounded-lg border border-border bg-muted/20 p-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {[
+                          product.category || "Custom",
+                          product.metalType,
+                          product.metalPurity,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {[
+                          product.polish || null,
+                          product.stoneDescription || null,
+                          product.stoneCut || null,
+                          product.stoneQuality || null,
+                          product.stoneCaratEstimate
+                            ? `~${product.stoneCaratEstimate} ct`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "No extra stone specs"}
+                      </p>
+                    </div>
+                    {order.status !== "closed" && (
+                      <EstimationForm
+                        orderId={order.id}
+                        productId={product.id}
+                        initialPurity={product.metalPurity as MetalPurity}
+                      />
+                    )}
+                  </div>
+                  {estimation && (
+                    <div className="text-xs text-muted-foreground">
+                      Estimation: ₹{estimation.finalAmount.toLocaleString()} ·{" "}
+                      {estimation.purity}
+                    </div>
+                  )}
+                  {product.references.length > 0 && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {product.references.map((reference) => {
+                        const mediaUrl = mediaUrls[reference.id];
+                        return (
+                          <div
+                            key={reference.id}
+                            className="overflow-hidden rounded-lg border border-border bg-card"
+                          >
+                            {reference.type === "image" && mediaUrl && (
+                              <img
+                                src={mediaUrl}
+                                alt={reference.name}
+                                className="h-32 w-full object-cover"
                               />
                             )}
+                            {reference.type === "video" && mediaUrl && (
+                              <video
+                                src={mediaUrl}
+                                controls
+                                className="h-32 w-full bg-black object-cover"
+                              />
+                            )}
+                            <div className="space-y-1 p-3">
+                              <p className="text-sm font-medium text-foreground">
+                                {reference.type === "link"
+                                  ? "Reference link"
+                                  : reference.name}
+                              </p>
+                              {reference.type === "link" && reference.url ? (
+                                <a
+                                  href={reference.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="block truncate text-xs text-primary hover:underline"
+                                >
+                                  {reference.url}
+                                </a>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">
+                                  {[
+                                    reference.mimeType,
+                                    reference.size
+                                      ? `${Math.round(reference.size / 1024)} KB`
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          {estimation && (
-                            <div className="text-xs text-muted-foreground">
-                              Estimation: ₹{estimation.finalAmount.toLocaleString()} · {estimation.purity}
-                            </div>
-                          )}
-                          {product.references.length > 0 && (
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {product.references.map((reference) => {
-                                const mediaUrl = mediaUrls[reference.id];
-                                return (
-                                  <div
-                                    key={reference.id}
-                                    className="overflow-hidden rounded-lg border border-border bg-card"
-                                  >
-                                    {reference.type === "image" && mediaUrl && (
-                                      <img
-                                        src={mediaUrl}
-                                        alt={reference.name}
-                                        className="h-32 w-full object-cover"
-                                      />
-                                    )}
-                                    {reference.type === "video" && mediaUrl && (
-                                      <video
-                                        src={mediaUrl}
-                                        controls
-                                        className="h-32 w-full bg-black object-cover"
-                                      />
-                                    )}
-                                    <div className="space-y-1 p-3">
-                                      <p className="text-sm font-medium text-foreground">
-                                        {reference.type === "link"
-                                          ? "Reference link"
-                                          : reference.name}
-                                      </p>
-                                      {reference.type === "link" && reference.url ? (
-                                        <a
-                                          href={reference.url}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="block truncate text-xs text-primary hover:underline"
-                                        >
-                                          {reference.url}
-                                        </a>
-                                      ) : (
-                                        <p className="text-xs text-muted-foreground">
-                                          {[reference.mimeType, reference.size ? `${Math.round(reference.size / 1024)} KB` : null]
-                                            .filter(Boolean)
-                                            .join(" · ")}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
                   )}
-       </Section>
-     </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Section>
+    </div>
   );
 }
 

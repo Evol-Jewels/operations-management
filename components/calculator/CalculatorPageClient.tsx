@@ -11,15 +11,17 @@ import {
   RefreshCcw,
   ScanLine,
   Search,
+  Settings2,
   Sparkles,
   Trash2,
   Upload,
-  Settings2
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import { EstimationSummaryCard } from "@/components/calculator/EstimationSummaryCard";
+import { SettingsView } from "@/components/calculator/SettingsView";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,6 +40,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
@@ -115,53 +124,6 @@ function NumericLineInput({
   );
 }
 
-<<<<<<< HEAD
-export function CalculatorPageClient() {
-  const settings = DEFAULT_CALCULATOR_SETTINGS;
-  const summaryRef = useRef<HTMLDivElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [activeTab, setActiveTab] = useState<CalculatorTab>("calculate");
-  const [form, setForm] = useState<CalculatorFormState>({
-    netGoldWeight: 0,
-    purity: "22K",
-    stones: [createStone()],
-    productName: "",
-    productNote: "",
-  });
-  const [loadedProduct, setLoadedProduct] =
-    useState<CatalogueEstimateResult | null>(null);
-
-  const handleLoadProduct = (result: CatalogueEstimateResult) => {
-    setLoadedProduct(result);
-    const purityMap: Record<string, MetalPurity> = {
-      "24": "24K",
-      "22": "22K",
-      "18": "18K",
-      "14": "14K",
-    };
-    setForm({
-      netGoldWeight: result.product.netGoldWeight,
-      purity: purityMap[result.product.purity] || "22K",
-      stones: result.stones.map((s, i) => ({
-        ...s,
-        id: s.id || `stone-${i}`,
-      })),
-      productName: result.product.productName,
-      productNote: result.product.description || "",
-      productImageUrl: result.product.imageUrl || undefined,
-    });
-    setActiveTab("calculate");
-  };
-
-  useEffect(() => {
-    return () => {
-      if (form.productImageUrl?.startsWith("blob:")) {
-        URL.revokeObjectURL(form.productImageUrl);
-      }
-    };
-  }, [form.productImageUrl]);
-
-=======
 function SectionLabel({
   title,
   action,
@@ -227,7 +189,6 @@ function PurityCards({
   value: MetalPurity;
   onChange: (value: MetalPurity) => void;
 }) {
->>>>>>> t3code/779bab5d
   const purityCards = useMemo(() => {
     return PURITY_OPTIONS.map((purity) => ({
       purity,
@@ -237,9 +198,6 @@ function PurityCards({
         settings.purityPercentages,
       ),
     }));
-<<<<<<< HEAD
-  }, [settings]);
-=======
   }, [settings.goldRate24k, settings.purityPercentages]);
 
   return (
@@ -409,37 +367,6 @@ function ProductImageInput({
         onChange={(event) => onImageChange(event.target.files?.[0] ?? null)}
       />
     </>
-  );
-}
-
-function RateField({
-  label,
-  value,
-  suffix,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  suffix?: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="block min-w-0">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </span>
-      <div className="mt-1 flex items-center gap-1 border-b border-border pb-1 focus-within:border-foreground">
-        <input
-          type="number"
-          value={value || ""}
-          onChange={(event) => onChange(Number(event.target.value) || 0)}
-          className="min-w-0 flex-1 bg-transparent text-sm font-medium outline-none"
-        />
-        {suffix ? (
-          <span className="text-[11px] text-muted-foreground">{suffix}</span>
-        ) : null}
-      </div>
-    </label>
   );
 }
 
@@ -638,6 +565,7 @@ function CalculatorForm({
   resetForm,
   fileInputRef,
   onImageChange,
+  onOpenSettings,
 }: {
   settings: CalculatorSettings;
   form: CalculatorFormState;
@@ -651,21 +579,34 @@ function CalculatorForm({
   resetForm: () => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onImageChange: (file: File | null) => void;
+  onOpenSettings: () => void;
 }) {
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="bg-card border border-border rounded-xl shadow-md p-4 min-w-0 space-y-6">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-base font-semibold">Calculator</h1>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="gap-2"
-          onClick={resetForm}
-        >
-          <RefreshCcw className="h-4 w-4" />
-          Reset
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="gap-2"
+            onClick={onOpenSettings}
+          >
+            <Settings2 className="h-4 w-4" />
+            Settings
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="gap-2"
+            onClick={resetForm}
+          >
+            <RefreshCcw className="h-4 w-4" />
+            Reset
+          </Button>
+        </div>
       </div>
 
       <section className="space-y-4">
@@ -777,6 +718,7 @@ export function CalculatorPageClient() {
   } = useCalculatorSettings();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeTab, setActiveTab] = useState<CalculatorTab>("calculate");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [form, setForm] = useState<CalculatorFormState>({
     netGoldWeight: 0,
     purity: "22K",
@@ -784,7 +726,6 @@ export function CalculatorPageClient() {
     productName: "",
     productNote: "",
   });
->>>>>>> t3code/779bab5d
 
   const breakdown = useMemo(() => {
     return computeEstimateFromInputs(
@@ -793,9 +734,6 @@ export function CalculatorPageClient() {
       form.purity,
       form.stones,
     );
-<<<<<<< HEAD
-  }, [form.netGoldWeight, form.purity, form.stones, settings]);
-=======
   }, [settings, form.netGoldWeight, form.purity, form.stones]);
 
   useEffect(() => {
@@ -818,7 +756,6 @@ export function CalculatorPageClient() {
       }
     };
   }, [form.productImageUrl]);
->>>>>>> t3code/779bab5d
 
   function updateForm<K extends keyof CalculatorFormState>(
     key: K,
@@ -839,11 +776,7 @@ export function CalculatorPageClient() {
   function addStone() {
     setForm((current) => ({
       ...current,
-<<<<<<< HEAD
-      stones: [...current.stones, createStone()],
-=======
       stones: [...current.stones, createStone(settings)],
->>>>>>> t3code/779bab5d
     }));
   }
 
@@ -865,20 +798,11 @@ export function CalculatorPageClient() {
     setForm({
       netGoldWeight: 0,
       purity: "22K",
-<<<<<<< HEAD
-      stones: [createStone()],
-=======
       stones: [createStone(settings)],
->>>>>>> t3code/779bab5d
       productName: "",
       productNote: "",
     });
 
-<<<<<<< HEAD
-    setLoadedProduct(null);
-
-=======
->>>>>>> t3code/779bab5d
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -894,10 +818,6 @@ export function CalculatorPageClient() {
     updateForm("productImageUrl", URL.createObjectURL(file));
   }
 
-<<<<<<< HEAD
-  function scrollToSummary() {
-    summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-=======
   function loadCatalogueProduct(result: CatalogueEstimateResult) {
     const purityMap: Record<string, MetalPurity> = {
       "24": "24K",
@@ -927,486 +847,13 @@ export function CalculatorPageClient() {
       productImageUrl: result.product.imageUrl || undefined,
     });
     setActiveTab("calculate");
->>>>>>> t3code/779bab5d
   }
 
   return (
     <RequireInternalAuth>
-<<<<<<< HEAD
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-2xl">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-              Calculator
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-              Estimate jewellery pricing with a reusable manual workflow
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              This first build adds the `/calculator` route, a structured manual
-              estimate form, and a live summary card that search and scanner
-              results can plug into next.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-2xl border border-border bg-card p-2 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setActiveTab("search")}
-              className={cn(
-                "flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors",
-                activeTab === "search"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Search className="h-4 w-4" />
-              Search
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("calculate")}
-              className={cn(
-                "flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors",
-                activeTab === "calculate"
-                  ? "bg-black text-white shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Calculator className="h-4 w-4" />
-              Calculate
-            </button>
-          </div>
-        </div>
-
-        {activeTab === "search" ? (
-          <SearchSection onLoadProduct={handleLoadProduct} />
-        ) : (
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_400px]">
-            <div className="space-y-6">
-              <Card className="overflow-hidden py-0">
-                <CardHeader className="border-b border-border/70 px-5 py-5">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <CardTitle className="text-xl">
-                        Manual Calculation
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        Fill in metal details, add stone specifications, and
-                        review the final estimate live.
-                      </CardDescription>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="gap-2"
-                      onClick={resetForm}
-                    >
-                      <RefreshCcw className="h-4 w-4" />
-                      Reset
-                    </Button>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="space-y-8 px-5 py-6">
-                  <section className="space-y-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-muted">
-                        <Sparkles className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                          Gold
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Net weight and purity decide the base metal cost.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-                      <div className="space-y-2">
-                        <Label htmlFor="net-weight">Gold Net Weight</Label>
-                        <div className="relative">
-                          <Input
-                            id="net-weight"
-                            type="number"
-                            min="0"
-                            step="0.001"
-                            value={form.netGoldWeight || ""}
-                            onChange={(event) =>
-                              updateForm(
-                                "netGoldWeight",
-                                Number(event.target.value) || 0,
-                              )
-                            }
-                            placeholder="Enter net gold weight"
-                            className="h-14 rounded-2xl border-border/80 bg-muted/15 pr-12 text-xl font-medium"
-                          />
-                          <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-sm text-muted-foreground">
-                            g
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        {purityCards.map((card) => (
-                          <button
-                            key={card.purity}
-                            type="button"
-                            onClick={() => updateForm("purity", card.purity)}
-                            className={cn(
-                              "rounded-2xl border p-4 text-left transition-all",
-                              form.purity === card.purity
-                                ? "border-black bg-black text-white shadow-lg shadow-black/10"
-                                : "border-border bg-card hover:border-foreground/30",
-                            )}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <span className="text-lg font-semibold">
-                                {card.purity}
-                              </span>
-                              {form.purity === card.purity ? (
-                                <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/80">
-                                  Active
-                                </span>
-                              ) : null}
-                            </div>
-                            <p
-                              className={cn(
-                                "mt-2 text-sm",
-                                form.purity === card.purity
-                                  ? "text-white/70"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {formatCurrency(card.rate)}/g
-                            </p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-
-                  <Separator />
-
-                  <section className="space-y-5">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-muted">
-                          <Diamond className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                            Stones
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Each stone line resolves against a slab-based rate
-                            card.
-                          </p>
-                        </div>
-                      </div>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={addStone}
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add Stone
-                      </Button>
-                    </div>
-
-                    <div className="space-y-4">
-                      {form.stones.map((stone, index) => {
-                        const stoneType = settings.stoneTypes.find(
-                          (item) => item.stoneId === stone.stoneTypeId,
-                        );
-                        const resolvedSlab = resolveAutoSlab(
-                          stoneType?.slabs ?? [],
-                          stone.weight,
-                          stone.quantity,
-                        );
-
-                        return (
-                          <div
-                            key={stone.id}
-                            className="rounded-3xl border border-border/80 bg-muted/15 p-4"
-                          >
-                            <div className="flex items-center justify-between gap-4">
-                              <div>
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                                  Stone {index + 1}
-                                </p>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                  {resolvedSlab
-                                    ? `${formatCurrency(resolvedSlab.pricePerCarat)}/ct • slab ${resolvedSlab.code}`
-                                    : "Pick a type and weight to resolve pricing"}
-                                </p>
-                              </div>
-
-                              {form.stones.length > 1 ? (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  onClick={() => removeStone(stone.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              ) : null}
-                            </div>
-
-                            <div className="mt-4 grid gap-4 md:grid-cols-3">
-                              <div className="space-y-2">
-                                <Label>Type</Label>
-                                <Select
-                                  value={stone.stoneTypeId}
-                                  onValueChange={(value) =>
-                                    updateStone(stone.id, {
-                                      stoneTypeId: value,
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger className="h-11 w-full rounded-xl bg-background">
-                                    <SelectValue placeholder="Select type" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {settings.stoneTypes.map((item) => (
-                                      <SelectItem
-                                        key={item.stoneId}
-                                        value={item.stoneId}
-                                      >
-                                        {item.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label>Stone Net Weight</Label>
-                                <div className="relative">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.001"
-                                    value={stone.weight || ""}
-                                    onChange={(event) =>
-                                      updateStone(stone.id, {
-                                        weight: Number(event.target.value) || 0,
-                                      })
-                                    }
-                                    placeholder="0.000"
-                                    className="h-11 rounded-xl bg-background pr-10"
-                                  />
-                                  <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted-foreground">
-                                    ct
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="space-y-2">
-                                <Label>Total Pieces</Label>
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  step="1"
-                                  value={stone.quantity || ""}
-                                  onChange={(event) =>
-                                    updateStone(stone.id, {
-                                      quantity: Math.max(
-                                        1,
-                                        Number(event.target.value) || 1,
-                                      ),
-                                    })
-                                  }
-                                  placeholder="1"
-                                  className="h-11 rounded-xl bg-background"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
-
-                  <Separator />
-
-                  <section className="space-y-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-muted">
-                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                          Product
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Optional image and product note for a richer estimate
-                          summary.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex min-h-36 w-full flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-border bg-muted/15 px-6 text-center transition-colors hover:bg-muted/25"
-                      >
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm">
-                          <Upload className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {form.productImageUrl
-                              ? "Replace product image"
-                              : "Drag, paste, or click to upload"}
-                          </p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            Add a product visual for the estimate card.
-                          </p>
-                        </div>
-                      </button>
-
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(event) =>
-                          handleImageChange(event.target.files?.[0] ?? null)
-                        }
-                      />
-
-                      <div className="grid gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="product-name">Product Name</Label>
-                          <Input
-                            id="product-name"
-                            value={form.productName}
-                            onChange={(event) =>
-                              updateForm("productName", event.target.value)
-                            }
-                            placeholder="Emerald Halo Ring"
-                            className="h-11 rounded-xl bg-background"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="product-note">Note</Label>
-                          <Textarea
-                            id="product-note"
-                            value={form.productNote}
-                            onChange={(event) =>
-                              updateForm("productNote", event.target.value)
-                            }
-                            placeholder="Customer estimate prepared from the latest synced rates."
-                            rows={4}
-                            className="rounded-2xl bg-background text-sm"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
-                    <p className="text-sm text-muted-foreground">
-                      The estimate updates live as you edit gold, purity, and
-                      stones.
-                    </p>
-                    <Button
-                      type="button"
-                      onClick={scrollToSummary}
-                      className="gap-2"
-                    >
-                      <Calculator className="h-4 w-4" />
-                      Review Summary
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div ref={summaryRef} className="xl:sticky xl:top-20 xl:self-start">
-              <EstimationSummaryCard form={form} breakdown={breakdown} />
-            </div>
-          </div>
-        )}
-=======
-      <div className="mx-auto w-full max-w-5xl">
-        <div className="rounded-3xl border border-border bg-card p-4 shadow-[0_20px_60px_rgba(0,0,0,0.08)] sm:p-6 lg:p-8">
+      <div className="mx-auto w-full">
+        <div className="rounded-3xl p-4">
           <TabsSwitcher activeTab={activeTab} onTabChange={setActiveTab} />
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/25 px-4 py-3">
-            <div className="min-w-0 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Rates</span>{" "}
-              {lastSynced
-                ? `synced ${new Date(lastSynced).toLocaleString("en-IN")}`
-                : "using local defaults"}
-              {syncError ? (
-                <span className="ml-2 text-destructive">{syncError}</span>
-              ) : null}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-2 rounded-lg"
-              onClick={() => void syncFromSheet()}
-              disabled={isSyncing}
-            >
-              {isSyncing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Settings2 className="h-4 w-4" />
-              )}
-              Sync rates
-            </Button>
-            <div className="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <RateField
-                label="24K Rate"
-                value={settings.goldRate24k}
-                suffix="/g"
-                onChange={(goldRate24k) =>
-                  setSettings((current) => ({ ...current, goldRate24k }))
-                }
-              />
-              <RateField
-                label="Flat Making"
-                value={settings.makingChargeFlat}
-                onChange={(makingChargeFlat) =>
-                  setSettings((current) => ({ ...current, makingChargeFlat }))
-                }
-              />
-              <RateField
-                label="Making / g"
-                value={settings.makingChargePerGram}
-                suffix="/g"
-                onChange={(makingChargePerGram) =>
-                  setSettings((current) => ({
-                    ...current,
-                    makingChargePerGram,
-                  }))
-                }
-              />
-              <RateField
-                label="GST"
-                value={Number((settings.gstRate * 100).toFixed(2))}
-                suffix="%"
-                onChange={(gstPercent) =>
-                  setSettings((current) => ({
-                    ...current,
-                    gstRate: gstPercent / 100,
-                  }))
-                }
-              />
-            </div>
-          </div>
 
           {activeTab === "search" ? (
             <SearchPanel
@@ -1414,7 +861,7 @@ export function CalculatorPageClient() {
               onLoadProduct={loadCatalogueProduct}
             />
           ) : (
-            <div className="grid gap-8 pt-7 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_475px] xl:justify-center">
+            <div className="grid gap-4 pt-7 lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[380px_475px] xl:justify-center">
               <CalculatorForm
                 settings={settings}
                 form={form}
@@ -1425,6 +872,7 @@ export function CalculatorPageClient() {
                 resetForm={resetForm}
                 fileInputRef={fileInputRef}
                 onImageChange={handleImageChange}
+                onOpenSettings={() => setSettingsOpen(true)}
               />
               <EstimationSummaryCard
                 form={form}
@@ -1435,8 +883,49 @@ export function CalculatorPageClient() {
             </div>
           )}
         </div>
->>>>>>> t3code/779bab5d
       </div>
+
+      {/* Settings Drawer */}
+      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-xl overflow-y-auto p-0"
+        >
+          <SheetHeader className="px-5 pt-5 pb-4 border-b border-border sticky top-0 bg-background z-10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-6 h-6 bg-foreground rounded-md flex items-center justify-center shrink-0">
+                  <Settings2 className="w-3 h-3 text-background" />
+                </div>
+                <SheetTitle className="text-base font-semibold text-foreground">
+                  Settings
+                </SheetTitle>
+              </div>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                aria-label="Close settings"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <SheetDescription className="text-xs text-muted-foreground mt-1">
+              Adjust gold rates, making charges, tax, and stone pricing
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="px-5 py-5">
+            <SettingsView
+              settings={settings}
+              onChange={setSettings}
+              lastSynced={lastSynced}
+              onSync={syncFromSheet}
+              isSyncing={isSyncing}
+              syncError={syncError}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </RequireInternalAuth>
   );
 }
