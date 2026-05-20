@@ -3,15 +3,19 @@
 import {
   Boxes,
   Calculator,
-  ChevronsLeft,
   House,
   LogOut,
-  MessageSquare,
+  BookA,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
   ShieldUser,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -43,7 +47,7 @@ const navItems = [
     href: "/",
   },
   {
-    icon: MessageSquare,
+    icon: BookA,
     label: "Orders and Enquiries",
     href: "/orders-and-enquiries",
   },
@@ -84,58 +88,59 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="py-3">
-        <div className="flex items-center gap-2 px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+        <div className="flex items-center justify-between">
           <SidebarMenu className="flex-1">
             <SidebarMenuItem>
-              {state === "collapsed" ? (
-                <SidebarMenuButton
-                  size="lg"
-                  tooltip="Expand sidebar"
-                  onClick={toggleSidebar}
-                  className="group/logo !h-10 !w-10 !justify-center !p-0"
-                >
-                  <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background">
-                    <span className="text-[10px] font-black tracking-widest transition-opacity group-hover/logo:opacity-0">
-                      EJ
-                    </span>
-                    <ChevronsLeft className="absolute h-4 w-4 rotate-180 opacity-0 transition-opacity group-hover/logo:opacity-100" />
+              <SidebarMenuButton
+                size="lg"
+                tooltip={
+                  state === "collapsed"
+                    ? "Open sidebar"
+                    : "Orders and Enquiries"
+                }
+                onClick={state === "collapsed" ? toggleSidebar : undefined}
+                asChild={state === "expanded"}
+                className="group/logo"
+              >
+                <div className="relative flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
+                  <div className="relative">
+                    <Avatar  className={`rounded-sm ${state === "collapsed" ? "group-hover:opacity-0 size-7" : "size-10"}`}>
+                      <AvatarImage src="/evol-logo.webp" alt="EVOL" />
+                      <AvatarFallback className="bg-sidebar-accent text-xs font-semibold">
+                        Evol
+                      </AvatarFallback>
+                    </Avatar>
+                    {state === "collapsed" && (
+                      <PanelLeftOpen className="absolute inset-0 m-auto h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100" />
+                    )}
                   </div>
-                </SidebarMenuButton>
-              ) : (
-                <SidebarMenuButton size="lg" asChild>
-                  <Link
-                    href="/orders-and-enquiries"
-                    className="flex w-full items-center gap-2.5"
-                  >
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-foreground text-background">
-                      <span className="text-[10px] font-black tracking-widest">
-                        EJ
-                      </span>
-                    </div>
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-sm font-semibold tracking-tight">
-                        EVOL Jewels
-                      </span>
-                      <span className="text-[11px] text-muted-foreground/70">
-                        Operations
-                      </span>
-                    </div>
-                  </Link>
-                </SidebarMenuButton>
-              )}
+                  <div className="flex flex-col items-start group-data-[collapsible=icon]:hidden">
+                    <span className="text-sm font-semibold leading-none">
+                      EVOL Jewels
+                    </span>
+                    <Badge
+                      variant="default"
+                      className="mt-1 h-4 px-1.5 text-[10px] font-medium"
+                    >
+                      Operations
+                    </Badge>
+                  </div>
+                </div>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={toggleSidebar}
-            className="hidden shrink-0 md:inline-flex group-data-[collapsible=icon]:hidden"
-            aria-label="Collapse sidebar"
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </Button>
+          {state === "expanded" && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={toggleSidebar}
+              className="shrink-0"
+              aria-label="Collapse sidebar"
+            >
+              <PanelLeftClose className="h-5 w-5" />
+            </Button>
+          )}
         </div>
       </SidebarHeader>
 
@@ -157,12 +162,30 @@ export function AppSidebar() {
                       href={item.href}
                       className="flex w-full min-w-0 items-center gap-2 overflow-hidden group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
                     >
-                      <item.icon className="h-4 w-4" />
+                      <item.icon className="h-5 w-5" />
                       <span className="truncate">{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === "/enquiries/new"}
+                  tooltip="Create New Enquiry"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground data-[active=true]:bg-primary/90 data-[active=true]:text-primary-foreground data-[active=true]:shadow-none my-1"
+                >
+                  <Link
+                    href="/enquiries/new"
+                    className="flex w-full min-w-0 items-center gap-2 overflow-hidden"
+                  >
+                    <Plus className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">
+                      Create New Enquiry
+                    </span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -187,21 +210,27 @@ export function AppSidebar() {
                   <span className="truncate text-sm font-medium leading-none">
                     {session.user.name.split(" ")[0]}
                   </span>
-                  <span className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                    {session.user.email}
-                  </span>
                 </div>
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-60 p-0" align="start" side="top">
               <div className="flex flex-col gap-0">
                 <div className="flex flex-col gap-1 p-3 pb-2">
-                  <p className="text-sm font-semibold leading-none tracking-tight">
-                    {session.user.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {session.user.email}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="text-sm font-medium">
+                        {initials(session.user.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0 flex flex-col">
+                      <p className="text-sm font-semibold leading-none tracking-tight">
+                        {session.user.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {session.user.email}
+                      </p>
+                    </div>
+                  </div>
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between px-3 py-2">
@@ -211,6 +240,12 @@ export function AppSidebar() {
                   </span>
                 </div>
                 <Separator />
+                <Link
+                  href="/profile"
+                  className="block w-full px-3 py-2 text-sm font-normal text-left hover:bg-sidebar-accent/50"
+                >
+                  Edit Profile
+                </Link>
                 <button
                   type="button"
                   onClick={async () => {

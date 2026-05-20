@@ -65,7 +65,12 @@ export function EstimationSummaryCard({
   }
 
   return (
-    <section className={cn("min-w-0", className)}>
+    <section
+      className={cn(
+        "min-w-0 bg-card border border-border rounded-xl shadow-md p-4",
+        className,
+      )}
+    >
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold tracking-tight">Summary</h2>
         <Button

@@ -11,7 +11,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useOrdersStore } from "@/lib/stores/orders-store";
 import type { CloseReason } from "@/types";
@@ -61,13 +67,18 @@ export function CloseEnquiryDialog({ orderId }: CloseEnquiryDialogProps) {
             <label className="text-sm font-medium text-foreground">
               Close Reason <span className="text-destructive">*</span>
             </label>
-            <Select value={reason} onValueChange={(v) => setReason(v as CloseReason)}>
+            <Select
+              value={reason}
+              onValueChange={(v) => setReason(v as CloseReason)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select a reason" />
               </SelectTrigger>
               <SelectContent>
                 {CLOSE_REASONS.map((r) => (
-                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                  <SelectItem key={r} value={r}>
+                    {r}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

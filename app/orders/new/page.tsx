@@ -47,13 +47,7 @@ const METAL_TYPES: MetalType[] = [
   "Silver",
   "Platinum",
 ];
-const METAL_PURITIES: MetalPurity[] = [
-  "14K",
-  "18K",
-  "22K",
-  "24K",
-  "Other",
-];
+const METAL_PURITIES: MetalPurity[] = ["14K", "18K", "22K", "24K", "Other"];
 const CERTIFICATIONS: CertificationType[] = [
   "None",
   "Jewellery",
@@ -341,7 +335,9 @@ function NewOrderForm() {
       certification: form.certification as CertificationType,
       cadDesignRequired: form.cadDesignRequired,
       advancePaid: form.advancePaid ? Number(form.advancePaid) : undefined,
-      totalEstimate: form.totalEstimate ? Number(form.totalEstimate) : undefined,
+      totalEstimate: form.totalEstimate
+        ? Number(form.totalEstimate)
+        : undefined,
       deliveryDate: form.deliveryDate,
       currentStage: form.cadDesignRequired ? "CAD Design" : "Order Confirmed",
       createdAt,

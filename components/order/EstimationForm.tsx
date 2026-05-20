@@ -12,11 +12,21 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useOrdersStore } from "@/lib/stores/orders-store";
 import { calculateEstimationAmount } from "@/lib/utils";
-import type { MetalPurity, ProductEstimation, EstimationStoneDetail } from "@/types";
+import type {
+  MetalPurity,
+  ProductEstimation,
+  EstimationStoneDetail,
+} from "@/types";
 
 interface EstimationFormProps {
   orderId: string;
@@ -39,13 +49,19 @@ const STONE_TYPES = [
   "Radiant",
 ] as const;
 
-export function EstimationForm({ orderId, productId, initialPurity }: EstimationFormProps) {
+export function EstimationForm({
+  orderId,
+  productId,
+  initialPurity,
+}: EstimationFormProps) {
   const [open, setOpen] = useState(false);
   const [metalWeight, setMetalWeight] = useState("");
   const [purity, setPurity] = useState<MetalPurity>(initialPurity);
   const [stoneDetails, setStoneDetails] = useState<EstimationStoneDetail[]>([]);
   const [finalAmount, setFinalAmount] = useState(0);
-  const addProductEstimation = useOrdersStore((state) => state.addProductEstimation);
+  const addProductEstimation = useOrdersStore(
+    (state) => state.addProductEstimation,
+  );
 
   useEffect(() => {
     if (metalWeight || stoneDetails.length > 0) {
@@ -65,7 +81,11 @@ export function EstimationForm({ orderId, productId, initialPurity }: Estimation
     ]);
   }
 
-  function updateStone(index: number, field: keyof EstimationStoneDetail, value: string | number) {
+  function updateStone(
+    index: number,
+    field: keyof EstimationStoneDetail,
+    value: string | number,
+  ) {
     const updated = [...stoneDetails];
     updated[index] = { ...updated[index], [field]: value };
     setStoneDetails(updated);
@@ -99,7 +119,13 @@ export function EstimationForm({ orderId, productId, initialPurity }: Estimation
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) resetForm();
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
           Add Estimation
@@ -112,7 +138,9 @@ export function EstimationForm({ orderId, productId, initialPurity }: Estimation
         <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto">
           {/* Metal Weight */}
           <div className="space-y-2">
-            <Label htmlFor="metal-weight">Metal Weight (g) <span className="text-destructive">*</span></Label>
+            <Label htmlFor="metal-weight">
+              Metal Weight (g) <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="metal-weight"
               type="number"
@@ -124,14 +152,21 @@ export function EstimationForm({ orderId, productId, initialPurity }: Estimation
 
           {/* Purity */}
           <div className="space-y-2">
-            <Label htmlFor="purity">Purity <span className="text-destructive">*</span></Label>
-            <Select value={purity} onValueChange={(v) => setPurity(v as MetalPurity)}>
+            <Label htmlFor="purity">
+              Purity <span className="text-destructive">*</span>
+            </Label>
+            <Select
+              value={purity}
+              onValueChange={(v) => setPurity(v as MetalPurity)}
+            >
               <SelectTrigger id="purity">
                 <SelectValue placeholder="Select purity" />
               </SelectTrigger>
               <SelectContent>
                 {METAL_PURITIES.map((p) => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                  <SelectItem key={p} value={p}>
+                    {p}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -141,16 +176,29 @@ export function EstimationForm({ orderId, productId, initialPurity }: Estimation
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Stone Details</Label>
-              <Button variant="outline" size="sm" onClick={addStone} className="h-7 gap-1 text-xs">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={addStone}
+                className="h-7 gap-1 text-xs"
+              >
                 <Plus className="h-3.5 w-3.5" />
                 Add Stone
               </Button>
             </div>
             {stoneDetails.map((stone, index) => (
-              <div key={stone.id} className="space-y-2 p-3 border border-border rounded-lg">
+              <div
+                key={stone.id}
+                className="space-y-2 p-3 border border-border rounded-lg"
+              >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Stone {index + 1}</span>
-                  <Button variant="ghost" size="sm" onClick={() => removeStone(index)} className="h-7 w-7 p-0 text-destructive">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeStone(index)}
+                    className="h-7 w-7 p-0 text-destructive"
+                  >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -166,7 +214,9 @@ export function EstimationForm({ orderId, productId, initialPurity }: Estimation
                       </SelectTrigger>
                       <SelectContent>
                         {STONE_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -176,7 +226,13 @@ export function EstimationForm({ orderId, productId, initialPurity }: Estimation
                     <Input
                       type="number"
                       value={stone.netWeight || ""}
-                      onChange={(e) => updateStone(index, "netWeight", parseFloat(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateStone(
+                          index,
+                          "netWeight",
+                          parseFloat(e.target.value) || 0,
+                        )
+                      }
                       placeholder="0"
                       className="h-8 text-xs"
                     />
@@ -186,7 +242,13 @@ export function EstimationForm({ orderId, productId, initialPurity }: Estimation
                     <Input
                       type="number"
                       value={stone.pieces || ""}
-                      onChange={(e) => updateStone(index, "pieces", parseInt(e.target.value) || 0)}
+                      onChange={(e) =>
+                        updateStone(
+                          index,
+                          "pieces",
+                          parseInt(e.target.value) || 0,
+                        )
+                      }
                       placeholder="0"
                       className="h-8 text-xs"
                     />

@@ -276,6 +276,15 @@ export function useCalculatorSettings() {
     }
   }, []);
 
+  const applySync = useCallback(
+    (newSettings: CalculatorSettings, syncedAt: string) => {
+      setSettings(newSettings);
+      setLastSynced(syncedAt);
+      localStorage.setItem(LAST_SYNCED_STORAGE_KEY, syncedAt);
+    },
+    [],
+  );
+
   return {
     settings,
     lastSynced,
@@ -283,5 +292,6 @@ export function useCalculatorSettings() {
     syncError,
     setSettings,
     syncFromSheet,
+    applySync,
   };
 }

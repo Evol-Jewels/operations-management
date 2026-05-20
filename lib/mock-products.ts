@@ -29,8 +29,10 @@ export const mockProducts: Product[] = [
     category: "Bracelet",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVLBRCREGREG-4-1, net wt 21.26g, diamond wt 26.22ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/0ad3315c-f8e5-4308-89b3-303e0e597b05.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVLBRCREGREG-4-1, net wt 21.26g, diamond wt 26.22ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/0ad3315c-f8e5-4308-89b3-303e0e597b05.jpg",
     basePrice: 2177707,
   },
   {
@@ -40,8 +42,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "Rose Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPERNSTDFAN-21212-1, net wt 10.11g, diamond wt 2.68ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/131dd1a1-4009-4aca-8d93-8468dd1f0f7a.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPERNSTDFAN-21212-1, net wt 10.11g, diamond wt 2.68ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/131dd1a1-4009-4aca-8d93-8468dd1f0f7a.jpg",
     basePrice: 180786,
   },
   {
@@ -51,8 +55,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPERNSTDC09-21227-1, net wt 6.67g, diamond wt 0.76ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/1d1bbe05-a78d-40b9-a04c-606abdeaa9f2.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPERNSTDC09-21227-1, net wt 6.67g, diamond wt 0.76ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/1d1bbe05-a78d-40b9-a04c-606abdeaa9f2.jpg",
     basePrice: 111190,
   },
   {
@@ -62,8 +68,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPERNSTDC11-21225-1, net wt 7.08g, diamond wt 0.97ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/3a9157da-66a5-4252-ae31-8e608faf378a.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPERNSTDC11-21225-1, net wt 7.08g, diamond wt 0.97ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/3a9157da-66a5-4252-ae31-8e608faf378a.jpg",
     basePrice: 122410,
   },
   {
@@ -73,8 +81,10 @@ export const mockProducts: Product[] = [
     category: "Ring",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPRNGSTMC11-21238-1, net wt 5.45g, diamond wt 0.57ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/44b40e10-f8e5-4aa1-b77e-156e316e0003.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPRNGSTMC11-21238-1, net wt 5.45g, diamond wt 0.57ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/44b40e10-f8e5-4aa1-b77e-156e316e0003.jpg",
     basePrice: 90586,
   },
   {
@@ -84,8 +94,10 @@ export const mockProducts: Product[] = [
     category: "Ring",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPRNGSTMC09-21237-1, net wt 4.14g, diamond wt 0.62ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/4ee87c2c-f215-4850-8242-faea4708d817.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPRNGSTMC09-21237-1, net wt 4.14g, diamond wt 0.62ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/4ee87c2c-f215-4850-8242-faea4708d817.jpg",
     basePrice: 72377,
   },
   {
@@ -95,8 +107,10 @@ export const mockProducts: Product[] = [
     category: "Bracelet",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPBRCOBCC09-21213-1, net wt 16.19g, diamond wt 1.58ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/6621e8e4-6b7c-473f-aafa-a04a22972fe3.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPBRCOBCC09-21213-1, net wt 16.19g, diamond wt 1.58ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/6621e8e4-6b7c-473f-aafa-a04a22972fe3.jpg",
     basePrice: 262025,
   },
   {
@@ -106,8 +120,10 @@ export const mockProducts: Product[] = [
     category: "Bracelet",
     metalType: "White Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVPBRCTNSMSP-21201-1, net wt 20.07g, stone wt 10.7ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/6ea2e163-45c6-4cfd-bfc5-f600855866b5.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVPBRCTNSMSP-21201-1, net wt 20.07g, stone wt 10.7ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/6ea2e163-45c6-4cfd-bfc5-f600855866b5.jpg",
     basePrice: 336868,
   },
   {
@@ -117,8 +133,10 @@ export const mockProducts: Product[] = [
     category: "Pendant",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPPNDSHPC09-21202-1, net wt 5.52g, diamond wt 0.59ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/708b8dfe-164b-4dc9-b4e5-fbe7d1943ebb.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPPNDSHPC09-21202-1, net wt 5.52g, diamond wt 0.59ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/708b8dfe-164b-4dc9-b4e5-fbe7d1943ebb.jpg",
     basePrice: 89730,
   },
   {
@@ -128,8 +146,10 @@ export const mockProducts: Product[] = [
     category: "Bracelet",
     metalType: "White Gold",
     metalPurity: "14K",
-    description: "Vendor Khyra Collection LLP, variant EVLBRCREGREG-25-1, net wt 5.81g, diamond wt 6.34ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CBRC1069650-1776069433502.jpg",
+    description:
+      "Vendor Khyra Collection LLP, variant EVLBRCREGREG-25-1, net wt 5.81g, diamond wt 6.34ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CBRC1069650-1776069433502.jpg",
     basePrice: 303798,
   },
   {
@@ -139,7 +159,8 @@ export const mockProducts: Product[] = [
     category: "Bracelet",
     metalType: "Rose Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPBRCCBCFAN-21210-1, net wt 89.17g, diamond wt 13.06ct",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPBRCCBCFAN-21210-1, net wt 89.17g, diamond wt 13.06ct",
     imageUrl: "https://files.synergicserp.com/PML/IMAGES/CBRC482673.jpg",
     basePrice: 1355294,
   },
@@ -150,8 +171,10 @@ export const mockProducts: Product[] = [
     category: "Bracelet",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVPBRCTNSCLS-21197-1, net wt 11.64g, diamond wt 8.31ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CBRC544802-1746437082027.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVPBRCTNSCLS-21197-1, net wt 11.64g, diamond wt 8.31ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CBRC544802-1746437082027.jpg",
     basePrice: 373651,
   },
   {
@@ -161,8 +184,10 @@ export const mockProducts: Product[] = [
     category: "Bracelet",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor ROYKA DESIGNS LLP, variant EVPBRCTNSCLS-21200-1, net wt 8.56g, diamond wt 4.06ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CBRC725592-1746437082277.jpg",
+    description:
+      "Vendor ROYKA DESIGNS LLP, variant EVPBRCTNSCLS-21200-1, net wt 8.56g, diamond wt 4.06ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CBRC725592-1746437082277.jpg",
     basePrice: 201048,
   },
   {
@@ -172,8 +197,10 @@ export const mockProducts: Product[] = [
     category: "Bracelet",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVPBRCTNSCLS-21197-1, net wt 12.04g, diamond wt 3.37ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CBRC845016-1748003054308.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVPBRCTNSCLS-21197-1, net wt 12.04g, diamond wt 3.37ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CBRC845016-1748003054308.jpg",
     basePrice: 251907,
   },
   {
@@ -183,8 +210,10 @@ export const mockProducts: Product[] = [
     category: "Bracelet",
     metalType: "White Gold",
     metalPurity: "14K",
-    description: "Vendor IMAGINARIUM JEWEL TECH LLP, variant ESLBRCREGREG-6-1, net wt 7.97g, stone wt 10.26ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CBRC908400-1756215792697.jpg",
+    description:
+      "Vendor IMAGINARIUM JEWEL TECH LLP, variant ESLBRCREGREG-6-1, net wt 7.97g, stone wt 10.26ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CBRC908400-1756215792697.jpg",
     basePrice: 7267,
   },
   {
@@ -194,8 +223,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor MIDAMAS JEWELS LLP, variant EVLERNREGREG-86-1, net wt 4.12g, diamond wt 10.08ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CERN1050835-1774005364145.jpeg",
+    description:
+      "Vendor MIDAMAS JEWELS LLP, variant EVLERNREGREG-86-1, net wt 4.12g, diamond wt 10.08ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CERN1050835-1774005364145.jpeg",
     basePrice: 731422,
   },
   {
@@ -205,8 +236,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "Rose Gold",
     metalPurity: "14K",
-    description: "Vendor Khyra Collection LLP, variant EVLERNREGREG-90-1, net wt 1.76g, diamond wt 0.91ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CERN1069648-1776069433714.jpg",
+    description:
+      "Vendor Khyra Collection LLP, variant EVLERNREGREG-90-1, net wt 1.76g, diamond wt 0.91ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CERN1069648-1776069433714.jpg",
     basePrice: 47552,
   },
   {
@@ -216,7 +249,8 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "White Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVSERNDRPFAN-21193-1, net wt 4.73g, diamond wt 3.72ct",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVSERNDRPFAN-21193-1, net wt 4.73g, diamond wt 3.72ct",
     imageUrl: "https://files.synergicserp.com/PML/IMAGES/CERN488794.jpg",
     basePrice: 256414,
   },
@@ -227,8 +261,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVSERNSTDCLS-21233-1, net wt 2.87g, diamond wt 4.02ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CERN553596-1746437082638.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVSERNSTDCLS-21233-1, net wt 2.87g, diamond wt 4.02ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CERN553596-1746437082638.jpg",
     basePrice: 287756,
   },
   {
@@ -238,8 +274,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "White Gold",
     metalPurity: "14K",
-    description: "Vendor INDOJEWEL JEWELLERY PRIVATE LIMITED, variant EVPERNSTDFAN-21213-1, net wt 3.61g, diamond wt 2.67ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CERN704671-1746437083305.jpg",
+    description:
+      "Vendor INDOJEWEL JEWELLERY PRIVATE LIMITED, variant EVPERNSTDFAN-21213-1, net wt 3.61g, diamond wt 2.67ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CERN704671-1746437083305.jpg",
     basePrice: 118225,
   },
   {
@@ -249,8 +287,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor ROYKA DESIGNS LLP, variant EVSERNSTDCLS-21220-1, net wt 2.43g, diamond wt 1.61ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CERN723956-1746437083739.jpg",
+    description:
+      "Vendor ROYKA DESIGNS LLP, variant EVSERNSTDCLS-21220-1, net wt 2.43g, diamond wt 1.61ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CERN723956-1746437083739.jpg",
     basePrice: 91352,
   },
   {
@@ -260,8 +300,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor ROYKA DESIGNS LLP, variant EVSERNSTDCLS-21196-1, net wt 2.61g, diamond wt 2.02ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CERN723957-1746437083841.jpg",
+    description:
+      "Vendor ROYKA DESIGNS LLP, variant EVSERNSTDCLS-21196-1, net wt 2.61g, diamond wt 2.02ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CERN723957-1746437083841.jpg",
     basePrice: 127300,
   },
   {
@@ -271,8 +313,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVLERNREGREG-74-1, net wt 0.85g, diamond wt 0.64ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CERN882588-1753968435161.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVLERNREGREG-74-1, net wt 0.85g, diamond wt 0.64ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CERN882588-1753968435161.jpg",
     basePrice: 30100,
   },
   {
@@ -282,8 +326,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVLERNREGREG-76-1, net wt 1.53g, diamond wt 1.25ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CERN882589-1753968435412.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVLERNREGREG-76-1, net wt 1.53g, diamond wt 1.25ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CERN882589-1753968435412.jpg",
     basePrice: 56645,
   },
   {
@@ -293,8 +339,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "Rose Gold",
     metalPurity: "14K",
-    description: "Vendor MIDAMAS JEWELS LLP, variant EVLERNREGREG-90-1, net wt 1.57g, diamond wt 0.13ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CERN968259-1762944885743.jpg",
+    description:
+      "Vendor MIDAMAS JEWELS LLP, variant EVLERNREGREG-90-1, net wt 1.57g, diamond wt 0.13ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CERN968259-1762944885743.jpg",
     basePrice: 24474,
   },
   {
@@ -304,8 +352,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "Rose Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVLERNREGREG-84-1, net wt 0.79g, diamond wt 0.13ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CERN969120-1766493853388.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVLERNREGREG-84-1, net wt 0.79g, diamond wt 0.13ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CERN969120-1766493853388.jpg",
     basePrice: 14057,
   },
   {
@@ -315,8 +365,10 @@ export const mockProducts: Product[] = [
     category: "Necklace",
     metalType: "White Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVSNECSNLGRD-21193-1, net wt 27.03g, diamond wt 14.62ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CNEC711154-1746437085039.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVSNECSNLGRD-21193-1, net wt 27.03g, diamond wt 14.62ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CNEC711154-1746437085039.jpg",
     basePrice: 706918,
   },
   {
@@ -326,8 +378,10 @@ export const mockProducts: Product[] = [
     category: "Pendant",
     metalType: "White Gold",
     metalPurity: "14K",
-    description: "Vendor Khyra Collection LLP, variant EVLPNDREGREG-32-1, net wt 3.37g, diamond wt 0.06ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CPND1005124-1776328776194.jpeg",
+    description:
+      "Vendor Khyra Collection LLP, variant EVLPNDREGREG-32-1, net wt 3.37g, diamond wt 0.06ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CPND1005124-1776328776194.jpeg",
     basePrice: 47444,
   },
   {
@@ -337,8 +391,10 @@ export const mockProducts: Product[] = [
     category: "Pendant",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor MIDAMAS JEWELS LLP, variant EVLPNDREGREG-33-1, net wt 4.53g, diamond wt 5.04ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CPND1050834-1774005364358.jpeg",
+    description:
+      "Vendor MIDAMAS JEWELS LLP, variant EVLPNDREGREG-33-1, net wt 4.53g, diamond wt 5.04ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CPND1050834-1774005364358.jpeg",
     basePrice: 399633,
   },
   {
@@ -348,8 +404,10 @@ export const mockProducts: Product[] = [
     category: "Pendant",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor MIDAMAS JEWELS LLP, variant EVLPNDREGREG-32-1, net wt 3.79g, stone wt 0.27ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CPND1066003-1775895579245.jpg",
+    description:
+      "Vendor MIDAMAS JEWELS LLP, variant EVLPNDREGREG-32-1, net wt 3.79g, stone wt 0.27ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CPND1066003-1775895579245.jpg",
     basePrice: 208020,
   },
   {
@@ -359,7 +417,8 @@ export const mockProducts: Product[] = [
     category: "Pendant",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor MEERA JEWELLERYHOUSE LLP, variant EVSPNDSSRCLS-21223-1, net wt 2.88g, diamond wt 2.02ct",
+    description:
+      "Vendor MEERA JEWELLERYHOUSE LLP, variant EVSPNDSSRCLS-21223-1, net wt 2.88g, diamond wt 2.02ct",
     imageUrl: "https://files.synergicserp.com/PML/IMAGES/CPND429592.jpg",
     basePrice: 164348,
   },
@@ -370,8 +429,10 @@ export const mockProducts: Product[] = [
     category: "Pendant",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVSPNDSSRCLS-21206-1, net wt 2.81g, diamond wt 2.1ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CPND553595-1746437085556.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVSPNDSSRCLS-21206-1, net wt 2.81g, diamond wt 2.1ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CPND553595-1746437085556.jpg",
     basePrice: 168332,
   },
   {
@@ -381,8 +442,10 @@ export const mockProducts: Product[] = [
     category: "Pendant",
     metalType: "Rose Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVLPNDREGREG-25-1, net wt 3.92g, diamond wt 3.76ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CPND872301-1753187781219.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVLPNDREGREG-25-1, net wt 3.92g, diamond wt 3.76ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CPND872301-1753187781219.jpg",
     basePrice: 284354,
   },
   {
@@ -392,7 +455,8 @@ export const mockProducts: Product[] = [
     category: "Ring",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVPRNGFEBCLS-21232-1, net wt 3.32g, diamond wt 0.91ct",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVPRNGFEBCLS-21232-1, net wt 3.32g, diamond wt 0.91ct",
     imageUrl: "https://files.synergicserp.com/PML/IMAGES/CRNG380674.jpg",
     basePrice: 68982,
   },
@@ -403,7 +467,8 @@ export const mockProducts: Product[] = [
     category: "Ring",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPRNGBNDFAN-21230-1, net wt 16.4g, diamond wt 1.27ct",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPRNGBNDFAN-21230-1, net wt 16.4g, diamond wt 1.27ct",
     imageUrl: "https://files.synergicserp.com/PML/IMAGES/CRNG488793.jpg",
     basePrice: 261027,
   },
@@ -414,8 +479,10 @@ export const mockProducts: Product[] = [
     category: "Ring",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVSRNGSSRCLS-21235-1, net wt 2.31g, diamond wt 3.01ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CRNG556976-1746437086455.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVSRNGSSRCLS-21235-1, net wt 2.31g, diamond wt 3.01ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CRNG556976-1746437086455.jpg",
     basePrice: 214583,
   },
   {
@@ -425,8 +492,10 @@ export const mockProducts: Product[] = [
     category: "Ring",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVSRNGSSRCDI-21240-1, net wt 7.22g, stone wt 6.16ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CRNG681997-1746437087287.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVSRNGSSRCDI-21240-1, net wt 7.22g, stone wt 6.16ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CRNG681997-1746437087287.jpg",
     basePrice: 228956,
   },
   {
@@ -436,8 +505,10 @@ export const mockProducts: Product[] = [
     category: "Ring",
     metalType: "Rose Gold",
     metalPurity: "14K",
-    description: "Vendor DB PAHLAJANI VENTURES LLP, variant EVLRNGREGREG-37-1, net wt 5g, diamond wt 0.17ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CRNG694770-1746437087480.jpg",
+    description:
+      "Vendor DB PAHLAJANI VENTURES LLP, variant EVLRNGREGREG-37-1, net wt 5g, diamond wt 0.17ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CRNG694770-1746437087480.jpg",
     basePrice: 73017,
   },
   {
@@ -447,8 +518,10 @@ export const mockProducts: Product[] = [
     category: "Ring",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVSRNGSSRCDI-21240-1, net wt 4.31g, diamond wt 0.62ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CRNG704547-1746437087581.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVSRNGSSRCDI-21240-1, net wt 4.31g, diamond wt 0.62ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CRNG704547-1746437087581.jpg",
     basePrice: 63422,
   },
   {
@@ -458,8 +531,10 @@ export const mockProducts: Product[] = [
     category: "Ring",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor ROYKA DESIGNS LLP, variant EVPRNGSPIFAN-21215-1, net wt 3.98g, diamond wt 2.45ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CRNG714629-1746437087718.jpg",
+    description:
+      "Vendor ROYKA DESIGNS LLP, variant EVPRNGSPIFAN-21215-1, net wt 3.98g, diamond wt 2.45ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CRNG714629-1746437087718.jpg",
     basePrice: 107750,
   },
   {
@@ -469,8 +544,10 @@ export const mockProducts: Product[] = [
     category: "Ring",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor MIDAMAS JEWELS LLP, variant EVLRNGREGREG-97-1, net wt 7.25g, diamond wt 1.42ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CRNG916217-1757400768467.jpg",
+    description:
+      "Vendor MIDAMAS JEWELS LLP, variant EVLRNGREGREG-97-1, net wt 7.25g, diamond wt 1.42ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CRNG916217-1757400768467.jpg",
     basePrice: 154522,
   },
   {
@@ -480,8 +557,10 @@ export const mockProducts: Product[] = [
     category: "Ring",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVLRNGREGREG-96-1, net wt 3.03g, diamond wt 1.82ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/CRNG918838-1757512861901.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVLRNGREGREG-96-1, net wt 3.03g, diamond wt 1.82ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/CRNG918838-1757512861901.jpg",
     basePrice: 138101,
   },
   {
@@ -491,8 +570,10 @@ export const mockProducts: Product[] = [
     category: "Bracelet",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPBRCRBCFAN-21203-1, net wt 36.67g, diamond wt 7.23ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/EVLBRCREGREG-51-1-1740630891753.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPBRCRBCFAN-21203-1, net wt 36.67g, diamond wt 7.23ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/EVLBRCREGREG-51-1-1740630891753.jpg",
     basePrice: 578909,
   },
   {
@@ -502,8 +583,10 @@ export const mockProducts: Product[] = [
     category: "Earrings",
     metalType: "White Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPERNHNGFAN-21215-1, net wt 11.72g, diamond wt 10.41ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/EVLERNREGREG-307-1-1740630892332.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPERNHNGFAN-21215-1, net wt 11.72g, diamond wt 10.41ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/EVLERNREGREG-307-1-1740630892332.jpg",
     basePrice: 420852,
   },
   {
@@ -513,8 +596,10 @@ export const mockProducts: Product[] = [
     category: "Pendant",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPPNDSHKC11-21200-1, net wt 5.66g, diamond wt 0.77ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/f82153f4-e82a-4284-8038-56c5a44fa5a8.jpg",
+    description:
+      "Vendor FINESSE JEWELS PRIVATE LIMITED, variant EVPPNDSHKC11-21200-1, net wt 5.66g, diamond wt 0.77ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/f82153f4-e82a-4284-8038-56c5a44fa5a8.jpg",
     basePrice: 95346,
   },
   {
@@ -524,8 +609,10 @@ export const mockProducts: Product[] = [
     category: "Bracelet",
     metalType: "Gold",
     metalPurity: "14K",
-    description: "Vendor ROYKA DESIGNS LLP, variant EVPBRCCFLFAN-21205-1, net wt 10.48g, diamond wt 3.34ct",
-    imageUrl: "https://files.synergicserp.com/PML/IMAGES/[MISC-CODE]BRC317878.jpg",
+    description:
+      "Vendor ROYKA DESIGNS LLP, variant EVPBRCCFLFAN-21205-1, net wt 10.48g, diamond wt 3.34ct",
+    imageUrl:
+      "https://files.synergicserp.com/PML/IMAGES/[MISC-CODE]BRC317878.jpg",
     basePrice: 223325,
   },
 ];

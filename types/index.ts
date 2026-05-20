@@ -231,6 +231,8 @@ export interface CalculatorStoneType {
   stoneId: string;
   name: string;
   category: "Diamond" | "Gemstone";
+  clarity?: string;
+  color?: string;
   slabs: CalculatorStoneSlab[];
 }
 

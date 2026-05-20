@@ -634,7 +634,7 @@ function EnquiryForm() {
         key={`step-${safeStep}-${stepId}`}
         className={cn(
           "flex min-h-[68vh] flex-col justify-center px-1",
-          stepId === "products" ? "items-stretch" : "items-start",
+          stepId === "products" ? "items-stretch" : "items-center",
           "animate-in fade-in-0 duration-300",
           animDir === "forward"
             ? "slide-in-from-bottom-3"
@@ -682,7 +682,7 @@ function EnquiryForm() {
         )}
       </div>
 
-      <div className="fixed bottom-0 right-0 z-40 flex items-center gap-1 p-4 sm:p-6">
+      <div className="fixed bottom-0 left-0 z-40 flex items-center gap-1 p-4 sm:p-6">
         <div className="flex items-center gap-1 rounded-lg border border-border bg-card shadow-md">
           <Button
             type="button"
