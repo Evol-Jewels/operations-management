@@ -63,13 +63,13 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function fetchInternalUsers(query: InternalUsersQuery = {}) {
   return apiFetch<InternalUserWithProfile[]>(
-    buildUrl("api/v1/internal-users", query),
+    buildUrl("api/v1/internal-users", { ...query }),
   );
 }
 
 export function fetchInternalInvites(query: InternalInvitesQuery = {}) {
   return apiFetch<InternalInviteRow[]>(
-    buildUrl("api/v1/internal-invites", query),
+    buildUrl("api/v1/internal-invites", { ...query }),
   );
 }
 

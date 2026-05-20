@@ -1,9 +1,10 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import type { IntlTelInputRef } from "@intl-tel-input/react/with-utils";
 import IntlTelInput from "@intl-tel-input/react/with-utils";
 import "intl-tel-input/styles";
-import { useRef, useEffect, useState } from "react";
+import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface PhoneInputProps {
   value: string;
@@ -12,7 +13,7 @@ interface PhoneInputProps {
   id?: string;
   className?: string;
   disabled?: boolean;
-  onKeyDown?: (e: React.KeyboardEvent) => void;
+  onKeyDown?: (e: KeyboardEvent) => void;
   onValidityChange?: (isValid: boolean) => void;
 }
 
@@ -26,12 +27,14 @@ export function PhoneInput({
   onKeyDown,
   onValidityChange,
 }: PhoneInputProps) {
-  const itiRef = useRef(null);
+  const itiRef = useRef<IntlTelInputRef>(null);
   const [isValid, setIsValid] = useState(false);
 
   useEffect(() => {
     if (!itiRef.current || !value) return;
     const instance = itiRef.current.getInstance();
+    if (!instance) return;
+
     const current = instance.getNumber();
 
     if (current !== value) {
@@ -44,7 +47,7 @@ export function PhoneInput({
   }, [isValid, onValidityChange]);
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-full", error && "iti-error", className)}>
       <IntlTelInput
         ref={itiRef}
         value={value}
@@ -58,9 +61,6 @@ export function PhoneInput({
           id: id,
           onKeyDown: onKeyDown,
           className: cn("text-base", error && "border-destructive"),
-        }}
-        containerProps={{
-          className: error ? "iti-error" : "",
         }}
       />
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}

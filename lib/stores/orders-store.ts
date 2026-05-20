@@ -11,14 +11,6 @@ import type {
   Stage,
 } from "@/types";
 
-import type {
-  ActivityEntry,
-  CloseReason,
-  Order,
-  ProductEstimation,
-  Stage,
-} from "@/types";
-
 interface OrdersStore {
   records: Order[];
   hasHydrated: boolean;

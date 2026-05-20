@@ -1,5 +1,10 @@
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
+import { OrdersEnquiriesWorkspace } from "@/components/dashboard/OrdersEnquiriesWorkspace";
 
 export default function OrdersAndEnquiriesPage() {
-  return <RequireInternalAuth>Orders and Enquiries</RequireInternalAuth>;
+  return (
+    <RequireInternalAuth>
+      <OrdersEnquiriesWorkspace />
+    </RequireInternalAuth>
+  );
 }
