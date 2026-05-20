@@ -97,8 +97,8 @@ export function ProductInterestStep({
   removeDraftReference,
 }: ProductInterestStepProps) {
   return (
-    <div className="w-full max-w-2xl space-y-6 self-start pt-8">
-      <div>
+    <div className="mx-auto w-full max-w-2xl space-y-6 pt-8">
+      <div className="text-center">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           <StepNumber n={stepNumber} />
           What are they interested in?
@@ -107,15 +107,6 @@ export function ProductInterestStep({
           Add products from the catalogue or describe a custom requirement
         </p>
       </div>
-
-      {(selectedProducts.length > 0 || newProducts.length > 0) && (
-        <AddedProducts
-          selectedProducts={selectedProducts}
-          newProducts={newProducts}
-          removeSelectedProduct={removeSelectedProduct}
-          removeNewProduct={removeNewProduct}
-        />
-      )}
 
       {productAddMode === "choose" && (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -130,7 +121,7 @@ export function ProductInterestStep({
           />
           <ProductModeButton
             icon={<Pencil className="h-4 w-4 text-primary" />}
-            title="Describe custom"
+            title="Add custom product"
             description="Add a custom requirement"
             onClick={() => setProductAddMode("custom")}
           />
@@ -173,6 +164,15 @@ export function ProductInterestStep({
             cancelNewProduct();
             setProductAddMode("choose");
           }}
+        />
+      )}
+
+      {(selectedProducts.length > 0 || newProducts.length > 0) && (
+        <AddedProducts
+          selectedProducts={selectedProducts}
+          newProducts={newProducts}
+          removeSelectedProduct={removeSelectedProduct}
+          removeNewProduct={removeNewProduct}
         />
       )}
 
