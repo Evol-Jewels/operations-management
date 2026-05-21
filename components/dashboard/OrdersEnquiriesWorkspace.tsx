@@ -124,13 +124,17 @@ function RecordsTable({ records }: { records: Order[] }) {
             {records.map((record) => {
               const urgency = getUrgencyLevel(record.deliveryDate);
               const status = getRecordStatus(record);
+              const href =
+                record.type === "enquiry"
+                  ? `/enquiries/${record.shareableToken}`
+                  : `/orders/${record.shareableToken}`;
 
               return (
                 <TableRow key={record.id}>
                   <TableCell>
                     <div className="min-w-0">
                       <Link
-                        href={`/orders/${record.shareableToken}`}
+                        href={href}
                         className="font-medium text-foreground hover:underline"
                       >
                         {record.customerName}
@@ -185,7 +189,7 @@ function RecordsTable({ records }: { records: Order[] }) {
                   </TableCell>
                   <TableCell className="text-right">
                     <Button asChild variant="ghost" size="icon-sm">
-                      <Link href={`/orders/${record.shareableToken}`}>
+                      <Link href={href}>
                         <span className="sr-only">Open record</span>
                         <List className="h-4 w-4" />
                       </Link>
@@ -498,7 +502,11 @@ export function OrdersEnquiriesWorkspace() {
             orders={kanbanRecords}
             onOrderMove={handleOrderMove}
             onCardClick={(order) =>
-              router.push(`/orders/${order.shareableToken}`)
+              router.push(
+                order.type === "enquiry"
+                  ? `/enquiries/${order.shareableToken}`
+                  : `/orders/${order.shareableToken}`,
+              )
             }
           />
         </section>

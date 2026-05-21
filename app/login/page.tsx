@@ -1,9 +1,9 @@
 "use client";
 
 import { LoaderCircle, Mail, ShieldCheck } from "lucide-react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +31,6 @@ function LoginForm() {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [emailPending, setEmailPending] = useState(false);
   const [otpPending, setOtpPending] = useState(false);
   const [googlePending, setGooglePending] = useState(false);
@@ -47,7 +46,6 @@ function LoginForm() {
     if (!normalizedEmail) return;
 
     setEmailPending(true);
-    setError(null);
 
     const result = await authClient.emailOtp.sendVerificationOtp({
       email: normalizedEmail,
@@ -57,7 +55,7 @@ function LoginForm() {
     setEmailPending(false);
 
     if (result.error) {
-      setError(result.error.message || "Failed to send OTP");
+      toast.error(result.error.message || "Failed to send OTP");
       return;
     }
 
@@ -70,7 +68,6 @@ function LoginForm() {
     if (!otp.trim()) return;
 
     setOtpPending(true);
-    setError(null);
 
     const result = await authClient.signIn.emailOtp({
       email,
@@ -80,7 +77,7 @@ function LoginForm() {
     setOtpPending(false);
 
     if (result.error) {
-      setError(result.error.message || "Invalid OTP");
+      toast.error(result.error.message || "Invalid OTP");
       return;
     }
 
@@ -90,7 +87,6 @@ function LoginForm() {
 
   async function handleGoogleLogin() {
     setGooglePending(true);
-    setError(null);
 
     const result = await authClient.signIn.social({
       provider: "google",
@@ -99,7 +95,7 @@ function LoginForm() {
 
     if (result.error) {
       setGooglePending(false);
-      setError(result.error.message || "Google sign-in failed");
+      toast.error(result.error.message || "Google sign-in failed");
     }
   }
 
@@ -188,7 +184,6 @@ function LoginForm() {
                 className="w-full"
                 onClick={() => {
                   setOtp("");
-                  setError(null);
                   setStep("email");
                 }}
               >
@@ -216,12 +211,6 @@ function LoginForm() {
             {googlePending && <LoaderCircle className="h-4 w-4 animate-spin" />}
             Continue with Google
           </Button>
-
-          {error && (
-            <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              {error}
-            </div>
-          )}
         </div>
       </div>
     </div>

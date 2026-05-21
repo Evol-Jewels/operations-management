@@ -47,7 +47,7 @@ const STAGE_COLORS: Record<string, string> = {
 
 function UrgencyTooltip({
   children,
-  urgency,
+  urgency: _urgency,
   deliveryDate,
 }: {
   children: React.ReactNode;
@@ -92,6 +92,12 @@ function RowTooltip({
       </TooltipContent>
     </Tooltip>
   );
+}
+
+function getRecordHref(order: Order) {
+  return order.type === "enquiry"
+    ? `/enquiries/${order.shareableToken}`
+    : `/orders/${order.shareableToken}`;
 }
 
 function RiskBadge({ order }: { order: Order }) {
@@ -151,7 +157,7 @@ function MobileOrderCard({ order }: { order: Order }) {
   return (
     <li>
       <Link
-        href={`/orders/${order.shareableToken}`}
+        href={getRecordHref(order)}
         className="group flex flex-col gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30 active:bg-muted/50"
       >
         {/* Top row: urgency dot + customer name + arrow */}
@@ -271,7 +277,7 @@ function DesktopOrderRow({ order }: { order: Order }) {
   return (
     <li>
       <Link
-        href={`/orders/${order.shareableToken}`}
+        href={getRecordHref(order)}
         className="group grid grid-cols-[16px_1fr_140px_100px_100px_90px_90px_28px] items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30"
       >
         {/* Urgency dot with tooltip */}

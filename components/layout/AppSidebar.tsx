@@ -104,7 +104,9 @@ export function AppSidebar() {
               >
                 <div className="relative flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
                   <div className="relative">
-                    <Avatar  className={`rounded-sm ${state === "collapsed" ? "group-hover:opacity-0 size-7" : "size-10"}`}>
+                    <Avatar
+                      className={`rounded-sm ${state === "collapsed" ? "group-hover:opacity-0 size-7" : "size-10"}`}
+                    >
                       <AvatarImage src="/evol-logo.webp" alt="EVOL" />
                       <AvatarFallback className="bg-sidebar-accent text-xs font-semibold">
                         Evol
