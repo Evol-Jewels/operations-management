@@ -13,8 +13,6 @@ import {
   cn,
   computeRiskSignal,
   formatDaysRemaining,
-  getDaysInCurrentStage,
-  getDaysSinceLastActivity,
   getUrgencyLevel,
 } from "@/lib/utils";
 import type { Order } from "@/types";
@@ -76,14 +74,21 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div
+          <button
+            type="button"
             ref={setNodeRef}
             style={style}
             {...attributes}
             {...listeners}
             onClick={onClick}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick();
+              }
+            }}
             className={cn(
-              "group relative cursor-grab rounded-xl border bg-card p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing",
+              "group relative w-full cursor-grab rounded-xl border bg-card p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing",
               "border-l-[3px]",
               urgency === "overdue" && "border-l-red-500",
               urgency === "due-soon" && "border-l-amber-400",
@@ -182,13 +187,14 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
                 </div>
               </div>
             </div>
-          </div>
+          </button>
         </TooltipTrigger>
         <TooltipContent side="right">
           <div className="space-y-1">
             <p className="font-medium">{order.customerName}</p>
             <p className="text-xs text-muted-foreground">
-              Click to open order details
+              Click to open {order.type === "enquiry" ? "enquiry" : "order"}{" "}
+              details
             </p>
             {order.vendorName && (
               <p className="text-[11px] text-muted-foreground">

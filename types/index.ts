@@ -186,6 +186,7 @@ export interface EnquirySelectedProduct {
   description?: string;
   imageUrl?: string;
   basePrice?: number;
+  status?: EnquiryItemStatus;
 }
 
 export interface EnquiryCustomProduct {
@@ -199,7 +200,15 @@ export interface EnquiryCustomProduct {
   stoneQuality: string;
   stoneCaratEstimate?: number;
   references: EnquiryReference[];
+  status?: EnquiryItemStatus;
 }
+
+export type EnquiryItemStatus =
+  | "PENDING"
+  | "ESTIMATED"
+  | "CONVERTED"
+  | "CLOSED"
+  | "CANCELLED";
 
 // ─── Estimation Types ───────────────────────────────────────────────────────
 

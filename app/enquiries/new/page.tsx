@@ -2,36 +2,27 @@
 
 import { CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import {
-  CategoryStep,
-  CityStep,
-  EmailStep,
-  EnquiryTypeStep,
   NameStep,
   NotesStep,
   PhoneStep,
-  VisitDetailsStep,
 } from "@/components/enquiries/customer-enquiry-steps";
 import {
   type CustomerDetails,
   createEmptyNewProduct,
   EMPTY_CUSTOMER,
   type EnquiryFormData,
-  type EnquiryMode,
   type NewProduct,
   type ProductAddMode,
   type ProductReference,
   type StepId,
 } from "@/components/enquiries/enquiry-form-types";
 import {
-  formatVisitDateTime,
   generateEnquiryId,
   generateId,
-  getEnquiryModeLabel,
   getSteps,
-  getTodayDateString,
   isValidReferenceLink,
   normalizeReferenceLink,
   revokeObjectUrls,
@@ -47,7 +38,6 @@ import { saveEnquiryMedia } from "@/lib/storage/enquiry-media";
 import { useOrdersStore } from "@/lib/stores/orders-store";
 import { cn } from "@/lib/utils";
 import type {
-  CustomerCategory,
   EnquiryReference,
   JewelleryCategory,
   MetalPurity,
@@ -100,13 +90,14 @@ function EnquiryForm() {
 
   const salespersonName = session?.user?.name || "Sales Team";
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const maxSelectableDate = getTodayDateString();
-  const steps = getSteps(form.customer.enquiryMode);
+  const steps = getSteps();
   const safeStep = Math.min(currentStep, steps.length - 1);
   const stepId = steps[safeStep];
   const progress = ((safeStep + 1) / steps.length) * 100;
   const isFirstStep = safeStep === 0;
   const isLastStep = safeStep === steps.length - 1;
+  const hasProducts =
+    form.selectedProducts.length > 0 || form.newProducts.length > 0;
 
   useEffect(() => {
     setSearchResults(productSearch.trim() ? searchProducts(productSearch) : []);
@@ -142,16 +133,6 @@ function EnquiryForm() {
       }
       case "name":
         if (!form.customer.name.trim()) nextErrors.name = "Name is required";
-        break;
-      case "enquiry-type":
-        if (!form.customer.enquiryMode)
-          nextErrors.enquiryMode = "Select an enquiry type";
-        break;
-      case "visit-details":
-        if (!form.customer.visitCity.trim())
-          nextErrors.visitCity = "Select a store location";
-        if (!form.customer.visitTime)
-          nextErrors.visitTime = "Select a date and time";
         break;
       case "products":
         if (
@@ -226,73 +207,10 @@ function EnquiryForm() {
             email: "",
             category: "Middle",
             notes: "",
-            enquiryMode: "",
-            visitCity: "",
-            visitTime: "",
           },
     }));
     advanceStep();
   }
-
-  const selectEnquiryMode = useCallback((mode: EnquiryMode) => {
-    setForm((prev) => ({
-      ...prev,
-      customer: {
-        ...prev.customer,
-        enquiryMode: mode,
-        ...(mode === "online" ? { visitCity: "", visitTime: "" } : {}),
-      },
-    }));
-    setTimeout(() => {
-      setErrors({});
-      setAnimDir("forward");
-      setCurrentStep((prev) => prev + 1);
-    }, 150);
-  }, []);
-
-  const selectCategory = useCallback((category: CustomerCategory) => {
-    setForm((prev) => ({
-      ...prev,
-      customer: { ...prev.customer, category },
-    }));
-    setTimeout(() => {
-      setErrors({});
-      setAnimDir("forward");
-      setCurrentStep((prev) => prev + 1);
-    }, 150);
-  }, []);
-
-  useEffect(() => {
-    if (submitted) return;
-
-    function handleKeyShortcut(event: KeyboardEvent) {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      const key = event.key.toUpperCase();
-
-      if (stepId === "enquiry-type") {
-        if (key === "A") {
-          event.preventDefault();
-          selectEnquiryMode("store_visit");
-        }
-        if (key === "B") {
-          event.preventDefault();
-          selectEnquiryMode("online");
-        }
-      }
-
-      if (stepId === "category") {
-        const categories: CustomerCategory[] = ["VIP", "Middle", "Lower"];
-        const index = ["A", "B", "C"].indexOf(key);
-        if (index !== -1) {
-          event.preventDefault();
-          selectCategory(categories[index]);
-        }
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyShortcut);
-    return () => window.removeEventListener("keydown", handleKeyShortcut);
-  }, [stepId, submitted, selectCategory, selectEnquiryMode]);
 
   async function persistReference(
     reference: ProductReference,
@@ -365,14 +283,6 @@ function EnquiryForm() {
       );
 
       const summaryBits = [
-        form.customer.enquiryMode
-          ? `Enquiry type: ${getEnquiryModeLabel(form.customer.enquiryMode)}.`
-          : null,
-        form.customer.enquiryMode === "store_visit"
-          ? `Store visit scheduled for ${form.customer.visitCity.trim()} on ${formatVisitDateTime(
-              form.customer.visitTime,
-            )}.`
-          : null,
         primarySelectedProduct
           ? `Interested in ${primarySelectedProduct.name} (${primarySelectedProduct.productCode}).`
           : null,
@@ -608,16 +518,13 @@ function EnquiryForm() {
     stepNumber: safeStep + 1,
     updateCustomer,
     goNext,
-    selectEnquiryMode,
-    selectCategory,
     setIsPhoneValid,
-    maxSelectableDate,
   };
 
   return (
     <div
       className={cn(
-        "mx-auto pb-24",
+        "mx-auto pb-28",
         stepId === "products" ? "max-w-3xl" : "max-w-2xl",
       )}
     >
@@ -643,13 +550,6 @@ function EnquiryForm() {
       >
         {stepId === "phone" && <PhoneStep {...sharedStepProps} />}
         {stepId === "name" && <NameStep {...sharedStepProps} />}
-        {stepId === "enquiry-type" && <EnquiryTypeStep {...sharedStepProps} />}
-        {stepId === "visit-details" && (
-          <VisitDetailsStep {...sharedStepProps} />
-        )}
-        {stepId === "category" && <CategoryStep {...sharedStepProps} />}
-        {stepId === "email" && <EmailStep {...sharedStepProps} />}
-        {stepId === "city" && <CityStep {...sharedStepProps} />}
         {stepId === "notes" && <NotesStep {...sharedStepProps} />}
         {stepId === "products" && (
           <ProductInterestStep
@@ -682,43 +582,50 @@ function EnquiryForm() {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 z-40 flex items-center gap-1 p-4 sm:p-6">
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-card shadow-md">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={goBack}
-            disabled={isFirstStep}
-            className="rounded-r-none text-muted-foreground"
-            aria-label="Previous step"
-          >
-            <ChevronUp className="h-4 w-4" />
-          </Button>
-          <div className="h-5 w-px bg-border" />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={goNext}
-            disabled={isLastStep}
-            className="rounded-l-none text-muted-foreground"
-            aria-label="Next step"
-          >
-            <ChevronDown className="h-4 w-4" />
-          </Button>
+      <div className="pointer-events-none fixed right-0 bottom-6 left-0 z-40 md:left-[var(--sidebar-width)] group-data-[collapsible=icon]/sidebar-wrapper:md:left-[var(--sidebar-width-icon)]">
+        <div
+          className={cn(
+            "mx-auto flex items-center gap-2 px-4",
+            stepId === "products" ? "max-w-3xl" : "max-w-2xl",
+          )}
+        >
+          <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-border bg-card shadow-md">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={goBack}
+              disabled={isFirstStep}
+              className="rounded-r-none text-muted-foreground"
+              aria-label="Previous step"
+            >
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+            <div className="h-5 w-px bg-border" />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={goNext}
+              disabled={isLastStep}
+              className="rounded-l-none text-muted-foreground"
+              aria-label="Next step"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </div>
+          {isLastStep && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSubmit}
+              disabled={isSubmitting || !hasProducts}
+              className="pointer-events-auto ml-auto gap-2 px-5 shadow-md"
+            >
+              {isSubmitting ? "Saving..." : "Save Enquiry"}
+            </Button>
+          )}
         </div>
-        {isLastStep && (
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="ml-2 gap-2 px-5 shadow-md"
-          >
-            {isSubmitting ? "Saving..." : "Save Enquiry"}
-          </Button>
-        )}
       </div>
     </div>
   );

@@ -37,10 +37,10 @@ interface StepProps {
   stepNumber: number;
   updateCustomer: (patch: Partial<CustomerDetails>) => void;
   goNext: () => void;
-  selectEnquiryMode: (mode: EnquiryMode) => void;
-  selectCategory: (category: CustomerCategory) => void;
+  selectEnquiryMode?: (mode: EnquiryMode) => void;
+  selectCategory?: (category: CustomerCategory) => void;
   setIsPhoneValid: (isValid: boolean) => void;
-  maxSelectableDate: string;
+  maxSelectableDate?: string;
 }
 
 export function PhoneStep({
@@ -153,14 +153,14 @@ export function EnquiryTypeStep({
           title="Store Visit"
           description="Customer is visiting a store location"
           selected={customer.enquiryMode === "store_visit"}
-          onClick={() => selectEnquiryMode("store_visit")}
+          onClick={() => selectEnquiryMode?.("store_visit")}
         />
         <OptionTile
           letter="B"
           title="Online Enquiry"
           description="Customer reached out online or by phone"
           selected={customer.enquiryMode === "online"}
-          onClick={() => selectEnquiryMode("online")}
+          onClick={() => selectEnquiryMode?.("online")}
         />
       </div>
       {errors.enquiryMode && (
@@ -384,7 +384,7 @@ export function CategoryStep({
               letter={String.fromCharCode(65 + index)}
               title={category}
               selected={customer.category === category}
-              onClick={() => selectCategory(category)}
+              onClick={() => selectCategory?.(category)}
             />
           ),
         )}
@@ -464,6 +464,8 @@ export function NotesStep({
   updateCustomer,
   goNext,
 }: StepProps) {
+  const hasNotes = customer.notes.trim().length > 0;
+
   return (
     <div className="w-full max-w-md space-y-5">
       <div>
@@ -481,6 +483,12 @@ export function NotesStep({
           placeholder="e.g. Prefers yellow gold, allergic to nickel..."
           value={customer.notes}
           onChange={(event) => updateCustomer({ notes: event.target.value })}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+              event.preventDefault();
+              goNext();
+            }
+          }}
           rows={4}
           className="resize-none text-sm"
           autoFocus
@@ -489,7 +497,11 @@ export function NotesStep({
           Optional - skip if nothing to add
         </p>
       </div>
-      <OkButton onClick={goNext} />
+      <OkButton
+        onClick={goNext}
+        label={hasNotes ? "OK" : "Skip"}
+        shortcutLabel="Ctrl/Cmd Enter"
+      />
     </div>
   );
 }

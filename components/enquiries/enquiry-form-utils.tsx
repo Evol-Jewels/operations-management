@@ -1,7 +1,6 @@
 import { ImageIcon, Link2, Video } from "lucide-react";
 import type { Product } from "@/lib/mock-products";
 import type {
-  EnquiryMode,
   ProductReference,
   ProductReferenceType,
   StepId,
@@ -23,11 +22,8 @@ export function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-export function getSteps(enquiryMode: EnquiryMode | ""): StepId[] {
-  const steps: StepId[] = ["phone", "name", "enquiry-type"];
-  if (enquiryMode === "store_visit") steps.push("visit-details");
-  steps.push("category", "email", "city", "notes", "products");
-  return steps;
+export function getSteps(): StepId[] {
+  return ["phone", "name", "notes", "products"];
 }
 
 export function normalizeReferenceLink(value: string): string {
@@ -57,12 +53,6 @@ export function revokeObjectUrls(references: ProductReference[]) {
   for (const reference of references) {
     if (reference.type !== "link") URL.revokeObjectURL(reference.url);
   }
-}
-
-export function getEnquiryModeLabel(mode: EnquiryMode | ""): string {
-  if (mode === "store_visit") return "Store Visit";
-  if (mode === "online") return "Online Enquiry";
-  return "";
 }
 
 export function formatMetalTypeLabel(metalType: string): string {
