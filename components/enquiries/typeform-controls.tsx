@@ -14,9 +14,13 @@ export function StepNumber({ n }: { n: number }) {
 export function OkButton({
   onClick,
   label = "OK",
+  shortcutLabel = "Enter",
+  hideShortcut = false,
 }: {
   onClick: () => void;
   label?: string;
+  shortcutLabel?: string;
+  hideShortcut?: boolean;
 }) {
   return (
     <div className="flex items-center gap-3 pt-2">
@@ -24,12 +28,14 @@ export function OkButton({
         {label}
         <Check className="h-3.5 w-3.5" />
       </Button>
-      <span className="text-xs text-muted-foreground/50">
-        press{" "}
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-          Enter
-        </kbd>
-      </span>
+      {!hideShortcut && (
+        <span className="text-xs text-muted-foreground/50">
+          press{" "}
+          <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            {shortcutLabel}
+          </kbd>
+        </span>
+      )}
     </div>
   );
 }

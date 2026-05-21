@@ -464,6 +464,8 @@ export function NotesStep({
   updateCustomer,
   goNext,
 }: StepProps) {
+  const hasNotes = customer.notes.trim().length > 0;
+
   return (
     <div className="w-full max-w-md space-y-5">
       <div>
@@ -481,6 +483,12 @@ export function NotesStep({
           placeholder="e.g. Prefers yellow gold, allergic to nickel..."
           value={customer.notes}
           onChange={(event) => updateCustomer({ notes: event.target.value })}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+              event.preventDefault();
+              goNext();
+            }
+          }}
           rows={4}
           className="resize-none text-sm"
           autoFocus
@@ -489,7 +497,11 @@ export function NotesStep({
           Optional - skip if nothing to add
         </p>
       </div>
-      <OkButton onClick={goNext} />
+      <OkButton
+        onClick={goNext}
+        label={hasNotes ? "OK" : "Skip"}
+        shortcutLabel="Ctrl/Cmd Enter"
+      />
     </div>
   );
 }
