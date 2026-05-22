@@ -17,17 +17,10 @@ import {
   EnquiryStageBar,
 } from "@/components/enquiry/EnquiryStageBar";
 import { ActivityTimeline } from "@/components/order/ActivityTimeline";
-import { CloseEnquiryDialog } from "@/components/order/CloseEnquiryDialog";
 import { ComposeBox } from "@/components/order/ComposeBox";
 import { Button } from "@/components/ui/button";
-import { cn, formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
-import type {
-  ActivityEntry,
-  ActorRole,
-  Order,
-  ProductEstimation,
-  Stage,
-} from "@/types";
+import { cn, formatDate, formatDateTime } from "@/lib/utils";
+import type { ActorRole, Order, ProductEstimation, Stage } from "@/types";
 import { ACTOR_ROLE_COLORS } from "@/types";
 
 function deriveEnquiryStage(order: Order): EnquiryStage {
@@ -153,12 +146,27 @@ function ClosedBanner({ order }: { order: Order }) {
 
 interface EnquiryDetailPageProps {
   order: Order;
-  onUpdateRecord: (updater: (prev: Order) => Order) => void;
+  onSaveEstimation: (productId: string, estimation: ProductEstimation) => void;
+  onPostUpdate: (data: {
+    name: string;
+    role: ActorRole;
+    note: string;
+    newStage: Stage | null;
+  }) => void;
+  onCloseEnquiry: () => void;
+  isSavingEstimation?: boolean;
+  isPostingUpdate?: boolean;
+  isClosingEnquiry?: boolean;
 }
 
 export function EnquiryDetailPage({
   order,
-  onUpdateRecord,
+  onSaveEstimation,
+  onPostUpdate,
+  onCloseEnquiry,
+  isSavingEstimation,
+  isPostingUpdate,
+  isClosingEnquiry,
 }: EnquiryDetailPageProps) {
   const isClosed = order.status === "closed";
   const stage = deriveEnquiryStage(order);
@@ -166,96 +174,17 @@ export function EnquiryDetailPage({
   const customProducts = order.customProducts ?? [];
   const estimations = order.estimations ?? [];
 
-  function getProductLabel(productId: string) {
-    const selected = selectedProducts.find(
-      (product) => product.id === productId,
-    );
-    if (selected) return selected.name;
-
-    const custom = customProducts.find((product) => product.id === productId);
-    if (!custom) return "product";
-
-    return [custom.category || "Custom", custom.metalType, custom.metalPurity]
-      .filter(Boolean)
-      .join(" · ");
-  }
-
   function handleSaveEstimation(estimation: ProductEstimation) {
-    const timestamp = new Date().toISOString();
-    const productLabel = getProductLabel(estimation.productId);
-
-    onUpdateRecord((prev) => ({
-      ...prev,
-      currentStage: prev.status === "closed" ? prev.currentStage : "Estimation",
-      estimations: [
-        ...(prev.estimations ?? []).filter(
-          (item) => item.productId !== estimation.productId,
-        ),
-        estimation,
-      ],
-      lastUpdatedAt: timestamp,
-      activityFeed: [
-        ...prev.activityFeed,
-        {
-          id: `act-${Date.now()}-estimation`,
-          orderId: prev.id,
-          postedBy: "System",
-          timestamp,
-          type: "estimation_added",
-          note: `Estimation of ${formatCurrency(
-            estimation.finalAmount,
-          )} added for ${productLabel}`,
-        },
-      ],
-    }));
+    onSaveEstimation(estimation.productId, estimation);
   }
 
-  function handlePostUpdate({
-    name,
-    role,
-    note,
-    newStage,
-  }: {
+  function handlePostUpdate(data: {
     name: string;
     role: ActorRole;
     note: string;
     newStage: Stage | null;
   }) {
-    const timestamp = new Date().toISOString();
-    const newEntries: ActivityEntry[] = [];
-
-    if (newStage && newStage !== order.currentStage) {
-      newEntries.push({
-        id: `act-${Date.now()}-stage`,
-        orderId: order.id,
-        postedBy: name,
-        actorRole: role,
-        timestamp,
-        type: "stage_change",
-        previousStage: order.currentStage,
-        newStage,
-        note: note || undefined,
-      });
-    } else if (note) {
-      newEntries.push({
-        id: `act-${Date.now()}-note`,
-        orderId: order.id,
-        postedBy: name,
-        actorRole: role,
-        timestamp,
-        type: "note",
-        note,
-      });
-    }
-
-    if (newEntries.length === 0) return;
-
-    onUpdateRecord((prev) => ({
-      ...prev,
-      currentStage: newStage ?? prev.currentStage,
-      lastUpdatedAt: timestamp,
-      activityFeed: [...prev.activityFeed, ...newEntries],
-    }));
+    onPostUpdate(data);
 
     setTimeout(() => {
       document
@@ -300,7 +229,17 @@ export function EnquiryDetailPage({
                     <span className="sm:hidden">Convert</span>
                   </Link>
                 </Button>
-                <CloseEnquiryDialog orderId={order.id} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onCloseEnquiry}
+                  disabled={isClosingEnquiry}
+                  className="gap-1.5"
+                >
+                  <X className="size-3.5" />
+                  Close Enquiry
+                </Button>
               </>
             ) : null}
             <CopyLinkButton />
@@ -352,6 +291,7 @@ export function EnquiryDetailPage({
           estimations={estimations}
           isClosed={isClosed}
           onSaveEstimation={handleSaveEstimation}
+          isSavingEstimation={isSavingEstimation}
         />
       </section>
 
@@ -381,6 +321,11 @@ export function EnquiryDetailPage({
               currentStage={order.currentStage}
               onSubmit={handlePostUpdate}
             />
+            {isPostingUpdate ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Posting update...
+              </p>
+            ) : null}
           </div>
         ) : (
           <div className="px-5 py-5 text-center text-sm text-muted-foreground">

@@ -86,6 +86,7 @@ interface EnquiryEstimationDialogProps {
   defaultPurity: MetalPurity;
   existingEstimation?: ProductEstimation;
   onSave: (estimation: ProductEstimation) => void;
+  disabled?: boolean;
 }
 
 export function EnquiryEstimationDialog({
@@ -94,6 +95,7 @@ export function EnquiryEstimationDialog({
   defaultPurity,
   existingEstimation,
   onSave,
+  disabled,
 }: EnquiryEstimationDialogProps) {
   const { settings } = useCalculatorSettings();
   const [open, setOpen] = useState(false);
@@ -185,7 +187,12 @@ export function EnquiryEstimationDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          disabled={disabled}
+        >
           <Calculator className="size-4" />
           {existingEstimation ? "Edit Estimation" : "Add Estimation"}
         </Button>

@@ -29,7 +29,6 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "ESTIMATED", label: "Estimated" },
   { value: "CONVERTED", label: "Converted" },
   { value: "CLOSED", label: "Closed" },
-  { value: "CANCELLED", label: "Cancelled" },
 ];
 
 const STATUS_LABELS: Record<EnquiryItemStatus, string> = {
@@ -37,7 +36,6 @@ const STATUS_LABELS: Record<EnquiryItemStatus, string> = {
   ESTIMATED: "Estimated",
   CONVERTED: "Converted",
   CLOSED: "Closed",
-  CANCELLED: "Cancelled",
 };
 
 function DetailRow({
@@ -80,7 +78,7 @@ function StatusBadge({ status }: { status: EnquiryItemStatus }) {
         status === "PENDING" &&
           "border-border bg-background text-muted-foreground",
         status === "CONVERTED" && "border-border bg-foreground text-background",
-        (status === "CLOSED" || status === "CANCELLED") &&
+        status === "CLOSED" &&
           "border-border bg-muted/60 text-muted-foreground",
       )}
     >
@@ -157,10 +155,12 @@ interface NormalizedItem {
 function ProductCard({
   item,
   isClosed,
+  isSavingEstimation,
   onSaveEstimation,
 }: {
   item: NormalizedItem;
   isClosed: boolean;
+  isSavingEstimation?: boolean;
   onSaveEstimation: (estimation: ProductEstimation) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -276,6 +276,7 @@ function ProductCard({
               defaultPurity={item.defaultPurity}
               existingEstimation={item.estimation}
               onSave={onSaveEstimation}
+              disabled={isSavingEstimation}
             />
           </div>
         ) : null}
@@ -289,6 +290,7 @@ interface EnquiryProductListProps {
   customProducts: EnquiryCustomProduct[];
   estimations: ProductEstimation[];
   isClosed: boolean;
+  isSavingEstimation?: boolean;
   onSaveEstimation: (estimation: ProductEstimation) => void;
 }
 
@@ -297,6 +299,7 @@ export function EnquiryProductList({
   customProducts,
   estimations,
   isClosed,
+  isSavingEstimation,
   onSaveEstimation,
 }: EnquiryProductListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -406,6 +409,7 @@ export function EnquiryProductList({
               key={item.id}
               item={item}
               isClosed={isClosed}
+              isSavingEstimation={isSavingEstimation}
               onSaveEstimation={onSaveEstimation}
             />
           ))}

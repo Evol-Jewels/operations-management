@@ -656,7 +656,7 @@ export const mockOrders: Order[] = [
         stoneCut: "Pear",
         stoneQuality: "VVS",
         stoneCaratEstimate: 1.2,
-        status: "CANCELLED",
+        status: "CLOSED",
         references: [],
       },
     ],
