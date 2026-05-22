@@ -4,7 +4,6 @@ import { CheckCircle2, LayoutGrid, List, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,15 +25,28 @@ import {
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
 import { useOrdersStore } from "@/lib/stores/orders-store";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import { type Order, type RecordType, STAGES, type Stage } from "@/types";
+import { cn, formatDate } from "@/lib/utils";
+import {
+  type EnquiryItemStatus,
+  type Order,
+  type RecordType,
+  STAGES,
+  type Stage,
+} from "@/types";
 import { KanbanBoard } from "./KanbanBoard";
 
 type TypeTab = "all" | RecordType;
 type ViewMode = "table" | "kanban";
 type DateFilter = "all" | "7d" | "30d" | "90d";
 
-const STATUS_OPTIONS = ["all", "open", "closed", ...STAGES] as const;
+const ENQUIRY_STATUS_OPTIONS = [
+  "all",
+  "PENDING",
+  "ESTIMATED",
+  "CONVERTED",
+  "CLOSED",
+] as const;
+const ORDER_STATUS_OPTIONS = ["all", ...STAGES] as const;
 
 function isWithinDateFilter(date: string, filter: DateFilter) {
   if (filter === "all") return true;
@@ -45,19 +57,30 @@ function isWithinDateFilter(date: string, filter: DateFilter) {
   return created >= cutoff;
 }
 
+function getEnquiryStatus(order: Order): EnquiryItemStatus {
+  if (order.status === "closed") return "CLOSED";
+  if (order.currentStage === "Order Confirmed") return "CONVERTED";
+  if (order.currentStage === "Estimation") return "ESTIMATED";
+  return "PENDING";
+}
+
 function getRecordStatus(order: Order) {
-  if (order.type === "enquiry") {
-    return order.status === "closed" ? "closed" : "open";
-  }
+  if (order.type === "enquiry") return getEnquiryStatus(order);
   return order.currentStage;
 }
 
 function statusBadgeClass(status: string) {
-  if (status === "closed" || status === "Customer Pickup") {
+  if (status === "CLOSED" || status === "Customer Pickup") {
+    return "border-zinc-200 bg-zinc-50 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-100";
+  }
+  if (status === "CONVERTED" || status === "Order Confirmed") {
     return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300";
   }
-  if (status === "open" || status === "Enquiry") {
-    return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300";
+  if (status === "ESTIMATED" || status === "Estimation") {
+    return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
+  }
+  if (status === "PENDING" || status === "Enquiry") {
+    return "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300";
   }
   if (status === "Building" || status === "Certification") {
     return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
@@ -91,7 +114,26 @@ function FilterSelect({
   );
 }
 
-function RecordsTable({ records }: { records: Order[] }) {
+function OrdersNotAvailable() {
+  return (
+    <div className="rounded-2xl border border-dashed border-border bg-card py-20 text-center">
+      <p className="text-base font-medium text-foreground">
+        Orders are not available yet!
+      </p>
+      <p className="mt-1 text-sm text-muted-foreground">Coming soon!</p>
+    </div>
+  );
+}
+
+function RecordsTable({
+  records,
+  onRowClick,
+  showTypeColumn,
+}: {
+  records: Order[];
+  onRowClick: (record: Order) => void;
+  showTypeColumn: boolean;
+}) {
   if (records.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border py-16 text-center">
@@ -112,18 +154,14 @@ function RecordsTable({ records }: { records: Order[] }) {
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="min-w-56">Customer</TableHead>
-              <TableHead>Type</TableHead>
+              {showTypeColumn ? <TableHead>Type</TableHead> : null}
               <TableHead className="min-w-36">Status</TableHead>
-              <TableHead>Category</TableHead>
               <TableHead className="min-w-36">Created</TableHead>
               <TableHead className="min-w-36">Created By</TableHead>
-              <TableHead className="min-w-36">Delivery</TableHead>
-              <TableHead className="text-right">Value</TableHead>
-              <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
           <TableBody>
-              {records.map((record) => {
+            {records.map((record) => {
               const status = getRecordStatus(record);
               const href =
                 record.type === "enquiry"
@@ -131,13 +169,14 @@ function RecordsTable({ records }: { records: Order[] }) {
                   : `/orders/${record.shareableToken}`;
 
               return (
-                <TableRow key={record.id}>
+                <TableRow
+                  key={record.id}
+                  className="cursor-pointer"
+                  onClick={() => onRowClick(record)}
+                >
                   <TableCell>
                     <div className="min-w-0">
-                      <Link
-                        href={href}
-                        className="font-medium text-foreground hover:underline"
-                      >
+                      <Link href={href} className="font-medium text-foreground">
                         {record.customerName}
                       </Link>
                       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -145,14 +184,18 @@ function RecordsTable({ records }: { records: Order[] }) {
                       </p>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={record.type === "order" ? "default" : "outline"}
-                      className="capitalize"
-                    >
-                      {record.type}
-                    </Badge>
-                  </TableCell>
+                  {showTypeColumn ? (
+                    <TableCell>
+                      <Badge
+                        variant={
+                          record.type === "order" ? "default" : "outline"
+                        }
+                        className="capitalize"
+                      >
+                        {record.type}
+                      </Badge>
+                    </TableCell>
+                  ) : null}
                   <TableCell>
                     <Badge
                       variant="outline"
@@ -161,52 +204,14 @@ function RecordsTable({ records }: { records: Order[] }) {
                         statusBadgeClass(status),
                       )}
                     >
-                      {status}
+                      {status.toLowerCase()}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {record.category}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(record.createdAt)}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="size-6">
-                        <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">
-                          {record.salespersonName
-                            ? record.salespersonName
-                                .split(" ")
-                                .filter(Boolean)
-                                .map((n) => n[0])
-                                .join("")
-                                .toUpperCase()
-                                .slice(0, 2)
-                            : "?"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm text-muted-foreground">
-                        {record.salespersonName}
-                      </span>
-                    </div>
-                  </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {record.deliveryDate
-                      ? formatDate(record.deliveryDate)
-                      : "No data"}
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {record.totalEstimate
-                      ? formatCurrency(record.totalEstimate)
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild variant="ghost" size="icon-sm">
-                      <Link href={href}>
-                        <span className="sr-only">Open record</span>
-                        <List className="h-4 w-4" />
-                      </Link>
-                    </Button>
+                    {record.salespersonName}
                   </TableCell>
                 </TableRow>
               );
@@ -228,7 +233,6 @@ export function OrdersEnquiriesWorkspace() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
-  const [createdByFilter, setCreatedByFilter] = useState("all");
   const [lastMoved, setLastMoved] = useState<{
     name: string;
     stage: Stage;
@@ -249,11 +253,6 @@ export function OrdersEnquiriesWorkspace() {
     [apiEnquiries, storeRecords],
   );
 
-  const createdByOptions = useMemo(
-    () => [...new Set(records.map((record) => record.salespersonName))].sort(),
-    [records],
-  );
-
   const tabCounts = useMemo(
     () => ({
       all: records.length,
@@ -268,12 +267,6 @@ export function OrdersEnquiriesWorkspace() {
 
     return records.filter((record) => {
       if (typeTab !== "all" && record.type !== typeTab) return false;
-      if (
-        createdByFilter !== "all" &&
-        record.salespersonName !== createdByFilter
-      ) {
-        return false;
-      }
       if (!isWithinDateFilter(record.createdAt, dateFilter)) return false;
 
       if (statusFilter !== "all") {
@@ -288,7 +281,6 @@ export function OrdersEnquiriesWorkspace() {
           record.customerName,
           record.orderNumber ?? "",
           record.shareableToken,
-          record.category,
           record.salespersonName,
           record.vendorName ?? "",
           record.customerPhone ?? "",
@@ -301,7 +293,7 @@ export function OrdersEnquiriesWorkspace() {
 
       return true;
     });
-  }, [createdByFilter, dateFilter, records, search, statusFilter, typeTab]);
+  }, [dateFilter, records, search, statusFilter, typeTab]);
 
   const kanbanRecords = filteredRecords.filter(
     (record) => record.type === "order",
@@ -329,7 +321,11 @@ export function OrdersEnquiriesWorkspace() {
   }
 
   const sectionHeading =
-    typeTab === "all" ? "All records" : typeTab === "order" ? "Orders" : "Enquiries";
+    typeTab === "all"
+      ? "All records"
+      : typeTab === "order"
+        ? "Orders"
+        : "Enquiries";
 
   return (
     <div className="space-y-6">
@@ -343,7 +339,7 @@ export function OrdersEnquiriesWorkspace() {
         </div>
       )}
 
-      <div className="flex flex-col text-center gap-4 lg:flex-row lg:text-start items-center lg:justify-between">
+      <div className="flex flex-col items-center gap-4 text-center lg:flex-row lg:justify-between lg:text-start">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Orders and enquiries
@@ -362,11 +358,7 @@ export function OrdersEnquiriesWorkspace() {
         <div className="flex flex-wrap gap-2">
           {[
             { key: "all" as const, label: "All", count: tabCounts.all },
-            {
-              key: "order" as const,
-              label: "Orders",
-              count: tabCounts.order,
-            },
+            { key: "order" as const, label: "Orders", count: tabCounts.order },
             {
               key: "enquiry" as const,
               label: "Enquiries",
@@ -429,7 +421,7 @@ export function OrdersEnquiriesWorkspace() {
         </div>
       </div>
 
-      <div className="flex gap-2 items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="text-base font-medium text-foreground">
           {sectionHeading}
         </h2>
@@ -446,7 +438,7 @@ export function OrdersEnquiriesWorkspace() {
         </p>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_auto_auto_auto] lg:items-end">
+      <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end">
         <div className="grid gap-1.5">
           <span className="text-[11px] font-medium text-muted-foreground">
             Search
@@ -456,7 +448,7 @@ export function OrdersEnquiriesWorkspace() {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Customer, order ID, product, salesperson"
+              placeholder="Customer, order ID, salesperson"
               className="pl-9"
             />
           </div>
@@ -467,9 +459,12 @@ export function OrdersEnquiriesWorkspace() {
           value={statusFilter}
           onValueChange={setStatusFilter}
         >
-          {STATUS_OPTIONS.map((status) => (
+          {(typeTab === "enquiry"
+            ? ENQUIRY_STATUS_OPTIONS
+            : ORDER_STATUS_OPTIONS
+          ).map((status) => (
             <SelectItem key={status} value={status}>
-              {status === "all" ? "All statuses" : status}
+              {status === "all" ? "All statuses" : status.toLowerCase()}
             </SelectItem>
           ))}
         </FilterSelect>
@@ -484,27 +479,39 @@ export function OrdersEnquiriesWorkspace() {
           <SelectItem value="30d">Last 30 days</SelectItem>
           <SelectItem value="90d">Last 90 days</SelectItem>
         </FilterSelect>
-
-        <FilterSelect
-          label="Created By"
-          value={createdByFilter}
-          onValueChange={setCreatedByFilter}
-        >
-          <SelectItem value="all">Everyone</SelectItem>
-          {createdByOptions.map((person) => (
-            <SelectItem key={person} value={person}>
-              {person}
-            </SelectItem>
-          ))}
-        </FilterSelect>
       </div>
+
+      {/* <FilterSelect
+        label="Created By"
+        value={createdByFilter}
+        onValueChange={setCreatedByFilter}
+      >
+        <SelectItem value="all">Everyone</SelectItem>
+        {createdByOptions.map((person) => (
+          <SelectItem key={person} value={person}>
+            {person}
+          </SelectItem>
+        ))}
+      </FilterSelect> */}
 
       {enquiriesQuery.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading enquiries...</p>
       ) : null}
 
-      {viewMode === "table" ? (
-        <RecordsTable records={filteredRecords} />
+      {typeTab === "order" ? (
+        <OrdersNotAvailable />
+      ) : viewMode === "table" ? (
+        <RecordsTable
+          records={filteredRecords}
+          showTypeColumn={typeTab !== "enquiry"}
+          onRowClick={(record) =>
+            router.push(
+              record.type === "enquiry"
+                ? `/enquiries/${record.shareableToken}`
+                : `/orders/${record.shareableToken}`,
+            )
+          }
+        />
       ) : (
         <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <KanbanBoard

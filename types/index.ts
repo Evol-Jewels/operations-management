@@ -308,6 +308,9 @@ export interface Order {
   // Staff
   salespersonName: string;
   vendorName?: string;
+  
+  // Financial
+  budget?: number;
 
   // Product
   category: JewelleryCategory;

@@ -150,6 +150,7 @@ function baseOrderFromBackend(
     customerName: enquiry.name,
     customerPhone: enquiry.phoneNumber,
     customerNotes: enquiry.notes ?? undefined,
+    budget: enquiry.budget ? Number(enquiry.budget) : undefined,
     salespersonName: enquiry.poc,
     category: "Other" as JewelleryCategory,
     metalType: "Gold",

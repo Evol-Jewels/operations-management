@@ -4,6 +4,7 @@ import { CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
+import { mapCatalogueDetailsToEnquiryProduct } from "@/components/enquiries/catalogue-product-mapping";
 import {
   NameStep,
   NotesStep,
@@ -15,6 +16,7 @@ import {
   EMPTY_CUSTOMER,
   type EnquiryFormData,
   type NewProduct,
+  type Product,
   type ProductAddMode,
   type ProductReference,
   type StepId,
@@ -31,8 +33,11 @@ import { Button } from "@/components/ui/button";
 import { validatePhone } from "@/components/ui/phone-input";
 import { useCreateEnquiry } from "@/hooks/useEnquiries";
 import { authClient } from "@/lib/auth-client";
-import { getCustomerByPhone } from "@/lib/mock-customers";
-import { type Product, searchProducts } from "@/lib/mock-products";
+import { normalizeDecodedId } from "@/lib/barcodeScanner";
+import {
+  fetchCatalogueProductDetails,
+  searchCatalogueProductByCode,
+} from "@/lib/catalogApi";
 import { cn } from "@/lib/utils";
 import type {
   BackendEnquiryMedia,
@@ -72,6 +77,10 @@ function EnquiryForm() {
   const [isPhoneValid, setIsPhoneValid] = useState(false);
   const [productSearch, setProductSearch] = useState("");
   const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [productLookupLoading, setProductLookupLoading] = useState(false);
+  const [productLookupError, setProductLookupError] = useState("");
+  const [notFoundCode, setNotFoundCode] = useState("");
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [productAddMode, setProductAddMode] =
     useState<ProductAddMode>("choose");
   const [newProductDraft, setNewProductDraft] = useState<NewProduct>(
@@ -91,10 +100,6 @@ function EnquiryForm() {
   const isLastStep = safeStep === steps.length - 1;
   const hasProducts =
     form.selectedProducts.length > 0 || form.newProducts.length > 0;
-
-  useEffect(() => {
-    setSearchResults(productSearch.trim() ? searchProducts(productSearch) : []);
-  }, [productSearch]);
 
   useEffect(() => {
     return () => {
@@ -177,30 +182,18 @@ function EnquiryForm() {
       return;
     }
 
-    const customer = getCustomerByPhone(form.customer.phone);
     setForm((prev) => ({
       ...prev,
-      customer: customer
-        ? {
-            ...prev.customer,
-            isExisting: true,
-            name: customer.name,
-            city: customer.location || "",
-            address: "",
-            email: customer.email || "",
-            category: customer.category,
-            notes: customer.notes || "",
-          }
-        : {
-            ...prev.customer,
-            isExisting: false,
-            name: "",
-            city: "",
-            address: "",
-            email: "",
-            category: "Middle",
-            notes: "",
-          },
+      customer: {
+        ...prev.customer,
+        isExisting: false,
+        name: "",
+        city: "",
+        address: "",
+        email: "",
+        category: "Middle",
+        notes: "",
+      },
     }));
     advanceStep();
   }
@@ -334,6 +327,36 @@ function EnquiryForm() {
     }
     setProductSearch("");
     setSearchResults([]);
+    setProductLookupError("");
+    setNotFoundCode("");
+  }
+
+  async function lookupCatalogueProduct(rawCode: string) {
+    const code = normalizeDecodedId(rawCode);
+    if (!code) return;
+
+    setProductSearch(code);
+    setProductLookupError("");
+    setNotFoundCode("");
+    setSearchResults([]);
+    setProductLookupLoading(true);
+
+    try {
+      const searchItem = await searchCatalogueProductByCode(code);
+      if (!searchItem) {
+        setNotFoundCode(code);
+        return;
+      }
+
+      const details = await fetchCatalogueProductDetails(searchItem.slug);
+      setSearchResults([mapCatalogueDetailsToEnquiryProduct(details)]);
+    } catch (error) {
+      setProductLookupError(
+        error instanceof Error ? error.message : "Catalogue search failed",
+      );
+    } finally {
+      setProductLookupLoading(false);
+    }
   }
 
   function removeSelectedProduct(productId: string) {
@@ -514,6 +537,11 @@ function EnquiryForm() {
             setProductSearch={setProductSearch}
             searchResults={searchResults}
             searchInputRef={searchInputRef}
+            productLookupLoading={productLookupLoading}
+            productLookupError={productLookupError}
+            notFoundCode={notFoundCode}
+            isScannerOpen={isScannerOpen}
+            setIsScannerOpen={setIsScannerOpen}
             newProductDraft={newProductDraft}
             setNewProductDraft={setNewProductDraft}
             referenceLinkInput={referenceLinkInput}
@@ -523,6 +551,7 @@ function EnquiryForm() {
             errors={errors}
             submitError={submitError}
             addProduct={addProduct}
+            lookupCatalogueProduct={lookupCatalogueProduct}
             removeSelectedProduct={removeSelectedProduct}
             addNewProduct={addNewProduct}
             cancelNewProduct={cancelNewProduct}

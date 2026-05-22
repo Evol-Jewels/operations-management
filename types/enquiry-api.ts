@@ -131,6 +131,7 @@ export interface CreateEnquiryInput {
   name: string;
   phoneNumber: string;
   notes?: string;
+  budget?: string | null;
   status?: BackendEnquiryStatus;
   poc: string;
   items?: CreateEnquiryItemInput[];
@@ -140,6 +141,7 @@ export interface UpdateEnquiryInput {
   name?: string;
   phoneNumber?: string;
   notes?: string | null;
+  budget?: string | null;
   status?: BackendEnquiryStatus;
   poc?: string;
   items?: Array<CreateEnquiryItemInput & { id?: string }>;

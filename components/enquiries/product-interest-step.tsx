@@ -1,14 +1,17 @@
 import {
   ArrowLeft,
   Link2,
+  Loader2,
   Pencil,
   Plus,
+  ScanLine,
   Search,
   Trash2,
   Upload,
   Video,
   X,
 } from "lucide-react";
+import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
@@ -20,10 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { Product } from "@/lib/mock-products";
-import { formatCurrency } from "@/lib/mock-products";
-import { cn } from "@/lib/utils";
-import type { NewProduct, ProductAddMode } from "./enquiry-form-types";
+import { cn, formatCurrency } from "@/lib/utils";
+import type { NewProduct, Product, ProductAddMode } from "./enquiry-form-types";
 import {
   CATEGORIES,
   INTEREST_LEVELS,
@@ -51,6 +52,11 @@ interface ProductInterestStepProps {
   setProductSearch: (value: string) => void;
   searchResults: Product[];
   searchInputRef: React.RefObject<HTMLInputElement | null>;
+  productLookupLoading: boolean;
+  productLookupError: string;
+  notFoundCode: string;
+  isScannerOpen: boolean;
+  setIsScannerOpen: (open: boolean) => void;
   newProductDraft: NewProduct;
   setNewProductDraft: React.Dispatch<React.SetStateAction<NewProduct>>;
   referenceLinkInput: string;
@@ -60,6 +66,7 @@ interface ProductInterestStepProps {
   errors: Record<string, string>;
   submitError: string;
   addProduct: (product: Product) => void;
+  lookupCatalogueProduct: (code: string) => void;
   removeSelectedProduct: (productId: string) => void;
   addNewProduct: () => void;
   cancelNewProduct: () => void;
@@ -79,6 +86,11 @@ export function ProductInterestStep({
   setProductSearch,
   searchResults,
   searchInputRef,
+  productLookupLoading,
+  productLookupError,
+  notFoundCode,
+  isScannerOpen,
+  setIsScannerOpen,
   newProductDraft,
   setNewProductDraft,
   referenceLinkInput,
@@ -88,6 +100,7 @@ export function ProductInterestStep({
   errors,
   submitError,
   addProduct,
+  lookupCatalogueProduct,
   removeSelectedProduct,
   addNewProduct,
   cancelNewProduct,
@@ -109,40 +122,28 @@ export function ProductInterestStep({
       </div>
 
       {productAddMode === "choose" && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <ProductModeButton
-            icon={<Search className="h-4 w-4 text-primary" />}
-            title="Search catalogue"
-            description="Find an existing product"
-            onClick={() => {
-              setProductAddMode("search");
-              setTimeout(() => searchInputRef.current?.focus(), 50);
-            }}
+        <div className="grid gap-3 lg:grid-cols-2">
+          <CatalogueQuickEntry
+            productSearch={productSearch}
+            setProductSearch={setProductSearch}
+            searchResults={searchResults}
+            searchInputRef={searchInputRef}
+            selectedProducts={selectedProducts}
+            isLoading={productLookupLoading}
+            error={productLookupError}
+            notFoundCode={notFoundCode}
+            isScannerOpen={isScannerOpen}
+            setIsScannerOpen={setIsScannerOpen}
+            lookupCatalogueProduct={lookupCatalogueProduct}
+            addProduct={addProduct}
           />
           <ProductModeButton
             icon={<Pencil className="h-4 w-4 text-primary" />}
             title="Add custom product"
-            description="Add a custom requirement"
+            description="Describe the product requirement"
             onClick={() => setProductAddMode("custom")}
           />
         </div>
-      )}
-
-      {productAddMode === "search" && (
-        <CatalogueSearch
-          productSearch={productSearch}
-          setProductSearch={setProductSearch}
-          searchResults={searchResults}
-          searchInputRef={searchInputRef}
-          addProduct={(product) => {
-            addProduct(product);
-            setProductAddMode("choose");
-          }}
-          onBack={() => {
-            setProductAddMode("choose");
-            setProductSearch("");
-          }}
-        />
       )}
 
       {productAddMode === "custom" && (
@@ -292,7 +293,7 @@ function ProductModeButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex cursor-pointer flex-col items-center gap-2.5 rounded-xl border-2 border-border px-4 py-5 text-center transition-all hover:border-primary/30 hover:bg-muted/30"
+      className="flex h-full cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-border bg-card px-4 py-5 text-center transition-all hover:border-primary/30 hover:bg-muted/30"
     >
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
         {icon}
@@ -305,68 +306,158 @@ function ProductModeButton({
   );
 }
 
-function CatalogueSearch({
+function CatalogueQuickEntry({
   productSearch,
   setProductSearch,
   searchResults,
   searchInputRef,
+  selectedProducts,
+  isLoading,
+  error,
+  notFoundCode,
+  isScannerOpen,
+  setIsScannerOpen,
+  lookupCatalogueProduct,
   addProduct,
-  onBack,
 }: {
   productSearch: string;
   setProductSearch: (value: string) => void;
   searchResults: Product[];
   searchInputRef: React.RefObject<HTMLInputElement | null>;
+  selectedProducts: Product[];
+  isLoading: boolean;
+  error: string;
+  notFoundCode: string;
+  isScannerOpen: boolean;
+  setIsScannerOpen: (open: boolean) => void;
+  lookupCatalogueProduct: (code: string) => void;
   addProduct: (product: Product) => void;
-  onBack: () => void;
 }) {
   return (
-    <div className="space-y-3">
-      <ModeHeader label="Search catalogue" onBack={onBack} />
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          ref={searchInputRef}
-          placeholder="Search by product code..."
-          value={productSearch}
-          onChange={(event) => setProductSearch(event.target.value)}
-          className="h-10 pl-10"
-          autoFocus
-        />
+    <div className="space-y-4 rounded-xl border-2 border-border w-full bg-card flex flex-col justify-center items-center text-center px-4 py-5">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+        <Search className="h-4 w-4 text-primary" />
       </div>
-      {searchResults.length > 0 && (
-        <div className="max-h-72 overflow-y-auto rounded-xl border bg-card">
-          {searchResults.map((product) => (
-            <button
-              key={product.id}
-              type="button"
-              onClick={() => addProduct(product)}
-              className="flex w-full cursor-pointer items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-muted/60"
-            >
-              <ProductThumbnail product={product} size="sm" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{product.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {product.productCode} ·{" "}
-                  {formatMetalTypeLabel(product.metalType)}{" "}
-                  {product.metalPurity}
-                </p>
-              </div>
-              {product.basePrice && (
-                <span className="shrink-0 text-sm font-medium text-foreground">
-                  {formatCurrency(product.basePrice)}
-                </span>
-              )}
-              <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </button>
-          ))}
+      <div>
+        <p className="text-sm font-medium text-foreground">Find in catalogue</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Search by code or scan a barcode
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setIsScannerOpen(true)}
+          className="h-10 sm:w-28"
+        >
+          <ScanLine className="h-4 w-4" />
+          Scan
+        </Button>
+        <div className="flex min-w-0 flex-1 gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              placeholder="Search catalogue..."
+              value={productSearch}
+              onChange={(event) =>
+                setProductSearch(event.target.value.toUpperCase())
+              }
+              onKeyDown={(event) => {
+                if (event.key === "Enter")
+                  lookupCatalogueProduct(productSearch);
+              }}
+              className="h-10 pl-10 uppercase"
+            />
+          </div>
+          <Button
+            type="button"
+            onClick={() => lookupCatalogueProduct(productSearch)}
+            disabled={!productSearch.trim() || isLoading}
+            className="h-10 w-10 px-0"
+            aria-label="Search catalogue"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
+          </Button>
         </div>
-      )}
-      {productSearch.trim() && searchResults.length === 0 && (
-        <p className="py-6 text-center text-sm text-muted-foreground">
-          No products found for &quot;{productSearch}&quot;
+      </div>
+      <BarcodeScanDialog
+        open={isScannerOpen}
+        onOpenChange={setIsScannerOpen}
+        onDecoded={(code) => lookupCatalogueProduct(code)}
+      />
+      {isLoading && (
+        <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          Searching catalogue...
         </p>
       )}
+      {error && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+          {error}
+        </p>
+      )}
+      {notFoundCode && !error && (
+        <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          No catalogue product found for{" "}
+          <span className="font-medium text-foreground">{notFoundCode}</span>.
+        </p>
+      )}
+      {searchResults.length > 0 && (
+        <div className="max-h-72 overflow-y-auto rounded-xl border bg-card">
+          {searchResults.map((product) => {
+            const alreadyAdded = selectedProducts.some(
+              (item) => item.id === product.id,
+            );
+
+            return (
+              <button
+                key={product.id}
+                type="button"
+                onClick={() => addProduct(product)}
+                disabled={alreadyAdded}
+                className="flex w-full cursor-pointer items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-muted/60"
+              >
+                <ProductThumbnail product={product} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{product.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {product.productCode} ·{" "}
+                    {formatMetalTypeLabel(product.metalType)}{" "}
+                    {product.metalPurity}
+                  </p>
+                </div>
+                {product.basePrice && (
+                  <span className="shrink-0 text-sm font-medium text-foreground">
+                    {formatCurrency(product.basePrice)}
+                  </span>
+                )}
+                {alreadyAdded ? (
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                    Added
+                  </span>
+                ) : (
+                  <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {productSearch.trim() &&
+        !isLoading &&
+        !error &&
+        !notFoundCode &&
+        searchResults.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No products found for &quot;{productSearch}&quot;
+          </p>
+        )}
     </div>
   );
 }
