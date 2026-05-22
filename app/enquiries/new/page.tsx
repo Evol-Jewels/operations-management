@@ -20,30 +20,24 @@ import {
   type StepId,
 } from "@/components/enquiries/enquiry-form-types";
 import {
-  generateEnquiryId,
   generateId,
   getSteps,
   isValidReferenceLink,
   normalizeReferenceLink,
   revokeObjectUrls,
-  slugify,
 } from "@/components/enquiries/enquiry-form-utils";
 import { ProductInterestStep } from "@/components/enquiries/product-interest-step";
 import { Button } from "@/components/ui/button";
 import { validatePhone } from "@/components/ui/phone-input";
+import { useCreateEnquiry } from "@/hooks/useEnquiries";
 import { authClient } from "@/lib/auth-client";
 import { getCustomerByPhone } from "@/lib/mock-customers";
 import { type Product, searchProducts } from "@/lib/mock-products";
-import { saveEnquiryMedia } from "@/lib/storage/enquiry-media";
-import { useOrdersStore } from "@/lib/stores/orders-store";
 import { cn } from "@/lib/utils";
 import type {
-  EnquiryReference,
-  JewelleryCategory,
-  MetalPurity,
-  MetalType,
-  Order,
-} from "@/types";
+  BackendEnquiryMedia,
+  CreateEnquiryItemInput,
+} from "@/types/enquiry-api";
 
 export default function NewEnquiryPage() {
   return (
@@ -64,7 +58,7 @@ export default function NewEnquiryPage() {
 function EnquiryForm() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
-  const addEnquiry = useOrdersStore((state) => state.addEnquiry);
+  const createEnquiryMutation = useCreateEnquiry();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [animDir, setAnimDir] = useState<"forward" | "backward">("forward");
@@ -88,7 +82,6 @@ function EnquiryForm() {
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const salespersonName = session?.user?.name || "Sales Team";
   const searchInputRef = useRef<HTMLInputElement>(null);
   const steps = getSteps();
   const safeStep = Math.min(currentStep, steps.length - 1);
@@ -212,38 +205,19 @@ function EnquiryForm() {
     advanceStep();
   }
 
-  async function persistReference(
+  function referenceToMedia(
     reference: ProductReference,
-    enquiryId: string,
-    productId: string,
-  ): Promise<EnquiryReference> {
+  ): BackendEnquiryMedia | null {
     if (reference.type === "link") {
+      return { type: "LINK", url: reference.url };
+    }
+    if (reference.url.startsWith("http")) {
       return {
-        id: reference.id,
-        type: reference.type,
-        name: reference.name,
+        type: reference.type === "image" ? "IMAGE" : "VIDEO",
         url: reference.url,
       };
     }
-
-    if (!reference.file)
-      throw new Error(`Missing file data for ${reference.name}`);
-
-    const savedMedia = await saveEnquiryMedia({
-      enquiryId,
-      productId,
-      file: reference.file,
-      type: reference.type,
-    });
-
-    return {
-      id: reference.id,
-      type: reference.type,
-      name: reference.name,
-      mediaId: savedMedia.id,
-      mimeType: savedMedia.mimeType,
-      size: savedMedia.size,
-    };
+    return null;
   }
 
   async function handleSubmit() {
@@ -257,38 +231,17 @@ function EnquiryForm() {
     setSubmitError("");
 
     try {
-      const enquiryId = generateEnquiryId();
-      const createdAt = new Date().toISOString();
       const primarySelectedProduct = form.selectedProducts[0];
-      const primaryCustomProduct = form.newProducts[0];
-      const customProducts = await Promise.all(
-        form.newProducts.map(async (product) => ({
-          id: product.id,
-          category: product.category || "Other",
-          metalType: product.metalType,
-          metalPurity: product.metalPurity || "Other",
-          polish: product.polish,
-          stoneDescription: product.stoneDescription,
-          stoneCut: product.stoneCut,
-          stoneQuality: product.stoneQuality,
-          stoneCaratEstimate: product.stoneCaratEstimate
-            ? Number(product.stoneCaratEstimate)
-            : undefined,
-          references: await Promise.all(
-            product.references.map((reference) =>
-              persistReference(reference, enquiryId, product.id),
-            ),
-          ),
-        })),
-      );
+      const poc = session?.user?.id;
+      if (!poc) throw new Error("Unable to determine assigned salesperson.");
 
       const summaryBits = [
         primarySelectedProduct
           ? `Interested in ${primarySelectedProduct.name} (${primarySelectedProduct.productCode}).`
           : null,
-        customProducts.length > 0
-          ? `${customProducts.length} custom product requirement${
-              customProducts.length > 1 ? "s" : ""
+        form.newProducts.length > 0
+          ? `${form.newProducts.length} custom product requirement${
+              form.newProducts.length > 1 ? "s" : ""
             } added.`
           : null,
         form.customer.notes.trim()
@@ -303,65 +256,64 @@ function EnquiryForm() {
         .filter(Boolean)
         .join(", ");
 
-      const enquiryRecord: Order = {
-        id: enquiryId,
-        type: "enquiry",
-        shareableToken: `enq-${slugify(form.customer.name)}-${Date.now()}`,
-        customerName: form.customer.name.trim(),
-        customerPhone: form.customer.phone.trim() || undefined,
-        customerEmail: form.customer.email.trim() || undefined,
-        customerDob: form.customer.dob || undefined,
-        customerLocation: customerLocation || undefined,
-        customerCategory: form.customer.category,
-        customerNotes: form.customer.notes.trim() || undefined,
-        salespersonName,
-        category:
-          primarySelectedProduct?.category ??
-          (primaryCustomProduct?.category as JewelleryCategory | undefined) ??
-          "Other",
-        metalType:
-          primarySelectedProduct?.metalType ??
-          (primaryCustomProduct?.metalType as MetalType | undefined) ??
-          "Gold",
-        metalPurity:
-          primarySelectedProduct?.metalPurity ??
-          (primaryCustomProduct?.metalPurity as MetalPurity | undefined) ??
-          "Other",
-        polish: primaryCustomProduct?.polish || undefined,
-        stoneDescription:
-          primaryCustomProduct?.stoneDescription ||
-          primarySelectedProduct?.description ||
-          undefined,
-        stoneCut: primaryCustomProduct?.stoneCut || undefined,
-        stoneQuality: primaryCustomProduct?.stoneQuality || undefined,
-        stoneCaratEstimate: primaryCustomProduct?.stoneCaratEstimate
-          ? Number(primaryCustomProduct.stoneCaratEstimate)
-          : undefined,
-        certification: "None",
-        cadDesignRequired: false,
-        currentStage: "Enquiry",
-        createdAt,
-        lastUpdatedAt: createdAt,
-        activityFeed: [
-          {
-            id: `act-${Date.now()}-enquiry-created`,
-            orderId: enquiryId,
-            postedBy: salespersonName,
-            actorRole: "sales",
-            timestamp: createdAt,
-            type: "order_created",
-            note: summaryBits.join(" "),
-          },
-        ],
-        selectedProducts: form.selectedProducts.map((product) => ({
-          ...product,
-        })),
-        customProducts,
-      };
+      const selectedItems: CreateEnquiryItemInput[] = form.selectedProducts.map(
+        (product) => ({
+          type: "EXISTING",
+          productCode: product.productCode,
+          metalType: product.metalType,
+          metalPurity: product.metalPurity,
+          notes: product.description,
+          status: "PENDING",
+          media: product.imageUrl
+            ? [{ type: "IMAGE", url: product.imageUrl }]
+            : [],
+        }),
+      );
 
-      addEnquiry(enquiryRecord);
+      const customItems: CreateEnquiryItemInput[] = form.newProducts.map(
+        (product) => ({
+          type: "CUSTOM",
+          metalType: product.metalType,
+          metalPurity: product.metalPurity || undefined,
+          notes: [
+            product.category ? `Category: ${product.category}` : null,
+            product.polish ? `Polish: ${product.polish}` : null,
+            product.stoneCut ? `Stone cut: ${product.stoneCut}` : null,
+            product.stoneQuality
+              ? `Stone quality: ${product.stoneQuality}`
+              : null,
+            product.notes || null,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          stones: product.stoneDescription
+            ? [
+                {
+                  stoneType: product.stoneDescription,
+                  weight: product.stoneCaratEstimate || undefined,
+                },
+              ]
+            : [],
+          media: product.references
+            .map(referenceToMedia)
+            .filter((item): item is BackendEnquiryMedia => Boolean(item)),
+          status: "PENDING",
+        }),
+      );
+
+      const created = await createEnquiryMutation.mutateAsync({
+        name: form.customer.name.trim(),
+        phoneNumber: form.customer.phone.trim(),
+        notes: [summaryBits.join(" "), customerLocation || null]
+          .filter(Boolean)
+          .join("\n"),
+        status: "NEW",
+        poc,
+        items: [...selectedItems, ...customItems],
+      });
+
       setSubmitted(true);
-      setTimeout(() => router.push("/"), 2200);
+      setTimeout(() => router.push(`/enquiries/${created.enquiry.id}`), 1200);
     } catch (error) {
       setSubmitError(
         error instanceof Error

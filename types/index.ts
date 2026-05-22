@@ -207,8 +207,7 @@ export type EnquiryItemStatus =
   | "PENDING"
   | "ESTIMATED"
   | "CONVERTED"
-  | "CLOSED"
-  | "CANCELLED";
+  | "CLOSED";
 
 // ─── Estimation Types ───────────────────────────────────────────────────────
 

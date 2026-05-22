@@ -1,9 +1,10 @@
 "use client";
 
-import { CheckCircle2, LayoutGrid, List, Search, X } from "lucide-react";
+import { CheckCircle2, LayoutGrid, List, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,11 +23,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useEnquiries } from "@/hooks/useEnquiries";
+import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
 import { useOrdersStore } from "@/lib/stores/orders-store";
-import { cn, formatCurrency, formatDate, getUrgencyLevel } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { type Order, type RecordType, STAGES, type Stage } from "@/types";
 import { KanbanBoard } from "./KanbanBoard";
-import { UrgencyDot } from "./UrgencyDot";
 
 type TypeTab = "all" | RecordType;
 type ViewMode = "table" | "kanban";
@@ -121,8 +123,7 @@ function RecordsTable({ records }: { records: Order[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {records.map((record) => {
-              const urgency = getUrgencyLevel(record.deliveryDate);
+              {records.map((record) => {
               const status = getRecordStatus(record);
               const href =
                 record.type === "enquiry"
@@ -169,18 +170,30 @@ function RecordsTable({ records }: { records: Order[] }) {
                   <TableCell className="text-muted-foreground">
                     {formatDate(record.createdAt)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {record.salespersonName}
-                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <UrgencyDot level={urgency} />
+                      <Avatar className="size-6">
+                        <AvatarFallback className="bg-muted text-[10px] font-medium text-muted-foreground">
+                          {record.salespersonName
+                            ? record.salespersonName
+                                .split(" ")
+                                .filter(Boolean)
+                                .map((n) => n[0])
+                                .join("")
+                                .toUpperCase()
+                                .slice(0, 2)
+                            : "?"}
+                        </AvatarFallback>
+                      </Avatar>
                       <span className="text-sm text-muted-foreground">
-                        {record.deliveryDate
-                          ? formatDate(record.deliveryDate)
-                          : "No date"}
+                        {record.salespersonName}
                       </span>
                     </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {record.deliveryDate
+                      ? formatDate(record.deliveryDate)
+                      : "No data"}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
                     {record.totalEstimate
@@ -207,7 +220,8 @@ function RecordsTable({ records }: { records: Order[] }) {
 
 export function OrdersEnquiriesWorkspace() {
   const router = useRouter();
-  const records = useOrdersStore((state) => state.records);
+  const storeRecords = useOrdersStore((state) => state.records);
+  const enquiriesQuery = useEnquiries();
   const moveRecordStage = useOrdersStore((state) => state.moveRecordStage);
   const [typeTab, setTypeTab] = useState<TypeTab>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
@@ -219,6 +233,21 @@ export function OrdersEnquiriesWorkspace() {
     name: string;
     stage: Stage;
   } | null>(null);
+
+  const apiEnquiries = useMemo(
+    () =>
+      (enquiriesQuery.data ?? []).map((enquiry) =>
+        mapBackendEnquiryListItemToOrder(enquiry),
+      ),
+    [enquiriesQuery.data],
+  );
+  const records = useMemo(
+    () => [
+      ...storeRecords.filter((record) => record.type === "order"),
+      ...apiEnquiries,
+    ],
+    [apiEnquiries, storeRecords],
+  );
 
   const createdByOptions = useMemo(
     () => [...new Set(records.map((record) => record.salespersonName))].sort(),
@@ -278,13 +307,6 @@ export function OrdersEnquiriesWorkspace() {
     (record) => record.type === "order",
   );
 
-  function clearFilters() {
-    setSearch("");
-    setStatusFilter("all");
-    setDateFilter("all");
-    setCreatedByFilter("all");
-  }
-
   function handleOrderMove(orderId: string, newStage: Stage) {
     const movedOrder = records.find((record) => record.id === orderId);
     if (!movedOrder || movedOrder.currentStage === newStage) return;
@@ -306,11 +328,8 @@ export function OrdersEnquiriesWorkspace() {
     setTimeout(() => setLastMoved(null), 3000);
   }
 
-  const hasFilters =
-    search.trim() ||
-    statusFilter !== "all" ||
-    dateFilter !== "all" ||
-    createdByFilter !== "all";
+  const sectionHeading =
+    typeTab === "all" ? "All records" : typeTab === "order" ? "Orders" : "Enquiries";
 
   return (
     <div className="space-y-6">
@@ -324,12 +343,9 @@ export function OrdersEnquiriesWorkspace() {
         </div>
       )}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col text-center gap-4 lg:flex-row lg:text-start items-center lg:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-            Orders Workspace
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Orders and enquiries
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -338,161 +354,154 @@ export function OrdersEnquiriesWorkspace() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/enquiries/new">Create New Enquiry</Link>
+          <Link href="/enquiries/new">+ New enquiry</Link>
         </Button>
       </div>
 
-      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {[
-              { key: "all" as const, label: "All", count: tabCounts.all },
-              {
-                key: "order" as const,
-                label: "Orders",
-                count: tabCounts.order,
-              },
-              {
-                key: "enquiry" as const,
-                label: "Enquiries",
-                count: tabCounts.enquiry,
-              },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setTypeTab(tab.key)}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: "all" as const, label: "All", count: tabCounts.all },
+            {
+              key: "order" as const,
+              label: "Orders",
+              count: tabCounts.order,
+            },
+            {
+              key: "enquiry" as const,
+              label: "Enquiries",
+              count: tabCounts.enquiry,
+            },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setTypeTab(tab.key)}
+              className={cn(
+                "flex min-h-9 cursor-pointer items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors",
+                typeTab === tab.key
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {tab.label}
+              <span
                 className={cn(
-                  "flex min-h-9 cursor-pointer items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors",
+                  "rounded-full px-1.5 py-0.5 text-[10px]",
                   typeTab === tab.key
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border bg-background text-muted-foreground hover:text-foreground",
+                    ? "bg-background/20 text-background"
+                    : "bg-muted text-muted-foreground",
                 )}
               >
-                {tab.label}
-                <span
-                  className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[10px]",
-                    typeTab === tab.key
-                      ? "bg-background/20 text-background"
-                      : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode("table")}
-              className={cn(
-                "flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-                viewMode === "table"
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <List className="h-4 w-4" />
-              Table
+                {tab.count}
+              </span>
             </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("kanban")}
-              className={cn(
-                "flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-                viewMode === "kanban"
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              Kanban
-            </button>
-          </div>
+          ))}
         </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(240px,1fr)_auto_auto_auto_auto] lg:items-end">
-          <div className="grid gap-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground">
-              Search
-            </span>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Customer, order ID, product, salesperson"
-                className="pl-9"
-              />
-            </div>
-          </div>
-
-          <FilterSelect
-            label="Status"
-            value={statusFilter}
-            onValueChange={setStatusFilter}
-          >
-            {STATUS_OPTIONS.map((status) => (
-              <SelectItem key={status} value={status}>
-                {status === "all" ? "All statuses" : status}
-              </SelectItem>
-            ))}
-          </FilterSelect>
-
-          <FilterSelect
-            label="Creation Date"
-            value={dateFilter}
-            onValueChange={(value) => setDateFilter(value as DateFilter)}
-          >
-            <SelectItem value="all">All time</SelectItem>
-            <SelectItem value="7d">Last 7 days</SelectItem>
-            <SelectItem value="30d">Last 30 days</SelectItem>
-            <SelectItem value="90d">Last 90 days</SelectItem>
-          </FilterSelect>
-
-          <FilterSelect
-            label="Created By"
-            value={createdByFilter}
-            onValueChange={setCreatedByFilter}
-          >
-            <SelectItem value="all">Everyone</SelectItem>
-            {createdByOptions.map((person) => (
-              <SelectItem key={person} value={person}>
-                {person}
-              </SelectItem>
-            ))}
-          </FilterSelect>
-
-          <Button
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
+          <button
             type="button"
-            variant="outline"
-            onClick={clearFilters}
-            disabled={!hasFilters}
-            className="lg:mb-0"
+            onClick={() => setViewMode("table")}
+            className={cn(
+              "flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
+              viewMode === "table"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
-            <X className="h-4 w-4" />
-            Clear
-          </Button>
+            <List className="h-4 w-4" />
+            Table
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("kanban")}
+            className={cn(
+              "flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
+              viewMode === "kanban"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Kanban
+          </button>
         </div>
-      </section>
+      </div>
 
-      <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
-        <p>
+      <div className="flex gap-2 items-center justify-between">
+        <h2 className="text-base font-medium text-foreground">
+          {sectionHeading}
+        </h2>
+        <p className="text-sm text-muted-foreground">
           Showing{" "}
-          <span className="font-medium text-foreground">
+          <strong className="font-medium text-foreground">
             {filteredRecords.length}
-          </span>{" "}
+          </strong>{" "}
           of{" "}
-          <span className="font-medium text-foreground">{records.length}</span>{" "}
+          <strong className="font-medium text-foreground">
+            {records.length}
+          </strong>{" "}
           records
         </p>
-        {viewMode === "kanban" && typeTab !== "order" && (
-          <p>Kanban shows order records only.</p>
-        )}
       </div>
+
+      <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_auto_auto_auto] lg:items-end">
+        <div className="grid gap-1.5">
+          <span className="text-[11px] font-medium text-muted-foreground">
+            Search
+          </span>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Customer, order ID, product, salesperson"
+              className="pl-9"
+            />
+          </div>
+        </div>
+
+        <FilterSelect
+          label="Status"
+          value={statusFilter}
+          onValueChange={setStatusFilter}
+        >
+          {STATUS_OPTIONS.map((status) => (
+            <SelectItem key={status} value={status}>
+              {status === "all" ? "All statuses" : status}
+            </SelectItem>
+          ))}
+        </FilterSelect>
+
+        <FilterSelect
+          label="Creation Date"
+          value={dateFilter}
+          onValueChange={(value) => setDateFilter(value as DateFilter)}
+        >
+          <SelectItem value="all">All time</SelectItem>
+          <SelectItem value="7d">Last 7 days</SelectItem>
+          <SelectItem value="30d">Last 30 days</SelectItem>
+          <SelectItem value="90d">Last 90 days</SelectItem>
+        </FilterSelect>
+
+        <FilterSelect
+          label="Created By"
+          value={createdByFilter}
+          onValueChange={setCreatedByFilter}
+        >
+          <SelectItem value="all">Everyone</SelectItem>
+          {createdByOptions.map((person) => (
+            <SelectItem key={person} value={person}>
+              {person}
+            </SelectItem>
+          ))}
+        </FilterSelect>
+      </div>
+
+      {enquiriesQuery.isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading enquiries...</p>
+      ) : null}
 
       {viewMode === "table" ? (
         <RecordsTable records={filteredRecords} />
