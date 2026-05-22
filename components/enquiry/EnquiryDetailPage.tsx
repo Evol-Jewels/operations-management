@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  ArrowLeft,
-  Calendar,
-  Check,
-  Copy,
-  GitPullRequest,
-  Phone,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Calendar, Check, Copy, Phone, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { EnquiryProductList } from "@/components/enquiry/EnquiryProductList";
@@ -221,26 +213,17 @@ export function EnquiryDetailPage({
           ) : null}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {!isClosed ? (
-              <>
-                <Button size="sm" asChild className="gap-1.5">
-                  <Link href={`/orders/new?from=${order.id}`}>
-                    <GitPullRequest className="size-3.5" />
-                    <span className="hidden sm:inline">Convert to Order</span>
-                    <span className="sm:hidden">Convert</span>
-                  </Link>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={onCloseEnquiry}
-                  disabled={isClosingEnquiry}
-                  className="gap-1.5"
-                >
-                  <X className="size-3.5" />
-                  Close Enquiry
-                </Button>
-              </>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onCloseEnquiry}
+                disabled={isClosingEnquiry}
+                className="gap-1.5"
+              >
+                <X className="size-3.5" />
+                Close Enquiry
+              </Button>
             ) : null}
             <CopyLinkButton />
           </div>

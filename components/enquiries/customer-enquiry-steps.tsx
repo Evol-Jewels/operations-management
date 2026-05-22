@@ -477,7 +477,7 @@ export function NotesStep({
           Preferences, behaviour notes, or anything useful
         </p>
       </div>
-      <div className="max-w-sm">
+      <div className="max-w-sm space-y-4">
         <Textarea
           id="notes"
           placeholder="e.g. Prefers yellow gold, allergic to nickel..."
@@ -493,6 +493,25 @@ export function NotesStep({
           className="resize-none text-sm"
           autoFocus
         />
+        <div className="space-y-2">
+          <label htmlFor="budget" className="text-xs font-medium text-foreground/80">
+            Budget (₹)
+          </label>
+          <Input
+            id="budget"
+            type="number"
+            min={10000}
+            placeholder="Minimum ₹10,000"
+            value={customer.budget ?? ""}
+            onChange={(event) => {
+              const value = event.target.value;
+              updateCustomer({
+                budget: value === "" ? undefined : Number(value),
+              });
+            }}
+            className="h-10 text-base"
+          />
+        </div>
         <p className="mt-2 text-xs text-muted-foreground/50">
           Optional - skip if nothing to add
         </p>

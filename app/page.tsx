@@ -1,28 +1,30 @@
 "use client";
 
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
-import { AdminAnalyticsDashboard } from "@/components/dashboard/AdminAnalyticsDashboard";
-import { RecentActivities } from "@/components/dashboard/RecentActivities";
-import { TodaysFocus } from "@/components/dashboard/TodaysFocus";
-import { useOrdersStore } from "@/lib/stores/orders-store";
+
+function OrdersAnalyticsComingSoon() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-6 py-28 text-center">
+      <div className="flex h-20 w-20 items-center justify-center rounded-full border border-border bg-muted/50">
+        <span className="text-4xl">📊</span>
+      </div>
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Orders Dashboard
+        </h1>
+        <p className="text-base text-muted-foreground">
+          Orders analytics are not available yet.
+        </p>
+        <p className="text-sm text-muted-foreground">Coming soon!</p>
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
-  const orders = useOrdersStore((state) => state.records);
-
   return (
     <RequireInternalAuth>
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-6">
-          <AdminAnalyticsDashboard orders={orders} />
-          <TodaysFocus orders={orders} />
-        </div>
-        <div className="xl:sticky xl:top-6 xl:self-start">
-          <RecentActivities
-            orders={orders}
-            className="xl:max-h-[calc(100vh-3rem)]"
-          />
-        </div>
-      </div>
+      <OrdersAnalyticsComingSoon />
     </RequireInternalAuth>
   );
 }
