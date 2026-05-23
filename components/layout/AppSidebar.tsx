@@ -103,9 +103,9 @@ export function AppSidebar() {
                 className="group/logo"
               >
                 <div className="relative flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-                  <div className="relative">
+                  <div className={`relative ${state === "collapsed" ? "w-full" : "w-1/3"}`}>
                     <Avatar
-                      className={`rounded-sm ${state === "collapsed" ? "group-hover:opacity-0 size-7" : "size-10"}`}
+                      className={`rounded-sm ${state === "collapsed" ? "group-hover:opacity-0 size-6" : "size-8"} w-full`}
                     >
                       <AvatarImage src="/evol-logo.webp" alt="EVOL" />
                       <AvatarFallback className="bg-sidebar-accent text-xs font-semibold">
@@ -117,7 +117,7 @@ export function AppSidebar() {
                     )}
                   </div>
                   <div className="flex flex-col items-start group-data-[collapsible=icon]:hidden">
-                    <span className="text-sm font-semibold leading-none">
+                    <span className="text-sm font-semibold">
                       EVOL Jewels
                     </span>
                     <Badge
@@ -209,7 +209,7 @@ export function AppSidebar() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex min-w-0 flex-col items-start group-data-[collapsible=icon]:hidden">
-                  <span className="truncate text-sm font-medium leading-none">
+                  <span className="truncate text-sm font-medium">
                     {session.user.name.split(" ")[0]}
                   </span>
                 </div>
@@ -225,7 +225,7 @@ export function AppSidebar() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0 flex flex-col">
-                      <p className="text-sm font-semibold leading-none tracking-tight">
+                      <p className="text-sm font-semibold tracking-tight">
                         {session.user.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
