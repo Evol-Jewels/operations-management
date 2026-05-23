@@ -8,9 +8,10 @@ import {
   Percent,
   Plus,
   ReceiptText,
+  RefreshCw,
   Trash2,
 } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -36,49 +37,105 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  useCreateMetal,
+  useCreateStoneSlab,
+  useCreateStoneType,
+  useDeleteMetal,
+  useDeleteStoneSlab,
+  useDeleteStoneType,
+  useMetals,
+  useStoneSlabs,
+  useStoneTypes,
+  useUpdateMetal,
+  useUpdateStoneSlab,
+  useUpdateStoneType,
+} from "@/hooks/useManageProducts";
 import { formatCurrency } from "@/lib/utils";
 import type {
-  CalculatorSettings,
-  CalculatorStoneSlab,
-  CalculatorStoneType,
-  MetalPurity,
-} from "@/types";
-import { MOCK_PRICING_SETTINGS } from "./mockPricingData";
+  CreateMetalInput,
+  CreateStoneSlabInput,
+  MetalResponse,
+  StoneSlabResponse,
+  StoneTypeResponse,
+  UpdateMetalInput,
+  UpdateStoneSlabInput,
+} from "@/types/manage-products-api";
 
 type ManageSection = "overview" | "metals" | "stones-slabs" | "misc";
-type StoneDialogMode = "add" | "edit";
+type DialogMode = "add" | "edit";
+
+type MiscSettings = {
+  makingChargeFlat: number;
+  makingChargePerGram: number;
+  gstRate: number;
+};
+
+type MetalDraft = {
+  name: string;
+  type: string;
+  percentage: string;
+  ratePerGram: string;
+  notes: string;
+};
 
 type StoneDraft = {
-  stoneId: string;
   name: string;
-  category: CalculatorStoneType["category"];
-  clarity: string;
-  color: string;
 };
 
 type SlabDraft = {
   code: string;
-  fromWeight: number;
-  toWeight: number;
-  pricePerCarat: number;
+  rangeFrom: string;
+  rangeTo: string;
+  pricePerCarat: string;
+  notes: string;
 };
 
-const GOLD_PURITIES: MetalPurity[] = ["24K", "22K", "18K", "14K"];
-
-function generateId() {
-  return Math.random().toString(36).slice(2, 9);
-}
+const LIST_QUERY = { limit: 50, offset: 0 };
+const MONEY_PATTERN = /^\d+(\.\d{1,2})?$/;
+const WEIGHT_PATTERN = /^\d+(\.\d{1,3})?$/;
+const PERCENTAGE_PATTERN = /^\d+(\.\d{1,2})?$/;
 
 function toNumber(value: string) {
   return Number(value) || 0;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function formatMoneyValue(value: string | null) {
+  if (!value) return "Not set";
+  return `${formatCurrency(Number(value))}`;
+}
+
+function optionalCreateValue(value: string) {
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function optionalUpdateValue(value: string) {
+  const trimmed = value.trim();
+  return trimmed || null;
 }
 
 function SectionShell({
@@ -173,6 +230,25 @@ function NumberInput({
   );
 }
 
+function TextInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <Input
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+    />
+  );
+}
+
 function OverviewCard({
   icon,
   title,
@@ -208,17 +284,61 @@ function OverviewCard({
   );
 }
 
+function LoadingRows({ count = 4 }: { count?: number }) {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: count }).map((_, index) => (
+        <Skeleton
+          key={`loading-row-${count}-${index + 1}`}
+          className="h-14 w-full rounded-lg"
+        />
+      ))}
+    </div>
+  );
+}
+
+function ErrorPanel({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+      <p className="text-sm font-medium text-destructive">{message}</p>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onRetry}
+        className="mt-3 gap-2"
+      >
+        <RefreshCw className="h-4 w-4" />
+        Retry
+      </Button>
+    </div>
+  );
+}
+
 function Overview({
-  settings,
+  miscSettings,
+  metalsTotal,
+  stoneTypesTotal,
+  slabTotal,
+  loadingCounts,
   onSelect,
 }: {
-  settings: CalculatorSettings;
+  miscSettings: MiscSettings;
+  metalsTotal: number;
+  stoneTypesTotal: number;
+  slabTotal: number;
+  loadingCounts: boolean;
   onSelect: (section: ManageSection) => void;
 }) {
-  const slabCount = settings.stoneTypes.reduce(
-    (sum, stone) => sum + stone.slabs.length,
-    0,
-  );
+  const countMeta = loadingCounts
+    ? "Loading..."
+    : `${stoneTypesTotal} stones, ${slabTotal} slabs`;
 
   return (
     <div className="space-y-6 overflow-y-auto pr-1">
@@ -227,8 +347,8 @@ function Overview({
           Manage Products & Pricing
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Update mock pricing values for metals, stones, slabs, making charges,
-          and GST.
+          Manage backend pricing records for metals, stone types, and stone slab
+          ranges.
         </p>
       </div>
 
@@ -236,22 +356,22 @@ function Overview({
         <OverviewCard
           icon={<CircleDollarSign className="h-5 w-5" />}
           title="Metals"
-          description="Gold base rate and purity percentages."
-          meta={`${formatCurrency(settings.goldRate24k)}/g base`}
+          description="Manage metal names, purity percentages, and per-gram rates."
+          meta={loadingCounts ? "Loading..." : `${metalsTotal} metals`}
           onClick={() => onSelect("metals")}
         />
         <OverviewCard
           icon={<Layers3 className="h-5 w-5" />}
           title="Stones & Slabs"
-          description="Manage stone metadata and per-carat slab pricing."
-          meta={`${settings.stoneTypes.length} stones, ${slabCount} slabs`}
+          description="Manage stone types and their per-carat slab ranges."
+          meta={countMeta}
           onClick={() => onSelect("stones-slabs")}
         />
         <OverviewCard
           icon={<ReceiptText className="h-5 w-5" />}
           title="Miscellaneous"
-          description="GST and making cost rules."
-          meta={`${settings.gstRate * 100}% GST`}
+          description="Local GST and making cost rules."
+          meta={`${miscSettings.gstRate * 100}% GST`}
           onClick={() => onSelect("misc")}
         />
       </div>
@@ -259,112 +379,18 @@ function Overview({
   );
 }
 
-function MetalsEditor({
-  settings,
-  onChange,
-  onBack,
-}: {
-  settings: CalculatorSettings;
-  onChange: (settings: CalculatorSettings) => void;
-  onBack: () => void;
-}) {
-  const rates = useMemo(
-    () =>
-      GOLD_PURITIES.map((purity) => {
-        const percentage = settings.purityPercentages[purity] ?? 100;
-        return {
-          purity,
-          percentage,
-          rate: Math.round(settings.goldRate24k * (percentage / 100)),
-        };
-      }),
-    [settings.goldRate24k, settings.purityPercentages],
-  );
-
-  function updatePurity(purity: MetalPurity, value: number) {
-    onChange({
-      ...settings,
-      purityPercentages: {
-        ...settings.purityPercentages,
-        [purity]: value,
-      },
-    });
-  }
-
-  return (
-    <SectionShell
-      icon={<CircleDollarSign className="h-5 w-5" />}
-      title="Metals"
-      description="Manage the 24K base rate and purity percentages used in estimates."
-      onBack={onBack}
-    >
-      <Card className="h-full overflow-hidden py-0">
-        <CardContent className="h-full space-y-6 overflow-y-auto p-6">
-          <FieldBlock
-            label="24K gold rate"
-            description="Base metal rate per gram."
-          >
-            <div className="flex items-end gap-3">
-              <NumberInput
-                value={settings.goldRate24k}
-                onChange={(goldRate24k) =>
-                  onChange({ ...settings, goldRate24k })
-                }
-              />
-              <span className="pb-2 text-sm text-muted-foreground">INR/g</span>
-            </div>
-          </FieldBlock>
-
-          <Separator />
-
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Purity percentages
-            </p>
-            <div className="grid gap-3 md:grid-cols-2">
-              {rates.map((item) => (
-                <div
-                  key={item.purity}
-                  className="rounded-xl border border-border bg-muted/20 p-4"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-foreground">
-                        {item.purity}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {formatCurrency(item.rate)}/g
-                      </p>
-                    </div>
-                    <div className="flex w-28 items-end gap-2">
-                      <NumberInput
-                        value={item.percentage}
-                        step="0.1"
-                        onChange={(value) => updatePurity(item.purity, value)}
-                      />
-                      <Percent className="mb-2 h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </SectionShell>
-  );
-}
-
-function StoneDialog({
+function MetalDialog({
   mode,
   draft,
+  isSubmitting,
   onDraftChange,
   onOpenChange,
   onSubmit,
 }: {
-  mode: StoneDialogMode | null;
-  draft: StoneDraft | null;
-  onDraftChange: (draft: StoneDraft) => void;
+  mode: DialogMode | null;
+  draft: MetalDraft | null;
+  isSubmitting: boolean;
+  onDraftChange: (draft: MetalDraft) => void;
   onOpenChange: (open: boolean) => void;
   onSubmit: () => void;
 }) {
@@ -375,83 +401,419 @@ function StoneDialog({
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {mode === "edit" ? "Edit Stone" : "Add Stone"}
+            {mode === "edit" ? "Edit Metal" : "Add Metal"}
           </DialogTitle>
           <DialogDescription>
-            {mode === "edit"
-              ? "Update stone details without changing its slabs."
-              : "Create a stone type for slab pricing."}
+            Manage the metal name, type, purity percentage, and per-gram rate.
           </DialogDescription>
         </DialogHeader>
 
         {draft ? (
           <div className="grid gap-5 py-2 md:grid-cols-2">
             <FieldBlock label="Name">
-              <Input
+              <TextInput
                 value={draft.name}
-                onChange={(event) =>
-                  onDraftChange({ ...draft, name: event.target.value })
-                }
-                className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+                onChange={(name) => onDraftChange({ ...draft, name })}
               />
             </FieldBlock>
-            <FieldBlock label="Stone ID">
-              <Input
-                value={draft.stoneId}
-                onChange={(event) =>
-                  onDraftChange({ ...draft, stoneId: event.target.value })
-                }
-                className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+            <FieldBlock label="Type">
+              <TextInput
+                value={draft.type}
+                onChange={(type) => onDraftChange({ ...draft, type })}
+                placeholder="Gold, Platinum, Silver"
               />
             </FieldBlock>
-            <FieldBlock label="Category">
-              <Select
-                value={draft.category}
-                onValueChange={(value) =>
-                  onDraftChange({
-                    ...draft,
-                    category: value as CalculatorStoneType["category"],
-                  })
+            <FieldBlock label="Percentage">
+              <TextInput
+                value={draft.percentage}
+                onChange={(percentage) =>
+                  onDraftChange({ ...draft, percentage })
                 }
-              >
-                <SelectTrigger className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus:ring-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Diamond">Diamond</SelectItem>
-                  <SelectItem value="Gemstone">Gemstone</SelectItem>
-                </SelectContent>
-              </Select>
-            </FieldBlock>
-            <FieldBlock label="Clarity">
-              <Input
-                value={draft.clarity}
-                onChange={(event) =>
-                  onDraftChange({ ...draft, clarity: event.target.value })
-                }
-                className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+                placeholder="91.60"
               />
             </FieldBlock>
-            <FieldBlock label="Color">
-              <Input
-                value={draft.color}
-                onChange={(event) =>
-                  onDraftChange({ ...draft, color: event.target.value })
+            <FieldBlock label="Rate / gram">
+              <TextInput
+                value={draft.ratePerGram}
+                onChange={(ratePerGram) =>
+                  onDraftChange({ ...draft, ratePerGram })
                 }
-                className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+                placeholder="10000.00"
               />
             </FieldBlock>
+            <div className="md:col-span-2">
+              <FieldBlock label="Notes">
+                <Textarea
+                  value={draft.notes}
+                  onChange={(event) =>
+                    onDraftChange({ ...draft, notes: event.target.value })
+                  }
+                  className="min-h-24 resize-none"
+                />
+              </FieldBlock>
+            </div>
           </div>
         ) : null}
 
         <DialogFooter>
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" disabled={isSubmitting}>
               Cancel
             </Button>
           </DialogClose>
-          <Button type="button" onClick={onSubmit}>
-            {mode === "edit" ? "Save Changes" : "Add Stone"}
+          <Button type="button" onClick={onSubmit} disabled={isSubmitting}>
+            {isSubmitting
+              ? mode === "edit"
+                ? "Saving..."
+                : "Creating..."
+              : mode === "edit"
+                ? "Save Changes"
+                : "Add Metal"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MetalsEditor({ onBack }: { onBack: () => void }) {
+  const metalsQuery = useMetals(LIST_QUERY);
+  const createMetal = useCreateMetal();
+  const updateMetal = useUpdateMetal();
+  const deleteMetal = useDeleteMetal();
+  const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
+  const [editingMetal, setEditingMetal] = useState<MetalResponse | null>(null);
+  const [draft, setDraft] = useState<MetalDraft | null>(null);
+  const [metalToDelete, setMetalToDelete] = useState<MetalResponse | null>(
+    null,
+  );
+  const metals = metalsQuery.data?.data ?? [];
+  const isSubmitting =
+    createMetal.isPending || updateMetal.isPending || deleteMetal.isPending;
+
+  function closeDialog() {
+    setDialogMode(null);
+    setEditingMetal(null);
+    setDraft(null);
+  }
+
+  function openAddDialog() {
+    setEditingMetal(null);
+    setDraft({
+      name: "",
+      type: "",
+      percentage: "",
+      ratePerGram: "",
+      notes: "",
+    });
+    setDialogMode("add");
+  }
+
+  function openEditDialog(metal: MetalResponse) {
+    setEditingMetal(metal);
+    setDraft({
+      name: metal.name,
+      type: metal.type ?? "",
+      percentage: metal.percentage ?? "",
+      ratePerGram: metal.ratePerGram ?? "",
+      notes: metal.notes ?? "",
+    });
+    setDialogMode("edit");
+  }
+
+  function validateDraft(currentDraft: MetalDraft) {
+    const name = currentDraft.name.trim();
+    const type = currentDraft.type.trim();
+    const percentage = currentDraft.percentage.trim();
+    const ratePerGram = currentDraft.ratePerGram.trim();
+
+    if (!name) {
+      toast.error("Metal name is required.");
+      return false;
+    }
+    if (name.length > 255) {
+      toast.error("Metal name must be 255 characters or less.");
+      return false;
+    }
+    if (type.length > 50) {
+      toast.error("Metal type must be 50 characters or less.");
+      return false;
+    }
+    if (percentage && !PERCENTAGE_PATTERN.test(percentage)) {
+      toast.error("Percentage must have up to 2 decimal places.");
+      return false;
+    }
+    if (percentage && Number(percentage) > 100) {
+      toast.error("Percentage must be between 0 and 100.");
+      return false;
+    }
+    if (ratePerGram && !MONEY_PATTERN.test(ratePerGram)) {
+      toast.error("Rate / gram must have up to 2 decimal places.");
+      return false;
+    }
+    if (currentDraft.notes.length > 10000) {
+      toast.error("Notes must be 10,000 characters or less.");
+      return false;
+    }
+
+    return true;
+  }
+
+  async function submitDialog() {
+    if (!draft || !dialogMode || !validateDraft(draft)) return;
+
+    try {
+      if (dialogMode === "add") {
+        const input: CreateMetalInput = {
+          name: draft.name.trim(),
+          type: optionalCreateValue(draft.type),
+          percentage: optionalCreateValue(draft.percentage),
+          ratePerGram: optionalCreateValue(draft.ratePerGram),
+          notes: optionalCreateValue(draft.notes),
+        };
+        await createMetal.mutateAsync(input);
+        toast.success("Metal created");
+      } else if (editingMetal) {
+        const input: UpdateMetalInput = {
+          name: draft.name.trim(),
+          type: optionalUpdateValue(draft.type),
+          percentage: optionalUpdateValue(draft.percentage),
+          ratePerGram: optionalUpdateValue(draft.ratePerGram),
+          notes: optionalUpdateValue(draft.notes),
+        };
+        await updateMetal.mutateAsync({ id: editingMetal.id, input });
+        toast.success("Metal updated");
+      }
+      closeDialog();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not save metal"));
+    }
+  }
+
+  async function confirmDeleteMetal() {
+    if (!metalToDelete) return;
+
+    try {
+      await deleteMetal.mutateAsync(metalToDelete.id);
+      setMetalToDelete(null);
+      toast.success("Metal deleted");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not delete metal"));
+    }
+  }
+
+  return (
+    <SectionShell
+      icon={<CircleDollarSign className="h-5 w-5" />}
+      title="Metals"
+      description="Manage metal records used by pricing and estimates."
+      onBack={onBack}
+    >
+      <Card className="h-full overflow-hidden py-0">
+        <CardContent className="flex h-full min-h-0 flex-col gap-5 p-5 lg:p-6">
+          <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Metal Records
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {metals.length} of {metalsQuery.data?.total ?? 0} loaded
+              </p>
+            </div>
+            <Button type="button" onClick={openAddDialog} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Metal
+            </Button>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {metalsQuery.isLoading ? <LoadingRows /> : null}
+            {metalsQuery.isError ? (
+              <ErrorPanel
+                message={getErrorMessage(
+                  metalsQuery.error,
+                  "Could not load metals.",
+                )}
+                onRetry={() => void metalsQuery.refetch()}
+              />
+            ) : null}
+            {!metalsQuery.isLoading && !metalsQuery.isError ? (
+              metals.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border py-10 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    No metals configured.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={openAddDialog}
+                    className="mt-3 gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Metal
+                  </Button>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Percentage</TableHead>
+                      <TableHead>Rate / g</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead>Updated</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {metals.map((metal) => (
+                      <TableRow key={metal.id}>
+                        <TableCell className="font-medium">
+                          {metal.name}
+                        </TableCell>
+                        <TableCell>{metal.type || "Not set"}</TableCell>
+                        <TableCell>
+                          {metal.percentage
+                            ? `${metal.percentage}%`
+                            : "Not set"}
+                        </TableCell>
+                        <TableCell>
+                          {formatMoneyValue(metal.ratePerGram)}
+                        </TableCell>
+                        <TableCell className="max-w-64 truncate">
+                          {metal.notes || "No notes"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatDate(metal.updatedAt)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => openEditDialog(metal)}
+                              aria-label={`Edit ${metal.name}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => setMetalToDelete(metal)}
+                              aria-label={`Delete ${metal.name}`}
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      <MetalDialog
+        mode={dialogMode}
+        draft={draft}
+        isSubmitting={isSubmitting}
+        onDraftChange={setDraft}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+        onSubmit={submitDialog}
+      />
+
+      <AlertDialog
+        open={!!metalToDelete}
+        onOpenChange={(open) => {
+          if (!open) setMetalToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete metal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes {metalToDelete?.name ?? "this metal"} from the active
+              pricing list.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMetal.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteMetal}
+              disabled={deleteMetal.isPending}
+            >
+              {deleteMetal.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </SectionShell>
+  );
+}
+
+function StoneDialog({
+  mode,
+  draft,
+  isSubmitting,
+  onDraftChange,
+  onOpenChange,
+  onSubmit,
+}: {
+  mode: DialogMode | null;
+  draft: StoneDraft | null;
+  isSubmitting: boolean;
+  onDraftChange: (draft: StoneDraft) => void;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: () => void;
+}) {
+  const open = !!mode && !!draft;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {mode === "edit" ? "Edit Stone Type" : "Add Stone Type"}
+          </DialogTitle>
+          <DialogDescription>
+            Stone type names are used to group slab pricing ranges.
+          </DialogDescription>
+        </DialogHeader>
+
+        {draft ? (
+          <FieldBlock label="Name">
+            <TextInput
+              value={draft.name}
+              onChange={(name) => onDraftChange({ ...draft, name })}
+            />
+          </FieldBlock>
+        ) : null}
+
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline" disabled={isSubmitting}>
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button type="button" onClick={onSubmit} disabled={isSubmitting}>
+            {isSubmitting
+              ? mode === "edit"
+                ? "Saving..."
+                : "Creating..."
+              : mode === "edit"
+                ? "Save Changes"
+                : "Add Stone"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -460,70 +822,93 @@ function StoneDialog({
 }
 
 function SlabDialog({
-  open,
+  mode,
   draft,
+  isSubmitting,
   onDraftChange,
   onOpenChange,
   onSubmit,
 }: {
-  open: boolean;
-  draft: SlabDraft;
+  mode: DialogMode | null;
+  draft: SlabDraft | null;
+  isSubmitting: boolean;
   onDraftChange: (draft: SlabDraft) => void;
   onOpenChange: (open: boolean) => void;
   onSubmit: () => void;
 }) {
+  const open = !!mode && !!draft;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add Slab</DialogTitle>
+          <DialogTitle>
+            {mode === "edit" ? "Edit Slab" : "Add Slab"}
+          </DialogTitle>
           <DialogDescription>
-            Create a pricing range for the selected stone.
+            Manage a per-carat price range for the selected stone type.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-5 py-2 md:grid-cols-2">
-          <FieldBlock label="Code">
-            <Input
-              value={draft.code}
-              onChange={(event) =>
-                onDraftChange({ ...draft, code: event.target.value })
-              }
-              className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
-            />
-          </FieldBlock>
-          <FieldBlock label="From ct">
-            <NumberInput
-              value={draft.fromWeight}
-              step="0.0001"
-              onChange={(fromWeight) => onDraftChange({ ...draft, fromWeight })}
-            />
-          </FieldBlock>
-          <FieldBlock label="To ct">
-            <NumberInput
-              value={draft.toWeight}
-              step="0.0001"
-              onChange={(toWeight) => onDraftChange({ ...draft, toWeight })}
-            />
-          </FieldBlock>
-          <FieldBlock label="Price / ct">
-            <NumberInput
-              value={draft.pricePerCarat}
-              onChange={(pricePerCarat) =>
-                onDraftChange({ ...draft, pricePerCarat })
-              }
-            />
-          </FieldBlock>
-        </div>
+        {draft ? (
+          <div className="grid gap-5 py-2 md:grid-cols-2">
+            <FieldBlock label="Code">
+              <TextInput
+                value={draft.code}
+                onChange={(code) => onDraftChange({ ...draft, code })}
+              />
+            </FieldBlock>
+            <FieldBlock label="From ct">
+              <TextInput
+                value={draft.rangeFrom}
+                onChange={(rangeFrom) => onDraftChange({ ...draft, rangeFrom })}
+                placeholder="0.000"
+              />
+            </FieldBlock>
+            <FieldBlock label="To ct">
+              <TextInput
+                value={draft.rangeTo}
+                onChange={(rangeTo) => onDraftChange({ ...draft, rangeTo })}
+                placeholder="0.100"
+              />
+            </FieldBlock>
+            <FieldBlock label="Price / ct">
+              <TextInput
+                value={draft.pricePerCarat}
+                onChange={(pricePerCarat) =>
+                  onDraftChange({ ...draft, pricePerCarat })
+                }
+                placeholder="10000.00"
+              />
+            </FieldBlock>
+            <div className="md:col-span-2">
+              <FieldBlock label="Notes">
+                <Textarea
+                  value={draft.notes}
+                  onChange={(event) =>
+                    onDraftChange({ ...draft, notes: event.target.value })
+                  }
+                  className="min-h-24 resize-none"
+                />
+              </FieldBlock>
+            </div>
+          </div>
+        ) : null}
 
         <DialogFooter>
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" disabled={isSubmitting}>
               Cancel
             </Button>
           </DialogClose>
-          <Button type="button" onClick={onSubmit}>
-            Add Slab
+          <Button type="button" onClick={onSubmit} disabled={isSubmitting}>
+            {isSubmitting
+              ? mode === "edit"
+                ? "Saving..."
+                : "Creating..."
+              : mode === "edit"
+                ? "Save Changes"
+                : "Add Slab"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -531,366 +916,400 @@ function SlabDialog({
   );
 }
 
-function StonesAndSlabsEditor({
-  settings,
-  onChange,
-  onBack,
-}: {
-  settings: CalculatorSettings;
-  onChange: (settings: CalculatorSettings) => void;
-  onBack: () => void;
-}) {
-  const [selectedStoneId, setSelectedStoneId] = useState<string | null>(
-    settings.stoneTypes[0]?.stoneId ?? null,
+function StonesAndSlabsEditor({ onBack }: { onBack: () => void }) {
+  const stoneTypesQuery = useStoneTypes(LIST_QUERY);
+  const allSlabsQuery = useStoneSlabs(LIST_QUERY);
+  const [selectedStoneId, setSelectedStoneId] = useState<string | null>(null);
+  const selectedSlabsQuery = useStoneSlabs(
+    { ...LIST_QUERY, stoneTypeId: selectedStoneId ?? undefined },
+    Boolean(selectedStoneId),
   );
-  const [stoneToDelete, setStoneToDelete] = useState<string | null>(null);
-  const [stoneDialogMode, setStoneDialogMode] =
-    useState<StoneDialogMode | null>(null);
-  const [editingStoneOriginalId, setEditingStoneOriginalId] = useState<
-    string | null
-  >(null);
+  const createStoneType = useCreateStoneType();
+  const updateStoneType = useUpdateStoneType();
+  const deleteStoneType = useDeleteStoneType();
+  const createStoneSlab = useCreateStoneSlab();
+  const updateStoneSlab = useUpdateStoneSlab();
+  const deleteStoneSlab = useDeleteStoneSlab();
+  const [stoneDialogMode, setStoneDialogMode] = useState<DialogMode | null>(
+    null,
+  );
+  const [editingStone, setEditingStone] = useState<StoneTypeResponse | null>(
+    null,
+  );
   const [stoneDraft, setStoneDraft] = useState<StoneDraft | null>(null);
-  const [slabDialogOpen, setSlabDialogOpen] = useState(false);
-  const [slabDraft, setSlabDraft] = useState<SlabDraft>({
-    code: "",
-    fromWeight: 0,
-    toWeight: 0,
-    pricePerCarat: 0,
-  });
+  const [stoneToDelete, setStoneToDelete] = useState<StoneTypeResponse | null>(
+    null,
+  );
+  const [slabDialogMode, setSlabDialogMode] = useState<DialogMode | null>(null);
+  const [editingSlab, setEditingSlab] = useState<StoneSlabResponse | null>(
+    null,
+  );
+  const [slabDraft, setSlabDraft] = useState<SlabDraft | null>(null);
+  const [slabToDelete, setSlabToDelete] = useState<StoneSlabResponse | null>(
+    null,
+  );
+  const stoneTypes = stoneTypesQuery.data?.data ?? [];
   const selectedStone =
-    settings.stoneTypes.find((stone) => stone.stoneId === selectedStoneId) ??
-    settings.stoneTypes[0] ??
+    stoneTypes.find((stone) => stone.id === selectedStoneId) ??
+    stoneTypes[0] ??
     null;
+  const selectedSlabs = selectedSlabsQuery.data?.data ?? [];
+  const allSlabs = allSlabsQuery.data?.data ?? [];
+  const slabCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const slab of allSlabs) {
+      counts.set(slab.stoneTypeId, (counts.get(slab.stoneTypeId) ?? 0) + 1);
+    }
+    return counts;
+  }, [allSlabs]);
+  const isSubmitting =
+    createStoneType.isPending ||
+    updateStoneType.isPending ||
+    deleteStoneType.isPending ||
+    createStoneSlab.isPending ||
+    updateStoneSlab.isPending ||
+    deleteStoneSlab.isPending;
 
-  function setStoneTypes(stoneTypes: CalculatorStoneType[]) {
-    onChange({ ...settings, stoneTypes });
-  }
+  useEffect(() => {
+    if (stoneTypes.length === 0) {
+      setSelectedStoneId(null);
+      return;
+    }
+    if (
+      !selectedStoneId ||
+      !stoneTypes.some((stone) => stone.id === selectedStoneId)
+    ) {
+      setSelectedStoneId(stoneTypes[0].id);
+    }
+  }, [selectedStoneId, stoneTypes]);
 
   function closeStoneDialog() {
     setStoneDialogMode(null);
-    setEditingStoneOriginalId(null);
+    setEditingStone(null);
     setStoneDraft(null);
   }
 
   function openAddStoneDialog() {
-    setEditingStoneOriginalId(null);
-    setStoneDraft({
-      stoneId: `stone-${generateId()}`,
-      name: "",
-      category: "Diamond",
-      clarity: "",
-      color: "",
-    });
+    setEditingStone(null);
+    setStoneDraft({ name: "" });
     setStoneDialogMode("add");
   }
 
-  function openEditStoneDialog(stone: CalculatorStoneType) {
-    setSelectedStoneId(stone.stoneId);
-    setEditingStoneOriginalId(stone.stoneId);
-    setStoneDraft({
-      stoneId: stone.stoneId,
-      name: stone.name,
-      category: stone.category,
-      clarity: stone.clarity ?? "",
-      color: stone.color ?? "",
-    });
+  function openEditStoneDialog(stone: StoneTypeResponse) {
+    setEditingStone(stone);
+    setStoneDraft({ name: stone.name });
     setStoneDialogMode("edit");
   }
 
-  function validateStoneDraft() {
-    if (!stoneDraft) return false;
-    const name = stoneDraft.name.trim();
-    const stoneId = stoneDraft.stoneId.trim();
-
+  function validateStoneDraft(currentDraft: StoneDraft) {
+    const name = currentDraft.name.trim();
     if (!name) {
-      toast.error("Stone name is required.");
+      toast.error("Stone type name is required.");
       return false;
     }
-    if (!stoneId) {
-      toast.error("Stone ID is required.");
+    if (name.length > 255) {
+      toast.error("Stone type name must be 255 characters or less.");
       return false;
     }
-
-    const duplicate = settings.stoneTypes.some(
-      (stone) =>
-        stone.stoneId === stoneId &&
-        (stoneDialogMode === "add" || stone.stoneId !== editingStoneOriginalId),
-    );
-
-    if (duplicate) {
-      toast.error("Stone ID already exists.");
-      return false;
-    }
-
     return true;
   }
 
-  function submitStoneDialog() {
-    if (!stoneDraft || !stoneDialogMode || !validateStoneDraft()) return;
-
-    const normalizedDraft = {
-      stoneId: stoneDraft.stoneId.trim(),
-      name: stoneDraft.name.trim(),
-      category: stoneDraft.category,
-      clarity: stoneDraft.clarity.trim(),
-      color: stoneDraft.color.trim(),
-    };
+  async function submitStoneDialog() {
+    if (!stoneDraft || !stoneDialogMode || !validateStoneDraft(stoneDraft)) {
+      return;
+    }
 
     try {
       if (stoneDialogMode === "add") {
-        const newStone: CalculatorStoneType = {
-          ...normalizedDraft,
-          slabs: [],
-        };
-        setStoneTypes([...settings.stoneTypes, newStone]);
-        setSelectedStoneId(newStone.stoneId);
-        closeStoneDialog();
-        toast.success("Stone added");
-        return;
+        const stone = await createStoneType.mutateAsync({
+          name: stoneDraft.name.trim(),
+        });
+        setSelectedStoneId(stone.id);
+        toast.success("Stone type created");
+      } else if (editingStone) {
+        const stone = await updateStoneType.mutateAsync({
+          id: editingStone.id,
+          input: { name: stoneDraft.name.trim() },
+        });
+        setSelectedStoneId(stone.id);
+        toast.success("Stone type updated");
       }
-
-      if (!editingStoneOriginalId) {
-        toast.error("Could not update stone");
-        return;
-      }
-
-      setStoneTypes(
-        settings.stoneTypes.map((stone) =>
-          stone.stoneId === editingStoneOriginalId
-            ? { ...stone, ...normalizedDraft }
-            : stone,
-        ),
-      );
-      setSelectedStoneId(normalizedDraft.stoneId);
       closeStoneDialog();
-      toast.success("Stone updated");
-    } catch {
-      toast.error(
-        stoneDialogMode === "add"
-          ? "Could not add stone"
-          : "Could not update stone",
-      );
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not save stone type"));
     }
   }
 
-  function deleteStone(stoneId: string) {
+  async function confirmDeleteStone() {
+    if (!stoneToDelete) return;
+
     try {
-      const currentIndex = settings.stoneTypes.findIndex(
-        (stone) => stone.stoneId === stoneId,
-      );
-      const nextStoneTypes = settings.stoneTypes.filter(
-        (stone) => stone.stoneId !== stoneId,
-      );
-      setStoneTypes(nextStoneTypes);
-      if (selectedStoneId === stoneId) {
-        setSelectedStoneId(
-          nextStoneTypes[currentIndex]?.stoneId ??
-            nextStoneTypes[currentIndex - 1]?.stoneId ??
-            nextStoneTypes[0]?.stoneId ??
-            null,
-        );
-      }
+      await deleteStoneType.mutateAsync(stoneToDelete.id);
       setStoneToDelete(null);
-      toast.success("Stone deleted");
-    } catch {
-      toast.error("Could not delete stone");
+      toast.success("Stone type deleted");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not delete stone type"));
     }
   }
 
-  function updateSelectedStoneSlabs(slabs: CalculatorStoneSlab[]) {
-    if (!selectedStone) return;
-    setStoneTypes(
-      settings.stoneTypes.map((stone) =>
-        stone.stoneId === selectedStone.stoneId ? { ...stone, slabs } : stone,
-      ),
-    );
+  function closeSlabDialog() {
+    setSlabDialogMode(null);
+    setEditingSlab(null);
+    setSlabDraft(null);
   }
 
   function openAddSlabDialog() {
     if (!selectedStone) {
-      toast.error("Select a stone before adding a slab.");
+      toast.error("Select a stone type before adding a slab.");
       return;
     }
+    setEditingSlab(null);
     setSlabDraft({
       code: "",
-      fromWeight: 0,
-      toWeight: 0,
-      pricePerCarat: 0,
+      rangeFrom: "",
+      rangeTo: "",
+      pricePerCarat: "",
+      notes: "",
     });
-    setSlabDialogOpen(true);
+    setSlabDialogMode("add");
   }
 
-  function submitSlabDialog() {
-    if (!selectedStone) {
-      toast.error("Select a stone before adding a slab.");
-      return;
-    }
+  function openEditSlabDialog(slab: StoneSlabResponse) {
+    setEditingSlab(slab);
+    setSlabDraft({
+      code: slab.code,
+      rangeFrom: slab.rangeFrom,
+      rangeTo: slab.rangeTo,
+      pricePerCarat: slab.pricePerCarat,
+      notes: slab.notes ?? "",
+    });
+    setSlabDialogMode("edit");
+  }
 
-    const code = slabDraft.code.trim();
+  function validateSlabDraft(currentDraft: SlabDraft) {
+    const code = currentDraft.code.trim();
+    const rangeFrom = currentDraft.rangeFrom.trim();
+    const rangeTo = currentDraft.rangeTo.trim();
+    const pricePerCarat = currentDraft.pricePerCarat.trim();
+
     if (!code) {
       toast.error("Slab code is required.");
-      return;
+      return false;
     }
-    if (slabDraft.toWeight <= slabDraft.fromWeight) {
+    if (!WEIGHT_PATTERN.test(rangeFrom) || !WEIGHT_PATTERN.test(rangeTo)) {
+      toast.error("Slab ranges must have up to 3 decimal places.");
+      return false;
+    }
+    if (Number(rangeTo) <= Number(rangeFrom)) {
       toast.error("To ct must be greater than From ct.");
-      return;
+      return false;
     }
-    if (slabDraft.pricePerCarat < 0) {
-      toast.error("Price / ct cannot be negative.");
-      return;
+    if (!MONEY_PATTERN.test(pricePerCarat)) {
+      toast.error("Price / ct must have up to 2 decimal places.");
+      return false;
     }
-    if (selectedStone.slabs.some((slab) => slab.code === code)) {
-      toast.error("Slab code already exists for this stone.");
+    if (currentDraft.notes.length > 10000) {
+      toast.error("Notes must be 10,000 characters or less.");
+      return false;
+    }
+    return true;
+  }
+
+  async function submitSlabDialog() {
+    if (
+      !selectedStone ||
+      !slabDraft ||
+      !slabDialogMode ||
+      !validateSlabDraft(slabDraft)
+    ) {
       return;
     }
 
     try {
-      updateSelectedStoneSlabs([
-        ...selectedStone.slabs,
-        {
-          code,
-          fromWeight: slabDraft.fromWeight,
-          toWeight: slabDraft.toWeight,
-          pricePerCarat: slabDraft.pricePerCarat,
-        },
-      ]);
-      setSlabDialogOpen(false);
-      toast.success("Slab added");
-    } catch {
-      toast.error("Could not add slab");
+      if (slabDialogMode === "add") {
+        const input: CreateStoneSlabInput = {
+          stoneTypeId: selectedStone.id,
+          code: slabDraft.code.trim(),
+          rangeFrom: slabDraft.rangeFrom.trim(),
+          rangeTo: slabDraft.rangeTo.trim(),
+          pricePerCarat: slabDraft.pricePerCarat.trim(),
+          notes: optionalCreateValue(slabDraft.notes),
+        };
+        await createStoneSlab.mutateAsync(input);
+        toast.success("Slab created");
+      } else if (editingSlab) {
+        const input: UpdateStoneSlabInput = {
+          code: slabDraft.code.trim(),
+          rangeFrom: slabDraft.rangeFrom.trim(),
+          rangeTo: slabDraft.rangeTo.trim(),
+          pricePerCarat: slabDraft.pricePerCarat.trim(),
+          notes: optionalUpdateValue(slabDraft.notes),
+        };
+        await updateStoneSlab.mutateAsync({ id: editingSlab.id, input });
+        toast.success("Slab updated");
+      }
+      closeSlabDialog();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not save slab"));
     }
   }
 
-  function updateSlab(index: number, updates: Partial<CalculatorStoneSlab>) {
-    if (!selectedStone) return;
-    updateSelectedStoneSlabs(
-      selectedStone.slabs.map((slab, slabIndex) =>
-        slabIndex === index ? { ...slab, ...updates } : slab,
-      ),
-    );
-  }
+  async function confirmDeleteSlab() {
+    if (!slabToDelete) return;
 
-  function deleteSlab(index: number) {
-    if (!selectedStone) return;
-    updateSelectedStoneSlabs(
-      selectedStone.slabs.filter((_, slabIndex) => slabIndex !== index),
-    );
+    try {
+      await deleteStoneSlab.mutateAsync(slabToDelete.id);
+      setSlabToDelete(null);
+      toast.success("Slab deleted");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not delete slab"));
+    }
   }
 
   return (
     <SectionShell
       icon={<Layers3 className="h-5 w-5" />}
       title="Stones & Slabs"
-      description="Manage stones on the left and slab pricing for the selected stone on the right."
+      description="Manage stone types on the left and slab pricing for the selected stone on the right."
       onBack={onBack}
     >
       <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
         <Card className="min-h-0 overflow-hidden py-0">
           <CardContent className="flex h-full min-h-0 flex-col gap-4 p-5 lg:p-6">
-            <div className="shrink-0 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Stones
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {settings.stoneTypes.length} configured stones
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  onClick={openAddStoneDialog}
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add
-                </Button>
+            <div className="flex shrink-0 items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Stone Types
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {stoneTypes.length} of {stoneTypesQuery.data?.total ?? 0}{" "}
+                  loaded
+                </p>
               </div>
+              <Button
+                type="button"
+                onClick={openAddStoneDialog}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
             </div>
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-1 py-1">
-              {settings.stoneTypes.map((stone) => {
-                const selected = stone.stoneId === selectedStone?.stoneId;
-
-                return (
-                  <div
-                    key={stone.stoneId}
-                    className={
-                      selected
-                        ? "relative rounded-2xl border border-foreground bg-foreground text-background"
-                        : "relative rounded-2xl border border-border bg-muted/20"
-                    }
-                  >
-                    <button
+              {stoneTypesQuery.isLoading ? <LoadingRows /> : null}
+              {stoneTypesQuery.isError ? (
+                <ErrorPanel
+                  message={getErrorMessage(
+                    stoneTypesQuery.error,
+                    "Could not load stone types.",
+                  )}
+                  onRetry={() => void stoneTypesQuery.refetch()}
+                />
+              ) : null}
+              {!stoneTypesQuery.isLoading && !stoneTypesQuery.isError ? (
+                stoneTypes.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border py-10 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No stone types configured.
+                    </p>
+                    <Button
                       type="button"
-                      onClick={() => setSelectedStoneId(stone.stoneId)}
-                      className="block w-full cursor-pointer rounded-2xl p-4 pr-24 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                      variant="ghost"
+                      onClick={openAddStoneDialog}
+                      className="mt-3 gap-2"
                     >
-                      <p className="break-words font-semibold">{stone.name}</p>
-                      <p
-                        className={
-                          selected
-                            ? "mt-1 truncate text-xs text-background/70"
-                            : "mt-1 truncate text-xs text-muted-foreground"
-                        }
-                      >
-                        {stone.stoneId}
-                      </p>
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <Badge
-                          variant={selected ? "outline" : "secondary"}
-                          className={
-                            selected
-                              ? "border-background/25 text-background"
-                              : undefined
-                          }
-                        >
-                          {stone.category}
-                        </Badge>
-                        <span
-                          className={
-                            selected
-                              ? "text-xs text-background/70"
-                              : "text-xs text-muted-foreground"
-                          }
-                        >
-                          {stone.slabs.length} slabs
-                        </span>
-                      </div>
-                    </button>
-                    <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => openEditStoneDialog(stone)}
-                        aria-label={`Edit ${stone.name}`}
-                        className={
-                          selected
-                            ? "text-background/70 hover:bg-background/10 hover:text-background"
-                            : "text-muted-foreground hover:text-foreground"
-                        }
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => setStoneToDelete(stone.stoneId)}
-                        aria-label={`Delete ${stone.name}`}
-                        className={
-                          selected
-                            ? "text-background/70 hover:bg-background/10 hover:text-background"
-                            : "text-muted-foreground hover:text-destructive"
-                        }
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                      <Plus className="h-4 w-4" />
+                      Add Stone
+                    </Button>
                   </div>
-                );
-              })}
+                ) : (
+                  stoneTypes.map((stone) => {
+                    const selected = stone.id === selectedStone?.id;
+
+                    return (
+                      <div
+                        key={stone.id}
+                        className={
+                          selected
+                            ? "relative rounded-2xl border border-foreground bg-foreground text-background"
+                            : "relative rounded-2xl border border-border bg-muted/20"
+                        }
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStoneId(stone.id)}
+                          className="block w-full cursor-pointer rounded-2xl p-4 pr-24 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                        >
+                          <p className="break-words font-semibold">
+                            {stone.name}
+                          </p>
+                          <p
+                            className={
+                              selected
+                                ? "mt-1 truncate text-xs text-background/70"
+                                : "mt-1 truncate text-xs text-muted-foreground"
+                            }
+                          >
+                            {stone.id}
+                          </p>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant={selected ? "outline" : "secondary"}
+                              className={
+                                selected
+                                  ? "border-background/25 text-background"
+                                  : undefined
+                              }
+                            >
+                              Stone type
+                            </Badge>
+                            <span
+                              className={
+                                selected
+                                  ? "text-xs text-background/70"
+                                  : "text-xs text-muted-foreground"
+                              }
+                            >
+                              {slabCounts.get(stone.id) ?? 0} slabs
+                            </span>
+                          </div>
+                        </button>
+                        <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => openEditStoneDialog(stone)}
+                            aria-label={`Edit ${stone.name}`}
+                            className={
+                              selected
+                                ? "text-background/70 hover:bg-background/10 hover:text-background"
+                                : "text-muted-foreground hover:text-foreground"
+                            }
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => setStoneToDelete(stone)}
+                            aria-label={`Delete ${stone.name}`}
+                            className={
+                              selected
+                                ? "text-background/70 hover:bg-background/10 hover:text-background"
+                                : "text-muted-foreground hover:text-destructive"
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )
+              ) : null}
             </div>
           </CardContent>
         </Card>
@@ -906,23 +1325,8 @@ function StonesAndSlabsEditor({
                         {selectedStone.name}
                       </h2>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {selectedStone.stoneId}
+                        {selectedStone.id}
                       </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <Badge variant="secondary">
-                          {selectedStone.category}
-                        </Badge>
-                        {selectedStone.clarity ? (
-                          <span className="text-xs text-muted-foreground">
-                            {selectedStone.clarity}
-                          </span>
-                        ) : null}
-                        {selectedStone.color ? (
-                          <span className="text-xs text-muted-foreground">
-                            {selectedStone.color}
-                          </span>
-                        ) : null}
-                      </div>
                     </div>
                     <Button
                       type="button"
@@ -941,88 +1345,101 @@ function StonesAndSlabsEditor({
                       Pricing Slabs
                     </h3>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {selectedStone.slabs.length} slabs defined
+                      {selectedSlabs.length} of{" "}
+                      {selectedSlabsQuery.data?.total ?? 0} slabs loaded
                     </p>
                   </div>
                 </div>
 
-                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-1 py-1">
-                  {selectedStone.slabs.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border py-10 text-center">
-                      <p className="text-sm text-muted-foreground">
-                        No slabs configured
-                      </p>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={openAddSlabDialog}
-                        className="mt-3 gap-2"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add first slab
-                      </Button>
-                    </div>
-                  ) : (
-                    selectedStone.slabs.map((slab, index) => (
-                      <div
-                        key={`${slab.code}-${index}`}
-                        className="rounded-xl border border-border bg-muted/20 p-4"
-                      >
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                            Slab {index + 1}
-                          </p>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => deleteSlab(index)}
-                            aria-label={`Delete slab ${index + 1}`}
-                            className="text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                          <FieldBlock label="Code">
-                            <Input
-                              value={slab.code}
-                              onChange={(event) =>
-                                updateSlab(index, { code: event.target.value })
-                              }
-                              className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
-                            />
-                          </FieldBlock>
-                          <FieldBlock label="From ct">
-                            <NumberInput
-                              value={slab.fromWeight}
-                              step="0.0001"
-                              onChange={(fromWeight) =>
-                                updateSlab(index, { fromWeight })
-                              }
-                            />
-                          </FieldBlock>
-                          <FieldBlock label="To ct">
-                            <NumberInput
-                              value={slab.toWeight}
-                              step="0.0001"
-                              onChange={(toWeight) =>
-                                updateSlab(index, { toWeight })
-                              }
-                            />
-                          </FieldBlock>
-                          <FieldBlock label="Price / ct">
-                            <NumberInput
-                              value={slab.pricePerCarat}
-                              onChange={(pricePerCarat) =>
-                                updateSlab(index, { pricePerCarat })
-                              }
-                            />
-                          </FieldBlock>
-                        </div>
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                  {selectedSlabsQuery.isLoading ? <LoadingRows /> : null}
+                  {selectedSlabsQuery.isError ? (
+                    <ErrorPanel
+                      message={getErrorMessage(
+                        selectedSlabsQuery.error,
+                        "Could not load slabs.",
+                      )}
+                      onRetry={() => void selectedSlabsQuery.refetch()}
+                    />
+                  ) : null}
+                  {!selectedSlabsQuery.isLoading &&
+                  !selectedSlabsQuery.isError ? (
+                    selectedSlabs.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-border py-10 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          No slabs configured for this stone.
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={openAddSlabDialog}
+                          className="mt-3 gap-2"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add first slab
+                        </Button>
                       </div>
-                    ))
-                  )}
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Code</TableHead>
+                            <TableHead>Range</TableHead>
+                            <TableHead>Price / ct</TableHead>
+                            <TableHead>Notes</TableHead>
+                            <TableHead>Updated</TableHead>
+                            <TableHead className="text-right">
+                              Actions
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedSlabs.map((slab) => (
+                            <TableRow key={slab.id}>
+                              <TableCell className="font-medium">
+                                {slab.code}
+                              </TableCell>
+                              <TableCell>
+                                {slab.rangeFrom} - {slab.rangeTo} ct
+                              </TableCell>
+                              <TableCell>
+                                {formatMoneyValue(slab.pricePerCarat)}
+                              </TableCell>
+                              <TableCell className="max-w-64 truncate">
+                                {slab.notes || "No notes"}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {formatDate(slab.updatedAt)}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex justify-end gap-1">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={() => openEditSlabDialog(slab)}
+                                    aria-label={`Edit slab ${slab.code}`}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={() => setSlabToDelete(slab)}
+                                    aria-label={`Delete slab ${slab.code}`}
+                                    className="text-muted-foreground hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )
+                  ) : null}
                 </div>
               </>
             ) : (
@@ -1047,6 +1464,28 @@ function StonesAndSlabsEditor({
         </Card>
       </div>
 
+      <StoneDialog
+        mode={stoneDialogMode}
+        draft={stoneDraft}
+        isSubmitting={isSubmitting}
+        onDraftChange={setStoneDraft}
+        onOpenChange={(open) => {
+          if (!open) closeStoneDialog();
+        }}
+        onSubmit={submitStoneDialog}
+      />
+
+      <SlabDialog
+        mode={slabDialogMode}
+        draft={slabDraft}
+        isSubmitting={isSubmitting}
+        onDraftChange={setSlabDraft}
+        onOpenChange={(open) => {
+          if (!open) closeSlabDialog();
+        }}
+        onSubmit={submitSlabDialog}
+      />
+
       <AlertDialog
         open={!!stoneToDelete}
         onOpenChange={(open) => {
@@ -1057,37 +1496,52 @@ function StonesAndSlabsEditor({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete stone type?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the stone and all pricing slabs attached to it.
+              This removes {stoneToDelete?.name ?? "this stone type"} from the
+              active stone list. Attached slab pricing may also be affected by
+              the backend.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteStoneType.isPending}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => stoneToDelete && deleteStone(stoneToDelete)}
+              onClick={confirmDeleteStone}
+              disabled={deleteStoneType.isPending}
             >
-              Delete
+              {deleteStoneType.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <StoneDialog
-        mode={stoneDialogMode}
-        draft={stoneDraft}
-        onDraftChange={setStoneDraft}
+      <AlertDialog
+        open={!!slabToDelete}
         onOpenChange={(open) => {
-          if (!open) closeStoneDialog();
+          if (!open) setSlabToDelete(null);
         }}
-        onSubmit={submitStoneDialog}
-      />
-
-      <SlabDialog
-        open={slabDialogOpen}
-        draft={slabDraft}
-        onDraftChange={setSlabDraft}
-        onOpenChange={setSlabDialogOpen}
-        onSubmit={submitSlabDialog}
-      />
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete slab?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes slab {slabToDelete?.code ?? ""} from the active
+              pricing list.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteStoneSlab.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteSlab}
+              disabled={deleteStoneSlab.isPending}
+            >
+              {deleteStoneSlab.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SectionShell>
   );
 }
@@ -1097,15 +1551,15 @@ function MiscEditor({
   onChange,
   onBack,
 }: {
-  settings: CalculatorSettings;
-  onChange: (settings: CalculatorSettings) => void;
+  settings: MiscSettings;
+  onChange: (settings: MiscSettings) => void;
   onBack: () => void;
 }) {
   return (
     <SectionShell
       icon={<ReceiptText className="h-5 w-5" />}
       title="Miscellaneous"
-      description="Manage GST and making cost values used by the calculator."
+      description="Manage local GST and making cost values used by the calculator."
       onBack={onBack}
     >
       <Card className="h-full overflow-hidden py-0">
@@ -1182,34 +1636,42 @@ function MiscEditor({
 }
 
 export function ManageProductsAndPricePageClient() {
-  const [settings, setSettings] = useState<CalculatorSettings>(
-    MOCK_PRICING_SETTINGS,
-  );
+  const [miscSettings, setMiscSettings] = useState<MiscSettings>({
+    makingChargeFlat: 4000,
+    makingChargePerGram: 1800,
+    gstRate: 0.03,
+  });
   const [activeSection, setActiveSection] = useState<ManageSection>("overview");
+  const metalsQuery = useMetals(LIST_QUERY);
+  const stoneTypesQuery = useStoneTypes(LIST_QUERY);
+  const stoneSlabsQuery = useStoneSlabs(LIST_QUERY);
+  const loadingCounts =
+    metalsQuery.isLoading ||
+    stoneTypesQuery.isLoading ||
+    stoneSlabsQuery.isLoading;
 
   return (
     <div className="mx-auto flex h-[calc(100svh-2rem)] w-full max-w-7xl flex-col overflow-hidden sm:h-[calc(100svh-3rem)]">
       {activeSection === "overview" ? (
-        <Overview settings={settings} onSelect={setActiveSection} />
+        <Overview
+          miscSettings={miscSettings}
+          metalsTotal={metalsQuery.data?.total ?? 0}
+          stoneTypesTotal={stoneTypesQuery.data?.total ?? 0}
+          slabTotal={stoneSlabsQuery.data?.total ?? 0}
+          loadingCounts={loadingCounts}
+          onSelect={setActiveSection}
+        />
       ) : null}
       {activeSection === "metals" ? (
-        <MetalsEditor
-          settings={settings}
-          onChange={setSettings}
-          onBack={() => setActiveSection("overview")}
-        />
+        <MetalsEditor onBack={() => setActiveSection("overview")} />
       ) : null}
       {activeSection === "stones-slabs" ? (
-        <StonesAndSlabsEditor
-          settings={settings}
-          onChange={setSettings}
-          onBack={() => setActiveSection("overview")}
-        />
+        <StonesAndSlabsEditor onBack={() => setActiveSection("overview")} />
       ) : null}
       {activeSection === "misc" ? (
         <MiscEditor
-          settings={settings}
-          onChange={setSettings}
+          settings={miscSettings}
+          onChange={setMiscSettings}
           onBack={() => setActiveSection("overview")}
         />
       ) : null}
