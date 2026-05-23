@@ -1,0 +1,208 @@
+import type { CalculatorSettings } from "@/types";
+
+export const MOCK_PRICING_SETTINGS: CalculatorSettings = {
+  goldRate24k: 10000,
+  makingChargeFlat: 4000,
+  makingChargePerGram: 1800,
+  gstRate: 0.03,
+  purityPercentages: {
+    "24K": 100,
+    "22K": 91.6,
+    "18K": 75,
+    "14K": 58.5,
+    Other: 100,
+  },
+  stoneTypes: [
+    {
+      stoneId: "LGDRDVVSEF",
+      name: "Round Diamond",
+      category: "Diamond",
+      clarity: "VVS/EF",
+      color: "White",
+      slabs: [
+        {
+          code: "LGDRDVVSEF01",
+          fromWeight: 0,
+          toWeight: 0.0999,
+          pricePerCarat: 18000,
+        },
+        {
+          code: "LGDRDVVSEF02",
+          fromWeight: 0.0999,
+          toWeight: 0.1999,
+          pricePerCarat: 22000,
+        },
+        {
+          code: "LGDRDVVSEF03",
+          fromWeight: 0.1999,
+          toWeight: 0.2999,
+          pricePerCarat: 26000,
+        },
+        {
+          code: "LGDRDVVSEF04",
+          fromWeight: 0.2999,
+          toWeight: 0.3999,
+          pricePerCarat: 30000,
+        },
+        {
+          code: "LGDRDVVSEF05",
+          fromWeight: 0.3999,
+          toWeight: 0.4999,
+          pricePerCarat: 34000,
+        },
+        {
+          code: "LGDRDVVSEF06",
+          fromWeight: 0.4999,
+          toWeight: 0.5999,
+          pricePerCarat: 38000,
+        },
+        {
+          code: "LGDRDVVSEF07",
+          fromWeight: 0.5999,
+          toWeight: 0.6999,
+          pricePerCarat: 42000,
+        },
+        {
+          code: "LGDRDVVSEF08",
+          fromWeight: 0.6999,
+          toWeight: 0.7999,
+          pricePerCarat: 46000,
+        },
+        {
+          code: "LGDRDVVSEF09",
+          fromWeight: 0.7999,
+          toWeight: 0.8999,
+          pricePerCarat: 50000,
+        },
+        {
+          code: "LGDRDVVSEF10",
+          fromWeight: 0.8999,
+          toWeight: 0.9999,
+          pricePerCarat: 54000,
+        },
+      ],
+    },
+    {
+      stoneId: "LGDOVVSEF",
+      name: "Oval Diamond",
+      category: "Diamond",
+      clarity: "VVS/EF",
+      color: "White",
+      slabs: [
+        {
+          code: "LGDOVVSEF01",
+          fromWeight: 0,
+          toWeight: 0.0999,
+          pricePerCarat: 20000,
+        },
+        {
+          code: "LGDOVVSEF02",
+          fromWeight: 0.0999,
+          toWeight: 0.1999,
+          pricePerCarat: 24000,
+        },
+        {
+          code: "LGDOVVSEF03",
+          fromWeight: 0.1999,
+          toWeight: 0.2999,
+          pricePerCarat: 28000,
+        },
+        {
+          code: "LGDOVVSEF04",
+          fromWeight: 0.2999,
+          toWeight: 0.3999,
+          pricePerCarat: 30000,
+        },
+        {
+          code: "LGDOVVSEF05",
+          fromWeight: 0.3999,
+          toWeight: 0.4999,
+          pricePerCarat: 30000,
+        },
+        {
+          code: "LGDOVVSEF06",
+          fromWeight: 0.4999,
+          toWeight: 0.5999,
+          pricePerCarat: 35000,
+        },
+        {
+          code: "LGDOVVSEF07",
+          fromWeight: 0.5999,
+          toWeight: 0.6999,
+          pricePerCarat: 39000,
+        },
+        {
+          code: "LGDOVVSEF08",
+          fromWeight: 0.6999,
+          toWeight: 0.7999,
+          pricePerCarat: 43000,
+        },
+        {
+          code: "LGDOVVSEF09",
+          fromWeight: 0.7999,
+          toWeight: 0.8999,
+          pricePerCarat: 47000,
+        },
+        {
+          code: "LGDOVVSEF10",
+          fromWeight: 0.8999,
+          toWeight: 0.9999,
+          pricePerCarat: 51000,
+        },
+        {
+          code: "LGDOVVSEF11",
+          fromWeight: 0.9999,
+          toWeight: 1.0999,
+          pricePerCarat: 56000,
+        },
+      ],
+    },
+    {
+      stoneId: "EMEMXB08GRM050",
+      name: "Emerald Stone",
+      category: "Gemstone",
+      clarity: "B08",
+      color: "Green",
+      slabs: [
+        {
+          code: "EMEMXB08GRM05001",
+          fromWeight: 0,
+          toWeight: 0.2499,
+          pricePerCarat: 9000,
+        },
+        {
+          code: "EMEMXB08GRM05002",
+          fromWeight: 0.2499,
+          toWeight: 0.4999,
+          pricePerCarat: 12000,
+        },
+        {
+          code: "EMEMXB08GRM05003",
+          fromWeight: 0.4999,
+          toWeight: 0.9999,
+          pricePerCarat: 18000,
+        },
+      ],
+    },
+    {
+      stoneId: "ONYXMXC02GRM050",
+      name: "Onyx",
+      category: "Gemstone",
+      color: "Black",
+      slabs: [
+        {
+          code: "ONYXMXC02GRM05001",
+          fromWeight: 0,
+          toWeight: 0.9999,
+          pricePerCarat: 2500,
+        },
+        {
+          code: "ONYXMXC02GRM05002",
+          fromWeight: 0.9999,
+          toWeight: 2.9999,
+          pricePerCarat: 4000,
+        },
+      ],
+    },
+  ],
+};

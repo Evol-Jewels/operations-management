@@ -3,16 +3,15 @@
 import {
   ArrowLeft,
   CircleDollarSign,
-  Diamond,
   Layers3,
+  Pencil,
   Percent,
   Plus,
   ReceiptText,
-  RefreshCw,
-  Settings2,
   Trash2,
 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +25,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -36,7 +44,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { formatCurrency } from "@/lib/utils";
 import type {
   CalculatorSettings,
@@ -44,8 +51,25 @@ import type {
   CalculatorStoneType,
   MetalPurity,
 } from "@/types";
+import { MOCK_PRICING_SETTINGS } from "./mockPricingData";
 
-type ManageSection = "overview" | "metals" | "stones" | "slabs" | "misc";
+type ManageSection = "overview" | "metals" | "stones-slabs" | "misc";
+type StoneDialogMode = "add" | "edit";
+
+type StoneDraft = {
+  stoneId: string;
+  name: string;
+  category: CalculatorStoneType["category"];
+  clarity: string;
+  color: string;
+};
+
+type SlabDraft = {
+  code: string;
+  fromWeight: number;
+  toWeight: number;
+  pricePerCarat: number;
+};
 
 const GOLD_PURITIES: MetalPurity[] = ["24K", "22K", "18K", "14K"];
 
@@ -71,33 +95,35 @@ function SectionShell({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-5">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={onBack}
-        className="gap-2 px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to categories
-      </Button>
+    <div className="flex min-h-0 flex-1 flex-col gap-5">
+      <div className="shrink-0 space-y-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          className="gap-2 px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to categories
+        </Button>
 
-      <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card">
-          {icon}
-        </div>
-        <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            {title}
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            {description}
-          </p>
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card">
+            {icon}
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+              {title}
+            </h1>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              {description}
+            </p>
+          </div>
         </div>
       </div>
 
-      {children}
+      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
     </div>
   );
 }
@@ -182,49 +208,6 @@ function OverviewCard({
   );
 }
 
-function SyncStrip({
-  lastSynced,
-  syncError,
-  isSyncing,
-  onSync,
-}: {
-  lastSynced: string | null;
-  syncError: string | null;
-  isSyncing: boolean;
-  onSync: () => void;
-}) {
-  const label = (() => {
-    if (syncError) return syncError;
-    if (!lastSynced) return "Not synced yet";
-    return `Last synced ${new Date(lastSynced).toLocaleString("en-IN", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`;
-  })();
-
-  return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/25 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex min-w-0 items-center gap-2">
-        <Settings2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <p className="truncate text-sm text-muted-foreground">{label}</p>
-      </div>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={onSync}
-        disabled={isSyncing}
-        className="w-full gap-2 sm:w-auto"
-      >
-        <RefreshCw className={isSyncing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-        {isSyncing ? "Syncing" : "Sync"}
-      </Button>
-    </div>
-  );
-}
-
 function Overview({
   settings,
   onSelect,
@@ -238,18 +221,18 @@ function Overview({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-y-auto pr-1">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Manage Products & Pricing
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Update the values used by the calculator for metals, stones, slabs,
-          making charges, and GST.
+          Update mock pricing values for metals, stones, slabs, making charges,
+          and GST.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <OverviewCard
           icon={<CircleDollarSign className="h-5 w-5" />}
           title="Metals"
@@ -258,18 +241,11 @@ function Overview({
           onClick={() => onSelect("metals")}
         />
         <OverviewCard
-          icon={<Diamond className="h-5 w-5" />}
-          title="Stones"
-          description="Stone names, IDs, categories, clarity, and color."
-          meta={`${settings.stoneTypes.length} stone types`}
-          onClick={() => onSelect("stones")}
-        />
-        <OverviewCard
           icon={<Layers3 className="h-5 w-5" />}
-          title="Slabs"
-          description="Per-carat pricing ranges for each stone."
-          meta={`${slabCount} pricing slabs`}
-          onClick={() => onSelect("slabs")}
+          title="Stones & Slabs"
+          description="Manage stone metadata and per-carat slab pricing."
+          meta={`${settings.stoneTypes.length} stones, ${slabCount} slabs`}
+          onClick={() => onSelect("stones-slabs")}
         />
         <OverviewCard
           icon={<ReceiptText className="h-5 w-5" />}
@@ -322,8 +298,8 @@ function MetalsEditor({
       description="Manage the 24K base rate and purity percentages used in estimates."
       onBack={onBack}
     >
-      <Card>
-        <CardContent className="space-y-6">
+      <Card className="h-full overflow-hidden py-0">
+        <CardContent className="h-full space-y-6 overflow-y-auto p-6">
           <FieldBlock
             label="24K gold rate"
             description="Base metal rate per gram."
@@ -379,7 +355,183 @@ function MetalsEditor({
   );
 }
 
-function StonesEditor({
+function StoneDialog({
+  mode,
+  draft,
+  onDraftChange,
+  onOpenChange,
+  onSubmit,
+}: {
+  mode: StoneDialogMode | null;
+  draft: StoneDraft | null;
+  onDraftChange: (draft: StoneDraft) => void;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: () => void;
+}) {
+  const open = !!mode && !!draft;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>
+            {mode === "edit" ? "Edit Stone" : "Add Stone"}
+          </DialogTitle>
+          <DialogDescription>
+            {mode === "edit"
+              ? "Update stone details without changing its slabs."
+              : "Create a stone type for slab pricing."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {draft ? (
+          <div className="grid gap-5 py-2 md:grid-cols-2">
+            <FieldBlock label="Name">
+              <Input
+                value={draft.name}
+                onChange={(event) =>
+                  onDraftChange({ ...draft, name: event.target.value })
+                }
+                className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+              />
+            </FieldBlock>
+            <FieldBlock label="Stone ID">
+              <Input
+                value={draft.stoneId}
+                onChange={(event) =>
+                  onDraftChange({ ...draft, stoneId: event.target.value })
+                }
+                className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+              />
+            </FieldBlock>
+            <FieldBlock label="Category">
+              <Select
+                value={draft.category}
+                onValueChange={(value) =>
+                  onDraftChange({
+                    ...draft,
+                    category: value as CalculatorStoneType["category"],
+                  })
+                }
+              >
+                <SelectTrigger className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus:ring-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Diamond">Diamond</SelectItem>
+                  <SelectItem value="Gemstone">Gemstone</SelectItem>
+                </SelectContent>
+              </Select>
+            </FieldBlock>
+            <FieldBlock label="Clarity">
+              <Input
+                value={draft.clarity}
+                onChange={(event) =>
+                  onDraftChange({ ...draft, clarity: event.target.value })
+                }
+                className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+              />
+            </FieldBlock>
+            <FieldBlock label="Color">
+              <Input
+                value={draft.color}
+                onChange={(event) =>
+                  onDraftChange({ ...draft, color: event.target.value })
+                }
+                className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+              />
+            </FieldBlock>
+          </div>
+        ) : null}
+
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button type="button" onClick={onSubmit}>
+            {mode === "edit" ? "Save Changes" : "Add Stone"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SlabDialog({
+  open,
+  draft,
+  onDraftChange,
+  onOpenChange,
+  onSubmit,
+}: {
+  open: boolean;
+  draft: SlabDraft;
+  onDraftChange: (draft: SlabDraft) => void;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Add Slab</DialogTitle>
+          <DialogDescription>
+            Create a pricing range for the selected stone.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-5 py-2 md:grid-cols-2">
+          <FieldBlock label="Code">
+            <Input
+              value={draft.code}
+              onChange={(event) =>
+                onDraftChange({ ...draft, code: event.target.value })
+              }
+              className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+            />
+          </FieldBlock>
+          <FieldBlock label="From ct">
+            <NumberInput
+              value={draft.fromWeight}
+              step="0.0001"
+              onChange={(fromWeight) => onDraftChange({ ...draft, fromWeight })}
+            />
+          </FieldBlock>
+          <FieldBlock label="To ct">
+            <NumberInput
+              value={draft.toWeight}
+              step="0.0001"
+              onChange={(toWeight) => onDraftChange({ ...draft, toWeight })}
+            />
+          </FieldBlock>
+          <FieldBlock label="Price / ct">
+            <NumberInput
+              value={draft.pricePerCarat}
+              onChange={(pricePerCarat) =>
+                onDraftChange({ ...draft, pricePerCarat })
+              }
+            />
+          </FieldBlock>
+        </div>
+
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button type="button" onClick={onSubmit}>
+            Add Slab
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function StonesAndSlabsEditor({
   settings,
   onChange,
   onBack,
@@ -388,217 +540,512 @@ function StonesEditor({
   onChange: (settings: CalculatorSettings) => void;
   onBack: () => void;
 }) {
-  const [editingStoneId, setEditingStoneId] = useState<string | null>(null);
-  const [stoneToDelete, setStoneToDelete] = useState<string | null>(null);
-  const editingStone = settings.stoneTypes.find(
-    (stone) => stone.stoneId === editingStoneId,
+  const [selectedStoneId, setSelectedStoneId] = useState<string | null>(
+    settings.stoneTypes[0]?.stoneId ?? null,
   );
+  const [stoneToDelete, setStoneToDelete] = useState<string | null>(null);
+  const [stoneDialogMode, setStoneDialogMode] =
+    useState<StoneDialogMode | null>(null);
+  const [editingStoneOriginalId, setEditingStoneOriginalId] = useState<
+    string | null
+  >(null);
+  const [stoneDraft, setStoneDraft] = useState<StoneDraft | null>(null);
+  const [slabDialogOpen, setSlabDialogOpen] = useState(false);
+  const [slabDraft, setSlabDraft] = useState<SlabDraft>({
+    code: "",
+    fromWeight: 0,
+    toWeight: 0,
+    pricePerCarat: 0,
+  });
+  const selectedStone =
+    settings.stoneTypes.find((stone) => stone.stoneId === selectedStoneId) ??
+    settings.stoneTypes[0] ??
+    null;
 
-  function updateStone(stoneId: string, updates: Partial<CalculatorStoneType>) {
-    onChange({
-      ...settings,
-      stoneTypes: settings.stoneTypes.map((stone) =>
-        stone.stoneId === stoneId ? { ...stone, ...updates } : stone,
-      ),
-    });
-
-    if (updates.stoneId) {
-      setEditingStoneId(updates.stoneId);
-    }
+  function setStoneTypes(stoneTypes: CalculatorStoneType[]) {
+    onChange({ ...settings, stoneTypes });
   }
 
-  function addStone() {
-    const newStone: CalculatorStoneType = {
+  function closeStoneDialog() {
+    setStoneDialogMode(null);
+    setEditingStoneOriginalId(null);
+    setStoneDraft(null);
+  }
+
+  function openAddStoneDialog() {
+    setEditingStoneOriginalId(null);
+    setStoneDraft({
       stoneId: `stone-${generateId()}`,
-      name: "New Stone",
+      name: "",
       category: "Diamond",
       clarity: "",
       color: "",
-      slabs: [],
+    });
+    setStoneDialogMode("add");
+  }
+
+  function openEditStoneDialog(stone: CalculatorStoneType) {
+    setSelectedStoneId(stone.stoneId);
+    setEditingStoneOriginalId(stone.stoneId);
+    setStoneDraft({
+      stoneId: stone.stoneId,
+      name: stone.name,
+      category: stone.category,
+      clarity: stone.clarity ?? "",
+      color: stone.color ?? "",
+    });
+    setStoneDialogMode("edit");
+  }
+
+  function validateStoneDraft() {
+    if (!stoneDraft) return false;
+    const name = stoneDraft.name.trim();
+    const stoneId = stoneDraft.stoneId.trim();
+
+    if (!name) {
+      toast.error("Stone name is required.");
+      return false;
+    }
+    if (!stoneId) {
+      toast.error("Stone ID is required.");
+      return false;
+    }
+
+    const duplicate = settings.stoneTypes.some(
+      (stone) =>
+        stone.stoneId === stoneId &&
+        (stoneDialogMode === "add" || stone.stoneId !== editingStoneOriginalId),
+    );
+
+    if (duplicate) {
+      toast.error("Stone ID already exists.");
+      return false;
+    }
+
+    return true;
+  }
+
+  function submitStoneDialog() {
+    if (!stoneDraft || !stoneDialogMode || !validateStoneDraft()) return;
+
+    const normalizedDraft = {
+      stoneId: stoneDraft.stoneId.trim(),
+      name: stoneDraft.name.trim(),
+      category: stoneDraft.category,
+      clarity: stoneDraft.clarity.trim(),
+      color: stoneDraft.color.trim(),
     };
-    onChange({ ...settings, stoneTypes: [...settings.stoneTypes, newStone] });
-    setEditingStoneId(newStone.stoneId);
+
+    try {
+      if (stoneDialogMode === "add") {
+        const newStone: CalculatorStoneType = {
+          ...normalizedDraft,
+          slabs: [],
+        };
+        setStoneTypes([...settings.stoneTypes, newStone]);
+        setSelectedStoneId(newStone.stoneId);
+        closeStoneDialog();
+        toast.success("Stone added");
+        return;
+      }
+
+      if (!editingStoneOriginalId) {
+        toast.error("Could not update stone");
+        return;
+      }
+
+      setStoneTypes(
+        settings.stoneTypes.map((stone) =>
+          stone.stoneId === editingStoneOriginalId
+            ? { ...stone, ...normalizedDraft }
+            : stone,
+        ),
+      );
+      setSelectedStoneId(normalizedDraft.stoneId);
+      closeStoneDialog();
+      toast.success("Stone updated");
+    } catch {
+      toast.error(
+        stoneDialogMode === "add"
+          ? "Could not add stone"
+          : "Could not update stone",
+      );
+    }
   }
 
   function deleteStone(stoneId: string) {
-    onChange({
-      ...settings,
-      stoneTypes: settings.stoneTypes.filter(
+    try {
+      const currentIndex = settings.stoneTypes.findIndex(
+        (stone) => stone.stoneId === stoneId,
+      );
+      const nextStoneTypes = settings.stoneTypes.filter(
         (stone) => stone.stoneId !== stoneId,
+      );
+      setStoneTypes(nextStoneTypes);
+      if (selectedStoneId === stoneId) {
+        setSelectedStoneId(
+          nextStoneTypes[currentIndex]?.stoneId ??
+            nextStoneTypes[currentIndex - 1]?.stoneId ??
+            nextStoneTypes[0]?.stoneId ??
+            null,
+        );
+      }
+      setStoneToDelete(null);
+      toast.success("Stone deleted");
+    } catch {
+      toast.error("Could not delete stone");
+    }
+  }
+
+  function updateSelectedStoneSlabs(slabs: CalculatorStoneSlab[]) {
+    if (!selectedStone) return;
+    setStoneTypes(
+      settings.stoneTypes.map((stone) =>
+        stone.stoneId === selectedStone.stoneId ? { ...stone, slabs } : stone,
       ),
+    );
+  }
+
+  function openAddSlabDialog() {
+    if (!selectedStone) {
+      toast.error("Select a stone before adding a slab.");
+      return;
+    }
+    setSlabDraft({
+      code: "",
+      fromWeight: 0,
+      toWeight: 0,
+      pricePerCarat: 0,
     });
-    if (editingStoneId === stoneId) setEditingStoneId(null);
-    setStoneToDelete(null);
+    setSlabDialogOpen(true);
+  }
+
+  function submitSlabDialog() {
+    if (!selectedStone) {
+      toast.error("Select a stone before adding a slab.");
+      return;
+    }
+
+    const code = slabDraft.code.trim();
+    if (!code) {
+      toast.error("Slab code is required.");
+      return;
+    }
+    if (slabDraft.toWeight <= slabDraft.fromWeight) {
+      toast.error("To ct must be greater than From ct.");
+      return;
+    }
+    if (slabDraft.pricePerCarat < 0) {
+      toast.error("Price / ct cannot be negative.");
+      return;
+    }
+    if (selectedStone.slabs.some((slab) => slab.code === code)) {
+      toast.error("Slab code already exists for this stone.");
+      return;
+    }
+
+    try {
+      updateSelectedStoneSlabs([
+        ...selectedStone.slabs,
+        {
+          code,
+          fromWeight: slabDraft.fromWeight,
+          toWeight: slabDraft.toWeight,
+          pricePerCarat: slabDraft.pricePerCarat,
+        },
+      ]);
+      setSlabDialogOpen(false);
+      toast.success("Slab added");
+    } catch {
+      toast.error("Could not add slab");
+    }
+  }
+
+  function updateSlab(index: number, updates: Partial<CalculatorStoneSlab>) {
+    if (!selectedStone) return;
+    updateSelectedStoneSlabs(
+      selectedStone.slabs.map((slab, slabIndex) =>
+        slabIndex === index ? { ...slab, ...updates } : slab,
+      ),
+    );
+  }
+
+  function deleteSlab(index: number) {
+    if (!selectedStone) return;
+    updateSelectedStoneSlabs(
+      selectedStone.slabs.filter((_, slabIndex) => slabIndex !== index),
+    );
   }
 
   return (
     <SectionShell
-      icon={<Diamond className="h-5 w-5" />}
-      title="Stones"
-      description="Manage stone types and metadata used in calculator stone selection."
+      icon={<Layers3 className="h-5 w-5" />}
+      title="Stones & Slabs"
+      description="Manage stones on the left and slab pricing for the selected stone on the right."
       onBack={onBack}
     >
-      <Card>
-        <CardContent className="space-y-5">
-          {editingStone ? (
-            <div className="space-y-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingStoneId(null)}
-                    className="mb-2 gap-2 px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back to stones
-                  </Button>
-                  <h2 className="text-lg font-semibold text-foreground">
-                    {editingStone.name}
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {editingStone.stoneId}
-                  </p>
-                </div>
-                <Badge variant="secondary" className="w-fit">
-                  {editingStone.category}
-                </Badge>
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                <FieldBlock label="Name">
-                  <Input
-                    value={editingStone.name}
-                    onChange={(event) =>
-                      updateStone(editingStone.stoneId, {
-                        name: event.target.value,
-                      })
-                    }
-                    className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
-                  />
-                </FieldBlock>
-                <FieldBlock label="Stone ID">
-                  <Input
-                    value={editingStone.stoneId}
-                    onChange={(event) =>
-                      updateStone(editingStone.stoneId, {
-                        stoneId: event.target.value,
-                      })
-                    }
-                    className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
-                  />
-                </FieldBlock>
-                <FieldBlock label="Category">
-                  <Select
-                    value={editingStone.category}
-                    onValueChange={(value) =>
-                      updateStone(editingStone.stoneId, {
-                        category: value as CalculatorStoneType["category"],
-                      })
-                    }
-                  >
-                    <SelectTrigger className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus:ring-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Diamond">Diamond</SelectItem>
-                      <SelectItem value="Gemstone">Gemstone</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FieldBlock>
-                <FieldBlock label="Clarity">
-                  <Input
-                    value={editingStone.clarity ?? ""}
-                    onChange={(event) =>
-                      updateStone(editingStone.stoneId, {
-                        clarity: event.target.value,
-                      })
-                    }
-                    className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
-                  />
-                </FieldBlock>
-                <FieldBlock label="Color">
-                  <Input
-                    value={editingStone.color ?? ""}
-                    onChange={(event) =>
-                      updateStone(editingStone.stoneId, {
-                        color: event.target.value,
-                      })
-                    }
-                    className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
-                  />
-                </FieldBlock>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
+      <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <Card className="min-h-0 overflow-hidden py-0">
+          <CardContent className="flex h-full min-h-0 flex-col gap-4 p-5 lg:p-6">
+            <div className="shrink-0 space-y-3">
+              <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">
-                    Stone types
+                    Stones
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {settings.stoneTypes.length} configured stones
                   </p>
                 </div>
-                <Button type="button" onClick={addStone} className="gap-2">
+                <Button
+                  type="button"
+                  onClick={openAddStoneDialog}
+                  className="gap-2"
+                >
                   <Plus className="h-4 w-4" />
-                  Add Stone
+                  Add
                 </Button>
               </div>
+            </div>
 
-              <div className="grid gap-3 lg:grid-cols-2">
-                {settings.stoneTypes.map((stone) => (
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-1 py-1">
+              {settings.stoneTypes.map((stone) => {
+                const selected = stone.stoneId === selectedStone?.stoneId;
+
+                return (
                   <div
                     key={stone.stoneId}
-                    className="rounded-xl border border-border bg-muted/20 p-4"
+                    className={
+                      selected
+                        ? "relative rounded-2xl border border-foreground bg-foreground text-background"
+                        : "relative rounded-2xl border border-border bg-muted/20"
+                    }
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="break-words font-semibold text-foreground">
-                          {stone.name}
-                        </p>
-                        <p className="mt-1 truncate text-xs text-muted-foreground">
-                          {stone.stoneId}
-                          {stone.clarity ? ` - ${stone.clarity}` : ""}
-                          {stone.color ? ` - ${stone.color}` : ""}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingStoneId(stone.stoneId)}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStoneId(stone.stoneId)}
+                      className="block w-full cursor-pointer rounded-2xl p-4 pr-24 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                    >
+                      <p className="break-words font-semibold">{stone.name}</p>
+                      <p
+                        className={
+                          selected
+                            ? "mt-1 truncate text-xs text-background/70"
+                            : "mt-1 truncate text-xs text-muted-foreground"
+                        }
+                      >
+                        {stone.stoneId}
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant={selected ? "outline" : "secondary"}
+                          className={
+                            selected
+                              ? "border-background/25 text-background"
+                              : undefined
+                          }
                         >
-                          Edit
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => setStoneToDelete(stone.stoneId)}
-                          aria-label={`Delete ${stone.name}`}
-                          className="text-muted-foreground hover:text-destructive"
+                          {stone.category}
+                        </Badge>
+                        <span
+                          className={
+                            selected
+                              ? "text-xs text-background/70"
+                              : "text-xs text-muted-foreground"
+                          }
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                          {stone.slabs.length} slabs
+                        </span>
                       </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Badge variant="secondary">{stone.category}</Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {stone.slabs.length} slabs
-                      </span>
+                    </button>
+                    <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => openEditStoneDialog(stone)}
+                        aria-label={`Edit ${stone.name}`}
+                        className={
+                          selected
+                            ? "text-background/70 hover:bg-background/10 hover:text-background"
+                            : "text-muted-foreground hover:text-foreground"
+                        }
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setStoneToDelete(stone.stoneId)}
+                        aria-label={`Delete ${stone.name}`}
+                        className={
+                          selected
+                            ? "text-background/70 hover:bg-background/10 hover:text-background"
+                            : "text-muted-foreground hover:text-destructive"
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        <Card className="min-h-0 overflow-hidden py-0">
+          <CardContent className="flex h-full min-h-0 flex-col gap-5 p-5 lg:p-6">
+            {selectedStone ? (
+              <>
+                <div className="shrink-0 space-y-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <h2 className="break-words text-lg font-semibold text-foreground">
+                        {selectedStone.name}
+                      </h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {selectedStone.stoneId}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">
+                          {selectedStone.category}
+                        </Badge>
+                        {selectedStone.clarity ? (
+                          <span className="text-xs text-muted-foreground">
+                            {selectedStone.clarity}
+                          </span>
+                        ) : null}
+                        {selectedStone.color ? (
+                          <span className="text-xs text-muted-foreground">
+                            {selectedStone.color}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={openAddSlabDialog}
+                      className="gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Slab
+                    </Button>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Pricing Slabs
+                    </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {selectedStone.slabs.length} slabs defined
+                    </p>
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-1 py-1">
+                  {selectedStone.slabs.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border py-10 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        No slabs configured
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={openAddSlabDialog}
+                        className="mt-3 gap-2"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add first slab
+                      </Button>
+                    </div>
+                  ) : (
+                    selectedStone.slabs.map((slab, index) => (
+                      <div
+                        key={`${slab.code}-${index}`}
+                        className="rounded-xl border border-border bg-muted/20 p-4"
+                      >
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                            Slab {index + 1}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => deleteSlab(index)}
+                            aria-label={`Delete slab ${index + 1}`}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                          <FieldBlock label="Code">
+                            <Input
+                              value={slab.code}
+                              onChange={(event) =>
+                                updateSlab(index, { code: event.target.value })
+                              }
+                              className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+                            />
+                          </FieldBlock>
+                          <FieldBlock label="From ct">
+                            <NumberInput
+                              value={slab.fromWeight}
+                              step="0.0001"
+                              onChange={(fromWeight) =>
+                                updateSlab(index, { fromWeight })
+                              }
+                            />
+                          </FieldBlock>
+                          <FieldBlock label="To ct">
+                            <NumberInput
+                              value={slab.toWeight}
+                              step="0.0001"
+                              onChange={(toWeight) =>
+                                updateSlab(index, { toWeight })
+                              }
+                            />
+                          </FieldBlock>
+                          <FieldBlock label="Price / ct">
+                            <NumberInput
+                              value={slab.pricePerCarat}
+                              onChange={(pricePerCarat) =>
+                                updateSlab(index, { pricePerCarat })
+                              }
+                            />
+                          </FieldBlock>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border text-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Add a stone type before managing slabs.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={openAddStoneDialog}
+                    className="mt-3 gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Stone
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <AlertDialog
         open={!!stoneToDelete}
@@ -623,233 +1070,24 @@ function StonesEditor({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </SectionShell>
-  );
-}
 
-function SlabsEditor({
-  settings,
-  onChange,
-  onBack,
-}: {
-  settings: CalculatorSettings;
-  onChange: (settings: CalculatorSettings) => void;
-  onBack: () => void;
-}) {
-  const [selectedStoneId, setSelectedStoneId] = useState<string | null>(
-    settings.stoneTypes[0]?.stoneId ?? null,
-  );
-  const selectedStone =
-    settings.stoneTypes.find((stone) => stone.stoneId === selectedStoneId) ??
-    settings.stoneTypes[0];
+      <StoneDialog
+        mode={stoneDialogMode}
+        draft={stoneDraft}
+        onDraftChange={setStoneDraft}
+        onOpenChange={(open) => {
+          if (!open) closeStoneDialog();
+        }}
+        onSubmit={submitStoneDialog}
+      />
 
-  function updateStoneSlabs(stoneId: string, slabs: CalculatorStoneSlab[]) {
-    onChange({
-      ...settings,
-      stoneTypes: settings.stoneTypes.map((stone) =>
-        stone.stoneId === stoneId ? { ...stone, slabs } : stone,
-      ),
-    });
-  }
-
-  function addSlab(stone: CalculatorStoneType) {
-    updateStoneSlabs(stone.stoneId, [
-      ...stone.slabs,
-      {
-        code: "",
-        fromWeight: 0,
-        toWeight: 0,
-        pricePerCarat: 0,
-      },
-    ]);
-  }
-
-  function updateSlab(
-    stone: CalculatorStoneType,
-    index: number,
-    updates: Partial<CalculatorStoneSlab>,
-  ) {
-    updateStoneSlabs(
-      stone.stoneId,
-      stone.slabs.map((slab, slabIndex) =>
-        slabIndex === index ? { ...slab, ...updates } : slab,
-      ),
-    );
-  }
-
-  function deleteSlab(stone: CalculatorStoneType, index: number) {
-    updateStoneSlabs(
-      stone.stoneId,
-      stone.slabs.filter((_, slabIndex) => slabIndex !== index),
-    );
-  }
-
-  return (
-    <SectionShell
-      icon={<Layers3 className="h-5 w-5" />}
-      title="Slabs"
-      description="Manage weight ranges and per-carat prices for each stone."
-      onBack={onBack}
-    >
-      <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <Card className="lg:self-start">
-          <CardContent className="space-y-3">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Stones</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Choose a stone to edit its slabs.
-              </p>
-            </div>
-            <div className="space-y-2">
-              {settings.stoneTypes.map((stone) => {
-                const selected = stone.stoneId === selectedStone?.stoneId;
-
-                return (
-                  <button
-                    key={stone.stoneId}
-                    type="button"
-                    onClick={() => setSelectedStoneId(stone.stoneId)}
-                    className={
-                      selected
-                        ? "w-full cursor-pointer rounded-xl border border-foreground bg-foreground px-3 py-3 text-left text-background"
-                        : "w-full cursor-pointer rounded-xl border border-border bg-muted/20 px-3 py-3 text-left transition-colors hover:border-foreground/30"
-                    }
-                  >
-                    <span className="block truncate text-sm font-semibold">
-                      {stone.name}
-                    </span>
-                    <span
-                      className={
-                        selected
-                          ? "mt-1 block text-xs text-background/70"
-                          : "mt-1 block text-xs text-muted-foreground"
-                      }
-                    >
-                      {stone.slabs.length} slabs
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="space-y-5">
-            {selectedStone ? (
-              <>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <h2 className="break-words text-lg font-semibold text-foreground">
-                      {selectedStone.name}
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {selectedStone.stoneId}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={() => addSlab(selectedStone)}
-                    className="gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Slab
-                  </Button>
-                </div>
-
-                {selectedStone.slabs.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border py-10 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      No slabs configured
-                    </p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => addSlab(selectedStone)}
-                      className="mt-3 gap-2"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add first slab
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {selectedStone.slabs.map((slab, index) => (
-                      <div
-                        key={`${slab.code}-${index}`}
-                        className="rounded-xl border border-border bg-muted/20 p-4"
-                      >
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                            Slab {index + 1}
-                          </p>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => deleteSlab(selectedStone, index)}
-                            aria-label={`Delete slab ${index + 1}`}
-                            className="text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                          <FieldBlock label="Code">
-                            <Input
-                              value={slab.code}
-                              onChange={(event) =>
-                                updateSlab(selectedStone, index, {
-                                  code: event.target.value,
-                                })
-                              }
-                              className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
-                            />
-                          </FieldBlock>
-                          <FieldBlock label="From ct">
-                            <NumberInput
-                              value={slab.fromWeight}
-                              step="0.0001"
-                              onChange={(fromWeight) =>
-                                updateSlab(selectedStone, index, { fromWeight })
-                              }
-                            />
-                          </FieldBlock>
-                          <FieldBlock label="To ct">
-                            <NumberInput
-                              value={slab.toWeight}
-                              step="0.0001"
-                              onChange={(toWeight) =>
-                                updateSlab(selectedStone, index, { toWeight })
-                              }
-                            />
-                          </FieldBlock>
-                          <FieldBlock label="Price / ct">
-                            <NumberInput
-                              value={slab.pricePerCarat}
-                              onChange={(pricePerCarat) =>
-                                updateSlab(selectedStone, index, {
-                                  pricePerCarat,
-                                })
-                              }
-                            />
-                          </FieldBlock>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="rounded-xl border border-dashed border-border py-10 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Add a stone type before managing slabs.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <SlabDialog
+        open={slabDialogOpen}
+        draft={slabDraft}
+        onDraftChange={setSlabDraft}
+        onOpenChange={setSlabDialogOpen}
+        onSubmit={submitSlabDialog}
+      />
     </SectionShell>
   );
 }
@@ -870,8 +1108,8 @@ function MiscEditor({
       description="Manage GST and making cost values used by the calculator."
       onBack={onBack}
     >
-      <Card>
-        <CardContent className="space-y-6">
+      <Card className="h-full overflow-hidden py-0">
+        <CardContent className="h-full space-y-6 overflow-y-auto p-6">
           <div className="grid gap-6 md:grid-cols-3">
             <FieldBlock label="GST percentage">
               <div className="flex items-end gap-3">
@@ -944,25 +1182,13 @@ function MiscEditor({
 }
 
 export function ManageProductsAndPricePageClient() {
-  const {
-    settings,
-    lastSynced,
-    isSyncing,
-    syncError,
-    setSettings,
-    syncFromSheet,
-  } = useCalculatorSettings();
+  const [settings, setSettings] = useState<CalculatorSettings>(
+    MOCK_PRICING_SETTINGS,
+  );
   const [activeSection, setActiveSection] = useState<ManageSection>("overview");
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6">
-      <SyncStrip
-        lastSynced={lastSynced}
-        syncError={syncError}
-        isSyncing={isSyncing}
-        onSync={() => void syncFromSheet()}
-      />
-
+    <div className="mx-auto flex h-[calc(100svh-2rem)] w-full max-w-7xl flex-col overflow-hidden sm:h-[calc(100svh-3rem)]">
       {activeSection === "overview" ? (
         <Overview settings={settings} onSelect={setActiveSection} />
       ) : null}
@@ -973,15 +1199,8 @@ export function ManageProductsAndPricePageClient() {
           onBack={() => setActiveSection("overview")}
         />
       ) : null}
-      {activeSection === "stones" ? (
-        <StonesEditor
-          settings={settings}
-          onChange={setSettings}
-          onBack={() => setActiveSection("overview")}
-        />
-      ) : null}
-      {activeSection === "slabs" ? (
-        <SlabsEditor
+      {activeSection === "stones-slabs" ? (
+        <StonesAndSlabsEditor
           settings={settings}
           onChange={setSettings}
           onBack={() => setActiveSection("overview")}
