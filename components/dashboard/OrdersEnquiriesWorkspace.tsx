@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, LayoutGrid, List, Search } from "lucide-react";
+import { LayoutGrid, List, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -31,9 +31,8 @@ import {
   type Order,
   type RecordType,
   STAGES,
-  type Stage,
 } from "@/types";
-import { KanbanBoard } from "./KanbanBoard";
+import { KanbanBoard, type KanbanColumnConfig } from "./KanbanBoard";
 
 type TypeTab = "all" | RecordType;
 type ViewMode = "table" | "kanban";
@@ -47,6 +46,12 @@ const ENQUIRY_STATUS_OPTIONS = [
   "CLOSED",
 ] as const;
 const ORDER_STATUS_OPTIONS = ["all", ...STAGES] as const;
+const ENQUIRY_KANBAN_COLUMNS: KanbanColumnConfig[] = [
+  { id: "Enquiry", label: "Enquiry" },
+  { id: "Estimation", label: "Estimation" },
+  { id: "Order Confirmed", label: "Converted", shortLabel: "Converted" },
+  { id: "Closed", label: "Closed" },
+];
 
 function isWithinDateFilter(date: string, filter: DateFilter) {
   if (filter === "all") return true;
@@ -67,6 +72,11 @@ function getEnquiryStatus(order: Order): EnquiryItemStatus {
 function getRecordStatus(order: Order) {
   if (order.type === "enquiry") return getEnquiryStatus(order);
   return order.currentStage;
+}
+
+function getKanbanStatus(record: Order): string {
+  if (record.status === "closed") return "Closed";
+  return record.currentStage;
 }
 
 function statusBadgeClass(status: string) {
@@ -92,11 +102,13 @@ function FilterSelect({
   label,
   value,
   onValueChange,
+  disabled,
   children,
 }: {
   label: string;
   value: string;
   onValueChange: (value: string) => void;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -104,8 +116,8 @@ function FilterSelect({
       <span className="text-[11px] font-medium text-muted-foreground">
         {label}
       </span>
-      <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-9 min-w-36 bg-background">
+      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+        <SelectTrigger className="h-9 min-w-36 bg-background disabled:cursor-not-allowed disabled:opacity-60">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>{children}</SelectContent>
@@ -227,16 +239,12 @@ export function OrdersEnquiriesWorkspace() {
   const router = useRouter();
   const storeRecords = useOrdersStore((state) => state.records);
   const enquiriesQuery = useEnquiries();
-  const moveRecordStage = useOrdersStore((state) => state.moveRecordStage);
   const [typeTab, setTypeTab] = useState<TypeTab>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
-  const [lastMoved, setLastMoved] = useState<{
-    name: string;
-    stage: Stage;
-  } | null>(null);
+  const isKanbanMode = viewMode === "kanban";
 
   const apiEnquiries = useMemo(
     () =>
@@ -295,30 +303,23 @@ export function OrdersEnquiriesWorkspace() {
     });
   }, [dateFilter, records, search, statusFilter, typeTab]);
 
-  const kanbanRecords = filteredRecords.filter(
-    (record) => record.type === "order",
+  const kanbanRecords = useMemo(
+    () => records.filter((record) => record.type === "enquiry"),
+    [records],
   );
+  const enquiryKanbanColumns = useMemo(() => {
+    const presentStatuses = new Set(kanbanRecords.map(getKanbanStatus));
+    const visibleColumns = ENQUIRY_KANBAN_COLUMNS.filter((column) =>
+      presentStatuses.has(column.id),
+    );
 
-  function handleOrderMove(orderId: string, newStage: Stage) {
-    const movedOrder = records.find((record) => record.id === orderId);
-    if (!movedOrder || movedOrder.currentStage === newStage) return;
-
-    const timestamp = new Date().toISOString();
-    moveRecordStage(orderId, newStage, {
-      id: `act-${Date.now()}-kanban`,
-      orderId: movedOrder.id,
-      postedBy: "Dashboard User",
-      actorRole: "sales",
-      timestamp,
-      type: "stage_change",
-      previousStage: movedOrder.currentStage,
-      newStage,
-      note: `Moved from ${movedOrder.currentStage} to ${newStage} via orders workspace`,
-    });
-
-    setLastMoved({ name: movedOrder.customerName, stage: newStage });
-    setTimeout(() => setLastMoved(null), 3000);
-  }
+    return visibleColumns.length > 0 ? visibleColumns : ENQUIRY_KANBAN_COLUMNS;
+  }, [kanbanRecords]);
+  const shownRecordCount = isKanbanMode
+    ? kanbanRecords.length
+    : filteredRecords.length;
+  const totalRecordCount = isKanbanMode ? tabCounts.enquiry : records.length;
+  const isFilterDisabled = isKanbanMode;
 
   const sectionHeading =
     typeTab === "all"
@@ -329,16 +330,6 @@ export function OrdersEnquiriesWorkspace() {
 
   return (
     <div className="space-y-6">
-      {lastMoved && (
-        <div className="flex items-center gap-2 rounded-2xl border border-emerald-200/80 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400">
-          <CheckCircle2 className="h-4 w-4" />
-          <span>
-            <strong>{lastMoved.name}</strong> moved to{" "}
-            <strong>{lastMoved.stage}</strong>
-          </span>
-        </div>
-      )}
-
       <div className="flex flex-col items-center gap-4 text-center lg:flex-row lg:justify-between lg:text-start">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
@@ -428,11 +419,11 @@ export function OrdersEnquiriesWorkspace() {
         <p className="text-sm text-muted-foreground">
           Showing{" "}
           <strong className="font-medium text-foreground">
-            {filteredRecords.length}
+            {shownRecordCount}
           </strong>{" "}
           of{" "}
           <strong className="font-medium text-foreground">
-            {records.length}
+            {totalRecordCount}
           </strong>{" "}
           records
         </p>
@@ -450,6 +441,7 @@ export function OrdersEnquiriesWorkspace() {
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Customer, order ID, salesperson"
               className="pl-9"
+              disabled={isFilterDisabled}
             />
           </div>
         </div>
@@ -458,6 +450,7 @@ export function OrdersEnquiriesWorkspace() {
           label="Status"
           value={statusFilter}
           onValueChange={setStatusFilter}
+          disabled={isFilterDisabled}
         >
           {(typeTab === "enquiry"
             ? ENQUIRY_STATUS_OPTIONS
@@ -473,6 +466,7 @@ export function OrdersEnquiriesWorkspace() {
           label="Creation Date"
           value={dateFilter}
           onValueChange={(value) => setDateFilter(value as DateFilter)}
+          disabled={isFilterDisabled}
         >
           <SelectItem value="all">All time</SelectItem>
           <SelectItem value="7d">Last 7 days</SelectItem>
@@ -516,7 +510,9 @@ export function OrdersEnquiriesWorkspace() {
         <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <KanbanBoard
             orders={kanbanRecords}
-            onOrderMove={handleOrderMove}
+            columns={enquiryKanbanColumns}
+            getColumnId={getKanbanStatus}
+            emptyLabel="No enquiries"
             onCardClick={(order) =>
               router.push(
                 order.type === "enquiry"

@@ -7,51 +7,39 @@ import {
 } from "@dnd-kit/sortable";
 import { Package } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Order, Stage } from "@/types";
+import type { Order } from "@/types";
+import type { KanbanColumnConfig } from "./KanbanBoard";
 import { KanbanCard } from "./KanbanCard";
 
 interface KanbanColumnProps {
-  stage: Stage;
+  column: KanbanColumnConfig;
   orders: Order[];
   onCardClick: (order: Order) => void;
+  emptyLabel?: string;
 }
 
-const STAGE_COLORS: Record<Stage, string> = {
+const COLUMN_COLORS: Record<string, string> = {
   Enquiry: "bg-zinc-50 dark:bg-zinc-950/30",
-  Estimation: "bg-sky-50/50 dark:bg-sky-950/20",
-  "CAD Design": "bg-violet-50/50 dark:bg-violet-950/20",
-  "Order Confirmed": "bg-blue-50/50 dark:bg-blue-950/20",
-  Building: "bg-amber-50/50 dark:bg-amber-950/20",
-  Certification: "bg-orange-50/50 dark:bg-orange-950/20",
-  "Shipped to Store": "bg-teal-50/50 dark:bg-teal-950/20",
-  "Customer Pickup": "bg-emerald-50/50 dark:bg-emerald-950/20",
-};
-
-const STAGE_SHORT: Record<Stage, string> = {
-  Enquiry: "Enquiry",
-  Estimation: "Estimation",
-  "CAD Design": "CAD",
-  "Order Confirmed": "Confirmed",
-  Building: "Building",
-  Certification: "Certify",
-  "Shipped to Store": "Shipped",
-  "Customer Pickup": "Pickup",
+  Estimation: "bg-amber-50/50 dark:bg-amber-950/20",
+  "Order Confirmed": "bg-emerald-50/50 dark:bg-emerald-950/20",
+  Closed: "bg-zinc-50 dark:bg-zinc-950/30",
 };
 
 export function KanbanColumn({
-  stage,
+  column,
   orders,
   onCardClick,
+  emptyLabel = "No records in this status",
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
-    id: stage,
+    id: column.id,
     data: {
       type: "Column",
-      stage,
+      column,
     },
   });
 
-  const colorClass = STAGE_COLORS[stage];
+  const colorClass = COLUMN_COLORS[column.id] ?? "bg-muted/40";
 
   return (
     <div
@@ -72,7 +60,7 @@ export function KanbanColumn({
       >
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground">
-            {STAGE_SHORT[stage]}
+            {column.shortLabel ?? column.label}
           </h3>
           <span
             className={cn(
@@ -96,9 +84,11 @@ export function KanbanColumn({
           {orders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Package className="mb-2 h-6 w-6 text-muted-foreground/30" />
-              <p className="text-[11px] text-muted-foreground/60">No orders</p>
+              <p className="text-[11px] text-muted-foreground/60">
+                {emptyLabel}
+              </p>
               <p className="text-[10px] text-muted-foreground/40">
-                in this stage
+                in this status
               </p>
             </div>
           ) : (
