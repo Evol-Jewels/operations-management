@@ -489,7 +489,7 @@ function SearchPanel({
           className="h-11 rounded-xl"
         >
           <ScanLine className="h-4 w-4" />
-          Search Barcode
+          Scan Barcode
         </Button>
         <div className="flex min-w-0 gap-3">
           <input
