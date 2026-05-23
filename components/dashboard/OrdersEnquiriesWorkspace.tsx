@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, LayoutGrid, List, Search, X } from "lucide-react";
+import { LayoutGrid, List, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -22,17 +22,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useEnquiries } from "@/hooks/useEnquiries";
+import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
 import { useOrdersStore } from "@/lib/stores/orders-store";
-import { cn, formatCurrency, formatDate, getUrgencyLevel } from "@/lib/utils";
-import { type Order, type RecordType, STAGES, type Stage } from "@/types";
-import { KanbanBoard } from "./KanbanBoard";
-import { UrgencyDot } from "./UrgencyDot";
+import { cn, formatDate } from "@/lib/utils";
+import {
+  type EnquiryItemStatus,
+  type Order,
+  type RecordType,
+  STAGES,
+} from "@/types";
+import { KanbanBoard, type KanbanColumnConfig } from "./KanbanBoard";
 
 type TypeTab = "all" | RecordType;
 type ViewMode = "table" | "kanban";
 type DateFilter = "all" | "7d" | "30d" | "90d";
 
-const STATUS_OPTIONS = ["all", "open", "closed", ...STAGES] as const;
+const ENQUIRY_STATUS_OPTIONS = [
+  "all",
+  "PENDING",
+  "ESTIMATED",
+  "CONVERTED",
+  "CLOSED",
+] as const;
+const ORDER_STATUS_OPTIONS = ["all", ...STAGES] as const;
+const ENQUIRY_KANBAN_COLUMNS: KanbanColumnConfig[] = [
+  { id: "Enquiry", label: "Enquiry" },
+  { id: "Estimation", label: "Estimation" },
+  { id: "Order Confirmed", label: "Converted", shortLabel: "Converted" },
+  { id: "Closed", label: "Closed" },
+];
 
 function isWithinDateFilter(date: string, filter: DateFilter) {
   if (filter === "all") return true;
@@ -43,19 +62,35 @@ function isWithinDateFilter(date: string, filter: DateFilter) {
   return created >= cutoff;
 }
 
+function getEnquiryStatus(order: Order): EnquiryItemStatus {
+  if (order.status === "closed") return "CLOSED";
+  if (order.currentStage === "Order Confirmed") return "CONVERTED";
+  if (order.currentStage === "Estimation") return "ESTIMATED";
+  return "PENDING";
+}
+
 function getRecordStatus(order: Order) {
-  if (order.type === "enquiry") {
-    return order.status === "closed" ? "closed" : "open";
-  }
+  if (order.type === "enquiry") return getEnquiryStatus(order);
   return order.currentStage;
 }
 
+function getKanbanStatus(record: Order): string {
+  if (record.status === "closed") return "Closed";
+  return record.currentStage;
+}
+
 function statusBadgeClass(status: string) {
-  if (status === "closed" || status === "Customer Pickup") {
+  if (status === "CLOSED" || status === "Customer Pickup") {
+    return "border-zinc-200 bg-zinc-50 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-100";
+  }
+  if (status === "CONVERTED" || status === "Order Confirmed") {
     return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300";
   }
-  if (status === "open" || status === "Enquiry") {
-    return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300";
+  if (status === "ESTIMATED" || status === "Estimation") {
+    return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
+  }
+  if (status === "PENDING" || status === "Enquiry") {
+    return "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300";
   }
   if (status === "Building" || status === "Certification") {
     return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
@@ -67,11 +102,13 @@ function FilterSelect({
   label,
   value,
   onValueChange,
+  disabled,
   children,
 }: {
   label: string;
   value: string;
   onValueChange: (value: string) => void;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -79,8 +116,8 @@ function FilterSelect({
       <span className="text-[11px] font-medium text-muted-foreground">
         {label}
       </span>
-      <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="h-9 min-w-36 bg-background">
+      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+        <SelectTrigger className="h-9 min-w-36 bg-background disabled:cursor-not-allowed disabled:opacity-60">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>{children}</SelectContent>
@@ -89,7 +126,26 @@ function FilterSelect({
   );
 }
 
-function RecordsTable({ records }: { records: Order[] }) {
+function OrdersNotAvailable() {
+  return (
+    <div className="rounded-2xl border border-dashed border-border bg-card py-20 text-center">
+      <p className="text-base font-medium text-foreground">
+        Orders are not available yet!
+      </p>
+      <p className="mt-1 text-sm text-muted-foreground">Coming soon!</p>
+    </div>
+  );
+}
+
+function RecordsTable({
+  records,
+  onRowClick,
+  showTypeColumn,
+}: {
+  records: Order[];
+  onRowClick: (record: Order) => void;
+  showTypeColumn: boolean;
+}) {
   if (records.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border py-16 text-center">
@@ -110,19 +166,14 @@ function RecordsTable({ records }: { records: Order[] }) {
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="min-w-56">Customer</TableHead>
-              <TableHead>Type</TableHead>
+              {showTypeColumn ? <TableHead>Type</TableHead> : null}
               <TableHead className="min-w-36">Status</TableHead>
-              <TableHead>Category</TableHead>
               <TableHead className="min-w-36">Created</TableHead>
               <TableHead className="min-w-36">Created By</TableHead>
-              <TableHead className="min-w-36">Delivery</TableHead>
-              <TableHead className="text-right">Value</TableHead>
-              <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {records.map((record) => {
-              const urgency = getUrgencyLevel(record.deliveryDate);
               const status = getRecordStatus(record);
               const href =
                 record.type === "enquiry"
@@ -130,13 +181,14 @@ function RecordsTable({ records }: { records: Order[] }) {
                   : `/orders/${record.shareableToken}`;
 
               return (
-                <TableRow key={record.id}>
+                <TableRow
+                  key={record.id}
+                  className="cursor-pointer"
+                  onClick={() => onRowClick(record)}
+                >
                   <TableCell>
                     <div className="min-w-0">
-                      <Link
-                        href={href}
-                        className="font-medium text-foreground hover:underline"
-                      >
+                      <Link href={href} className="font-medium text-foreground">
                         {record.customerName}
                       </Link>
                       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -144,14 +196,18 @@ function RecordsTable({ records }: { records: Order[] }) {
                       </p>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={record.type === "order" ? "default" : "outline"}
-                      className="capitalize"
-                    >
-                      {record.type}
-                    </Badge>
-                  </TableCell>
+                  {showTypeColumn ? (
+                    <TableCell>
+                      <Badge
+                        variant={
+                          record.type === "order" ? "default" : "outline"
+                        }
+                        className="capitalize"
+                      >
+                        {record.type}
+                      </Badge>
+                    </TableCell>
+                  ) : null}
                   <TableCell>
                     <Badge
                       variant="outline"
@@ -160,40 +216,14 @@ function RecordsTable({ records }: { records: Order[] }) {
                         statusBadgeClass(status),
                       )}
                     >
-                      {status}
+                      {status.toLowerCase()}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {record.category}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(record.createdAt)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {record.salespersonName}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <UrgencyDot level={urgency} />
-                      <span className="text-sm text-muted-foreground">
-                        {record.deliveryDate
-                          ? formatDate(record.deliveryDate)
-                          : "No date"}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {record.totalEstimate
-                      ? formatCurrency(record.totalEstimate)
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button asChild variant="ghost" size="icon-sm">
-                      <Link href={href}>
-                        <span className="sr-only">Open record</span>
-                        <List className="h-4 w-4" />
-                      </Link>
-                    </Button>
                   </TableCell>
                 </TableRow>
               );
@@ -207,22 +237,28 @@ function RecordsTable({ records }: { records: Order[] }) {
 
 export function OrdersEnquiriesWorkspace() {
   const router = useRouter();
-  const records = useOrdersStore((state) => state.records);
-  const moveRecordStage = useOrdersStore((state) => state.moveRecordStage);
+  const storeRecords = useOrdersStore((state) => state.records);
+  const enquiriesQuery = useEnquiries();
   const [typeTab, setTypeTab] = useState<TypeTab>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
-  const [createdByFilter, setCreatedByFilter] = useState("all");
-  const [lastMoved, setLastMoved] = useState<{
-    name: string;
-    stage: Stage;
-  } | null>(null);
+  const isKanbanMode = viewMode === "kanban";
 
-  const createdByOptions = useMemo(
-    () => [...new Set(records.map((record) => record.salespersonName))].sort(),
-    [records],
+  const apiEnquiries = useMemo(
+    () =>
+      (enquiriesQuery.data ?? []).map((enquiry) =>
+        mapBackendEnquiryListItemToOrder(enquiry),
+      ),
+    [enquiriesQuery.data],
+  );
+  const records = useMemo(
+    () => [
+      ...storeRecords.filter((record) => record.type === "order"),
+      ...apiEnquiries,
+    ],
+    [apiEnquiries, storeRecords],
   );
 
   const tabCounts = useMemo(
@@ -239,12 +275,6 @@ export function OrdersEnquiriesWorkspace() {
 
     return records.filter((record) => {
       if (typeTab !== "all" && record.type !== typeTab) return false;
-      if (
-        createdByFilter !== "all" &&
-        record.salespersonName !== createdByFilter
-      ) {
-        return false;
-      }
       if (!isWithinDateFilter(record.createdAt, dateFilter)) return false;
 
       if (statusFilter !== "all") {
@@ -259,7 +289,6 @@ export function OrdersEnquiriesWorkspace() {
           record.customerName,
           record.orderNumber ?? "",
           record.shareableToken,
-          record.category,
           record.salespersonName,
           record.vendorName ?? "",
           record.customerPhone ?? "",
@@ -272,64 +301,38 @@ export function OrdersEnquiriesWorkspace() {
 
       return true;
     });
-  }, [createdByFilter, dateFilter, records, search, statusFilter, typeTab]);
+  }, [dateFilter, records, search, statusFilter, typeTab]);
 
-  const kanbanRecords = filteredRecords.filter(
-    (record) => record.type === "order",
+  const kanbanRecords = useMemo(
+    () => records.filter((record) => record.type === "enquiry"),
+    [records],
   );
+  const enquiryKanbanColumns = useMemo(() => {
+    const presentStatuses = new Set(kanbanRecords.map(getKanbanStatus));
+    const visibleColumns = ENQUIRY_KANBAN_COLUMNS.filter((column) =>
+      presentStatuses.has(column.id),
+    );
 
-  function clearFilters() {
-    setSearch("");
-    setStatusFilter("all");
-    setDateFilter("all");
-    setCreatedByFilter("all");
-  }
+    return visibleColumns.length > 0 ? visibleColumns : ENQUIRY_KANBAN_COLUMNS;
+  }, [kanbanRecords]);
+  const shownRecordCount = isKanbanMode
+    ? kanbanRecords.length
+    : filteredRecords.length;
+  const totalRecordCount = isKanbanMode ? tabCounts.enquiry : records.length;
+  const isFilterDisabled = isKanbanMode;
 
-  function handleOrderMove(orderId: string, newStage: Stage) {
-    const movedOrder = records.find((record) => record.id === orderId);
-    if (!movedOrder || movedOrder.currentStage === newStage) return;
-
-    const timestamp = new Date().toISOString();
-    moveRecordStage(orderId, newStage, {
-      id: `act-${Date.now()}-kanban`,
-      orderId: movedOrder.id,
-      postedBy: "Dashboard User",
-      actorRole: "sales",
-      timestamp,
-      type: "stage_change",
-      previousStage: movedOrder.currentStage,
-      newStage,
-      note: `Moved from ${movedOrder.currentStage} to ${newStage} via orders workspace`,
-    });
-
-    setLastMoved({ name: movedOrder.customerName, stage: newStage });
-    setTimeout(() => setLastMoved(null), 3000);
-  }
-
-  const hasFilters =
-    search.trim() ||
-    statusFilter !== "all" ||
-    dateFilter !== "all" ||
-    createdByFilter !== "all";
+  const sectionHeading =
+    typeTab === "all"
+      ? "All records"
+      : typeTab === "order"
+        ? "Orders"
+        : "Enquiries";
 
   return (
     <div className="space-y-6">
-      {lastMoved && (
-        <div className="flex items-center gap-2 rounded-2xl border border-emerald-200/80 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400">
-          <CheckCircle2 className="h-4 w-4" />
-          <span>
-            <strong>{lastMoved.name}</strong> moved to{" "}
-            <strong>{lastMoved.stage}</strong>
-          </span>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col items-center gap-4 text-center lg:flex-row lg:justify-between lg:text-start">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-            Orders Workspace
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Orders and enquiries
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -338,169 +341,178 @@ export function OrdersEnquiriesWorkspace() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/enquiries/new">Create New Enquiry</Link>
+          <Link href="/enquiries/new">+ New enquiry</Link>
         </Button>
       </div>
 
-      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {[
-              { key: "all" as const, label: "All", count: tabCounts.all },
-              {
-                key: "order" as const,
-                label: "Orders",
-                count: tabCounts.order,
-              },
-              {
-                key: "enquiry" as const,
-                label: "Enquiries",
-                count: tabCounts.enquiry,
-              },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setTypeTab(tab.key)}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: "all" as const, label: "All", count: tabCounts.all },
+            { key: "order" as const, label: "Orders", count: tabCounts.order },
+            {
+              key: "enquiry" as const,
+              label: "Enquiries",
+              count: tabCounts.enquiry,
+            },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setTypeTab(tab.key)}
+              className={cn(
+                "flex min-h-9 cursor-pointer items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors",
+                typeTab === tab.key
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {tab.label}
+              <span
                 className={cn(
-                  "flex min-h-9 cursor-pointer items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors",
+                  "rounded-full px-1.5 py-0.5 text-[10px]",
                   typeTab === tab.key
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border bg-background text-muted-foreground hover:text-foreground",
+                    ? "bg-background/20 text-background"
+                    : "bg-muted text-muted-foreground",
                 )}
               >
-                {tab.label}
-                <span
-                  className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[10px]",
-                    typeTab === tab.key
-                      ? "bg-background/20 text-background"
-                      : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode("table")}
-              className={cn(
-                "flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-                viewMode === "table"
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <List className="h-4 w-4" />
-              Table
+                {tab.count}
+              </span>
             </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("kanban")}
-              className={cn(
-                "flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-                viewMode === "kanban"
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              Kanban
-            </button>
-          </div>
+          ))}
         </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(240px,1fr)_auto_auto_auto_auto] lg:items-end">
-          <div className="grid gap-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground">
-              Search
-            </span>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Customer, order ID, product, salesperson"
-                className="pl-9"
-              />
-            </div>
-          </div>
-
-          <FilterSelect
-            label="Status"
-            value={statusFilter}
-            onValueChange={setStatusFilter}
-          >
-            {STATUS_OPTIONS.map((status) => (
-              <SelectItem key={status} value={status}>
-                {status === "all" ? "All statuses" : status}
-              </SelectItem>
-            ))}
-          </FilterSelect>
-
-          <FilterSelect
-            label="Creation Date"
-            value={dateFilter}
-            onValueChange={(value) => setDateFilter(value as DateFilter)}
-          >
-            <SelectItem value="all">All time</SelectItem>
-            <SelectItem value="7d">Last 7 days</SelectItem>
-            <SelectItem value="30d">Last 30 days</SelectItem>
-            <SelectItem value="90d">Last 90 days</SelectItem>
-          </FilterSelect>
-
-          <FilterSelect
-            label="Created By"
-            value={createdByFilter}
-            onValueChange={setCreatedByFilter}
-          >
-            <SelectItem value="all">Everyone</SelectItem>
-            {createdByOptions.map((person) => (
-              <SelectItem key={person} value={person}>
-                {person}
-              </SelectItem>
-            ))}
-          </FilterSelect>
-
-          <Button
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
+          <button
             type="button"
-            variant="outline"
-            onClick={clearFilters}
-            disabled={!hasFilters}
-            className="lg:mb-0"
+            onClick={() => setViewMode("table")}
+            className={cn(
+              "flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
+              viewMode === "table"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
           >
-            <X className="h-4 w-4" />
-            Clear
-          </Button>
+            <List className="h-4 w-4" />
+            Table
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("kanban")}
+            className={cn(
+              "flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
+              viewMode === "kanban"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Kanban
+          </button>
         </div>
-      </section>
-
-      <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
-        <p>
-          Showing{" "}
-          <span className="font-medium text-foreground">
-            {filteredRecords.length}
-          </span>{" "}
-          of{" "}
-          <span className="font-medium text-foreground">{records.length}</span>{" "}
-          records
-        </p>
-        {viewMode === "kanban" && typeTab !== "order" && (
-          <p>Kanban shows order records only.</p>
-        )}
       </div>
 
-      {viewMode === "table" ? (
-        <RecordsTable records={filteredRecords} />
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-base font-medium text-foreground">
+          {sectionHeading}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Showing{" "}
+          <strong className="font-medium text-foreground">
+            {shownRecordCount}
+          </strong>{" "}
+          of{" "}
+          <strong className="font-medium text-foreground">
+            {totalRecordCount}
+          </strong>{" "}
+          records
+        </p>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end">
+        <div className="grid gap-1.5">
+          <span className="text-[11px] font-medium text-muted-foreground">
+            Search
+          </span>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Customer, order ID, salesperson"
+              className="pl-9"
+              disabled={isFilterDisabled}
+            />
+          </div>
+        </div>
+
+        <FilterSelect
+          label="Status"
+          value={statusFilter}
+          onValueChange={setStatusFilter}
+          disabled={isFilterDisabled}
+        >
+          {(typeTab === "enquiry"
+            ? ENQUIRY_STATUS_OPTIONS
+            : ORDER_STATUS_OPTIONS
+          ).map((status) => (
+            <SelectItem key={status} value={status}>
+              {status === "all" ? "All statuses" : status.toLowerCase()}
+            </SelectItem>
+          ))}
+        </FilterSelect>
+
+        <FilterSelect
+          label="Creation Date"
+          value={dateFilter}
+          onValueChange={(value) => setDateFilter(value as DateFilter)}
+          disabled={isFilterDisabled}
+        >
+          <SelectItem value="all">All time</SelectItem>
+          <SelectItem value="7d">Last 7 days</SelectItem>
+          <SelectItem value="30d">Last 30 days</SelectItem>
+          <SelectItem value="90d">Last 90 days</SelectItem>
+        </FilterSelect>
+      </div>
+
+      {/* <FilterSelect
+        label="Created By"
+        value={createdByFilter}
+        onValueChange={setCreatedByFilter}
+      >
+        <SelectItem value="all">Everyone</SelectItem>
+        {createdByOptions.map((person) => (
+          <SelectItem key={person} value={person}>
+            {person}
+          </SelectItem>
+        ))}
+      </FilterSelect> */}
+
+      {enquiriesQuery.isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading enquiries...</p>
+      ) : null}
+
+      {typeTab === "order" ? (
+        <OrdersNotAvailable />
+      ) : viewMode === "table" ? (
+        <RecordsTable
+          records={filteredRecords}
+          showTypeColumn={typeTab !== "enquiry"}
+          onRowClick={(record) =>
+            router.push(
+              record.type === "enquiry"
+                ? `/enquiries/${record.shareableToken}`
+                : `/orders/${record.shareableToken}`,
+            )
+          }
+        />
       ) : (
         <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <KanbanBoard
             orders={kanbanRecords}
-            onOrderMove={handleOrderMove}
+            columns={enquiryKanbanColumns}
+            getColumnId={getKanbanStatus}
+            emptyLabel="No enquiries"
             onCardClick={(order) =>
               router.push(
                 order.type === "enquiry"

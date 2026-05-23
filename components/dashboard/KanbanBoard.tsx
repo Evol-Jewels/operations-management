@@ -13,39 +13,55 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useCallback, useMemo, useState } from "react";
-import { type Order, STAGES, type Stage } from "@/types";
+import type { Order } from "@/types";
 import { KanbanCard } from "./KanbanCard";
 import { KanbanColumn } from "./KanbanColumn";
 
-interface KanbanBoardProps {
-  orders: Order[];
-  onOrderMove: (orderId: string, newStage: Stage) => void;
-  onCardClick: (order: Order) => void;
+export interface KanbanColumnConfig {
+  id: string;
+  label: string;
+  shortLabel?: string;
 }
 
-// Group orders by stage
-function groupOrdersByStage(orders: Order[]): Record<Stage, Order[]> {
-  return STAGES.reduce(
+interface KanbanBoardProps {
+  orders: Order[];
+  columns: KanbanColumnConfig[];
+  getColumnId: (order: Order) => string;
+  onOrderMove?: (orderId: string, newColumnId: string) => void;
+  onCardClick: (order: Order) => void;
+  emptyLabel?: string;
+}
+
+function groupOrdersByColumn(
+  orders: Order[],
+  columns: KanbanColumnConfig[],
+  getColumnId: (order: Order) => string,
+): Record<string, Order[]> {
+  return columns.reduce(
     (acc, stage) => {
-      acc[stage] = orders.filter((o) => o.currentStage === stage);
+      acc[stage.id] = orders.filter((order) => getColumnId(order) === stage.id);
       return acc;
     },
-    {} as Record<Stage, Order[]>,
+    {} as Record<string, Order[]>,
   );
 }
 
 export function KanbanBoard({
   orders,
+  columns,
+  getColumnId,
   onOrderMove,
   onCardClick,
+  emptyLabel,
 }: KanbanBoardProps) {
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
 
-  // Group orders by stage
-  const groupedOrders = useMemo(() => groupOrdersByStage(orders), [orders]);
+  const groupedOrders = useMemo(
+    () => groupOrdersByColumn(orders, columns, getColumnId),
+    [columns, getColumnId, orders],
+  );
 
   // Sensors for drag detection
   const sensors = useSensors(
@@ -68,7 +84,6 @@ export function KanbanBoard({
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
       const { active } = event;
-      setActiveId(active.id as string);
 
       // Find the order being dragged
       const order = orders.find((o) => o.id === active.id);
@@ -95,23 +110,22 @@ export function KanbanBoard({
       const overData = over.data.current;
 
       // If dragging over a column (stage)
-      if (overData?.type === "Column") {
-        const newStage = overId as Stage;
+      if (overData?.type === "Column" && onOrderMove) {
+        const newColumnId = String(overId);
 
         // Only update if stage actually changed
-        if (activeOrder.currentStage !== newStage) {
-          onOrderMove(activeOrder.id, newStage);
+        if (getColumnId(activeOrder) !== newColumnId) {
+          onOrderMove(activeOrder.id, newColumnId);
         }
       }
     },
-    [orders, onOrderMove],
+    [getColumnId, orders, onOrderMove],
   );
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
 
-      setActiveId(null);
       setActiveOrder(null);
 
       if (!over) return;
@@ -120,14 +134,15 @@ export function KanbanBoard({
       const overId = over.id;
 
       // If dropped over a column
-      if (over.data.current?.type === "Column") {
+      if (over.data.current?.type === "Column" && onOrderMove) {
         const order = orders.find((o) => o.id === activeId);
-        if (order && order.currentStage !== overId) {
-          onOrderMove(order.id, overId as Stage);
+        const newColumnId = String(overId);
+        if (order && getColumnId(order) !== newColumnId) {
+          onOrderMove(order.id, newColumnId);
         }
       }
     },
-    [orders, onOrderMove],
+    [getColumnId, orders, onOrderMove],
   );
 
   return (
@@ -141,12 +156,13 @@ export function KanbanBoard({
       <div className="relative">
         {/* Kanban board container */}
         <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-4 pt-1 snap-x snap-mandatory scroll-smooth scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-          {STAGES.map((stage) => (
+          {columns.map((column) => (
             <KanbanColumn
-              key={stage}
-              stage={stage}
-              orders={groupedOrders[stage]}
+              key={column.id}
+              column={column}
+              orders={groupedOrders[column.id] ?? []}
               onCardClick={onCardClick}
+              emptyLabel={emptyLabel}
             />
           ))}
         </div>

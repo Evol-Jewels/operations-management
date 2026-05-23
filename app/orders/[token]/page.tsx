@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, Copy, GitPullRequest } from "lucide-react";
+import { ArrowLeft, Check, Copy } from "lucide-react";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useState } from "react";
@@ -16,12 +16,7 @@ import { StageBar } from "@/components/order/StageBar";
 import { StageHint } from "@/components/order/StageHint";
 import { Button } from "@/components/ui/button";
 import { useOrdersStore } from "@/lib/stores/orders-store";
-import {
-  cn,
-  formatDate,
-  formatDaysRemaining,
-  getUrgencyLevel,
-} from "@/lib/utils";
+import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
 import type { ActivityEntry, ActorRole, Order, Stage } from "@/types";
 
 // ─── Copy link button ─────────────────────────────────────────────────────────
@@ -252,21 +247,8 @@ export default function OrderPage() {
           )}
           {/* Actions — pushed right, wraps on mobile if needed */}
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            {order.type === "enquiry" && (
-              <>
-                <Button size="sm" asChild className="h-8 gap-1.5 text-xs">
-                  <Link href={`/orders/new?from=${order.id}`}>
-                    <GitPullRequest className="h-3.5 w-3.5" />
-                    <span className="hidden xs:inline sm:inline">
-                      Convert to Order
-                    </span>
-                    <span className="xs:hidden sm:hidden">Convert</span>
-                  </Link>
-                </Button>
-                {order.status !== "closed" && (
-                  <CloseEnquiryDialog orderId={order.id} />
-                )}
-              </>
+            {order.type === "enquiry" && order.status !== "closed" && (
+              <CloseEnquiryDialog orderId={order.id} />
             )}
             <CopyLinkButton />
             <DownloadPDFButton />

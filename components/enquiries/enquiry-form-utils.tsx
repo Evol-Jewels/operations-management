@@ -1,6 +1,6 @@
 import { ImageIcon, Link2, Video } from "lucide-react";
-import type { Product } from "@/lib/mock-products";
 import type {
+  Product,
   ProductReference,
   ProductReferenceType,
   StepId,

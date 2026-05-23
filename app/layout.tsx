@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/layout/AppShell";
+import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -31,7 +32,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}
       >
         <TooltipProvider>
-          <AppShell>{children}</AppShell>
+          <ReactQueryProvider>
+            <AppShell>{children}</AppShell>
+          </ReactQueryProvider>
         </TooltipProvider>
         <Toaster richColors />
       </body>

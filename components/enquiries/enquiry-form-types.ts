@@ -1,10 +1,21 @@
-import type { Product } from "@/lib/mock-products";
 import type {
   CustomerCategory,
   JewelleryCategory,
   MetalPurity,
   MetalType,
 } from "@/types";
+
+export interface Product {
+  id: string;
+  productCode: string;
+  name: string;
+  category: JewelleryCategory;
+  metalType: MetalType;
+  metalPurity: MetalPurity;
+  description?: string;
+  imageUrl?: string;
+  basePrice?: number;
+}
 
 export const CATEGORIES: JewelleryCategory[] = [
   "Ring",
@@ -100,6 +111,7 @@ export interface CustomerDetails {
   enquiryMode: EnquiryMode | "";
   visitCity: string;
   visitTime: string;
+  budget?: number;
 }
 
 export type ProductReferenceType = "link" | "image" | "video";
@@ -161,6 +173,7 @@ export const EMPTY_CUSTOMER: CustomerDetails = {
   enquiryMode: "",
   visitCity: "",
   visitTime: "",
+  budget: undefined,
 };
 
 export function createEmptyNewProduct(): NewProduct {
