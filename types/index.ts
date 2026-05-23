@@ -228,6 +228,20 @@ export interface ProductEstimation {
   createdAt: string;
 }
 
+export interface RecentProductEstimate {
+  id: string;
+  productCode: string;
+  totalSearches: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecentProductEstimatesQuery {
+  productCode?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface CalculatorStoneSlab {
   code: string;
   fromWeight: number;
@@ -308,7 +322,7 @@ export interface Order {
   // Staff
   salespersonName: string;
   vendorName?: string;
-  
+
   // Financial
   budget?: number;
 
