@@ -475,7 +475,7 @@ export function OrdersEnquiriesWorkspace() {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pr-8 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
           {[
             { key: "all" as const, label: "All", count: tabCounts.all },
@@ -512,7 +512,7 @@ export function OrdersEnquiriesWorkspace() {
           ))}
         </div>
 
-        <div className="hidden w-full items-center gap-1 rounded-lg border border-border bg-background p-1 sm:flex sm:w-auto">
+        <div className="hidden w-full items-center gap-1 rounded-lg border border-border bg-background p-1 lg:flex lg:w-auto">
           <button
             type="button"
             onClick={() => setViewMode("table")}
@@ -540,6 +540,23 @@ export function OrdersEnquiriesWorkspace() {
             Kanban
           </button>
         </div>
+
+        <div className="lg:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsMobileFiltersOpen(true)}
+            className="w-full justify-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 ? (
+              <Badge variant="secondary" className="ml-0.5 px-1.5">
+                {activeFilterCount}
+              </Badge>
+            ) : null}
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-3">
@@ -551,25 +568,8 @@ export function OrdersEnquiriesWorkspace() {
         </p>
       </div>
 
-      <div className="sm:hidden">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setIsMobileFiltersOpen(true)}
-          className="w-full justify-center gap-2"
-        >
-          <Filter className="h-4 w-4" />
-          Filters
-          {activeFilterCount > 0 ? (
-            <Badge variant="secondary" className="ml-0.5 px-1.5">
-              {activeFilterCount}
-            </Badge>
-          ) : null}
-        </Button>
-      </div>
-
       <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
-        <SheetContent side="bottom" className="rounded-t-xl p-0 sm:hidden">
+        <SheetContent side="bottom" className="rounded-t-xl p-0 lg:hidden w-full sm:left-1/2 sm:-translate-x-1/2 sm:w-1/2">
           <SheetHeader className="border-b border-border px-4 py-4 text-left">
             <SheetTitle>Filters</SheetTitle>
           </SheetHeader>
@@ -667,7 +667,7 @@ export function OrdersEnquiriesWorkspace() {
         </SheetContent>
       </Sheet>
 
-      <div className="hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end">
+      <div className="hidden gap-3 lg:grid lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end">
         <div className="grid gap-1.5">
           <span className="text-[11px] font-medium text-muted-foreground">
             Search
