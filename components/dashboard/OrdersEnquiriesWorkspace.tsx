@@ -4,6 +4,7 @@ import { Filter, LayoutGrid, List, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,11 +31,13 @@ import {
 } from "@/components/ui/table";
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
+import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { useOrdersStore } from "@/lib/stores/orders-store";
 import { cn, formatDate } from "@/lib/utils";
 import {
   type EnquiryItemStatus,
   type Order,
+  type PersonSummary,
   type RecordType,
   STAGES,
 } from "@/types";
@@ -143,6 +146,27 @@ function OrdersNotAvailable() {
   );
 }
 
+function PersonAvatar({
+  person,
+  className,
+}: {
+  person?: PersonSummary | string;
+  className?: string;
+}) {
+  const normalized = normalizePerson(person);
+
+  return (
+    <Avatar className={cn("size-7 shrink-0", className)}>
+      {normalized.image ? (
+        <AvatarImage src={normalized.image} alt={normalized.name} />
+      ) : null}
+      <AvatarFallback className="text-xs font-medium">
+        {getInitials(normalized)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
 function RecordsTable({
   records,
   onRowClick,
@@ -183,7 +207,7 @@ function RecordsTable({
               const status = getRecordStatus(record);
               const href =
                 record.type === "enquiry"
-                  ? `/enquiries/${record.shareableToken}`
+                  ? `/enquiries/${record.refCode}`
                   : `/orders/${record.shareableToken}`;
 
               return (
@@ -198,7 +222,9 @@ function RecordsTable({
                         {record.customerName}
                       </Link>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {record.orderNumber ?? record.shareableToken}
+                        {record.type === "enquiry"
+                          ? `#${record.refCode}`
+                          : (record.orderNumber ?? record.shareableToken)}
                       </p>
                     </div>
                   </TableCell>
@@ -229,7 +255,16 @@ function RecordsTable({
                     {formatDate(record.createdAt)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {record.salespersonName}
+                    <div className="flex items-center gap-2">
+                      <PersonAvatar
+                        person={record.createdBy ?? record.salespersonName}
+                      />
+                      <span className="truncate text-foreground">
+                        {getFirstName(
+                          record.createdBy ?? record.salespersonName,
+                        )}
+                      </span>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -281,7 +316,9 @@ function RecordsMobileList({
                   {record.customerName}
                 </p>
                 <p className="mt-1 truncate text-xs text-muted-foreground">
-                  {record.orderNumber ?? record.shareableToken}
+                  {record.type === "enquiry"
+                    ? `#${record.refCode}`
+                    : (record.orderNumber ?? record.shareableToken)}
                 </p>
               </div>
               <Badge
@@ -303,9 +340,15 @@ function RecordsMobileList({
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span>Created by</span>
-                <span className="min-w-0 truncate font-medium text-foreground">
-                  {record.salespersonName}
-                </span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <PersonAvatar
+                    person={record.createdBy ?? record.salespersonName}
+                    className="size-6"
+                  />
+                  <span className="min-w-0 truncate font-medium text-foreground">
+                    {getFirstName(record.createdBy ?? record.salespersonName)}
+                  </span>
+                </div>
               </div>
               {showTypeColumn ? (
                 <div className="flex items-center justify-between gap-3">
@@ -381,6 +424,7 @@ export function OrdersEnquiriesWorkspace() {
           record.customerName,
           record.orderNumber ?? "",
           record.shareableToken,
+          record.createdBy?.name ?? "",
           record.salespersonName,
           record.vendorName ?? "",
           record.customerPhone ?? "",
@@ -569,7 +613,10 @@ export function OrdersEnquiriesWorkspace() {
       </div>
 
       <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
-        <SheetContent side="bottom" className="rounded-t-xl p-0 lg:hidden w-full sm:left-1/2 sm:-translate-x-1/2 sm:w-1/2">
+        <SheetContent
+          side="bottom"
+          className="rounded-t-xl p-0 lg:hidden w-full sm:left-1/2 sm:-translate-x-1/2 sm:w-1/2"
+        >
           <SheetHeader className="border-b border-border px-4 py-4 text-left">
             <SheetTitle>Filters</SheetTitle>
           </SheetHeader>
@@ -741,7 +788,7 @@ export function OrdersEnquiriesWorkspace() {
               onRowClick={(record) =>
                 router.push(
                   record.type === "enquiry"
-                    ? `/enquiries/${record.shareableToken}`
+                    ? `/enquiries/${record.refCode}`
                     : `/orders/${record.shareableToken}`,
                 )
               }
@@ -754,7 +801,7 @@ export function OrdersEnquiriesWorkspace() {
               onRowClick={(record) =>
                 router.push(
                   record.type === "enquiry"
-                    ? `/enquiries/${record.shareableToken}`
+                    ? `/enquiries/${record.refCode}`
                     : `/orders/${record.shareableToken}`,
                 )
               }
@@ -771,7 +818,7 @@ export function OrdersEnquiriesWorkspace() {
             onCardClick={(order) =>
               router.push(
                 order.type === "enquiry"
-                  ? `/enquiries/${order.shareableToken}`
+                  ? `/enquiries/${order.refCode}`
                   : `/orders/${order.shareableToken}`,
               )
             }

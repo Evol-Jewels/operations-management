@@ -179,9 +179,29 @@ function isValidSettings(value: unknown): value is CalculatorSettings {
   );
 }
 
+function readStorageValue(key: string) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorageValue(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn(`Could not persist ${key} to localStorage`, error);
+    }
+    return false;
+  }
+}
+
 function readStoredSettings() {
   try {
-    const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    const stored = readStorageValue(SETTINGS_STORAGE_KEY);
     if (!stored) return DEFAULT_CALCULATOR_SETTINGS;
     const parsed = JSON.parse(stored);
     return isValidSettings(parsed) ? parsed : DEFAULT_CALCULATOR_SETTINGS;
@@ -215,15 +235,18 @@ export function useCalculatorSettings() {
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [hasLoadedStoredSettings, setHasLoadedStoredSettings] = useState(false);
 
   useEffect(() => {
     setSettings(readStoredSettings());
-    setLastSynced(localStorage.getItem(LAST_SYNCED_STORAGE_KEY));
+    setLastSynced(readStorageValue(LAST_SYNCED_STORAGE_KEY));
+    setHasLoadedStoredSettings(true);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  }, [settings]);
+    if (!hasLoadedStoredSettings) return;
+    writeStorageValue(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  }, [hasLoadedStoredSettings, settings]);
 
   const syncFromSheet = useCallback(async () => {
     setIsSyncing(true);
@@ -264,7 +287,7 @@ export function useCalculatorSettings() {
         assembleSettings(current, ratesPart, stoneRows, slabsByStone),
       );
       setLastSynced(syncedAt);
-      localStorage.setItem(LAST_SYNCED_STORAGE_KEY, syncedAt);
+      writeStorageValue(LAST_SYNCED_STORAGE_KEY, syncedAt);
       return { success: true, error: null };
     } catch (error) {
       const message =
@@ -280,7 +303,7 @@ export function useCalculatorSettings() {
     (newSettings: CalculatorSettings, syncedAt: string) => {
       setSettings(newSettings);
       setLastSynced(syncedAt);
-      localStorage.setItem(LAST_SYNCED_STORAGE_KEY, syncedAt);
+      writeStorageValue(LAST_SYNCED_STORAGE_KEY, syncedAt);
     },
     [],
   );

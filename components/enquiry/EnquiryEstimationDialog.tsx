@@ -22,7 +22,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import {
   calculateGoldRate,
   computeEstimateFromInputs,
@@ -84,6 +83,7 @@ interface EnquiryEstimationDialogProps {
   productId: string;
   productName: string;
   defaultPurity: MetalPurity;
+  settings: CalculatorSettings;
   existingEstimation?: ProductEstimation;
   onSave: (estimation: ProductEstimation) => void;
   disabled?: boolean;
@@ -93,11 +93,11 @@ export function EnquiryEstimationDialog({
   productId,
   productName,
   defaultPurity,
+  settings,
   existingEstimation,
   onSave,
   disabled,
 }: EnquiryEstimationDialogProps) {
-  const { settings } = useCalculatorSettings();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<CalculatorFormState>(() =>
     buildInitialForm(settings, productName, defaultPurity, existingEstimation),

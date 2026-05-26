@@ -10,7 +10,9 @@ import {
 } from "@/components/enquiry/EnquiryStageBar";
 import { ActivityTimeline } from "@/components/order/ActivityTimeline";
 import { ComposeBox } from "@/components/order/ComposeBox";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { getFirstName, getInitials } from "@/lib/people";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
 import type { ActorRole, Order, ProductEstimation, Stage } from "@/types";
 import { ACTOR_ROLE_COLORS } from "@/types";
@@ -21,16 +23,6 @@ function deriveEnquiryStage(order: Order): EnquiryStage {
     return "Estimation Submitted";
   }
   return "Enquiry Created";
-}
-
-function initials(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((word) => word[0]?.toUpperCase() ?? "")
-      .join("") || "?"
-  );
 }
 
 function CopyLinkButton() {
@@ -71,25 +63,44 @@ function ContactCard({
   name,
   detail,
   actorRole,
+  imageUrl,
 }: {
   icon?: React.ReactNode;
   label: string;
   name: string;
   detail?: string;
   actorRole?: ActorRole;
+  imageUrl?: string | null;
 }) {
   const colors = actorRole ? ACTOR_ROLE_COLORS[actorRole] : null;
 
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <div
-        className={cn(
-          "flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
-          colors ? [colors.bg, colors.text] : "bg-muted text-muted-foreground",
-        )}
-      >
-        {actorRole ? initials(name) : icon}
-      </div>
+      {imageUrl || actorRole ? (
+        <Avatar
+          className={cn(
+            "size-11 shrink-0 text-sm font-semibold",
+            colors
+              ? [colors.bg, colors.text]
+              : "bg-muted text-muted-foreground",
+          )}
+        >
+          {imageUrl ? <AvatarImage src={imageUrl} alt={name} /> : null}
+          <AvatarFallback
+            className={cn(
+              colors
+                ? [colors.bg, colors.text]
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            {getInitials(name)}
+          </AvatarFallback>
+        </Avatar>
+      ) : (
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+          {icon}
+        </div>
+      )}
       <div className="min-w-0">
         <p className="text-sm text-muted-foreground">{label}</p>
         <p className="truncate text-base font-medium text-foreground">{name}</p>
@@ -255,8 +266,14 @@ export function EnquiryDetailPage({
             />
             <ContactCard
               label="Salesperson"
-              name={order.salespersonName}
+              name={getFirstName(order.salespersonName)}
               actorRole="sales"
+            />
+            <ContactCard
+              label="Created By"
+              name={getFirstName(order.createdBy)}
+              actorRole="sales"
+              imageUrl={order.createdBy?.image}
             />
             <ContactCard
               label="Created"

@@ -4,7 +4,9 @@ import {
   Image as ImageIcon,
   PackagePlus,
 } from "lucide-react";
-import { cn, formatDate, formatDateTime } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
+import { cn, formatDateTime } from "@/lib/utils";
 import {
   ACTOR_ROLE_COLORS,
   ACTOR_ROLE_LABELS,
@@ -14,33 +16,37 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
 function roleColors(role?: ActorRole) {
   return role ? ACTOR_ROLE_COLORS[role] : ACTOR_ROLE_COLORS.sales;
 }
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
-function Avatar({ name, role }: { name: string; role?: ActorRole }) {
+function PersonAvatar({
+  person,
+  role,
+}: {
+  person: ActivityEntry["postedBy"];
+  role?: ActorRole;
+}) {
+  const normalized = normalizePerson(person);
   const colors = roleColors(role);
   return (
-    <div
+    <Avatar
       className={cn(
-        "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
+        "h-8 w-8 flex-shrink-0 text-[11px] font-semibold",
         colors.bg,
         colors.text,
       )}
-      title={name}
+      title={normalized.name}
     >
-      {initials(name)}
-    </div>
+      {normalized.image ? (
+        <AvatarImage src={normalized.image} alt={normalized.name} />
+      ) : null}
+      <AvatarFallback className={cn(colors.bg, colors.text)}>
+        {getInitials(normalized)}
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
@@ -132,7 +138,7 @@ function SystemEvent({
           <div className="min-w-0 pt-0.5">
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
               <span className="text-sm font-medium text-foreground">
-                {entry.postedBy}
+                {getFirstName(entry.postedBy)}
               </span>
               <RoleBadge role={entry.actorRole} />
               <span className="text-sm text-muted-foreground">
@@ -149,7 +155,7 @@ function SystemEvent({
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
               <span className="text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">
-                  {entry.postedBy}
+                  {getFirstName(entry.postedBy)}
                 </span>
                 {" moved to "}
               </span>
@@ -184,15 +190,13 @@ function HumanMessage({
   entry: ActivityEntry;
   isLast: boolean;
 }) {
-  const colors = roleColors(entry.actorRole);
-
   return (
     <div className="relative flex items-start gap-3">
       {/* Timeline spine */}
       <div className="relative flex w-8 flex-shrink-0 flex-col items-center">
         {/* Avatar sits on the line */}
         <div className="relative z-10">
-          <Avatar name={entry.postedBy} role={entry.actorRole} />
+          <PersonAvatar person={entry.postedBy} role={entry.actorRole} />
         </div>
         {/* Connector going down */}
         {!isLast && (
@@ -208,7 +212,7 @@ function HumanMessage({
         {/* Header */}
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="text-sm font-semibold text-foreground">
-            {entry.postedBy}
+            {getFirstName(entry.postedBy)}
           </span>
           <RoleBadge role={entry.actorRole} />
         </div>

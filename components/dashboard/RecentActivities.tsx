@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import {
   ACTOR_ROLE_COLORS,
@@ -37,27 +39,31 @@ function getActionText(entry: ActivityEntry): ReactNode {
   }
 }
 
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-function Avatar({ name, role }: { name: string; role?: ActorRole }) {
+function PersonAvatar({
+  person,
+  role,
+}: {
+  person: ActivityEntry["postedBy"];
+  role?: ActorRole;
+}) {
+  const normalized = normalizePerson(person);
   const colors = role ? ACTOR_ROLE_COLORS[role] : ACTOR_ROLE_COLORS.sales;
   return (
-    <div
+    <Avatar
       className={cn(
-        "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-semibold",
+        "h-7 w-7 flex-shrink-0 text-[10px] font-semibold",
         colors.bg,
         colors.text,
       )}
-      title={name}
+      title={normalized.name}
     >
-      {initials(name)}
-    </div>
+      {normalized.image ? (
+        <AvatarImage src={normalized.image} alt={normalized.name} />
+      ) : null}
+      <AvatarFallback className={cn(colors.bg, colors.text)}>
+        {getInitials(normalized)}
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
@@ -67,11 +73,11 @@ function ActivityItem({ activity }: { activity: EnrichedActivity }) {
       href={`/orders/${activity.shareableToken}`}
       className="group flex items-start gap-3 rounded-lg p-2 transition-colors hover:bg-muted/50"
     >
-      <Avatar name={activity.postedBy} role={activity.actorRole} />
+      <PersonAvatar person={activity.postedBy} role={activity.actorRole} />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
           <span className="text-sm font-medium text-foreground">
-            {activity.postedBy}
+            {getFirstName(activity.postedBy)}
           </span>
           {activity.actorRole && (
             <span

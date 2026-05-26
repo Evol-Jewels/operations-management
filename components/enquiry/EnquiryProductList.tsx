@@ -11,8 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type {
+  CalculatorSettings,
   EnquiryCustomProduct,
   EnquiryItemStatus,
   EnquirySelectedProduct,
@@ -154,11 +156,13 @@ interface NormalizedItem {
 
 function ProductCard({
   item,
+  settings,
   isClosed,
   isSavingEstimation,
   onSaveEstimation,
 }: {
   item: NormalizedItem;
+  settings: CalculatorSettings;
   isClosed: boolean;
   isSavingEstimation?: boolean;
   onSaveEstimation: (estimation: ProductEstimation) => void;
@@ -274,6 +278,7 @@ function ProductCard({
               productId={item.id}
               productName={item.title}
               defaultPurity={item.defaultPurity}
+              settings={settings}
               existingEstimation={item.estimation}
               onSave={onSaveEstimation}
               disabled={isSavingEstimation}
@@ -303,6 +308,7 @@ export function EnquiryProductList({
   onSaveEstimation,
 }: EnquiryProductListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const { settings } = useCalculatorSettings();
 
   const items = useMemo<NormalizedItem[]>(() => {
     const selectedItems = selectedProducts.map((product) => {
@@ -408,6 +414,7 @@ export function EnquiryProductList({
             <ProductCard
               key={item.id}
               item={item}
+              settings={settings}
               isClosed={isClosed}
               isSavingEstimation={isSavingEstimation}
               onSaveEstimation={onSaveEstimation}

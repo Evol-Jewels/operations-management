@@ -35,14 +35,23 @@ export interface BackendEnquiryMedia {
   url: string;
 }
 
+export interface BackendUserSummary {
+  id: string;
+  name: string;
+  image: string | null;
+}
+
+export type BackendCreatedBy = BackendUserSummary | string | null;
+
 export interface BackendEnquiryRow {
   id: string;
+  refCode: number;
   name: string;
   phoneNumber: string;
   notes: string | null;
   budget: string | null;
   status: BackendEnquiryStatus;
-  createdBy: string | null;
+  createdBy: BackendCreatedBy;
   poc: string;
   createdAt: string;
   updatedAt: string;
@@ -64,8 +73,8 @@ export interface BackendEstimationRow {
   media: BackendEnquiryMedia[];
   notes: string | null;
   makingCost: string | null;
-  createdBy: string;
-  updatedBy: string | null;
+  createdBy: BackendCreatedBy;
+  updatedBy: BackendCreatedBy;
   createdAt: string;
   updatedAt: string;
 }
@@ -82,8 +91,8 @@ export interface BackendEnquiryItemRow {
   media: BackendEnquiryMedia[];
   notes: string | null;
   status: BackendEnquiryItemStatus;
-  createdBy: string;
-  updatedBy: string | null;
+  createdBy: BackendCreatedBy;
+  updatedBy: BackendCreatedBy;
   createdAt: string;
   updatedAt: string;
   estimations?: BackendEstimationRow[];
@@ -96,7 +105,7 @@ export interface BackendEnquiryEventRow {
   message: string | null;
   enquiryItemId: string | null;
   estimationId: string | null;
-  createdBy: string;
+  createdBy: BackendCreatedBy;
   createdAt: string;
 }
 

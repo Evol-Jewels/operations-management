@@ -6,7 +6,7 @@ import { EnquiryDetailPage } from "@/components/enquiry/EnquiryDetailPage";
 import {
   useCreateEnquiryEvent,
   useCreateEstimation,
-  useEnquiryDetails,
+  useEnquiryDetailsByRefCode,
   useUpdateEnquiry,
   useUpdateEstimation,
 } from "@/hooks/useEnquiries";
@@ -39,8 +39,10 @@ function stageToBackendStatus(stage: Stage | null) {
 
 function EnquiryPageContent() {
   const params = useParams();
-  const id = params.token as string;
-  const enquiryQuery = useEnquiryDetails(id);
+  const refCode = Number(params.refCode);
+  const enquiryQuery = useEnquiryDetailsByRefCode(refCode);
+  const details = enquiryQuery.data;
+  const id = details?.enquiry.id ?? "";
   const createEstimation = useCreateEstimation(id);
   const updateEstimation = useUpdateEstimation(id);
   const createEvent = useCreateEnquiryEvent(id);
@@ -58,7 +60,6 @@ function EnquiryPageContent() {
     notFound();
   }
 
-  const details = enquiryQuery.data;
   if (!details) return null;
 
   const order = mapBackendEnquiryDetailsToOrder(details);

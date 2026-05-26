@@ -1,4 +1,5 @@
 import { ArrowRight, FileText, MessageSquare, Paperclip } from "lucide-react";
+import { getFirstName } from "@/lib/people";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { ActivityEntry } from "@/types";
 
@@ -77,7 +78,7 @@ export function ActivityFeed({ entries }: ActivityFeedProps) {
             {/* Header row */}
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
               <span className="text-sm font-medium text-foreground">
-                {entry.postedBy}
+                {getFirstName(entry.postedBy)}
               </span>
               {entry.type === "stage_change" && entry.newStage && (
                 <>

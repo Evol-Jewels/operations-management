@@ -96,7 +96,7 @@ function RowTooltip({
 
 function getRecordHref(order: Order) {
   return order.type === "enquiry"
-    ? `/enquiries/${order.shareableToken}`
+    ? `/enquiries/${order.refCode}`
     : `/orders/${order.shareableToken}`;
 }
 
