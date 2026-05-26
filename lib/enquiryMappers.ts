@@ -1,3 +1,4 @@
+import { normalizePerson } from "@/lib/people";
 import type {
   ActivityEntry,
   EnquiryCustomProduct,
@@ -132,7 +133,7 @@ export function mapBackendEventToActivityEntry(
   return {
     id: event.id,
     orderId: event.enquiryId,
-    postedBy: event.createdBy,
+    postedBy: normalizePerson(event.createdBy),
     actorRole: "sales",
     timestamp: event.createdAt,
     type,
@@ -143,15 +144,22 @@ export function mapBackendEventToActivityEntry(
 function baseOrderFromBackend(
   enquiry: BackendEnquiryDetails["enquiry"] | BackendEnquiryListItem,
 ): Order {
+  const createdBy = normalizePerson(
+    enquiry.createdBy,
+    enquiry.poc || "Unknown user",
+  );
+
   return {
     id: enquiry.id,
     type: "enquiry",
+    refCode: enquiry.refCode,
     shareableToken: enquiry.id,
     customerName: enquiry.name,
     customerPhone: enquiry.phoneNumber,
     customerNotes: enquiry.notes ?? undefined,
     budget: enquiry.budget ? Number(enquiry.budget) : undefined,
     salespersonName: enquiry.poc,
+    createdBy,
     category: "Other" as JewelleryCategory,
     metalType: "Gold",
     metalPurity: "Other",

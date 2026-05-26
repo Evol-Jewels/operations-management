@@ -7,6 +7,7 @@ import {
   createEvent,
   fetchEnquiries,
   fetchEnquiryDetails,
+  fetchEnquiryDetailsByRefCode,
   updateEnquiry,
   updateEstimation,
 } from "@/lib/enquiriesApi";
@@ -26,6 +27,8 @@ export const enquiryKeys = {
     [...enquiryKeys.lists(), query] as const,
   details: () => [...enquiryKeys.all, "detail"] as const,
   detail: (id: string) => [...enquiryKeys.details(), id] as const,
+  detailByRefCode: (refCode: number) =>
+    [...enquiryKeys.all, "detail", "ref", refCode] as const,
 };
 
 export function useEnquiries(query: ListEnquiriesQuery = {}) {
@@ -40,6 +43,14 @@ export function useEnquiryDetails(id: string) {
     queryKey: enquiryKeys.detail(id),
     queryFn: () => fetchEnquiryDetails(id),
     enabled: Boolean(id),
+  });
+}
+
+export function useEnquiryDetailsByRefCode(refCode: number) {
+  return useQuery({
+    queryKey: enquiryKeys.detailByRefCode(refCode),
+    queryFn: () => fetchEnquiryDetailsByRefCode(refCode),
+    enabled: Boolean(refCode),
   });
 }
 

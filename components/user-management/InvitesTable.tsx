@@ -54,51 +54,107 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Email</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Expiration</TableHead>
-          <TableHead>Accepted</TableHead>
-          <TableHead>Created</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      <div className="space-y-3 sm:hidden">
         {invites.map((invite) => (
-          <TableRow key={invite.id}>
-            <TableCell>
-              <div className="min-w-56">
+          <div
+            key={invite.id}
+            className="rounded-lg border border-border bg-card p-4"
+          >
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0">
                 <p className="truncate font-medium text-foreground">
                   {invite.email}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="mt-1 truncate text-xs text-muted-foreground">
                   User: {invite.userId}
                 </p>
               </div>
-            </TableCell>
-            <TableCell>{invite.role}</TableCell>
-            <TableCell>
               <Badge
                 variant="outline"
-                className={cn("border", statusStyles[invite.status])}
+                className={cn("shrink-0 border", statusStyles[invite.status])}
               >
                 {invite.status}
               </Badge>
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {formatDate(invite.expirationAt)}
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {formatDate(invite.acceptedAt)}
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {formatDate(invite.createdAt)}
-            </TableCell>
-          </TableRow>
+            </div>
+            <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
+              <div className="flex justify-between gap-3">
+                <span>Role</span>
+                <span className="font-medium text-foreground">
+                  {invite.role}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span>Expiration</span>
+                <span className="text-right font-medium text-foreground">
+                  {formatDate(invite.expirationAt)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span>Accepted</span>
+                <span className="text-right font-medium text-foreground">
+                  {formatDate(invite.acceptedAt)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span>Created</span>
+                <span className="text-right font-medium text-foreground">
+                  {formatDate(invite.createdAt)}
+                </span>
+              </div>
+            </div>
+          </div>
         ))}
-      </TableBody>
-    </Table>
+      </div>
+
+      <div className="hidden overflow-x-auto sm:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Email</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Expiration</TableHead>
+              <TableHead>Accepted</TableHead>
+              <TableHead>Created</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {invites.map((invite) => (
+              <TableRow key={invite.id}>
+                <TableCell>
+                  <div className="min-w-56">
+                    <p className="truncate font-medium text-foreground">
+                      {invite.email}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      User: {invite.userId}
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell>{invite.role}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant="outline"
+                    className={cn("border", statusStyles[invite.status])}
+                  >
+                    {invite.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(invite.expirationAt)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(invite.acceptedAt)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(invite.createdAt)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }

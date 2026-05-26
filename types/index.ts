@@ -145,10 +145,16 @@ export type ActivityEntryType =
   | "enquiry_closed"
   | "estimation_added";
 
+export interface PersonSummary {
+  id: string;
+  name: string;
+  image?: string | null;
+}
+
 export interface ActivityEntry {
   id: string;
   orderId: string;
-  postedBy: string;
+  postedBy: PersonSummary | string;
   actorRole?: ActorRole; // who posted — sales, vendor, owner, customer
   timestamp: string; // ISO 8601
   type: ActivityEntryType;
@@ -307,6 +313,7 @@ export interface Order {
   id: string;
   type: RecordType;
   orderNumber?: string;
+  refCode?: number;
   shareableToken: string;
 
   // Customer
@@ -321,6 +328,7 @@ export interface Order {
 
   // Staff
   salespersonName: string;
+  createdBy?: PersonSummary;
   vendorName?: string;
 
   // Financial

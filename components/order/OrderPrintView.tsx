@@ -7,6 +7,7 @@
  * no dark-mode classes, no animations, no interactive elements.
  */
 
+import { getFirstName, getInitials } from "@/lib/people";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import {
   ACTOR_ROLE_LABELS,
@@ -17,14 +18,6 @@ import {
 } from "@/types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
-}
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
 
@@ -247,7 +240,7 @@ function PrintHeader({ order }: { order: Order }) {
                 fontWeight: 700,
               }}
             >
-              {initials(name)}
+              {getInitials(name)}
             </div>
             <span style={{ fontSize: "8pt", color: "#6b7280" }}>{label}:</span>
             <span
@@ -593,7 +586,7 @@ function PrintActivityEntry({
               fontWeight: 700,
             }}
           >
-            {initials(entry.postedBy)}
+            {getInitials(entry.postedBy)}
           </div>
         )}
       </div>
@@ -611,7 +604,7 @@ function PrintActivityEntry({
           }}
         >
           <span style={{ fontSize: "10pt", fontWeight: 600, color: "#111827" }}>
-            {entry.postedBy}
+            {getFirstName(entry.postedBy)}
           </span>
           {entry.actorRole && (
             <span

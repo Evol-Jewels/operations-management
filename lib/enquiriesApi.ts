@@ -74,6 +74,12 @@ export function fetchEnquiryDetails(id: string) {
   return apiFetch<BackendEnquiryDetails>(buildUrl(`api/v1/enquiries/${id}`));
 }
 
+export function fetchEnquiryDetailsByRefCode(refCode: number) {
+  return apiFetch<BackendEnquiryDetails>(
+    buildUrl(`api/v1/enquiries/ref/${refCode}`),
+  );
+}
+
 export function createEnquiry(input: CreateEnquiryInput) {
   return apiFetch<BackendEnquiryDetails>(buildUrl("api/v1/enquiries"), {
     method: "POST",

@@ -1,9 +1,10 @@
 "use client";
 
-import { LayoutGrid, List, Search } from "lucide-react";
+import { Filter, LayoutGrid, List, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   Table,
   TableBody,
   TableCell,
@@ -24,11 +31,13 @@ import {
 } from "@/components/ui/table";
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
+import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { useOrdersStore } from "@/lib/stores/orders-store";
 import { cn, formatDate } from "@/lib/utils";
 import {
   type EnquiryItemStatus,
   type Order,
+  type PersonSummary,
   type RecordType,
   STAGES,
 } from "@/types";
@@ -117,7 +126,7 @@ function FilterSelect({
         {label}
       </span>
       <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-        <SelectTrigger className="h-9 min-w-36 bg-background disabled:cursor-not-allowed disabled:opacity-60">
+        <SelectTrigger className="h-10 w-full bg-background disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-36">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>{children}</SelectContent>
@@ -134,6 +143,27 @@ function OrdersNotAvailable() {
       </p>
       <p className="mt-1 text-sm text-muted-foreground">Coming soon!</p>
     </div>
+  );
+}
+
+function PersonAvatar({
+  person,
+  className,
+}: {
+  person?: PersonSummary | string;
+  className?: string;
+}) {
+  const normalized = normalizePerson(person);
+
+  return (
+    <Avatar className={cn("size-7 shrink-0", className)}>
+      {normalized.image ? (
+        <AvatarImage src={normalized.image} alt={normalized.name} />
+      ) : null}
+      <AvatarFallback className="text-xs font-medium">
+        {getInitials(normalized)}
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
@@ -177,7 +207,7 @@ function RecordsTable({
               const status = getRecordStatus(record);
               const href =
                 record.type === "enquiry"
-                  ? `/enquiries/${record.shareableToken}`
+                  ? `/enquiries/${record.refCode}`
                   : `/orders/${record.shareableToken}`;
 
               return (
@@ -192,7 +222,9 @@ function RecordsTable({
                         {record.customerName}
                       </Link>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {record.orderNumber ?? record.shareableToken}
+                        {record.type === "enquiry"
+                          ? `#${record.refCode}`
+                          : (record.orderNumber ?? record.shareableToken)}
                       </p>
                     </div>
                   </TableCell>
@@ -223,7 +255,16 @@ function RecordsTable({
                     {formatDate(record.createdAt)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {record.salespersonName}
+                    <div className="flex items-center gap-2">
+                      <PersonAvatar
+                        person={record.createdBy ?? record.salespersonName}
+                      />
+                      <span className="truncate text-foreground">
+                        {getFirstName(
+                          record.createdBy ?? record.salespersonName,
+                        )}
+                      </span>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -231,6 +272,99 @@ function RecordsTable({
           </TableBody>
         </Table>
       </div>
+    </div>
+  );
+}
+
+function RecordsMobileList({
+  records,
+  onRowClick,
+  showTypeColumn,
+}: {
+  records: Order[];
+  onRowClick: (record: Order) => void;
+  showTypeColumn: boolean;
+}) {
+  if (records.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-border py-10 text-center">
+        <p className="text-sm font-medium text-muted-foreground">
+          No records match these filters
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground/70">
+          Clear filters or switch tabs to see more records.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {records.map((record) => {
+        const status = getRecordStatus(record);
+
+        return (
+          <button
+            key={record.id}
+            type="button"
+            onClick={() => onRowClick(record)}
+            className="w-full rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-foreground">
+                  {record.customerName}
+                </p>
+                <p className="mt-1 truncate text-xs text-muted-foreground">
+                  {record.type === "enquiry"
+                    ? `#${record.refCode}`
+                    : (record.orderNumber ?? record.shareableToken)}
+                </p>
+              </div>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "shrink-0 whitespace-nowrap",
+                  statusBadgeClass(status),
+                )}
+              >
+                {status.toLowerCase()}
+              </Badge>
+            </div>
+            <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
+              <div className="flex items-center justify-between gap-3">
+                <span>Created</span>
+                <span className="font-medium text-foreground">
+                  {formatDate(record.createdAt)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Created by</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <PersonAvatar
+                    person={record.createdBy ?? record.salespersonName}
+                    className="size-6"
+                  />
+                  <span className="min-w-0 truncate font-medium text-foreground">
+                    {getFirstName(record.createdBy ?? record.salespersonName)}
+                  </span>
+                </div>
+              </div>
+              {showTypeColumn ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span>Type</span>
+                  <Badge
+                    variant={record.type === "order" ? "default" : "outline"}
+                    className="capitalize"
+                  >
+                    {record.type}
+                  </Badge>
+                </div>
+              ) : null}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -244,6 +378,7 @@ export function OrdersEnquiriesWorkspace() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const isKanbanMode = viewMode === "kanban";
 
   const apiEnquiries = useMemo(
@@ -289,6 +424,7 @@ export function OrdersEnquiriesWorkspace() {
           record.customerName,
           record.orderNumber ?? "",
           record.shareableToken,
+          record.createdBy?.name ?? "",
           record.salespersonName,
           record.vendorName ?? "",
           record.customerPhone ?? "",
@@ -327,26 +463,64 @@ export function OrdersEnquiriesWorkspace() {
       : typeTab === "order"
         ? "Orders"
         : "Enquiries";
+  const activeFilterCount =
+    (search.trim() ? 1 : 0) +
+    (statusFilter !== "all" ? 1 : 0) +
+    (dateFilter !== "all" ? 1 : 0);
+  const clearSecondaryFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setDateFilter("all");
+  };
+  const recordCountLabel = (
+    <>
+      <span className="sm:hidden">
+        <strong className="font-medium text-foreground">
+          {shownRecordCount}
+        </strong>{" "}
+        of{" "}
+        <strong className="font-medium text-foreground">
+          {totalRecordCount}
+        </strong>
+      </span>
+      <span className="hidden sm:inline">
+        Showing{" "}
+        <strong className="font-medium text-foreground">
+          {shownRecordCount}
+        </strong>{" "}
+        of{" "}
+        <strong className="font-medium text-foreground">
+          {totalRecordCount}
+        </strong>{" "}
+        records
+      </span>
+    </>
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col items-center gap-4 text-center lg:flex-row lg:justify-between lg:text-start">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Orders and enquiries
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-2 text-left sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              Orders and enquiries
+            </h1>
+            <Button asChild size="sm" className="shrink-0 sm:hidden">
+              <Link href="/enquiries/new">+ New enquiry</Link>
+            </Button>
+          </div>
+          <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
             Filter, review, and move production records without crowding the
             dashboard.
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="hidden sm:inline-flex">
           <Link href="/enquiries/new">+ New enquiry</Link>
         </Button>
       </div>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pr-8 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
           {[
             { key: "all" as const, label: "All", count: tabCounts.all },
             { key: "order" as const, label: "Orders", count: tabCounts.order },
@@ -361,7 +535,7 @@ export function OrdersEnquiriesWorkspace() {
               type="button"
               onClick={() => setTypeTab(tab.key)}
               className={cn(
-                "flex min-h-9 cursor-pointer items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors",
+                "flex min-h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors",
                 typeTab === tab.key
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -382,12 +556,12 @@ export function OrdersEnquiriesWorkspace() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
+        <div className="hidden w-full items-center gap-1 rounded-lg border border-border bg-background p-1 lg:flex lg:w-auto">
           <button
             type="button"
             onClick={() => setViewMode("table")}
             className={cn(
-              "flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
+              "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors sm:flex-none",
               viewMode === "table"
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:text-foreground",
@@ -400,7 +574,7 @@ export function OrdersEnquiriesWorkspace() {
             type="button"
             onClick={() => setViewMode("kanban")}
             className={cn(
-              "flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
+              "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors sm:flex-none",
               viewMode === "kanban"
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:text-foreground",
@@ -410,26 +584,137 @@ export function OrdersEnquiriesWorkspace() {
             Kanban
           </button>
         </div>
+
+        <div className="lg:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsMobileFiltersOpen(true)}
+            className="w-full justify-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 ? (
+              <Badge variant="secondary" className="ml-0.5 px-1.5">
+                {activeFilterCount}
+              </Badge>
+            ) : null}
+          </Button>
+        </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-medium text-foreground">
           {sectionHeading}
         </h2>
-        <p className="text-sm text-muted-foreground">
-          Showing{" "}
-          <strong className="font-medium text-foreground">
-            {shownRecordCount}
-          </strong>{" "}
-          of{" "}
-          <strong className="font-medium text-foreground">
-            {totalRecordCount}
-          </strong>{" "}
-          records
+        <p className="shrink-0 text-sm text-muted-foreground">
+          {recordCountLabel}
         </p>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end">
+      <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
+        <SheetContent
+          side="bottom"
+          className="rounded-t-xl p-0 lg:hidden w-full sm:left-1/2 sm:-translate-x-1/2 sm:w-1/2"
+        >
+          <SheetHeader className="border-b border-border px-4 py-4 text-left">
+            <SheetTitle>Filters</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 px-4 py-4">
+            <div className="grid gap-1.5">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                Search
+              </span>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search customer or ID"
+                  className="pl-9"
+                  disabled={isFilterDisabled}
+                />
+              </div>
+            </div>
+            <div className="grid gap-1.5">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                View
+              </span>
+              <div className="flex w-full items-center gap-1 rounded-lg border border-border bg-background p-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("table")}
+                  className={cn(
+                    "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
+                    viewMode === "table"
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <List className="h-4 w-4" />
+                  Table
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("kanban")}
+                  className={cn(
+                    "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
+                    viewMode === "kanban"
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  Kanban
+                </button>
+              </div>
+            </div>
+            <FilterSelect
+              label="Status"
+              value={statusFilter}
+              onValueChange={setStatusFilter}
+              disabled={isFilterDisabled}
+            >
+              {(typeTab === "enquiry"
+                ? ENQUIRY_STATUS_OPTIONS
+                : ORDER_STATUS_OPTIONS
+              ).map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status === "all" ? "All statuses" : status.toLowerCase()}
+                </SelectItem>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              label="Creation Date"
+              value={dateFilter}
+              onValueChange={(value) => setDateFilter(value as DateFilter)}
+              disabled={isFilterDisabled}
+            >
+              <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="90d">Last 90 days</SelectItem>
+            </FilterSelect>
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={clearSecondaryFilters}
+              >
+                Clear
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setIsMobileFiltersOpen(false)}
+              >
+                Apply
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <div className="hidden gap-3 lg:grid lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end">
         <div className="grid gap-1.5">
           <span className="text-[11px] font-medium text-muted-foreground">
             Search
@@ -439,7 +724,7 @@ export function OrdersEnquiriesWorkspace() {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Customer, order ID, salesperson"
+              placeholder="Search customer or ID"
               className="pl-9"
               disabled={isFilterDisabled}
             />
@@ -495,17 +780,34 @@ export function OrdersEnquiriesWorkspace() {
       {typeTab === "order" ? (
         <OrdersNotAvailable />
       ) : viewMode === "table" ? (
-        <RecordsTable
-          records={filteredRecords}
-          showTypeColumn={typeTab !== "enquiry"}
-          onRowClick={(record) =>
-            router.push(
-              record.type === "enquiry"
-                ? `/enquiries/${record.shareableToken}`
-                : `/orders/${record.shareableToken}`,
-            )
-          }
-        />
+        <>
+          <div className="sm:hidden">
+            <RecordsMobileList
+              records={filteredRecords}
+              showTypeColumn={typeTab !== "enquiry"}
+              onRowClick={(record) =>
+                router.push(
+                  record.type === "enquiry"
+                    ? `/enquiries/${record.refCode}`
+                    : `/orders/${record.shareableToken}`,
+                )
+              }
+            />
+          </div>
+          <div className="hidden sm:block">
+            <RecordsTable
+              records={filteredRecords}
+              showTypeColumn={typeTab !== "enquiry"}
+              onRowClick={(record) =>
+                router.push(
+                  record.type === "enquiry"
+                    ? `/enquiries/${record.refCode}`
+                    : `/orders/${record.shareableToken}`,
+                )
+              }
+            />
+          </div>
+        </>
       ) : (
         <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <KanbanBoard
@@ -516,7 +818,7 @@ export function OrdersEnquiriesWorkspace() {
             onCardClick={(order) =>
               router.push(
                 order.type === "enquiry"
-                  ? `/enquiries/${order.shareableToken}`
+                  ? `/enquiries/${order.refCode}`
                   : `/orders/${order.shareableToken}`,
               )
             }

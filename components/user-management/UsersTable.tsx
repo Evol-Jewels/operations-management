@@ -62,88 +62,171 @@ export function UsersTable({
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>User</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Team</TableHead>
-          <TableHead>Verification</TableHead>
-          <TableHead>Created</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      <div className="space-y-3 sm:hidden">
         {users.map((user) => (
-          <TableRow
+          <button
             key={user.id}
-            className="cursor-pointer"
+            type="button"
             onClick={() => onFilterInvitesByUser(user)}
+            className="w-full rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
-            <TableCell>
-              <div className="flex min-w-64 items-center gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
-                  {initials(user.name, user.email)}
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
+                {initials(user.name, user.email)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">
+                      {user.name || "Unnamed user"}
+                    </p>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={cn("shrink-0 border", statusStyles[user.status])}
+                  >
+                    {user.status}
+                  </Badge>
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">
-                    {user.name || "Unnamed user"}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {user.email}
-                  </p>
+                <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
+                  <div className="flex justify-between gap-3">
+                    <span>Role</span>
+                    <span className="font-medium text-foreground">
+                      {user.profile?.role ?? "No role"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span>Department</span>
+                    <span className="min-w-0 truncate font-medium text-foreground">
+                      {user.profile?.department ?? "No department"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span>Created</span>
+                    <span className="font-medium text-foreground">
+                      {formatDate(user.createdAt)}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Badge
+                    variant="outline"
+                    className={
+                      user.emailVerifiedAt
+                        ? "border-primary/20 bg-muted text-foreground"
+                        : "border-border text-muted-foreground"
+                    }
+                  >
+                    <Mail className="size-3" />
+                    Email
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={
+                      user.phoneVerifiedAt
+                        ? "border-primary/20 bg-muted text-foreground"
+                        : "border-border text-muted-foreground"
+                    }
+                  >
+                    <Phone className="size-3" />
+                    Phone
+                  </Badge>
                 </div>
               </div>
-            </TableCell>
-            <TableCell>
-              <Badge
-                variant="outline"
-                className={cn("border", statusStyles[user.status])}
-              >
-                {user.status}
-              </Badge>
-            </TableCell>
-            <TableCell>
-              <div className="space-y-1">
-                <p className="text-sm text-foreground">
-                  {user.profile?.role ?? "No role"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {user.profile?.department ?? "No department"}
-                </p>
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="flex flex-wrap gap-2">
-                <Badge
-                  variant="outline"
-                  className={
-                    user.emailVerifiedAt
-                      ? "border-blue-200 bg-blue-50 text-blue-700"
-                      : "border-border text-muted-foreground"
-                  }
-                >
-                  <Mail className="size-3" />
-                  Email
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={
-                    user.phoneVerifiedAt
-                      ? "border-blue-200 bg-blue-50 text-blue-700"
-                      : "border-border text-muted-foreground"
-                  }
-                >
-                  <Phone className="size-3" />
-                  Phone
-                </Badge>
-              </div>
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {formatDate(user.createdAt)}
-            </TableCell>
-          </TableRow>
+            </div>
+          </button>
         ))}
-      </TableBody>
-    </Table>
+      </div>
+
+      <div className="hidden overflow-x-auto sm:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Team</TableHead>
+              <TableHead>Verification</TableHead>
+              <TableHead>Created</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((user) => (
+              <TableRow
+                key={user.id}
+                className="cursor-pointer"
+                onClick={() => onFilterInvitesByUser(user)}
+              >
+                <TableCell>
+                  <div className="flex min-w-64 items-center gap-3">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
+                      {initials(user.name, user.email)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-foreground">
+                        {user.name || "Unnamed user"}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant="outline"
+                    className={cn("border", statusStyles[user.status])}
+                  >
+                    {user.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    <p className="text-sm text-foreground">
+                      {user.profile?.role ?? "No role"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {user.profile?.department ?? "No department"}
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge
+                      variant="outline"
+                      className={
+                        user.emailVerifiedAt
+                          ? "border-primary/20 bg-muted text-foreground"
+                          : "border-border text-muted-foreground"
+                      }
+                    >
+                      <Mail className="size-3" />
+                      Email
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={
+                        user.phoneVerifiedAt
+                          ? "border-primary/20 bg-muted text-foreground"
+                          : "border-border text-muted-foreground"
+                      }
+                    >
+                      <Phone className="size-3" />
+                      Phone
+                    </Badge>
+                  </div>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatDate(user.createdAt)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }

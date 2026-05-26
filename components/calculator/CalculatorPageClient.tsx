@@ -155,12 +155,12 @@ function TabsSwitcher({
   onTabChange: (tab: CalculatorTab) => void;
 }) {
   return (
-    <div className="grid h-11 grid-cols-2 rounded-xl bg-muted p-1">
+    <div className="grid h-11 w-full grid-cols-2 rounded-xl bg-muted p-1">
       <button
         type="button"
         onClick={() => onTabChange("search")}
         className={cn(
-          "flex items-center justify-center gap-2 rounded-lg text-sm transition-all",
+          "flex min-h-10 items-center justify-center gap-2 rounded-lg text-sm transition-all",
           activeTab === "search"
             ? "bg-background text-foreground shadow-sm"
             : "text-muted-foreground hover:text-foreground",
@@ -173,7 +173,7 @@ function TabsSwitcher({
         type="button"
         onClick={() => onTabChange("calculate")}
         className={cn(
-          "flex items-center justify-center gap-2 rounded-lg text-sm transition-all",
+          "flex min-h-10 items-center justify-center gap-2 rounded-lg text-sm transition-all",
           activeTab === "calculate"
             ? "bg-background text-foreground shadow-sm"
             : "text-muted-foreground hover:text-foreground",
@@ -207,7 +207,7 @@ function PurityCards({
   }, [settings.goldRate24k, settings.purityPercentages]);
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {purityCards.map((card) => {
         const selected = value === card.purity;
 
@@ -515,7 +515,7 @@ function RecentEstimatesList({
   }, [refreshKey, manualRefreshKey]);
 
   return (
-    <section className="rounded-2xl p-4 md:pt-8 shadow-md">
+    <section className="rounded-2xl border border-border bg-card p-4 shadow-md">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold">Recent Estimates</h2>
@@ -1086,10 +1086,10 @@ function CalculatorForm({
   onOpenSettings: () => void;
 }) {
   return (
-    <div className="bg-card border border-border rounded-xl shadow-md p-4 min-w-0 space-y-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="min-w-0 space-y-6 rounded-xl border border-border bg-card p-4 shadow-md sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-base font-semibold">Calculator</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
           <Button
             type="button"
             variant="ghost"
@@ -1356,7 +1356,7 @@ export function CalculatorPageClient() {
   return (
     <RequireInternalAuth>
       <div className="mx-auto w-full">
-        <div className="rounded-3xl p-4">
+        <div className="p-0 sm:rounded-2xl sm:p-4">
           <TabsSwitcher activeTab={activeTab} onTabChange={setActiveTab} />
 
           {activeTab === "search" ? (
@@ -1365,7 +1365,7 @@ export function CalculatorPageClient() {
               onLoadProduct={loadCatalogueProduct}
             />
           ) : (
-            <div className="grid gap-4 pt-7 lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[380px_475px] xl:justify-center">
+            <div className="grid gap-4 pt-7 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,475px)] xl:justify-center">
               <CalculatorForm
                 settings={settings}
                 form={form}
@@ -1393,13 +1393,13 @@ export function CalculatorPageClient() {
       <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
         <SheetContent
           side="right"
-          className="w-full sm:max-w-xl overflow-y-auto p-0"
+          className="h-dvh w-full overflow-y-auto p-0 sm:h-full sm:max-w-xl"
         >
-          <SheetHeader className="px-5 pt-5 pb-4 border-b border-border sticky top-0 bg-background z-10">
+          <SheetHeader className="sticky top-0 z-10 border-b border-border bg-background px-4 py-4 sm:px-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 bg-foreground rounded-md flex items-center justify-center shrink-0">
-                  <Settings2 className="w-3 h-3 text-background" />
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-foreground">
+                  <Settings2 className="h-3 w-3 text-background" />
                 </div>
                 <SheetTitle className="text-base font-semibold text-foreground">
                   Settings
@@ -1409,17 +1409,17 @@ export function CalculatorPageClient() {
                 type="button"
                 onClick={() => setSettingsOpen(false)}
                 aria-label="Close settings"
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
               >
-                <X className="w-4 h-4" />
+                <X className="h-4 w-4" />
               </button>
             </div>
-            <SheetDescription className="text-xs text-muted-foreground mt-1">
+            <SheetDescription className="mt-1 max-w-sm text-left text-xs text-muted-foreground">
               Adjust gold rates, making charges, tax, and stone pricing
             </SheetDescription>
           </SheetHeader>
 
-          <div className="px-5 py-5">
+          <div className="px-4 py-4 sm:px-5">
             <SettingsView
               settings={settings}
               onChange={setSettings}

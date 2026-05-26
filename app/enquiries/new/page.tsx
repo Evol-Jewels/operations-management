@@ -306,7 +306,7 @@ function EnquiryForm() {
       });
 
       setSubmitted(true);
-      setTimeout(() => router.push(`/enquiries/${created.enquiry.id}`), 1200);
+      setTimeout(() => router.push(`/enquiries/${created.enquiry.refCode}`), 1200);
     } catch (error) {
       setSubmitError(
         error instanceof Error
