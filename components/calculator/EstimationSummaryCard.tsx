@@ -67,7 +67,7 @@ export function EstimationSummaryCard({
   return (
     <section
       className={cn(
-        "min-w-0 bg-card border border-border rounded-xl shadow-md p-4",
+        "min-w-0 rounded-xl border border-border bg-card p-3 shadow-md sm:p-4",
         className,
       )}
     >
@@ -106,7 +106,7 @@ export function EstimationSummaryCard({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr]">
-          <div className="relative flex min-h-72 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0">
+          <div className="relative flex min-h-56 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0">
             {form.productImageUrl ? (
               <Image
                 src={form.productImageUrl}
@@ -244,7 +244,7 @@ export function EstimationSummaryCard({
 
         <div className="flex items-center justify-between gap-4 bg-foreground px-4 py-4 text-background">
           <span className="text-sm font-medium">Total</span>
-          <span className="text-3xl font-semibold tabular">
+          <span className="text-2xl font-semibold tabular sm:text-3xl">
             {formatCurrency(displayTotal)}
           </span>
         </div>

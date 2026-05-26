@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -184,10 +183,11 @@ export function UserManagementPageClient() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
           <Button
             type="button"
             variant="outline"
+            className="w-full sm:w-auto"
             onClick={() => {
               loadUsers();
               loadInvites();
@@ -216,61 +216,63 @@ export function UserManagementPageClient() {
       </div>
 
       <Card className="rounded-lg">
-        <CardHeader className="gap-4">
-          <div>
-            <CardTitle>Internal users</CardTitle>
-            <CardDescription>
-              Filter by account status, operational role, or department.
-            </CardDescription>
+        <CardHeader className="gap-4 px-4 sm:px-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <CardTitle>Internal users</CardTitle>
+              <CardDescription>
+                Filter by account status, operational role, or department.
+              </CardDescription>
+            </div>
+            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 md:w-auto">
+              <Select
+                value={userStatus}
+                onValueChange={(value) =>
+                  setUserStatus(value as FilterValue<InternalUserStatus>)
+                }
+              >
+                <SelectTrigger className="w-full md:w-36">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  {INTERNAL_USER_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={userRole}
+                onValueChange={(value) =>
+                  setUserRole(value as FilterValue<InternalProfileRole>)
+                }
+              >
+                <SelectTrigger className="w-full md:w-36">
+                  <SelectValue placeholder="Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All roles</SelectItem>
+                  {INTERNAL_PROFILE_ROLES.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Input
+                className="w-full md:w-44"
+                value={department}
+                onChange={(event) => setDepartment(event.target.value)}
+                placeholder="Department"
+              />
+            </div>
           </div>
-          <CardAction className="static col-auto row-auto flex flex-wrap justify-start gap-2 justify-self-start md:justify-self-end">
-            <Select
-              value={userStatus}
-              onValueChange={(value) =>
-                setUserStatus(value as FilterValue<InternalUserStatus>)
-              }
-            >
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All statuses</SelectItem>
-                {INTERNAL_USER_STATUSES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={userRole}
-              onValueChange={(value) =>
-                setUserRole(value as FilterValue<InternalProfileRole>)
-              }
-            >
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="Role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All roles</SelectItem>
-                {INTERNAL_PROFILE_ROLES.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Input
-              className="w-full sm:w-44"
-              value={department}
-              onChange={(event) => setDepartment(event.target.value)}
-              placeholder="Department"
-            />
-          </CardAction>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-4 sm:px-6">
           {usersError ? (
             <ErrorBanner message={usersError} onRetry={loadUsers} />
           ) : (
@@ -287,55 +289,57 @@ export function UserManagementPageClient() {
       </Card>
 
       <Card className="rounded-lg">
-        <CardHeader className="gap-4">
-          <div>
-            <CardTitle>Invites</CardTitle>
-            <CardDescription>
-              Track pending, accepted, expired, and cancelled invitations.
-            </CardDescription>
-          </div>
-          <CardAction className="static col-auto row-auto flex flex-wrap justify-start gap-2 justify-self-start md:justify-self-end">
-            {inviteUserId && (
-              <Badge
-                variant="outline"
-                className="h-9 gap-2 rounded-md border-border px-3"
-              >
-                {inviteUserLabel}
-                <button
-                  type="button"
-                  className="cursor-pointer rounded-sm text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    setInviteUserId("");
-                    setInviteUserLabel("");
-                  }}
-                  aria-label="Clear selected user invite filter"
+        <CardHeader className="gap-4 px-4 sm:px-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <CardTitle>Invites</CardTitle>
+              <CardDescription>
+                Track pending, accepted, expired, and cancelled invitations.
+              </CardDescription>
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+              {inviteUserId && (
+                <Badge
+                  variant="outline"
+                  className="h-9 max-w-full gap-2 rounded-md border-border px-3"
                 >
-                  <X className="size-3" />
-                </button>
-              </Badge>
-            )}
+                  <span className="min-w-0 truncate">{inviteUserLabel}</span>
+                  <button
+                    type="button"
+                    className="cursor-pointer rounded-sm text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      setInviteUserId("");
+                      setInviteUserLabel("");
+                    }}
+                    aria-label="Clear selected user invite filter"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </Badge>
+              )}
 
-            <Select
-              value={inviteStatus}
-              onValueChange={(value) =>
-                setInviteStatus(value as FilterValue<InternalInviteStatus>)
-              }
-            >
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Invite status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All invites</SelectItem>
-                {INTERNAL_INVITE_STATUSES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardAction>
+              <Select
+                value={inviteStatus}
+                onValueChange={(value) =>
+                  setInviteStatus(value as FilterValue<InternalInviteStatus>)
+                }
+              >
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Invite status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All invites</SelectItem>
+                  {INTERNAL_INVITE_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-4 sm:px-6">
           {invitesError ? (
             <ErrorBanner message={invitesError} onRetry={loadInvites} />
           ) : (

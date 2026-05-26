@@ -70,6 +70,12 @@ function formatCurrency(n: number) {
 }
 
 const GOLD_PURITIES: MetalPurity[] = ["24K", "22K", "18K", "14K"];
+const sectionTriggerClass =
+  "-mx-2 flex min-h-12 w-full items-center justify-between gap-3 rounded px-2 py-2 text-left transition-colors hover:bg-muted/50";
+const sectionTitleClass =
+  "text-xs font-medium uppercase tracking-wide text-foreground";
+const compactInputClass =
+  "border-0 border-b border-border bg-transparent px-0 text-foreground focus:border-foreground focus:ring-0";
 
 export function SettingsView({
   settings,
@@ -232,18 +238,18 @@ export function SettingsView({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 pb-20 sm:pb-4">
       {/* Sync Banner */}
-      <div className="flex items-center justify-between px-3 py-2.5 rounded-lg border border-border bg-muted/40">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+        <div className="flex min-w-0 items-center gap-2">
           {syncError ? (
-            <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+            <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
           ) : lastSynced ? (
-            <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
           ) : (
-            <RefreshCw className="w-4 h-4 text-muted-foreground shrink-0" />
+            <RefreshCw className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
-          <span className="text-xs text-muted-foreground truncate">
+          <span className="truncate text-xs text-muted-foreground">
             {syncError ? syncError : lastSyncedLabel}
           </span>
         </div>
@@ -252,42 +258,40 @@ export function SettingsView({
           size="sm"
           onClick={handleSync}
           disabled={isSyncing}
-          className="ml-3 h-7 text-xs shrink-0 gap-1.5 border-border"
+          className="h-9 shrink-0 gap-1.5 border-border text-xs"
         >
-          <RefreshCw className={`w-3 h-3 ${isSyncing ? "animate-spin" : ""}`} />
-          {isSyncing ? "Syncing…" : "Sync"}
+          <RefreshCw className={`h-3 w-3 ${isSyncing ? "animate-spin" : ""}`} />
+          {isSyncing ? "Syncing..." : "Sync"}
         </Button>
       </div>
 
       {/* Gold Rates */}
-      <Card className="border border-border">
-        <CardContent className="p-4">
+      <Card className="rounded-lg border border-border">
+        <CardContent className="p-3 sm:p-4">
           <Collapsible open={goldExpanded} onOpenChange={setGoldExpanded}>
             <CollapsibleTrigger asChild>
-              <button className="w-full flex items-center justify-between py-1 hover:bg-muted rounded px-2 -mx-2 transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium text-foreground uppercase tracking-wide">
-                    Gold Rates
+              <button type="button" className={sectionTriggerClass}>
+                <span className={sectionTitleClass}>Gold Rates</span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    Base: 24K
                   </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-foreground">Base: 24K</span>
                   {goldExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-foreground" />
+                    <ChevronUp className="size-4 shrink-0 text-foreground" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-foreground" />
+                    <ChevronDown className="size-4 shrink-0 text-foreground" />
                   )}
                 </div>
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="pt-4 space-y-3">
-                <div className="p-3 bg-muted rounded-md">
-                  <label className="text-xs text-muted-foreground uppercase tracking-wide block mb-2">
+              <div className="space-y-3 pt-3">
+                <div className="rounded-md bg-muted p-3">
+                  <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
                     24K Gold Rate (Base)
-                  </label>
+                  </p>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">₹</span>
+                    <span className="text-sm text-muted-foreground">Rs.</span>
                     <Input
                       type="number"
                       inputMode="decimal"
@@ -296,7 +300,7 @@ export function SettingsView({
                       onChange={(e) =>
                         updateGoldRate24k(Number(e.target.value))
                       }
-                      className="w-32 h-9 text-sm border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground"
+                      className={`${compactInputClass} h-9 w-32 rounded-none text-sm`}
                     />
                     <span className="text-sm text-muted-foreground">/g</span>
                   </div>
@@ -309,9 +313,9 @@ export function SettingsView({
                   {calculatedGoldRates.map((gr) => (
                     <div
                       key={gr.purity}
-                      className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded-md gap-2"
+                      className="grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-md bg-muted/50 px-3 py-2"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex min-w-0 items-center gap-2">
                         <span className="text-xs font-mono text-muted-foreground shrink-0">
                           {gr.purity}
                         </span>
@@ -319,7 +323,7 @@ export function SettingsView({
                           {gr.label}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="col-span-2 flex shrink-0 items-center justify-end gap-2 sm:col-span-1">
                         <Input
                           type="number"
                           inputMode="decimal"
@@ -331,7 +335,7 @@ export function SettingsView({
                               Number(e.target.value),
                             )
                           }
-                          className="w-14 h-8 text-xs text-right border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground"
+                          className={`${compactInputClass} h-8 w-14 rounded-none text-right text-xs`}
                         />
                         <span className="text-xs text-muted-foreground shrink-0">
                           %
@@ -350,55 +354,53 @@ export function SettingsView({
       </Card>
 
       {/* Making Charges */}
-      <Card className="border border-border">
-        <CardContent className="p-4">
+      <Card className="rounded-lg border border-border">
+        <CardContent className="p-3 sm:p-4">
           <Collapsible open={makingExpanded} onOpenChange={setMakingExpanded}>
             <CollapsibleTrigger asChild>
-              <button className="w-full flex items-center justify-between py-1 hover:bg-muted rounded px-2 -mx-2 transition-colors">
-                <div className="flex flex-col items-start gap-0.5 min-w-0">
-                  <span className="text-xs font-medium text-foreground uppercase tracking-wide">
-                    Making Charges
-                  </span>
+              <button type="button" className={sectionTriggerClass}>
+                <div className="flex min-w-0 flex-col items-start gap-0.5">
+                  <span className={sectionTitleClass}>Making Charges</span>
                   <span className="text-[11px] font-mono text-muted-foreground truncate max-w-[200px] sm:max-w-none">
                     Flat {formatCurrency(settings.makingChargeFlat)} ·{" "}
                     {formatCurrency(settings.makingChargePerGram)}/g
                   </span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0 ml-2">
+                <div className="ml-2 flex shrink-0 items-center gap-2">
                   {makingExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-foreground" />
+                    <ChevronUp className="size-4 shrink-0 text-foreground" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-foreground" />
+                    <ChevronDown className="size-4 shrink-0 text-foreground" />
                   )}
                 </div>
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="pt-4 space-y-4">
-                <div className="p-3 bg-muted rounded-md">
-                  <label className="text-xs text-muted-foreground uppercase tracking-wide block mb-2">
+              <div className="grid gap-3 pt-3">
+                <div className="rounded-md bg-muted p-3">
+                  <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
                     Flat Fee (≤ 2g)
-                  </label>
+                  </p>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">₹</span>
+                    <span className="text-sm text-muted-foreground">Rs.</span>
                     <Input
                       type="number"
                       inputMode="decimal"
                       step="0.001"
                       value={settings.makingChargeFlat}
                       onChange={(e) => updateMakingFlat(Number(e.target.value))}
-                      className="w-32 h-9 text-sm border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground"
+                      className={`${compactInputClass} h-9 w-32 rounded-none text-sm`}
                     />
                     <span className="text-sm text-muted-foreground">flat</span>
                   </div>
                 </div>
 
-                <div className="p-3 bg-muted rounded-md">
-                  <label className="text-xs text-muted-foreground uppercase tracking-wide block mb-2">
+                <div className="rounded-md bg-muted p-3">
+                  <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
                     Per Gram (&gt; 2g)
-                  </label>
+                  </p>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">₹</span>
+                    <span className="text-sm text-muted-foreground">Rs.</span>
                     <Input
                       type="number"
                       inputMode="decimal"
@@ -407,7 +409,7 @@ export function SettingsView({
                       onChange={(e) =>
                         updateMakingPerGram(Number(e.target.value))
                       }
-                      className="w-32 h-9 text-sm border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground"
+                      className={`${compactInputClass} h-9 w-32 rounded-none text-sm`}
                     />
                     <span className="text-sm text-muted-foreground">/g</span>
                   </div>
@@ -419,34 +421,30 @@ export function SettingsView({
       </Card>
 
       {/* GST / Tax */}
-      <Card className="border border-border">
-        <CardContent className="p-4">
+      <Card className="rounded-lg border border-border">
+        <CardContent className="p-3 sm:p-4">
           <Collapsible open={taxExpanded} onOpenChange={setTaxExpanded}>
             <CollapsibleTrigger asChild>
-              <button className="w-full flex items-center justify-between py-1 hover:bg-muted rounded px-2 -mx-2 transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium text-foreground uppercase tracking-wide">
-                    Tax (GST)
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
+              <button type="button" className={sectionTriggerClass}>
+                <span className={sectionTitleClass}>Tax (GST)</span>
+                <div className="flex shrink-0 items-center gap-2">
                   <span className="text-sm font-mono text-foreground">
                     {settings.gstRate * 100}%
                   </span>
                   {taxExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-foreground" />
+                    <ChevronUp className="size-4 shrink-0 text-foreground" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-foreground" />
+                    <ChevronDown className="size-4 shrink-0 text-foreground" />
                   )}
                 </div>
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="pt-4">
-                <div className="p-3 bg-muted rounded-md">
-                  <label className="text-xs text-muted-foreground uppercase tracking-wide block mb-2">
+              <div className="pt-3">
+                <div className="rounded-md bg-muted p-3">
+                  <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
                     GST Percentage
-                  </label>
+                  </p>
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
@@ -454,9 +452,9 @@ export function SettingsView({
                       step="0.1"
                       value={settings.gstRate * 100}
                       onChange={(e) => updateGstRate(Number(e.target.value))}
-                      className="w-24 h-9 text-sm border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground"
+                      className={`${compactInputClass} h-9 w-24 rounded-none text-sm`}
                     />
-                    <Percent className="w-4 h-4 text-muted-foreground" />
+                    <Percent className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </div>
               </div>
@@ -466,17 +464,13 @@ export function SettingsView({
       </Card>
 
       {/* Stone Types */}
-      <Card className="border border-border">
-        <CardContent className="p-4">
+      <Card className="rounded-lg border border-border">
+        <CardContent className="p-3 sm:p-4">
           <Collapsible open={stonesExpanded} onOpenChange={setStonesExpanded}>
             <CollapsibleTrigger asChild>
-              <button className="w-full flex items-center justify-between py-1 hover:bg-muted rounded px-2 -mx-2 transition-colors">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium text-foreground uppercase tracking-wide">
-                    Stone Types
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
+              <button type="button" className={sectionTriggerClass}>
+                <span className={sectionTitleClass}>Stone Types</span>
+                <div className="flex shrink-0 items-center gap-3">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -484,24 +478,24 @@ export function SettingsView({
                       e.stopPropagation();
                       addStoneType();
                     }}
-                    className="h-7 text-xs gap-1 hover:bg-muted text-foreground"
+                    className="h-7 gap-1 text-xs text-foreground hover:bg-muted"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="h-3.5 w-3.5" />
                     Add
                   </Button>
-                  <span className="text-xs text-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {settings.stoneTypes.length}
                   </span>
                   {stonesExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-foreground" />
+                    <ChevronUp className="size-4 shrink-0 text-foreground" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-foreground" />
+                    <ChevronDown className="size-4 shrink-0 text-foreground" />
                   )}
                 </div>
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="pt-4">
+              <div className="pt-3">
                 {editingStone ? (
                   <motion.div
                     key="editing"
@@ -510,14 +504,15 @@ export function SettingsView({
                     className="space-y-4"
                   >
                     <button
+                      type="button"
                       onClick={() => setEditingStoneId(null)}
-                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeft className="h-4 w-4" />
                       Back to list
                     </button>
 
-                    <div className="flex items-center gap-3 pb-3 border-b border-border">
+                    <div className="flex items-center gap-3 border-b border-border pb-3">
                       <h3 className="text-base font-medium text-foreground">
                         {editingStone.name}
                       </h3>
@@ -526,11 +521,9 @@ export function SettingsView({
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-1.5">
-                        <label className="text-xs text-muted-foreground">
-                          Name
-                        </label>
+                        <p className="text-xs text-muted-foreground">Name</p>
                         <Input
                           value={editingStone.name}
                           onChange={(e) =>
@@ -538,13 +531,13 @@ export function SettingsView({
                               name: e.target.value,
                             })
                           }
-                          className="h-9 text-sm border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground"
+                          className={`${compactInputClass} h-9 rounded-none text-sm`}
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           Stone ID
-                        </label>
+                        </p>
                         <Input
                           value={editingStone.stoneId}
                           onChange={(e) =>
@@ -552,13 +545,11 @@ export function SettingsView({
                               stoneId: e.target.value,
                             })
                           }
-                          className="h-9 text-sm border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground"
+                          className={`${compactInputClass} h-9 rounded-none text-sm`}
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs text-muted-foreground">
-                          Clarity
-                        </label>
+                        <p className="text-xs text-muted-foreground">Clarity</p>
                         <Input
                           value={editingStone.clarity ?? ""}
                           onChange={(e) =>
@@ -566,13 +557,13 @@ export function SettingsView({
                               clarity: e.target.value,
                             })
                           }
-                          className="h-9 text-sm border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground"
+                          className={`${compactInputClass} h-9 rounded-none text-sm`}
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           Category
-                        </label>
+                        </p>
                         <Select
                           value={editingStone.category}
                           onValueChange={(v) =>
@@ -581,7 +572,9 @@ export function SettingsView({
                             })
                           }
                         >
-                          <SelectTrigger className="h-9 text-sm border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground">
+                          <SelectTrigger
+                            className={`${compactInputClass} h-9 rounded-none text-sm`}
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -610,15 +603,15 @@ export function SettingsView({
                           variant="ghost"
                           size="sm"
                           onClick={() => addSlab(editingStone.stoneId)}
-                          className="h-8 text-xs gap-1 hover:bg-muted text-foreground"
+                          className="h-8 gap-1 text-xs text-foreground hover:bg-muted"
                         >
-                          <Plus className="w-3 h-3" />
+                          <Plus className="h-3 w-3" />
                           Add Slab
                         </Button>
                       </div>
 
                       {editingStone.slabs.length === 0 ? (
-                        <div className="text-center py-6 bg-muted rounded-md">
+                        <div className="rounded-md bg-muted py-6 text-center">
                           <p className="text-sm text-muted-foreground">
                             No slabs configured
                           </p>
@@ -626,9 +619,9 @@ export function SettingsView({
                             variant="ghost"
                             size="sm"
                             onClick={() => addSlab(editingStone.stoneId)}
-                            className="mt-2 hover:bg-muted text-foreground"
+                            className="mt-2 text-foreground hover:bg-muted"
                           >
-                            <Plus className="w-3.5 h-3.5 mr-1" />
+                            <Plus className="mr-1 h-3.5 w-3.5" />
                             Add first slab
                           </Button>
                         </div>
@@ -636,10 +629,10 @@ export function SettingsView({
                         <div className="space-y-2">
                           {editingStone.slabs.map((sl, i) => (
                             <motion.div
-                              key={sl.code + i}
+                              key={`${editingStone.stoneId}-${sl.code}-${sl.fromWeight}-${sl.toWeight}-${sl.pricePerCarat}`}
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              className="p-3 bg-muted rounded-md space-y-3"
+                              className="space-y-3 rounded-md bg-muted p-3"
                             >
                               <div className="flex items-center justify-between">
                                 <span className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground/60">
@@ -651,16 +644,16 @@ export function SettingsView({
                                   onClick={() =>
                                     removeSlab(editingStone.stoneId, i)
                                   }
-                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-transparent"
+                                  className="h-7 w-7 p-0 text-muted-foreground hover:bg-transparent hover:text-destructive"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </div>
                               <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                                 <div className="space-y-1">
-                                  <label className="text-[10px] text-muted-foreground block">
+                                  <p className="text-[10px] text-muted-foreground">
                                     ID / Code
-                                  </label>
+                                  </p>
                                   <Input
                                     value={sl.code}
                                     onChange={(e) =>
@@ -668,13 +661,13 @@ export function SettingsView({
                                         code: e.target.value,
                                       })
                                     }
-                                    className="h-8 text-xs border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground"
+                                    className={`${compactInputClass} h-8 rounded-none text-xs`}
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[10px] text-muted-foreground block">
-                                    ₹/Carat
-                                  </label>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    Rs./Carat
+                                  </p>
                                   <Input
                                     type="number"
                                     inputMode="decimal"
@@ -685,13 +678,13 @@ export function SettingsView({
                                         pricePerCarat: Number(e.target.value),
                                       })
                                     }
-                                    className="h-8 text-xs border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground"
+                                    className={`${compactInputClass} h-8 rounded-none text-xs`}
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[10px] text-muted-foreground block">
+                                  <p className="text-[10px] text-muted-foreground">
                                     From (ct)
-                                  </label>
+                                  </p>
                                   <Input
                                     type="number"
                                     inputMode="decimal"
@@ -702,13 +695,13 @@ export function SettingsView({
                                         fromWeight: Number(e.target.value),
                                       })
                                     }
-                                    className="h-8 text-xs border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground"
+                                    className={`${compactInputClass} h-8 rounded-none text-xs`}
                                   />
                                 </div>
                                 <div className="space-y-1">
-                                  <label className="text-[10px] text-muted-foreground block">
+                                  <p className="text-[10px] text-muted-foreground">
                                     To (ct)
-                                  </label>
+                                  </p>
                                   <Input
                                     type="number"
                                     inputMode="decimal"
@@ -719,7 +712,7 @@ export function SettingsView({
                                         toWeight: Number(e.target.value),
                                       })
                                     }
-                                    className="h-8 text-xs border-0 border-b border-border rounded-none bg-transparent px-0 focus:ring-0 focus:border-foreground"
+                                    className={`${compactInputClass} h-8 rounded-none text-xs`}
                                   />
                                 </div>
                               </div>
@@ -732,8 +725,8 @@ export function SettingsView({
                 ) : (
                   <motion.div key="list" className="space-y-2 pt-2">
                     {settings.stoneTypes.length === 0 ? (
-                      <div className="text-center py-6 bg-muted rounded-md">
-                        <Diamond className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                      <div className="rounded-md bg-muted py-6 text-center">
+                        <Diamond className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
                         <p className="text-sm text-muted-foreground">
                           No stone types configured
                         </p>
@@ -743,7 +736,7 @@ export function SettingsView({
                           onClick={addStoneType}
                           className="mt-2 text-foreground"
                         >
-                          <Plus className="w-3.5 h-3.5 mr-1" />
+                          <Plus className="mr-1 h-3.5 w-3.5" />
                           Add stone type
                         </Button>
                       </div>
@@ -752,11 +745,11 @@ export function SettingsView({
                         <motion.div
                           key={st.stoneId}
                           layout
-                          className="p-3 bg-muted rounded-md"
+                          className="rounded-md bg-muted p-3"
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-start gap-2 min-w-0">
-                              <Diamond className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                            <div className="flex min-w-0 items-start gap-2">
+                              <Diamond className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                               <div className="min-w-0">
                                 <p className="text-sm font-medium text-foreground break-words leading-snug">
                                   {st.name}
@@ -767,12 +760,12 @@ export function SettingsView({
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex shrink-0 items-center gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setEditingStoneId(st.stoneId)}
-                                className="h-8 text-xs hover:bg-accent text-foreground px-2.5"
+                                className="h-8 px-2.5 text-xs text-foreground hover:bg-accent"
                               >
                                 Edit
                               </Button>
@@ -780,13 +773,13 @@ export function SettingsView({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setStoneToDelete(st.stoneId)}
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-transparent"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:bg-transparent hover:text-destructive"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 mt-2 pl-6">
+                          <div className="mt-2 flex items-center gap-2 pl-6">
                             <Badge variant="secondary" className="text-xs">
                               {st.category}
                             </Badge>
