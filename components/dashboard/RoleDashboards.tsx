@@ -458,29 +458,27 @@ function EnquiryCard({ order }: { order: Order }) {
   return (
     <Link
       href={getRecordHref(order)}
-      className="group flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-background/70 px-5 py-4 transition-colors hover:border-foreground/15 hover:bg-muted/30"
+      className="group flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-background/70 px-6 py-4 transition-colors hover:border-foreground/15 hover:bg-muted/30"
     >
       <div className="flex min-w-0 items-center gap-3">
-        <span className="font-mono text-sm font-semibold text-foreground">
+        <span className="text-sm text-muted-foreground">
           #{order.refCode}
         </span>
-        <span className="text-muted-foreground/30">-</span>
-        <span className="whitespace-nowrap text-sm text-muted-foreground">
-          {formatRelativeTime(order.createdAt)}
-        </span>
+        <span className="text-foreground">{order.customerName}</span>
+
         {order.status && (
-          <>
-            <span className="text-muted-foreground/30">-</span>
             <Badge
               variant={order.status === "open" ? "default" : "secondary"}
               className="text-[10px] capitalize"
             >
               {order.status}
             </Badge>
-          </>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-2 text-right">
+        <span className="whitespace-nowrap text-sm mx-2 text-muted-foreground">
+          {formatRelativeTime(order.createdAt)}
+        </span>
         <Avatar size="sm">
           {person.image && <AvatarImage src={person.image} alt={person.name} />}
           <AvatarFallback className="text-[10px]">
@@ -962,9 +960,6 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/orders-and-enquiries">All records</Link>
-          </Button>
           <Button asChild size="sm">
             <Link href="/enquiries/new" className="gap-1.5">
               <Plus className="h-3.5 w-3.5" />
@@ -982,12 +977,6 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
           card={{
             label: "Open Enquiries",
             value: String(data.openEnquiries.length),
-          }}
-        />
-        <MetricCard
-          card={{
-            label: "Pipeline Value",
-            value: formatCurrency(data.totalPipeline),
           }}
         />
         <MetricCard
@@ -1093,4 +1082,3 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
     </div>
   );
 }
-
