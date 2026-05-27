@@ -146,7 +146,7 @@ function baseOrderFromBackend(
 ): Order {
   const createdBy = normalizePerson(
     enquiry.createdBy,
-    enquiry.poc || "Unknown user",
+    enquiry.salesPerson?.name || "Unknown user",
   );
 
   return {
@@ -158,7 +158,7 @@ function baseOrderFromBackend(
     customerPhone: enquiry.phoneNumber,
     customerNotes: enquiry.notes ?? undefined,
     budget: enquiry.budget ? Number(enquiry.budget) : undefined,
-    salespersonName: enquiry.poc,
+    salespersonName: enquiry.salesPerson.name,
     createdBy,
     category: "Other" as JewelleryCategory,
     metalType: "Gold",

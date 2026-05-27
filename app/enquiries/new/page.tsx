@@ -224,30 +224,9 @@ function EnquiryForm() {
     setSubmitError("");
 
     try {
-      const primarySelectedProduct = form.selectedProducts[0];
-      const poc = session?.user?.id;
-      if (!poc) throw new Error("Unable to determine assigned salesperson.");
-
-      const summaryBits = [
-        primarySelectedProduct
-          ? `Interested in ${primarySelectedProduct.name} (${primarySelectedProduct.productCode}).`
-          : null,
-        form.newProducts.length > 0
-          ? `${form.newProducts.length} custom product requirement${
-              form.newProducts.length > 1 ? "s" : ""
-            } added.`
-          : null,
-        form.customer.notes.trim()
-          ? `Customer notes: ${form.customer.notes.trim()}`
-          : null,
-      ].filter(Boolean);
-
-      const customerLocation = [
-        form.customer.city.trim(),
-        form.customer.address.trim(),
-      ]
-        .filter(Boolean)
-        .join(", ");
+      const salesPerson = session?.user?.id;
+      if (!salesPerson)
+        throw new Error("Unable to determine assigned salesperson.");
 
       const selectedItems: CreateEnquiryItemInput[] = form.selectedProducts.map(
         (product) => ({
@@ -297,16 +276,17 @@ function EnquiryForm() {
       const created = await createEnquiryMutation.mutateAsync({
         name: form.customer.name.trim(),
         phoneNumber: form.customer.phone.trim(),
-        notes: [summaryBits.join(" "), customerLocation || null]
-          .filter(Boolean)
-          .join("\n"),
+        notes: form.customer.notes.trim() || undefined,
         status: "NEW",
-        poc,
+        salesPerson,
         items: [...selectedItems, ...customItems],
       });
 
       setSubmitted(true);
-      setTimeout(() => router.push(`/enquiries/${created.enquiry.refCode}`), 1200);
+      setTimeout(
+        () => router.push(`/enquiries/${created.enquiry.refCode}`),
+        1200,
+      );
     } catch (error) {
       setSubmitError(
         error instanceof Error

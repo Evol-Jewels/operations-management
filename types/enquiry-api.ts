@@ -52,7 +52,7 @@ export interface BackendEnquiryRow {
   budget: string | null;
   status: BackendEnquiryStatus;
   createdBy: BackendCreatedBy;
-  poc: string;
+  salesPerson: BackendUserSummary;
   createdAt: string;
   updatedAt: string;
 }
@@ -142,7 +142,7 @@ export interface CreateEnquiryInput {
   notes?: string;
   budget?: string | null;
   status?: BackendEnquiryStatus;
-  poc: string;
+  salesPerson: string;
   items?: CreateEnquiryItemInput[];
 }
 
@@ -152,7 +152,7 @@ export interface UpdateEnquiryInput {
   notes?: string | null;
   budget?: string | null;
   status?: BackendEnquiryStatus;
-  poc?: string;
+  salesPerson?: string;
   items?: Array<CreateEnquiryItemInput & { id?: string }>;
 }
 
