@@ -39,7 +39,7 @@ export function EstimationSummaryCard({
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const hasStones = breakdown.stoneDetails.some((stone) => stone.weight > 0);
-  const displayName = form.productName.trim() || "Manual Estimate";
+  const displayName = form.productName.trim();
   const displaySubtotal = Math.round(breakdown.subTotal);
   const displayGst = Math.round(breakdown.gst);
   const displayTotal = displaySubtotal + displayGst;
@@ -126,8 +126,7 @@ export function EstimationSummaryCard({
                 {displayName}
               </p>
               <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                {form.productNote.trim() ||
-                  "Customer estimate prepared from the latest synced rates."}
+                {form.productNote.trim()}
               </p>
             </div>
             <div>

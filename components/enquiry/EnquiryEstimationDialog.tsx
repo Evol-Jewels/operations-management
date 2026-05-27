@@ -75,7 +75,7 @@ function buildInitialForm(
           }))
         : [createStone(settings)],
     productName,
-    productNote: "Customer estimate prepared from the latest synced rates.",
+    productNote: "",
   };
 }
 
