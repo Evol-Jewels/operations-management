@@ -5,7 +5,6 @@ import {
   CircleDollarSign,
   Layers3,
   Pencil,
-  Percent,
   Plus,
   ReceiptText,
   RefreshCw,
@@ -62,7 +61,12 @@ import {
   useUpdateStoneSlab,
   useUpdateStoneType,
 } from "@/hooks/useManageProducts";
+import {
+  useSystemConfigs,
+  useUpdateSystemConfig,
+} from "@/hooks/useSystemConfigs";
 import { formatCurrency } from "@/lib/utils";
+import type { SystemConfig } from "@/types";
 import type {
   CreateMetalInput,
   CreateStoneSlabInput,
@@ -75,12 +79,6 @@ import type {
 
 type ManageSection = "overview" | "metals" | "stones-slabs" | "misc";
 type DialogMode = "add" | "edit";
-
-type MiscSettings = {
-  makingChargeFlat: number;
-  makingChargePerGram: number;
-  gstRate: number;
-};
 
 type MetalDraft = {
   name: string;
@@ -107,10 +105,6 @@ const MONEY_PATTERN = /^\d+(\.\d{1,2})?$/;
 const WEIGHT_PATTERN = /^\d+(\.\d{1,3})?$/;
 const PERCENTAGE_PATTERN = /^\d+(\.\d{1,2})?$/;
 
-function toNumber(value: string) {
-  return Number(value) || 0;
-}
-
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
@@ -126,6 +120,33 @@ function formatDate(value: string) {
 function formatMoneyValue(value: string | null) {
   if (!value) return "Not set";
   return `${formatCurrency(Number(value))}`;
+}
+
+function formatSystemConfigLabel(key: string) {
+  return key
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatSystemConfigValue(config: SystemConfig) {
+  const numericValue = Number(config.value);
+
+  if (config.key === "gstRate") {
+    return Number.isFinite(numericValue) ? `${numericValue}%` : config.value;
+  }
+
+  if (
+    config.key === "makingChargeFlat" ||
+    config.key === "makingChargePerGram"
+  ) {
+    if (!Number.isFinite(numericValue)) return config.value;
+    return config.key === "makingChargePerGram"
+      ? `${formatCurrency(numericValue)}/g`
+      : formatCurrency(numericValue);
+  }
+
+  return config.value || "Not set";
 }
 
 function optionalCreateValue(value: string) {
@@ -206,27 +227,6 @@ function FieldBlock({
       </div>
       {children}
     </div>
-  );
-}
-
-function NumberInput({
-  value,
-  onChange,
-  step = "0.001",
-}: {
-  value: number;
-  onChange: (value: number) => void;
-  step?: string;
-}) {
-  return (
-    <Input
-      type="number"
-      inputMode="decimal"
-      step={step}
-      value={value}
-      onChange={(event) => onChange(toNumber(event.target.value))}
-      className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
-    />
   );
 }
 
@@ -322,17 +322,17 @@ function ErrorPanel({
 }
 
 function Overview({
-  miscSettings,
   metalsTotal,
   stoneTypesTotal,
   slabTotal,
+  systemConfigTotal,
   loadingCounts,
   onSelect,
 }: {
-  miscSettings: MiscSettings;
   metalsTotal: number;
   stoneTypesTotal: number;
   slabTotal: number;
+  systemConfigTotal: number;
   loadingCounts: boolean;
   onSelect: (section: ManageSection) => void;
 }) {
@@ -370,8 +370,8 @@ function Overview({
         <OverviewCard
           icon={<ReceiptText className="h-5 w-5" />}
           title="Miscellaneous"
-          description="Local GST and making cost rules."
-          meta={`${miscSettings.gstRate * 100}% GST`}
+          description="Edit shared GST and making keys from system config."
+          meta={loadingCounts ? "Loading..." : `${systemConfigTotal} configs`}
           onClick={() => onSelect("misc")}
         />
       </div>
@@ -1546,118 +1546,250 @@ function StonesAndSlabsEditor({ onBack }: { onBack: () => void }) {
   );
 }
 
-function MiscEditor({
-  settings,
-  onChange,
-  onBack,
+function SystemConfigDialog({
+  config,
+  open,
+  isSubmitting,
+  onOpenChange,
+  onSubmit,
 }: {
-  settings: MiscSettings;
-  onChange: (settings: MiscSettings) => void;
-  onBack: () => void;
+  config: SystemConfig | null;
+  open: boolean;
+  isSubmitting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (value: string) => void;
 }) {
+  const [draft, setDraft] = useState("");
+
+  useEffect(() => {
+    if (open && config) setDraft(config.value);
+  }, [config, open]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Edit system config</DialogTitle>
+          <DialogDescription>
+            Update a single configuration value and save it back to the backend.
+          </DialogDescription>
+        </DialogHeader>
+
+        {config ? (
+          <div className="space-y-5 py-2">
+            <div className="grid gap-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Key
+              </p>
+              <p className="font-medium text-foreground">{config.key}</p>
+            </div>
+
+            <div className="grid gap-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Label
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {formatSystemConfigLabel(config.key)}
+              </p>
+            </div>
+
+            {config.description ? (
+              <div className="grid gap-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Description
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {config.description}
+                </p>
+              </div>
+            ) : null}
+
+            <FieldBlock label="Value">
+              <Input
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                className="h-10"
+              />
+            </FieldBlock>
+          </div>
+        ) : null}
+
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline" disabled={isSubmitting}>
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button
+            type="button"
+            disabled={isSubmitting || !config}
+            onClick={() => onSubmit(draft.trim())}
+          >
+            {isSubmitting ? "Saving..." : "Save changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
+  const systemConfigsQuery = useSystemConfigs();
+  const updateSystemConfig = useUpdateSystemConfig();
+  const [editingConfig, setEditingConfig] = useState<SystemConfig | null>(null);
+
+  const configs = systemConfigsQuery.data ?? [];
+  const sortedConfigs = useMemo(
+    () => [...configs].sort((a, b) => a.key.localeCompare(b.key)),
+    [configs],
+  );
+
+  async function submitConfig(value: string) {
+    if (!editingConfig) return;
+
+    try {
+      await updateSystemConfig.mutateAsync({
+        key: editingConfig.key,
+        input: { value },
+      });
+      setEditingConfig(null);
+      toast.success("Config updated");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not save config"));
+    }
+  }
+
   return (
     <SectionShell
       icon={<ReceiptText className="h-5 w-5" />}
       title="Miscellaneous"
-      description="Manage local GST and making cost values used by the calculator."
+      description="View and update GST and making values from system config keys."
       onBack={onBack}
     >
       <Card className="h-full overflow-hidden py-0">
-        <CardContent className="h-full space-y-6 overflow-y-auto p-6">
-          <div className="grid gap-6 md:grid-cols-3">
-            <FieldBlock label="GST percentage">
-              <div className="flex items-end gap-3">
-                <NumberInput
-                  value={settings.gstRate * 100}
-                  step="0.1"
-                  onChange={(value) =>
-                    onChange({ ...settings, gstRate: value / 100 })
-                  }
-                />
-                <Percent className="mb-2 h-4 w-4 text-muted-foreground" />
-              </div>
-            </FieldBlock>
-            <FieldBlock
-              label="Making flat fee"
-              description="Flat fee for small products."
+        <CardContent className="flex h-full min-h-0 flex-col gap-5 p-5 lg:p-6">
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                System config keys
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {systemConfigsQuery.isLoading
+                  ? "Loading keys..."
+                  : `${sortedConfigs.length} configs loaded`}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void systemConfigsQuery.refetch()}
+              className="gap-2"
+              disabled={systemConfigsQuery.isFetching}
             >
-              <div className="flex items-end gap-3">
-                <NumberInput
-                  value={settings.makingChargeFlat}
-                  onChange={(makingChargeFlat) =>
-                    onChange({ ...settings, makingChargeFlat })
-                  }
-                />
-                <span className="pb-2 text-sm text-muted-foreground">INR</span>
-              </div>
-            </FieldBlock>
-            <FieldBlock
-              label="Making per gram"
-              description="Rate applied per gram."
-            >
-              <div className="flex items-end gap-3">
-                <NumberInput
-                  value={settings.makingChargePerGram}
-                  onChange={(makingChargePerGram) =>
-                    onChange({ ...settings, makingChargePerGram })
-                  }
-                />
-                <span className="pb-2 text-sm text-muted-foreground">
-                  INR/g
-                </span>
-              </div>
-            </FieldBlock>
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
           </div>
 
-          <div className="grid gap-3 rounded-xl border border-border bg-muted/20 p-4 sm:grid-cols-3">
-            <div>
-              <p className="text-xs text-muted-foreground">Current GST</p>
-              <p className="mt-1 font-semibold text-foreground">
-                {settings.gstRate * 100}%
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Flat making</p>
-              <p className="mt-1 font-semibold text-foreground">
-                {formatCurrency(settings.makingChargeFlat)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Per gram making</p>
-              <p className="mt-1 font-semibold text-foreground">
-                {formatCurrency(settings.makingChargePerGram)}/g
-              </p>
-            </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {systemConfigsQuery.isLoading ? <LoadingRows count={3} /> : null}
+            {systemConfigsQuery.isError ? (
+              <ErrorPanel
+                message={getErrorMessage(
+                  systemConfigsQuery.error,
+                  "Could not load system configs.",
+                )}
+                onRetry={() => void systemConfigsQuery.refetch()}
+              />
+            ) : null}
+
+            {!systemConfigsQuery.isLoading && !systemConfigsQuery.isError ? (
+              sortedConfigs.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border py-10 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    No miscellaneous config keys found.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {sortedConfigs.map((config) => (
+                    <button
+                      key={config.id}
+                      type="button"
+                      onClick={() => setEditingConfig(config)}
+                      className="group rounded-2xl border border-border bg-card p-4 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary" className="uppercase">
+                              {config.key}
+                            </Badge>
+                            <p className="text-xs font-medium text-muted-foreground">
+                              {formatSystemConfigLabel(config.key)}
+                            </p>
+                          </div>
+                          <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-foreground">
+                            {formatSystemConfigValue(config)}
+                          </p>
+                        </div>
+                        <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
+                      </div>
+
+                      {config.description ? (
+                        <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+                          {config.description}
+                        </p>
+                      ) : null}
+
+                      <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                        <span>Tap to edit</span>
+                        <span>
+                          {new Date(config.updatedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )
+            ) : null}
           </div>
         </CardContent>
       </Card>
+
+      <SystemConfigDialog
+        config={editingConfig}
+        open={!!editingConfig}
+        isSubmitting={updateSystemConfig.isPending}
+        onOpenChange={(open) => {
+          if (!open) setEditingConfig(null);
+        }}
+        onSubmit={submitConfig}
+      />
     </SectionShell>
   );
 }
 
 export function ManageProductsAndPricePageClient() {
-  const [miscSettings, setMiscSettings] = useState<MiscSettings>({
-    makingChargeFlat: 4000,
-    makingChargePerGram: 1800,
-    gstRate: 0.03,
-  });
   const [activeSection, setActiveSection] = useState<ManageSection>("overview");
   const metalsQuery = useMetals(LIST_QUERY);
   const stoneTypesQuery = useStoneTypes(LIST_QUERY);
   const stoneSlabsQuery = useStoneSlabs(LIST_QUERY);
+  const systemConfigsQuery = useSystemConfigs();
   const loadingCounts =
     metalsQuery.isLoading ||
     stoneTypesQuery.isLoading ||
-    stoneSlabsQuery.isLoading;
+    stoneSlabsQuery.isLoading ||
+    systemConfigsQuery.isLoading;
 
   return (
     <div className="mx-auto flex h-[calc(100svh-2rem)] w-full max-w-7xl flex-col overflow-hidden sm:h-[calc(100svh-3rem)]">
       {activeSection === "overview" ? (
         <Overview
-          miscSettings={miscSettings}
           metalsTotal={metalsQuery.data?.total ?? 0}
           stoneTypesTotal={stoneTypesQuery.data?.total ?? 0}
           slabTotal={stoneSlabsQuery.data?.total ?? 0}
+          systemConfigTotal={systemConfigsQuery.data?.length ?? 0}
           loadingCounts={loadingCounts}
           onSelect={setActiveSection}
         />
@@ -1669,11 +1801,7 @@ export function ManageProductsAndPricePageClient() {
         <StonesAndSlabsEditor onBack={() => setActiveSection("overview")} />
       ) : null}
       {activeSection === "misc" ? (
-        <MiscEditor
-          settings={miscSettings}
-          onChange={setMiscSettings}
-          onBack={() => setActiveSection("overview")}
-        />
+        <SystemConfigsEditor onBack={() => setActiveSection("overview")} />
       ) : null}
     </div>
   );
