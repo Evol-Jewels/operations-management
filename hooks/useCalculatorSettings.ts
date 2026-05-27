@@ -11,159 +11,123 @@ import type {
 
 const SETTINGS_STORAGE_KEY = "diamond-calc-settings";
 const LAST_SYNCED_STORAGE_KEY = "diamond-calc-last-synced";
-const FALLBACK_SHEET_ID = "1KWHxzODjoqEDYpXz6FqhPzggpM2YvsRLVwgwQ-Yfgv0";
+const SYSTEM_SETTINGS_ENDPOINT = "/api/v1/system-settings";
 
-function getSheetId() {
-  return process.env.NEXT_PUBLIC_GOOGLE_SHEET_ID || FALLBACK_SHEET_ID;
+function getApiBaseUrl() {
+  return process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
 }
 
-function getSheetTabCsvUrl(sheetId: string, tabName: string) {
-  const encodedQuery = encodeURIComponent("select *");
-  const encodedSheet = encodeURIComponent(tabName);
-  return `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodedSheet}&tq=${encodedQuery}`;
-}
-
-function parseCsv(raw: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let inQuotes = false;
-
-  for (let index = 0; index < raw.length; index++) {
-    const char = raw[index];
-    const nextChar = raw[index + 1];
-
-    if (inQuotes) {
-      if (char === '"' && nextChar === '"') {
-        field += '"';
-        index++;
-      } else if (char === '"') {
-        inQuotes = false;
-      } else {
-        field += char;
-      }
-      continue;
+type SystemSettingsResponse = Partial<CalculatorSettings> & {
+  purityPercentages?: Partial<Record<MetalPurity, number | null>>;
+  stoneTypes?: Array<
+    Partial<Omit<CalculatorStoneType, "slabs">> & {
+      slabs?: Array<Partial<CalculatorStoneSlab> | null> | null;
     }
+  >;
+};
 
-    if (char === '"') {
-      inQuotes = true;
-    } else if (char === ",") {
-      row.push(field.trim());
-      field = "";
-    } else if (char === "\n") {
-      row.push(field.trim());
-      if (row.some(Boolean)) rows.push(row);
-      row = [];
-      field = "";
-    } else if (char !== "\r") {
-      field += char;
-    }
+function toNumber(value: unknown, fallback: number) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
   }
-
-  if (field !== "" || row.length > 0) {
-    row.push(field.trim());
-    if (row.some(Boolean)) rows.push(row);
-  }
-
-  return rows;
+  return fallback;
 }
 
-function csvToObjects(rows: string[][]): Record<string, string>[] {
-  if (rows.length < 2) return [];
-  const headers = rows[0].map((header) => header.toLowerCase().trim());
-  return rows.slice(1).map((row) => {
-    const item: Record<string, string> = {};
-    headers.forEach((header, index) => {
-      item[header] = row[index] ?? "";
-    });
-    return item;
-  });
-}
+function normalizePurityPercentages(
+  value: unknown,
+): CalculatorSettings["purityPercentages"] {
+  const fallback = DEFAULT_CALCULATOR_SETTINGS.purityPercentages;
+  if (!value || typeof value !== "object") return fallback;
 
-function toPurityKey(raw: string): MetalPurity | null {
-  const normalized = raw.trim().toUpperCase();
-  if (normalized === "14" || normalized === "14K") return "14K";
-  if (normalized === "18" || normalized === "18K") return "18K";
-  if (normalized === "22" || normalized === "22K") return "22K";
-  if (normalized === "24" || normalized === "24K") return "24K";
-  if (normalized === "OTHER") return "Other";
-  return null;
-}
-
-function parseRatesTab(
-  rows: Record<string, string>[],
-): Partial<CalculatorSettings> {
-  const map: Record<string, string> = {};
-  for (const row of rows) {
-    if (row.key && row.value !== undefined) {
-      map[row.key.trim()] = row.value.trim();
-    }
-  }
-
-  const partial: Partial<CalculatorSettings> = {};
-  if (map.goldRate24k !== undefined)
-    partial.goldRate24k = Number(map.goldRate24k);
-  if (map.makingChargeFlat !== undefined) {
-    partial.makingChargeFlat = Number(map.makingChargeFlat);
-  }
-  if (map.makingChargePerGram !== undefined) {
-    partial.makingChargePerGram = Number(map.makingChargePerGram);
-  }
-  if (map.gstRate !== undefined) partial.gstRate = Number(map.gstRate);
-
-  const purityPercentages = {
-    ...DEFAULT_CALCULATOR_SETTINGS.purityPercentages,
+  const partial = value as Partial<Record<MetalPurity, number | null>>;
+  return {
+    "14K": toNumber(partial["14K"], fallback["14K"]),
+    "18K": toNumber(partial["18K"], fallback["18K"]),
+    "22K": toNumber(partial["22K"], fallback["22K"]),
+    "24K": toNumber(partial["24K"], fallback["24K"]),
+    Other: toNumber(partial.Other, fallback.Other),
   };
-  let hasPurity = false;
-
-  for (const [key, value] of Object.entries(map)) {
-    const match = key.match(/^purity_(.+)$/);
-    if (!match) continue;
-
-    const purity = toPurityKey(match[1]);
-    if (!purity) continue;
-
-    purityPercentages[purity] = Number(value);
-    hasPurity = true;
-  }
-
-  if (hasPurity) partial.purityPercentages = purityPercentages;
-  return partial;
 }
 
-function parseStonesTab(
-  rows: Record<string, string>[],
-): Omit<CalculatorStoneType, "slabs">[] {
-  return rows
-    .filter((row) => row.stoneid)
-    .map((row) => ({
-      stoneId: row.stoneid.trim(),
-      name: row.name?.trim() || row.stoneid.trim(),
-      category: row.type?.trim() === "Gemstone" ? "Gemstone" : "Diamond",
-    }));
-}
-
-function parseSlabsTab(
-  rows: Record<string, string>[],
-): Record<string, CalculatorStoneSlab[]> {
-  const slabsByStone: Record<string, CalculatorStoneSlab[]> = {};
-
-  for (const row of rows) {
-    const stoneId = row.stoneid?.trim();
-    if (!stoneId) continue;
-
-    const slab: CalculatorStoneSlab = {
-      code: row.code?.trim() ?? "",
-      fromWeight: Number(row.fromweight ?? 0),
-      toWeight: Number(row.toweight ?? 0),
-      pricePerCarat: Number(row.pricepercarat ?? 0),
-    };
-
-    if (!slabsByStone[stoneId]) slabsByStone[stoneId] = [];
-    slabsByStone[stoneId].push(slab);
+function normalizeStoneTypes(value: unknown): CalculatorSettings["stoneTypes"] {
+  if (!Array.isArray(value) || value.length === 0) {
+    return DEFAULT_CALCULATOR_SETTINGS.stoneTypes;
   }
 
-  return slabsByStone;
+  const normalized = value
+    .map((stone) => {
+      if (!stone || typeof stone !== "object") return null;
+      const candidate = stone as NonNullable<
+        SystemSettingsResponse["stoneTypes"]
+      >[number];
+      const stoneId = candidate.stoneId?.trim();
+      if (!stoneId) return null;
+
+      const slabs = Array.isArray(candidate.slabs)
+        ? candidate.slabs
+            .filter((slab): slab is Partial<CalculatorStoneSlab> =>
+              Boolean(slab),
+            )
+            .map((slab) => ({
+              code: slab.code?.trim() ?? "",
+              fromWeight: toNumber(slab.fromWeight, 0),
+              toWeight: toNumber(slab.toWeight, 0),
+              pricePerCarat: toNumber(slab.pricePerCarat, 0),
+            }))
+            .filter((slab) => slab.code.length > 0)
+        : [];
+
+      return {
+        stoneId,
+        name: candidate.name?.trim() || stoneId,
+        category: candidate.category === "Gemstone" ? "Gemstone" : "Diamond",
+        clarity: candidate.clarity?.trim() || undefined,
+        color: candidate.color?.trim() || undefined,
+        slabs,
+      } satisfies CalculatorStoneType;
+    })
+    .filter((stone): stone is CalculatorStoneType => Boolean(stone));
+
+  return normalized.length > 0
+    ? normalized
+    : DEFAULT_CALCULATOR_SETTINGS.stoneTypes;
+}
+
+function normalizeSystemSettings(
+  raw: unknown,
+  currentSettings: CalculatorSettings,
+): CalculatorSettings {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Invalid system settings response");
+  }
+
+  const response = raw as SystemSettingsResponse;
+  return {
+    goldRate24k: toNumber(
+      response.goldRate24k,
+      currentSettings.goldRate24k ?? DEFAULT_CALCULATOR_SETTINGS.goldRate24k,
+    ),
+    makingChargeFlat: toNumber(
+      response.makingChargeFlat,
+      currentSettings.makingChargeFlat ??
+        DEFAULT_CALCULATOR_SETTINGS.makingChargeFlat,
+    ),
+    makingChargePerGram: toNumber(
+      response.makingChargePerGram,
+      currentSettings.makingChargePerGram ??
+        DEFAULT_CALCULATOR_SETTINGS.makingChargePerGram,
+    ),
+    gstRate: toNumber(
+      response.gstRate,
+      currentSettings.gstRate ?? DEFAULT_CALCULATOR_SETTINGS.gstRate,
+    ),
+    purityPercentages: normalizePurityPercentages(
+      response.purityPercentages ?? currentSettings.purityPercentages,
+    ),
+    stoneTypes: normalizeStoneTypes(response.stoneTypes),
+  };
 }
 
 function isValidSettings(value: unknown): value is CalculatorSettings {
@@ -212,19 +176,16 @@ function readStoredSettings() {
 
 function assembleSettings(
   currentSettings: CalculatorSettings,
-  ratesPart: Partial<CalculatorSettings>,
-  stoneRows: Omit<CalculatorStoneType, "slabs">[],
-  slabsByStone: Record<string, CalculatorStoneSlab[]>,
+  nextSettings: CalculatorSettings,
 ): CalculatorSettings {
-  const stoneTypes = stoneRows.map((stone) => ({
-    ...stone,
-    slabs: slabsByStone[stone.stoneId] ?? [],
-  }));
-
   return {
     ...currentSettings,
-    ...ratesPart,
-    stoneTypes: stoneTypes.length > 0 ? stoneTypes : currentSettings.stoneTypes,
+    ...nextSettings,
+    purityPercentages:
+      nextSettings.purityPercentages ?? currentSettings.purityPercentages,
+    stoneTypes: nextSettings.stoneTypes.length
+      ? nextSettings.stoneTypes
+      : currentSettings.stoneTypes,
   };
 }
 
@@ -253,38 +214,30 @@ export function useCalculatorSettings() {
     setSyncError(null);
 
     try {
-      const sheetId = getSheetId();
-      const [ratesRes, stonesRes, slabsRes] = await Promise.all([
-        fetch(getSheetTabCsvUrl(sheetId, "rates")),
-        fetch(getSheetTabCsvUrl(sheetId, "stones")),
-        fetch(getSheetTabCsvUrl(sheetId, "slabs")),
-      ]);
-
-      if (!ratesRes.ok) {
-        throw new Error(`Failed to fetch rates tab (HTTP ${ratesRes.status})`);
+      const apiBaseUrl = getApiBaseUrl();
+      if (!apiBaseUrl) {
+        throw new Error("Missing NEXT_PUBLIC_API_BASE_URL in .env");
       }
-      if (!stonesRes.ok) {
+
+      const response = await fetch(
+        new URL(SYSTEM_SETTINGS_ENDPOINT, `${apiBaseUrl}/`),
+        {
+          headers: { Accept: "application/json" },
+          credentials: "include",
+        },
+      );
+
+      if (!response.ok) {
         throw new Error(
-          `Failed to fetch stones tab (HTTP ${stonesRes.status})`,
+          `Failed to fetch system settings (HTTP ${response.status})`,
         );
       }
-      if (!slabsRes.ok) {
-        throw new Error(`Failed to fetch slabs tab (HTTP ${slabsRes.status})`);
-      }
 
-      const [ratesText, stonesText, slabsText] = await Promise.all([
-        ratesRes.text(),
-        stonesRes.text(),
-        slabsRes.text(),
-      ]);
-
-      const ratesPart = parseRatesTab(csvToObjects(parseCsv(ratesText)));
-      const stoneRows = parseStonesTab(csvToObjects(parseCsv(stonesText)));
-      const slabsByStone = parseSlabsTab(csvToObjects(parseCsv(slabsText)));
+      const payload = (await response.json()) as unknown;
 
       const syncedAt = new Date().toISOString();
       setSettings((current) =>
-        assembleSettings(current, ratesPart, stoneRows, slabsByStone),
+        assembleSettings(current, normalizeSystemSettings(payload, current)),
       );
       setLastSynced(syncedAt);
       writeStorageValue(LAST_SYNCED_STORAGE_KEY, syncedAt);
