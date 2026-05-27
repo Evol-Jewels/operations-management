@@ -60,11 +60,13 @@ const navItems = [
     icon: Boxes,
     label: "Manage Products and Price",
     href: "/manage-products-and-price",
+    roles: ["ADMIN", "OPERATIONS"],
   },
   {
     icon: ShieldUser,
     label: "User Management",
     href: "/user-management",
+    roles: ["ADMIN"],
   },
 ];
 
@@ -81,9 +83,13 @@ export function AppSidebar() {
   const { data: session } = authClient.useSession();
   const { state, toggleSidebar } = useSidebar();
 
+  const sessionRole = session ? getSessionRole(session) : "";
   const isActive = (href: string) => {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
+  const visibleNavItems = navItems.filter(
+    (item) => !item.roles || item.roles.includes(sessionRole),
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -118,7 +124,7 @@ export function AppSidebar() {
                   </div>
                   <div className="flex flex-col items-start group-data-[collapsible=icon]:hidden">
                     <span className="text-sm font-semibold">
-                      EVOL Jewels
+                      EVOL
                     </span>
                     <Badge
                       variant="default"
@@ -152,7 +158,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.label}>
                   <SidebarMenuButton
                     asChild
