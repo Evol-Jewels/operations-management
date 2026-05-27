@@ -1,30 +1,40 @@
 "use client";
 
+import { useMemo } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
+import {
+  AdminDashboard,
+  OperationsDashboard,
+  SalesDashboard,
+} from "@/components/dashboard/RoleDashboards";
+import { useEnquiries } from "@/hooks/useEnquiries";
+import { getSessionRole } from "@/lib/auth";
+import { authClient } from "@/lib/auth-client";
+import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
+import { useOrdersStore } from "@/lib/stores/orders-store";
 
-function OrdersAnalyticsComingSoon() {
-  return (
-    <div className="flex flex-col items-center justify-center gap-6 py-28 text-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full border border-border bg-muted/50">
-        <span className="text-4xl">📊</span>
-      </div>
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Orders Dashboard
-        </h1>
-        <p className="text-base text-muted-foreground">
-          Orders analytics are not available yet.
-        </p>
-        <p className="text-sm text-muted-foreground">Coming soon!</p>
-      </div>
-    </div>
+function RoleDashboardPage() {
+  const { data: session } = authClient.useSession();
+  const storeRecords = useOrdersStore((state) => state.records);
+  const enquiriesQuery = useEnquiries();
+  const orders = useMemo(
+    () => [
+      ...storeRecords.filter((record) => record.type === "order"),
+      ...(enquiriesQuery.data ?? []).map(mapBackendEnquiryListItemToOrder),
+    ],
+    [enquiriesQuery.data, storeRecords],
   );
+  const role = getSessionRole(session).toUpperCase();
+
+  if (role === "ADMIN") return <AdminDashboard orders={orders} />;
+  if (role === "OPERATIONS") return <OperationsDashboard orders={orders} />;
+  return <SalesDashboard orders={orders} />;
 }
 
 export default function DashboardPage() {
   return (
     <RequireInternalAuth>
-      <OrdersAnalyticsComingSoon />
+      <RoleDashboardPage />
     </RequireInternalAuth>
   );
 }

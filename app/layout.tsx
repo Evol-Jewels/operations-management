@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EVOL Jewels — Operations",
+  title: "EVOL Jewels - Operations",
   description: "Order tracking and operations dashboard for EVOL Jewels.",
 };
 

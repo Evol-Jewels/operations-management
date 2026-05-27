@@ -307,6 +307,19 @@ export interface CalculatorPricingBreakdown {
   total: number;
 }
 
+export interface SystemConfig {
+  id: string;
+  key: string;
+  value: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateSystemConfigInput {
+  value: string;
+}
+
 // ─── Order / Enquiry ──────────────────────────────────────────────────────────
 
 export interface Order {

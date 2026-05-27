@@ -1190,7 +1190,7 @@ function CalculatorForm({
           <input
             value={form.productName}
             onChange={(event) => updateForm("productName", event.target.value)}
-            placeholder="Emerald Halo Ring"
+            placeholder="Please enter a product name"
             className="w-full border-b border-border bg-transparent pb-2 text-sm outline-none placeholder:text-muted-foreground/40 focus:border-foreground"
           />
         </div>
@@ -1201,7 +1201,7 @@ function CalculatorForm({
           <textarea
             value={form.productNote}
             onChange={(event) => updateForm("productNote", event.target.value)}
-            placeholder="Customer estimate prepared from the latest synced rates."
+            placeholder="Any notes for the customer (optional)"
             rows={3}
             className="w-full resize-none border-b border-border bg-transparent pb-2 text-sm leading-6 outline-none placeholder:text-muted-foreground/40 focus:border-foreground"
           />
@@ -1345,9 +1345,7 @@ export function CalculatorPageClient() {
             }))
           : [createStone(settings)],
       productName: result.product.productName,
-      productNote:
-        result.product.description ||
-        "Customer estimate prepared from the latest synced rates.",
+      productNote: result.product.description || "",
       productImageUrl: result.product.imageUrl || undefined,
     });
     setActiveTab("calculate");
