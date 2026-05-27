@@ -1,6 +1,5 @@
 "use client";
 
-import { Mail, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -100,41 +99,11 @@ export function UsersTable({
                     </span>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span>Department</span>
-                    <span className="min-w-0 truncate font-medium text-foreground">
-                      {user.profile?.department ?? "No department"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-3">
                     <span>Created</span>
                     <span className="font-medium text-foreground">
                       {formatDate(user.createdAt)}
                     </span>
                   </div>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge
-                    variant="outline"
-                    className={
-                      user.emailVerifiedAt
-                        ? "border-primary/20 bg-muted text-foreground"
-                        : "border-border text-muted-foreground"
-                    }
-                  >
-                    <Mail className="size-3" />
-                    Email
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className={
-                      user.phoneVerifiedAt
-                        ? "border-primary/20 bg-muted text-foreground"
-                        : "border-border text-muted-foreground"
-                    }
-                  >
-                    <Phone className="size-3" />
-                    Phone
-                  </Badge>
                 </div>
               </div>
             </div>
@@ -149,7 +118,6 @@ export function UsersTable({
               <TableHead>User</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Team</TableHead>
-              <TableHead>Verification</TableHead>
               <TableHead>Created</TableHead>
             </TableRow>
           </TableHeader>
@@ -184,40 +152,9 @@ export function UsersTable({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <div className="space-y-1">
-                    <p className="text-sm text-foreground">
-                      {user.profile?.role ?? "No role"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {user.profile?.department ?? "No department"}
-                    </p>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge
-                      variant="outline"
-                      className={
-                        user.emailVerifiedAt
-                          ? "border-primary/20 bg-muted text-foreground"
-                          : "border-border text-muted-foreground"
-                      }
-                    >
-                      <Mail className="size-3" />
-                      Email
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={
-                        user.phoneVerifiedAt
-                          ? "border-primary/20 bg-muted text-foreground"
-                          : "border-border text-muted-foreground"
-                      }
-                    >
-                      <Phone className="size-3" />
-                      Phone
-                    </Badge>
-                  </div>
+                  <p className="text-sm text-foreground">
+                    {user.profile?.role ?? "No role"}
+                  </p>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatDate(user.createdAt)}

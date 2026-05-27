@@ -15,8 +15,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getInitials } from "@/lib/people";
 import {
   cn,
   computeRiskSignal,
@@ -369,7 +371,7 @@ function ActionItemRow({
             {order.customerName}
           </p>
           <p className="truncate text-sm text-muted-foreground">
-            {order.orderNumber ?? "Enquiry"} · {order.category} · {timingLabel}
+            {order.orderNumber ?? "Enquiry"} - {order.category} - {timingLabel}
           </p>
         </div>
       </div>
@@ -421,7 +423,7 @@ function RecordRow({ order }: { order: Order }) {
             {order.customerName}
           </p>
           <p className="truncate text-sm text-muted-foreground">
-            {order.orderNumber ?? "Enquiry"} · {order.category} ·{" "}
+            {order.orderNumber ?? "Enquiry"} - {order.category} -{" "}
             {formatRelativeTime(order.lastUpdatedAt)}
           </p>
         </div>
@@ -445,6 +447,49 @@ function RecordRow({ order }: { order: Order }) {
           </p>
         </div>
         <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-colors group-hover:text-foreground" />
+      </div>
+    </Link>
+  );
+}
+
+function EnquiryCard({ order }: { order: Order }) {
+  const person = order.createdBy ?? { id: "", name: "Unknown", image: null };
+
+  return (
+    <Link
+      href={getRecordHref(order)}
+      className="group flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-background/70 px-5 py-4 transition-colors hover:border-foreground/15 hover:bg-muted/30"
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="font-mono text-sm font-semibold text-foreground">
+          #{order.refCode}
+        </span>
+        <span className="text-muted-foreground/30">-</span>
+        <span className="whitespace-nowrap text-sm text-muted-foreground">
+          {formatRelativeTime(order.createdAt)}
+        </span>
+        {order.status && (
+          <>
+            <span className="text-muted-foreground/30">-</span>
+            <Badge
+              variant={order.status === "open" ? "default" : "secondary"}
+              className="text-[10px] capitalize"
+            >
+              {order.status}
+            </Badge>
+          </>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2 text-right">
+        <Avatar size="sm">
+          {person.image && <AvatarImage src={person.image} alt={person.name} />}
+          <AvatarFallback className="text-[10px]">
+            {getInitials(person)}
+          </AvatarFallback>
+        </Avatar>
+        <span className="max-w-[10rem] truncate text-sm font-medium text-foreground">
+          {person.name}
+        </span>
       </div>
     </Link>
   );
@@ -1035,7 +1080,7 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
           {activeTab === "enquiries" &&
             (data.openEnquiries.length > 0 ? (
               data.openEnquiries.map((order) => (
-                <RecordRow key={order.id} order={order} />
+                <EnquiryCard key={order.id} order={order} />
               ))
             ) : (
               <EmptyRows
@@ -1048,3 +1093,4 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
     </div>
   );
 }
+

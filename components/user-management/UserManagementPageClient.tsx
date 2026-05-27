@@ -2,7 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { RefreshCw, UserCheck, UserCog, UserX, X } from "lucide-react";
-import { useCallback, useDeferredValue, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -96,8 +95,6 @@ export function UserManagementPageClient() {
     useState<FilterValue<InternalUserStatus>>("ALL");
   const [userRole, setUserRole] =
     useState<FilterValue<InternalProfileRole>>("ALL");
-  const [department, setDepartment] = useState("");
-  const deferredDepartment = useDeferredValue(department);
 
   const [inviteStatus, setInviteStatus] =
     useState<FilterValue<InternalInviteStatus>>("ALL");
@@ -112,7 +109,6 @@ export function UserManagementPageClient() {
       const data = await fetchInternalUsers({
         status: userStatus === "ALL" ? undefined : userStatus,
         role: userRole === "ALL" ? undefined : userRole,
-        department: deferredDepartment.trim() || undefined,
       });
       setUsers(data);
     } catch (error) {
@@ -122,7 +118,7 @@ export function UserManagementPageClient() {
     } finally {
       setUsersLoading(false);
     }
-  }, [deferredDepartment, userRole, userStatus]);
+  }, [userRole, userStatus]);
 
   const loadInvites = useCallback(async () => {
     setInvitesLoading(true);
@@ -221,10 +217,10 @@ export function UserManagementPageClient() {
             <div className="min-w-0">
               <CardTitle>Internal users</CardTitle>
               <CardDescription>
-                Filter by account status, operational role, or department.
+                Filter by account status or operational role.
               </CardDescription>
             </div>
-            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 md:w-auto">
+            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto">
               <Select
                 value={userStatus}
                 onValueChange={(value) =>
@@ -262,13 +258,6 @@ export function UserManagementPageClient() {
                   ))}
                 </SelectContent>
               </Select>
-
-              <Input
-                className="w-full md:w-44"
-                value={department}
-                onChange={(event) => setDepartment(event.target.value)}
-                placeholder="Department"
-              />
             </div>
           </div>
         </CardHeader>

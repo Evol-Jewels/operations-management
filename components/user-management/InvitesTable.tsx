@@ -25,7 +25,7 @@ const statusStyles = {
 };
 
 function formatDate(value: string | null) {
-  if (!value) return "Not accepted";
+  if (!value) return "N/A";
 
   return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
@@ -91,12 +91,6 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
                 </span>
               </div>
               <div className="flex justify-between gap-3">
-                <span>Accepted</span>
-                <span className="text-right font-medium text-foreground">
-                  {formatDate(invite.acceptedAt)}
-                </span>
-              </div>
-              <div className="flex justify-between gap-3">
                 <span>Created</span>
                 <span className="text-right font-medium text-foreground">
                   {formatDate(invite.createdAt)}
@@ -115,7 +109,6 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Expiration</TableHead>
-              <TableHead>Accepted</TableHead>
               <TableHead>Created</TableHead>
             </TableRow>
           </TableHeader>
@@ -143,9 +136,6 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatDate(invite.expirationAt)}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDate(invite.acceptedAt)}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatDate(invite.createdAt)}
