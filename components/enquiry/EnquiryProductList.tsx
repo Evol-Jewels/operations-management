@@ -47,7 +47,7 @@ function DetailRow({
   label: string;
   value?: string | number | null;
 }) {
-  if (!value && value !== 0) return null;
+  if (value === null || value === undefined || value === "") return null;
 
   return (
     <div className="grid grid-cols-[6.5rem_1fr] gap-3">
@@ -105,7 +105,7 @@ function ProductVisual({
         alt={title}
         width={320}
         height={220}
-        className="h-32 w-full rounded-lg border border-border bg-muted object-cover"
+        className="h-36 w-full rounded-xl border border-border bg-muted object-cover"
         unoptimized
       />
     );
@@ -113,7 +113,7 @@ function ProductVisual({
 
   const Icon = kind === "custom" ? Palette : Package;
   return (
-    <div className="flex h-32 w-full items-center justify-center rounded-lg border border-border bg-muted/40">
+    <div className="flex h-36 w-full items-center justify-center rounded-xl border border-border bg-muted/40">
       <Icon className="size-8 text-muted-foreground/50" />
     </div>
   );
@@ -121,7 +121,7 @@ function ProductVisual({
 
 function EstimationSummary({ estimation }: { estimation: ProductEstimation }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+    <div className="rounded-xl border border-border bg-muted/25 px-3 py-2.5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -177,7 +177,7 @@ function ProductCard({
     : null;
 
   return (
-    <article className="flex min-h-full flex-col rounded-xl border border-border bg-card p-3">
+    <article className="flex min-h-full flex-col rounded-2xl border border-border bg-card p-3.5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
       <ProductVisual
         imageUrl={item.imageUrl}
         title={item.title}
@@ -321,7 +321,9 @@ export function EnquiryProductList({
         id: product.id,
         kind: "existing" as const,
         title: product.name,
-        subtitle: `${product.productCode} · ${product.category} · ${metalLabel}`,
+        subtitle: [product.productCode, product.category, metalLabel]
+          .filter(Boolean)
+          .join(" · "),
         imageUrl: product.imageUrl,
         status: getItemStatus(product.status, estimation),
         estimation,
@@ -334,11 +336,7 @@ export function EnquiryProductList({
       const estimation = estimations.find(
         (item) => item.productId === product.id,
       );
-      const title = [
-        product.category || "Custom",
-        product.metalType,
-        product.metalPurity,
-      ]
+      const title = [product.category || "Custom", product.metalType, product.metalPurity]
         .filter(Boolean)
         .join(" · ");
       const subtitle =
@@ -368,7 +366,7 @@ export function EnquiryProductList({
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[0.75rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             Products
@@ -396,14 +394,14 @@ export function EnquiryProductList({
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card px-5 py-10 text-center">
+        <div className="rounded-2xl border border-border bg-card px-5 py-10 text-center">
           <Package className="mx-auto mb-3 size-6 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">
             No products added to this enquiry.
           </p>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border px-5 py-8 text-center">
+        <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center">
           <p className="text-sm text-muted-foreground">
             No products match this status.
           </p>
