@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AlertTriangle,
   ArrowLeft,
   Calendar,
   Check,
@@ -13,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { EnquiryProductList } from "@/components/enquiry/EnquiryProductList";
 import {
   type EnquiryStage,
@@ -23,9 +24,26 @@ import { ActivityTimeline } from "@/components/order/ActivityTimeline";
 import { ComposeBox } from "@/components/order/ComposeBox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { getInitials } from "@/lib/people";
-import { cn, formatDate, formatDateTime } from "@/lib/utils";
-import type { ActorRole, Order, ProductEstimation, Stage } from "@/types";
+import { cn, formatDateTime } from "@/lib/utils";
+import type { Order, ProductEstimation } from "@/types";
 
 function deriveEnquiryStage(order: Order): EnquiryStage {
   if (order.status === "closed") return "Closed / Converted";
@@ -72,25 +90,129 @@ function CopyLinkButton() {
   );
 }
 
+const CLOSE_REASONS = [
+  "Customer not interested",
+  "Out of budget",
+  "Product not available",
+  "Duplicate enquiry",
+  "Customer Ordered another product",
+  "Customer didn't respond for a month",
+  "Other",
+] as const;
+
+type CloseReason = (typeof CLOSE_REASONS)[number];
+
+function CloseEnquiryDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+  isSubmitting,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (data: { reason: CloseReason; notes: string }) => void;
+  isSubmitting?: boolean;
+}) {
+  const [reason, setReason] = useState<CloseReason | "">("");
+  const [notes, setNotes] = useState("");
+
+  function handleOpenChange(nextOpen: boolean) {
+    onOpenChange(nextOpen);
+    if (!nextOpen) {
+      setReason("");
+      setNotes("");
+    }
+  }
+
+  function handleSubmit() {
+    if (!reason) return;
+    onSubmit({ reason, notes });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Close enquiry</DialogTitle>
+          <DialogDescription>
+            Select a close reason and add any extra notes before closing this
+            enquiry.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="close-reason">Close reason</Label>
+            <Select
+              value={reason}
+              onValueChange={(value) => setReason(value as CloseReason)}
+            >
+              <SelectTrigger id="close-reason">
+                <SelectValue placeholder="Select a reason" />
+              </SelectTrigger>
+              <SelectContent>
+                {CLOSE_REASONS.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="close-notes">Notes</Label>
+            <Textarea
+              id="close-notes"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder="Add optional closing notes"
+              rows={4}
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => handleOpenChange(false)}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!reason || isSubmitting}
+          >
+            {isSubmitting ? "Closing..." : "Close enquiry"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function PersonCard({
   label,
   name,
   detail,
   imageUrl,
-  role,
+  tone,
   icon,
 }: {
   label: string;
   name: string;
   detail?: string | null;
   imageUrl?: string | null;
-  role?: "customer" | "sales";
+  tone?: "customer" | "sales";
   icon?: ReactNode;
 }) {
   const roleStyles =
-    role === "customer"
+    tone === "customer"
       ? "bg-emerald-100 text-emerald-700"
-      : role === "sales"
+      : tone === "sales"
         ? "bg-blue-100 text-blue-700"
         : "bg-muted text-muted-foreground";
 
@@ -98,7 +220,9 @@ function PersonCard({
     <div className="flex min-w-0 items-center gap-3">
       <Avatar className={cn("size-11 shrink-0", roleStyles)}>
         {imageUrl ? <AvatarImage src={imageUrl} alt={name} /> : null}
-        <AvatarFallback className={roleStyles}>{getInitials(name)}</AvatarFallback>
+        <AvatarFallback className={roleStyles}>
+          {getInitials(name)}
+        </AvatarFallback>
       </Avatar>
       <div className="min-w-0">
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/70">
@@ -146,25 +270,25 @@ function ClosedBanner({ order }: { order: Order }) {
   if (order.status !== "closed") return null;
 
   return (
-    <div className="rounded-2xl border border-border bg-muted/30 px-4 py-4">
+    <div className="rounded-2xl border border-amber-200/80 bg-amber-50 px-4 py-4 text-amber-950 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100">
       <div className="flex items-start gap-3">
-        <X className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200">
+          <AlertTriangle className="size-4" />
+        </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">
-            Enquiry closed
-          </p>
+          <p className="text-sm font-semibold">Enquiry closed</p>
           {order.closeReason ? (
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-amber-900/80 dark:text-amber-100/80">
               {order.closeReason}
             </p>
           ) : null}
           {order.closeNotes ? (
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-amber-900/80 dark:text-amber-100/80">
               {order.closeNotes}
             </p>
           ) : null}
           {order.closedAt ? (
-            <p className="mt-1 text-xs text-muted-foreground/70">
+            <p className="mt-1 text-xs text-amber-900/70 dark:text-amber-100/70">
               Closed on {formatDateTime(order.closedAt)}
             </p>
           ) : null}
@@ -174,33 +298,11 @@ function ClosedBanner({ order }: { order: Order }) {
   );
 }
 
-function SummaryChip({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="flex items-center gap-1.5 whitespace-nowrap">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium tabular-nums text-foreground">
-        {value}
-      </span>
-    </div>
-  );
-}
-
 interface EnquiryDetailPageProps {
   order: Order;
   onSaveEstimation: (productId: string, estimation: ProductEstimation) => void;
-  onPostUpdate: (data: {
-    name: string;
-    role: ActorRole;
-    note: string;
-    newStage: Stage | null;
-  }) => void;
-  onCloseEnquiry: () => void;
+  onPostUpdate: (data: { message: string }) => void;
+  onCloseEnquiry: (data: { reason: string; notes: string }) => Promise<void>;
   isSavingEstimation?: boolean;
   isPostingUpdate?: boolean;
   isClosingEnquiry?: boolean;
@@ -220,17 +322,21 @@ export function EnquiryDetailPage({
   const selectedProducts = order.selectedProducts ?? [];
   const customProducts = order.customProducts ?? [];
   const estimations = order.estimations ?? [];
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
 
   function handleSaveEstimation(estimation: ProductEstimation) {
     onSaveEstimation(estimation.productId, estimation);
   }
 
-  function handlePostUpdate(data: {
-    name: string;
-    role: ActorRole;
-    note: string;
-    newStage: Stage | null;
+  async function handleCloseEnquiry(data: {
+    reason: CloseReason;
+    notes: string;
   }) {
+    await onCloseEnquiry(data);
+    setCloseDialogOpen(false);
+  }
+
+  function handlePostUpdate(data: { message: string }) {
     onPostUpdate(data);
 
     setTimeout(() => {
@@ -257,49 +363,54 @@ export function EnquiryDetailPage({
         </Button>
       </div>
 
-      <header className="mb-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-          Enquiry {formatRefCode(order.refCode)}
-        </p>
-
-        <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            {order.customerName}
-          </h1>
-          <span className="pb-0.5 text-base text-muted-foreground">
-            {formatRefCode(order.refCode)}
-          </span>
-          {isClosed ? (
-            <span className="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-              Closed
+      <header className="mb-6 space-y-4">
+        <div className="flex flex-col gap-4 lg:flex-row items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              {order.customerName}
+            </h1>
+            <span className="text-base text-muted-foreground">
+              {formatRefCode(order.refCode)}
             </span>
-          ) : null}
-        </div>
+            {isClosed ? (
+              <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                Closed
+              </span>
+            ) : null}
+          </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {!isClosed ? (
-            <Button size="sm" asChild className="h-8 gap-1.5 text-xs">
-              <Link href={`/orders/new?from=${order.id}`}>
-                <Calendar className="size-3.5" />
-                <span className="hidden sm:inline">Convert to Order</span>
-                <span className="sm:hidden">Convert</span>
-              </Link>
-            </Button>
-          ) : null}
-          {!isClosed ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onCloseEnquiry}
-              disabled={isClosingEnquiry}
-              className="gap-1.5"
-            >
-              <X className="size-3.5" />
-              Close Enquiry
-            </Button>
-          ) : null}
-          <CopyLinkButton />
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            {!isClosed ? (
+              <Button size="sm" asChild className="h-8 gap-1.5 text-xs">
+                <Link href={`/orders/new?from=${order.id}`}>
+                  <Calendar className="size-3.5" />
+                  <span className="hidden sm:inline">Convert to Order</span>
+                  <span className="sm:hidden">Convert</span>
+                </Link>
+              </Button>
+            ) : null}
+            {!isClosed ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setCloseDialogOpen(true)}
+                >
+                  <X className="size-3.5" />
+                  Close Enquiry
+                </Button>
+                <CloseEnquiryDialog
+                  open={closeDialogOpen}
+                  onOpenChange={setCloseDialogOpen}
+                  isSubmitting={isClosingEnquiry}
+                  onSubmit={handleCloseEnquiry}
+                />
+              </>
+            ) : null}
+            <CopyLinkButton />
+          </div>
         </div>
       </header>
 
@@ -313,25 +424,6 @@ export function EnquiryDetailPage({
         <div className="space-y-6">
           <section className="rounded-2xl border border-border bg-card px-5 py-4">
             <EnquiryStageBar currentStage={stage} />
-          </section>
-
-          <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-border bg-card px-5 py-4">
-            <SummaryChip label="Products" value={selectedProducts.length + customProducts.length} />
-            <SummaryChip
-              label="Estimated"
-              value={`${estimations.length} of ${selectedProducts.length + customProducts.length}`}
-            />
-            {order.budget ? (
-              <SummaryChip
-                label="Budget"
-                value={new Intl.NumberFormat("en-IN", {
-                  style: "currency",
-                  currency: "INR",
-                  maximumFractionDigits: 0,
-                }).format(order.budget)}
-              />
-            ) : null}
-            <SummaryChip label="Updated" value={formatDate(order.lastUpdatedAt)} />
           </section>
 
           {order.customerNotes ? (
@@ -379,8 +471,8 @@ export function EnquiryDetailPage({
                   Post an update
                 </p>
                 <ComposeBox
-                  currentStage={order.currentStage}
                   onSubmit={handlePostUpdate}
+                  isSubmitting={isPostingUpdate}
                 />
                 {isPostingUpdate ? (
                   <p className="mt-2 text-xs text-muted-foreground">
@@ -411,7 +503,7 @@ export function EnquiryDetailPage({
                   label="Customer"
                   name={order.customerName}
                   detail={order.customerPhone}
-                  role="customer"
+                  tone="customer"
                   icon={<Phone className="size-3.5" />}
                 />
               </div>
@@ -419,7 +511,7 @@ export function EnquiryDetailPage({
                 <PersonCard
                   label="Salesperson"
                   name={order.salespersonName}
-                  role="sales"
+                  tone="sales"
                 />
               </div>
               {order.createdBy ? (
@@ -460,14 +552,9 @@ export function EnquiryDetailPage({
                 value={order.customerNotes ?? "Not provided"}
               />
               <InfoRow
-                icon={<Calendar className="size-3.5" />}
-                label="Created"
-                value={formatDate(order.createdAt)}
-              />
-              <InfoRow
                 icon={<MapPin className="size-3.5" />}
                 label="Last updated"
-                value={formatDate(order.lastUpdatedAt)}
+                value={formatDateTime(order.lastUpdatedAt)}
               />
               <InfoRow
                 icon={<User className="size-3.5" />}

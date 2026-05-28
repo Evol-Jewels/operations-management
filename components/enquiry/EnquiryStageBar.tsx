@@ -26,7 +26,7 @@ export function EnquiryStageBar({ currentStage }: EnquiryStageBarProps) {
       <div className="absolute left-[12%] right-[12%] top-4 h-px bg-border/80" />
       {ENQUIRY_STAGES.map((stage, index) => {
         const isCurrent = index === currentIndex;
-        const isComplete = index < currentIndex;
+        const isComplete = index <= currentIndex;
 
         return (
           <div

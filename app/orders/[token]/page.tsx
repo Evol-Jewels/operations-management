@@ -6,18 +6,18 @@ import { notFound, useParams } from "next/navigation";
 import { useState } from "react";
 import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
 import { ActivityTimeline } from "@/components/order/ActivityTimeline";
+import { CloseEnquiryDialog } from "@/components/order/CloseEnquiryDialog";
 import { ComposeBox } from "@/components/order/ComposeBox";
 import { DownloadPDFButton } from "@/components/order/DownloadPDFButton";
 import { OrderDetails } from "@/components/order/OrderDetails";
 import { OrderPrintView } from "@/components/order/OrderPrintView";
 import { ProductionSpecCard } from "@/components/order/ProductionSpecCard";
-import { CloseEnquiryDialog } from "@/components/order/CloseEnquiryDialog";
 import { StageBar } from "@/components/order/StageBar";
 import { StageHint } from "@/components/order/StageHint";
 import { Button } from "@/components/ui/button";
 import { useOrdersStore } from "@/lib/stores/orders-store";
 import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
-import type { ActivityEntry, ActorRole, Order, Stage } from "@/types";
+import type { ActorRole, Order } from "@/types";
 
 // ─── Copy link button ─────────────────────────────────────────────────────────
 
@@ -126,53 +126,28 @@ export default function OrderPage() {
   const urgency = getUrgencyLevel(order.deliveryDate);
   const daysLabel = formatDaysRemaining(order.deliveryDate);
 
-  function handlePostUpdate({
-    name,
-    role,
-    note,
-    newStage,
-  }: {
-    name: string;
-    role: ActorRole;
-    note: string;
-    newStage: Stage | null;
-  }) {
+  function handlePostUpdate({ message }: { message: string }) {
     if (!order) return;
 
     const timestamp = new Date().toISOString();
-    const newEntries: ActivityEntry[] = [];
-
-    if (newStage && newStage !== order.currentStage) {
-      newEntries.push({
-        id: `act-${Date.now()}-stage`,
-        orderId: order.id,
-        postedBy: name,
-        actorRole: role,
-        timestamp,
-        type: "stage_change",
-        previousStage: order.currentStage,
-        newStage,
-        note: note || undefined,
-      });
-    } else if (note) {
-      newEntries.push({
-        id: `act-${Date.now()}-note`,
-        orderId: order.id,
-        postedBy: name,
-        actorRole: role,
-        timestamp,
-        type: "note",
-        note,
-      });
-    }
-
-    if (newEntries.length === 0) return;
+    const note = message.trim();
+    if (!note) return;
 
     updateRecord(order.id, (prev) => ({
       ...prev,
-      currentStage: newStage ?? prev.currentStage,
       lastUpdatedAt: timestamp,
-      activityFeed: [...prev.activityFeed, ...newEntries],
+      activityFeed: [
+        ...prev.activityFeed,
+        {
+          id: `act-${Date.now()}-note`,
+          orderId: order.id,
+          postedBy: "Internal user",
+          actorRole: "sales",
+          timestamp,
+          type: "note",
+          note,
+        },
+      ],
     }));
 
     // Scroll to bottom of timeline after a tick
@@ -310,10 +285,7 @@ export default function OrderPage() {
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
             Post an update
           </p>
-          <ComposeBox
-            currentStage={order.currentStage}
-            onSubmit={handlePostUpdate}
-          />
+          <ComposeBox onSubmit={handlePostUpdate} />
         </div>
 
         {/* Scroll anchor */}
