@@ -1,10 +1,13 @@
 import type {
+  CreateLocationInput,
   CreateMetalInput,
   CreateStoneSlabInput,
   CreateStoneTypeInput,
+  LocationResponse,
   MetalResponse,
   StoneSlabResponse,
   StoneTypeResponse,
+  UpdateLocationInput,
   UpdateMetalInput,
   UpdateStoneSlabInput,
   UpdateStoneTypeInput,
@@ -105,6 +108,7 @@ function normalizeListResponse<T>(response: unknown): {
   const arrayKeys = [
     "items",
     "results",
+    "locations",
     "metals",
     "stoneTypes",
     "stoneSlabs",
@@ -159,6 +163,14 @@ export interface ListMetalsQuery {
   limit?: number;
   offset?: number;
   type?: string;
+}
+
+export interface ListLocationsQuery {
+  name?: string;
+  city?: string;
+  type?: "WAREHOUSE" | "STORE";
+  limit?: number;
+  offset?: number;
 }
 
 export function fetchStoneTypes(query: ListStoneTypesQuery = {}) {
@@ -255,6 +267,40 @@ export function updateMetal(id: string, input: UpdateMetalInput) {
 
 export function deleteMetal(id: string) {
   return apiFetch<{ id: string }>(buildUrl(`api/v1/metals/${id}`), {
+    method: "DELETE",
+  });
+}
+
+export function fetchLocations(query: ListLocationsQuery = {}) {
+  return apiFetch<unknown>(
+    buildUrl("api/v1/locations", {
+      name: query.name,
+      city: query.city,
+      type: query.type,
+      limit: query.limit,
+      offset: query.offset,
+    }),
+  ).then(normalizeListResponse<LocationResponse>);
+}
+
+export function createLocation(input: CreateLocationInput) {
+  return apiFetch<LocationResponse>(buildUrl("api/v1/locations"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateLocation(id: string, input: UpdateLocationInput) {
+  return apiFetch<LocationResponse>(buildUrl(`api/v1/locations/${id}`), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteLocation(id: string) {
+  return apiFetch<{ id: string }>(buildUrl(`api/v1/locations/${id}`), {
     method: "DELETE",
   });
 }

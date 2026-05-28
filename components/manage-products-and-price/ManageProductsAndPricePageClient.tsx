@@ -36,6 +36,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -48,16 +55,16 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  useCreateMetal,
+  useCreateLocation,
   useCreateStoneSlab,
   useCreateStoneType,
-  useDeleteMetal,
+  useDeleteLocation,
   useDeleteStoneSlab,
   useDeleteStoneType,
-  useMetals,
+  useLocations,
   useStoneSlabs,
   useStoneTypes,
-  useUpdateMetal,
+  useUpdateLocation,
   useUpdateStoneSlab,
   useUpdateStoneType,
 } from "@/hooks/useManageProducts";
@@ -68,23 +75,22 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import type { SystemConfig } from "@/types";
 import type {
-  CreateMetalInput,
+  CreateLocationInput,
   CreateStoneSlabInput,
-  MetalResponse,
+  LocationResponse,
   StoneSlabResponse,
   StoneTypeResponse,
-  UpdateMetalInput,
+  UpdateLocationInput,
   UpdateStoneSlabInput,
 } from "@/types/manage-products-api";
 
-type ManageSection = "overview" | "metals" | "stones-slabs" | "misc";
+type ManageSection = "overview" | "locations" | "stones-slabs" | "misc";
 type DialogMode = "add" | "edit";
 
-type MetalDraft = {
+type LocationDraft = {
   name: string;
-  type: string;
-  percentage: string;
-  ratePerGram: string;
+  city: string;
+  type: "WAREHOUSE" | "STORE" | "";
   notes: string;
 };
 
@@ -103,7 +109,7 @@ type SlabDraft = {
 const LIST_QUERY = { limit: 50, offset: 0 };
 const MONEY_PATTERN = /^\d+(\.\d{1,2})?$/;
 const WEIGHT_PATTERN = /^\d+(\.\d{1,3})?$/;
-const PERCENTAGE_PATTERN = /^\d+(\.\d{1,2})?$/;
+const LOCATION_TYPES = ["WAREHOUSE", "STORE"] as const;
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -328,17 +334,17 @@ function Overview({
           Manage Products & Pricing
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Manage backend pricing records for metals, stone types, and stone slab
-          ranges.
+          Manage backend pricing records for store locations, stone types, and
+          stone slab ranges.
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <OverviewCard
           icon={<CircleDollarSign className="h-5 w-5" />}
-          title="Metals"
-          description="Manage metal names, purity percentages, and per-gram rates."
-          onClick={() => onSelect("metals")}
+          title="Stores & Locations"
+          description="Manage store and warehouse locations used across the app."
+          onClick={() => onSelect("locations")}
         />
         <OverviewCard
           icon={<Layers3 className="h-5 w-5" />}
@@ -357,7 +363,7 @@ function Overview({
   );
 }
 
-function MetalDialog({
+function LocationDialog({
   mode,
   draft,
   isSubmitting,
@@ -366,9 +372,9 @@ function MetalDialog({
   onSubmit,
 }: {
   mode: DialogMode | null;
-  draft: MetalDraft | null;
+  draft: LocationDraft | null;
   isSubmitting: boolean;
-  onDraftChange: (draft: MetalDraft) => void;
+  onDraftChange: (draft: LocationDraft) => void;
   onOpenChange: (open: boolean) => void;
   onSubmit: () => void;
 }) {
@@ -379,10 +385,10 @@ function MetalDialog({
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {mode === "edit" ? "Edit Metal" : "Add Metal"}
+            {mode === "edit" ? "Edit Location" : "Add Location"}
           </DialogTitle>
           <DialogDescription>
-            Manage the metal name, type, purity percentage, and per-gram rate.
+            Manage store and warehouse names, cities, and notes.
           </DialogDescription>
         </DialogHeader>
 
@@ -394,30 +400,33 @@ function MetalDialog({
                 onChange={(name) => onDraftChange({ ...draft, name })}
               />
             </FieldBlock>
+            <FieldBlock label="City">
+              <TextInput
+                value={draft.city}
+                onChange={(city) => onDraftChange({ ...draft, city })}
+              />
+            </FieldBlock>
             <FieldBlock label="Type">
-              <TextInput
+              <Select
                 value={draft.type}
-                onChange={(type) => onDraftChange({ ...draft, type })}
-                placeholder="Gold, Platinum, Silver"
-              />
-            </FieldBlock>
-            <FieldBlock label="Percentage">
-              <TextInput
-                value={draft.percentage}
-                onChange={(percentage) =>
-                  onDraftChange({ ...draft, percentage })
+                onValueChange={(type) =>
+                  onDraftChange({
+                    ...draft,
+                    type: type as LocationDraft["type"],
+                  })
                 }
-                placeholder="91.60"
-              />
-            </FieldBlock>
-            <FieldBlock label="Rate / gram">
-              <TextInput
-                value={draft.ratePerGram}
-                onChange={(ratePerGram) =>
-                  onDraftChange({ ...draft, ratePerGram })
-                }
-                placeholder="10000.00"
-              />
+              >
+                <SelectTrigger className="h-10 w-full rounded-none border-0 border-b bg-transparent px-0 shadow-none focus:ring-0">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LOCATION_TYPES.map((locationType) => (
+                    <SelectItem key={locationType} value={locationType}>
+                      {locationType}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </FieldBlock>
             <div className="md:col-span-2">
               <FieldBlock label="Notes">
@@ -446,7 +455,7 @@ function MetalDialog({
                 : "Creating..."
               : mode === "edit"
                 ? "Save Changes"
-                : "Add Metal"}
+                : "Add Location"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -454,83 +463,90 @@ function MetalDialog({
   );
 }
 
-function MetalsEditor({ onBack }: { onBack: () => void }) {
-  const metalsQuery = useMetals(LIST_QUERY);
-  const createMetal = useCreateMetal();
-  const updateMetal = useUpdateMetal();
-  const deleteMetal = useDeleteMetal();
+function LocationsEditor({ onBack }: { onBack: () => void }) {
+  const [nameFilter, setNameFilter] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"WAREHOUSE" | "STORE" | "">("");
+  const locationsQuery = useLocations({
+    limit: 50,
+    offset: 0,
+    name: nameFilter.trim() || undefined,
+    city: cityFilter.trim() || undefined,
+    type: typeFilter || undefined,
+  });
+  const createLocation = useCreateLocation();
+  const updateLocation = useUpdateLocation();
+  const deleteLocation = useDeleteLocation();
   const [dialogMode, setDialogMode] = useState<DialogMode | null>(null);
-  const [editingMetal, setEditingMetal] = useState<MetalResponse | null>(null);
-  const [draft, setDraft] = useState<MetalDraft | null>(null);
-  const [metalToDelete, setMetalToDelete] = useState<MetalResponse | null>(
-    null,
-  );
-  const metals = metalsQuery.data?.data ?? [];
+  const [editingLocation, setEditingLocation] =
+    useState<LocationResponse | null>(null);
+  const [draft, setDraft] = useState<LocationDraft | null>(null);
+  const [locationToDelete, setLocationToDelete] =
+    useState<LocationResponse | null>(null);
+  const locations = locationsQuery.data?.data ?? [];
   const isSubmitting =
-    createMetal.isPending || updateMetal.isPending || deleteMetal.isPending;
+    createLocation.isPending ||
+    updateLocation.isPending ||
+    deleteLocation.isPending;
 
   function closeDialog() {
     setDialogMode(null);
-    setEditingMetal(null);
+    setEditingLocation(null);
     setDraft(null);
   }
 
   function openAddDialog() {
-    setEditingMetal(null);
+    setEditingLocation(null);
     setDraft({
       name: "",
+      city: "",
       type: "",
-      percentage: "",
-      ratePerGram: "",
       notes: "",
     });
     setDialogMode("add");
   }
 
-  function openEditDialog(metal: MetalResponse) {
-    setEditingMetal(metal);
+  function openEditDialog(location: LocationResponse) {
+    setEditingLocation(location);
     setDraft({
-      name: metal.name,
-      type: metal.type ?? "",
-      percentage: metal.percentage ?? "",
-      ratePerGram: metal.ratePerGram ?? "",
-      notes: metal.notes ?? "",
+      name: location.name,
+      city: location.city,
+      type:
+        location.type === "WAREHOUSE" || location.type === "STORE"
+          ? location.type
+          : "",
+      notes: location.notes ?? "",
     });
     setDialogMode("edit");
   }
 
-  function validateDraft(currentDraft: MetalDraft) {
+  function validateDraft(currentDraft: LocationDraft) {
     const name = currentDraft.name.trim();
-    const type = currentDraft.type.trim();
-    const percentage = currentDraft.percentage.trim();
-    const ratePerGram = currentDraft.ratePerGram.trim();
+    const city = currentDraft.city.trim();
+    const type = currentDraft.type;
 
     if (!name) {
-      toast.error("Metal name is required.");
+      toast.error("Location name is required.");
       return false;
     }
     if (name.length > 255) {
-      toast.error("Metal name must be 255 characters or less.");
+      toast.error("Location name must be 255 characters or less.");
       return false;
     }
-    if (type.length > 50) {
-      toast.error("Metal type must be 50 characters or less.");
+    if (!city) {
+      toast.error("City is required.");
       return false;
     }
-    if (percentage && !PERCENTAGE_PATTERN.test(percentage)) {
-      toast.error("Percentage must have up to 2 decimal places.");
-      return false;
-    }
-    if (percentage && Number(percentage) > 100) {
-      toast.error("Percentage must be between 0 and 100.");
-      return false;
-    }
-    if (ratePerGram && !MONEY_PATTERN.test(ratePerGram)) {
-      toast.error("Rate / gram must have up to 2 decimal places.");
+    if (city.length > 255) {
+      toast.error("City must be 255 characters or less.");
       return false;
     }
     if (currentDraft.notes.length > 10000) {
       toast.error("Notes must be 10,000 characters or less.");
+      return false;
+    }
+    if (!type) {
+      toast.error("Type is required.");
       return false;
     }
 
@@ -542,49 +558,47 @@ function MetalsEditor({ onBack }: { onBack: () => void }) {
 
     try {
       if (dialogMode === "add") {
-        const input: CreateMetalInput = {
+        const input: CreateLocationInput = {
           name: draft.name.trim(),
-          type: optionalCreateValue(draft.type),
-          percentage: optionalCreateValue(draft.percentage),
-          ratePerGram: optionalCreateValue(draft.ratePerGram),
+          city: draft.city.trim(),
+          type: draft.type as "WAREHOUSE" | "STORE",
           notes: optionalCreateValue(draft.notes),
         };
-        await createMetal.mutateAsync(input);
-        toast.success("Metal created");
-      } else if (editingMetal) {
-        const input: UpdateMetalInput = {
+        await createLocation.mutateAsync(input);
+        toast.success("Location created");
+      } else if (editingLocation) {
+        const input: UpdateLocationInput = {
           name: draft.name.trim(),
-          type: optionalUpdateValue(draft.type),
-          percentage: optionalUpdateValue(draft.percentage),
-          ratePerGram: optionalUpdateValue(draft.ratePerGram),
+          city: draft.city.trim(),
+          type: draft.type || null,
           notes: optionalUpdateValue(draft.notes),
         };
-        await updateMetal.mutateAsync({ id: editingMetal.id, input });
-        toast.success("Metal updated");
+        await updateLocation.mutateAsync({ id: editingLocation.id, input });
+        toast.success("Location updated");
       }
       closeDialog();
     } catch (error) {
-      toast.error(getErrorMessage(error, "Could not save metal"));
+      toast.error(getErrorMessage(error, "Could not save location"));
     }
   }
 
-  async function confirmDeleteMetal() {
-    if (!metalToDelete) return;
+  async function confirmDeleteLocation() {
+    if (!locationToDelete) return;
 
     try {
-      await deleteMetal.mutateAsync(metalToDelete.id);
-      setMetalToDelete(null);
-      toast.success("Metal deleted");
+      await deleteLocation.mutateAsync(locationToDelete.id);
+      setLocationToDelete(null);
+      toast.success("Location deleted");
     } catch (error) {
-      toast.error(getErrorMessage(error, "Could not delete metal"));
+      toast.error(getErrorMessage(error, "Could not delete location"));
     }
   }
 
   return (
     <SectionShell
       icon={<CircleDollarSign className="h-5 w-5" />}
-      title="Metals"
-      description="Manage metal records used by pricing and estimates."
+      title="Stores & Locations"
+      description="Manage store and warehouse locations used across the app."
       onBack={onBack}
     >
       <Card className="h-full overflow-hidden py-0">
@@ -592,34 +606,61 @@ function MetalsEditor({ onBack }: { onBack: () => void }) {
           <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-foreground">
-                Metal Records
+                Location Records
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {metals.length} of {metalsQuery.data?.total ?? 0} loaded
+                {locations.length} of {locationsQuery.data?.total ?? 0} loaded
               </p>
             </div>
             <Button type="button" onClick={openAddDialog} className="gap-2">
               <Plus className="h-4 w-4" />
-              Add Metal
+              Add Location
             </Button>
           </div>
 
+          <div className="grid gap-3 md:grid-cols-3">
+            <Input
+              value={nameFilter}
+              onChange={(event) => setNameFilter(event.target.value)}
+              placeholder="Filter by name"
+            />
+            <Input
+              value={cityFilter}
+              onChange={(event) => setCityFilter(event.target.value)}
+              placeholder="Filter by city"
+            />
+            <Select
+              value={typeFilter}
+              onValueChange={(value) =>
+                setTypeFilter(value as "WAREHOUSE" | "STORE" | "")
+              }
+            >
+              <SelectTrigger className="h-10 w-full">
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="WAREHOUSE">WAREHOUSE</SelectItem>
+                <SelectItem value="STORE">STORE</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {metalsQuery.isLoading ? <LoadingRows /> : null}
-            {metalsQuery.isError ? (
+            {locationsQuery.isLoading ? <LoadingRows /> : null}
+            {locationsQuery.isError ? (
               <ErrorPanel
                 message={getErrorMessage(
-                  metalsQuery.error,
-                  "Could not load metals.",
+                  locationsQuery.error,
+                  "Could not load locations.",
                 )}
-                onRetry={() => void metalsQuery.refetch()}
+                onRetry={() => void locationsQuery.refetch()}
               />
             ) : null}
-            {!metalsQuery.isLoading && !metalsQuery.isError ? (
-              metals.length === 0 ? (
+            {!locationsQuery.isLoading && !locationsQuery.isError ? (
+              locations.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border py-10 text-center">
                   <p className="text-sm text-muted-foreground">
-                    No metals configured.
+                    No locations configured.
                   </p>
                   <Button
                     type="button"
@@ -628,7 +669,7 @@ function MetalsEditor({ onBack }: { onBack: () => void }) {
                     className="mt-3 gap-2"
                   >
                     <Plus className="h-4 w-4" />
-                    Add Metal
+                    Add Location
                   </Button>
                 </div>
               ) : (
@@ -636,34 +677,30 @@ function MetalsEditor({ onBack }: { onBack: () => void }) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
+                      <TableHead>City</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead>Percentage</TableHead>
-                      <TableHead>Rate / g</TableHead>
                       <TableHead>Notes</TableHead>
                       <TableHead>Updated</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {metals.map((metal) => (
-                      <TableRow key={metal.id}>
+                    {locations.map((location) => (
+                      <TableRow key={location.id}>
                         <TableCell className="font-medium">
-                          {metal.name}
+                          {location.name}
                         </TableCell>
-                        <TableCell>{metal.type || "Not set"}</TableCell>
+                        <TableCell>{location.city}</TableCell>
                         <TableCell>
-                          {metal.percentage
-                            ? `${metal.percentage}%`
-                            : "Not set"}
-                        </TableCell>
-                        <TableCell>
-                          {formatMoneyValue(metal.ratePerGram)}
+                          <Badge variant="secondary" className="uppercase">
+                            {location.type}
+                          </Badge>
                         </TableCell>
                         <TableCell className="max-w-64 truncate">
-                          {metal.notes || "No notes"}
+                          {location.notes || "No notes"}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {formatDate(metal.updatedAt)}
+                          {formatDate(location.updatedAt)}
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
@@ -671,8 +708,8 @@ function MetalsEditor({ onBack }: { onBack: () => void }) {
                               type="button"
                               variant="ghost"
                               size="icon-sm"
-                              onClick={() => openEditDialog(metal)}
-                              aria-label={`Edit ${metal.name}`}
+                              onClick={() => openEditDialog(location)}
+                              aria-label={`Edit ${location.name}`}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -680,8 +717,8 @@ function MetalsEditor({ onBack }: { onBack: () => void }) {
                               type="button"
                               variant="ghost"
                               size="icon-sm"
-                              onClick={() => setMetalToDelete(metal)}
-                              aria-label={`Delete ${metal.name}`}
+                              onClick={() => setLocationToDelete(location)}
+                              aria-label={`Delete ${location.name}`}
                               className="text-muted-foreground hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -698,7 +735,7 @@ function MetalsEditor({ onBack }: { onBack: () => void }) {
         </CardContent>
       </Card>
 
-      <MetalDialog
+      <LocationDialog
         mode={dialogMode}
         draft={draft}
         isSubmitting={isSubmitting}
@@ -710,28 +747,28 @@ function MetalsEditor({ onBack }: { onBack: () => void }) {
       />
 
       <AlertDialog
-        open={!!metalToDelete}
+        open={!!locationToDelete}
         onOpenChange={(open) => {
-          if (!open) setMetalToDelete(null);
+          if (!open) setLocationToDelete(null);
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete metal?</AlertDialogTitle>
+            <AlertDialogTitle>Delete location?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes {metalToDelete?.name ?? "this metal"} from the active
-              pricing list.
+              This removes {locationToDelete?.name ?? "this location"} from the
+              active list.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMetal.isPending}>
+            <AlertDialogCancel disabled={deleteLocation.isPending}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDeleteMetal}
-              disabled={deleteMetal.isPending}
+              onClick={confirmDeleteLocation}
+              disabled={deleteLocation.isPending}
             >
-              {deleteMetal.isPending ? "Deleting..." : "Delete"}
+              {deleteLocation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1693,7 +1730,9 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
                       ) : null}
 
                       <div className="mt-4 flex items-center justify-end gap-3 text-xs text-muted-foreground">
-                        <span>{new Date(config.updatedAt).toLocaleDateString()}</span>
+                        <span>
+                          {new Date(config.updatedAt).toLocaleDateString()}
+                        </span>
                       </div>
                     </button>
                   ))}
@@ -1725,8 +1764,8 @@ export function ManageProductsAndPricePageClient() {
       {activeSection === "overview" ? (
         <Overview onSelect={setActiveSection} />
       ) : null}
-      {activeSection === "metals" ? (
-        <MetalsEditor onBack={() => setActiveSection("overview")} />
+      {activeSection === "locations" ? (
+        <LocationsEditor onBack={() => setActiveSection("overview")} />
       ) : null}
       {activeSection === "stones-slabs" ? (
         <StonesAndSlabsEditor onBack={() => setActiveSection("overview")} />
