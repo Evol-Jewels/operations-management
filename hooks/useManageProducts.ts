@@ -40,10 +40,14 @@ export const manageProductsKeys = {
     [...manageProductsKeys.metals(), query] as const,
 };
 
-export function useStoneTypes(query: ListStoneTypesQuery = {}) {
+export function useStoneTypes(
+  query: ListStoneTypesQuery = {},
+  enabled = true,
+) {
   return useQuery({
     queryKey: manageProductsKeys.stoneTypesList(query),
     queryFn: () => fetchStoneTypes(query),
+    enabled,
   });
 }
 
@@ -138,10 +142,11 @@ export function useDeleteStoneSlab() {
   });
 }
 
-export function useMetals(query: ListMetalsQuery = {}) {
+export function useMetals(query: ListMetalsQuery = {}, enabled = true) {
   return useQuery({
     queryKey: manageProductsKeys.metalsList(query),
     queryFn: () => fetchMetals(query),
+    enabled,
   });
 }
 

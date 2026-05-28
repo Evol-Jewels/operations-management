@@ -253,13 +253,11 @@ function OverviewCard({
   icon,
   title,
   description,
-  meta,
   onClick,
 }: {
   icon: ReactNode;
   title: string;
   description: string;
-  meta: string;
   onClick: () => void;
 }) {
   return (
@@ -277,9 +275,6 @@ function OverviewCard({
           </p>
         </div>
       </div>
-      <span className="mt-auto pt-5 text-xs font-medium text-muted-foreground transition-colors group-hover:text-foreground">
-        {meta}
-      </span>
     </button>
   );
 }
@@ -322,24 +317,10 @@ function ErrorPanel({
 }
 
 function Overview({
-  metalsTotal,
-  stoneTypesTotal,
-  slabTotal,
-  systemConfigTotal,
-  loadingCounts,
   onSelect,
 }: {
-  metalsTotal: number;
-  stoneTypesTotal: number;
-  slabTotal: number;
-  systemConfigTotal: number;
-  loadingCounts: boolean;
   onSelect: (section: ManageSection) => void;
 }) {
-  const countMeta = loadingCounts
-    ? "Loading..."
-    : `${stoneTypesTotal} stones, ${slabTotal} slabs`;
-
   return (
     <div className="space-y-6 overflow-y-auto pr-1">
       <div>
@@ -357,21 +338,18 @@ function Overview({
           icon={<CircleDollarSign className="h-5 w-5" />}
           title="Metals"
           description="Manage metal names, purity percentages, and per-gram rates."
-          meta={loadingCounts ? "Loading..." : `${metalsTotal} metals`}
           onClick={() => onSelect("metals")}
         />
         <OverviewCard
           icon={<Layers3 className="h-5 w-5" />}
           title="Stones & Slabs"
           description="Manage stone types and their per-carat slab ranges."
-          meta={countMeta}
           onClick={() => onSelect("stones-slabs")}
         />
         <OverviewCard
           icon={<ReceiptText className="h-5 w-5" />}
-          title="Miscellaneous"
+          title="System Config"
           description="Edit shared GST and making keys from system config."
-          meta={loadingCounts ? "Loading..." : `${systemConfigTotal} configs`}
           onClick={() => onSelect("misc")}
         />
       </div>
@@ -918,7 +896,6 @@ function SlabDialog({
 
 function StonesAndSlabsEditor({ onBack }: { onBack: () => void }) {
   const stoneTypesQuery = useStoneTypes(LIST_QUERY);
-  const allSlabsQuery = useStoneSlabs(LIST_QUERY);
   const [selectedStoneId, setSelectedStoneId] = useState<string | null>(null);
   const selectedSlabsQuery = useStoneSlabs(
     { ...LIST_QUERY, stoneTypeId: selectedStoneId ?? undefined },
@@ -954,14 +931,6 @@ function StonesAndSlabsEditor({ onBack }: { onBack: () => void }) {
     stoneTypes[0] ??
     null;
   const selectedSlabs = selectedSlabsQuery.data?.data ?? [];
-  const allSlabs = allSlabsQuery.data?.data ?? [];
-  const slabCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const slab of allSlabs) {
-      counts.set(slab.stoneTypeId, (counts.get(slab.stoneTypeId) ?? 0) + 1);
-    }
-    return counts;
-  }, [allSlabs]);
   const isSubmitting =
     createStoneType.isPending ||
     updateStoneType.isPending ||
@@ -1264,15 +1233,6 @@ function StonesAndSlabsEditor({ onBack }: { onBack: () => void }) {
                             >
                               Stone type
                             </Badge>
-                            <span
-                              className={
-                                selected
-                                  ? "text-xs text-background/70"
-                                  : "text-xs text-muted-foreground"
-                              }
-                            >
-                              {slabCounts.get(stone.id) ?? 0} slabs
-                            </span>
                           </div>
                         </button>
                         <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
@@ -1634,7 +1594,7 @@ function SystemConfigDialog({
 }
 
 function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
-  const systemConfigsQuery = useSystemConfigs();
+  const systemConfigsQuery = useSystemConfigs(true);
   const updateSystemConfig = useUpdateSystemConfig();
   const [editingConfig, setEditingConfig] = useState<SystemConfig | null>(null);
 
@@ -1662,7 +1622,7 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
   return (
     <SectionShell
       icon={<ReceiptText className="h-5 w-5" />}
-      title="Miscellaneous"
+      title="System Config"
       description="View and update GST and making values from system config keys."
       onBack={onBack}
     >
@@ -1671,13 +1631,8 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-foreground">
-                System config keys
+                System Config
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {systemConfigsQuery.isLoading
-                  ? "Loading keys..."
-                  : `${sortedConfigs.length} configs loaded`}
-              </p>
             </div>
             <Button
               type="button"
@@ -1721,14 +1676,9 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="secondary" className="uppercase">
-                              {config.key}
-                            </Badge>
-                            <p className="text-xs font-medium text-muted-foreground">
-                              {formatSystemConfigLabel(config.key)}
-                            </p>
-                          </div>
+                          <Badge variant="secondary" className="uppercase">
+                            {config.key}
+                          </Badge>
                           <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-foreground">
                             {formatSystemConfigValue(config)}
                           </p>
@@ -1742,11 +1692,8 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
                         </p>
                       ) : null}
 
-                      <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                        <span>Tap to edit</span>
-                        <span>
-                          {new Date(config.updatedAt).toLocaleDateString()}
-                        </span>
+                      <div className="mt-4 flex items-center justify-end gap-3 text-xs text-muted-foreground">
+                        <span>{new Date(config.updatedAt).toLocaleDateString()}</span>
                       </div>
                     </button>
                   ))}
@@ -1772,27 +1719,11 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
 
 export function ManageProductsAndPricePageClient() {
   const [activeSection, setActiveSection] = useState<ManageSection>("overview");
-  const metalsQuery = useMetals(LIST_QUERY);
-  const stoneTypesQuery = useStoneTypes(LIST_QUERY);
-  const stoneSlabsQuery = useStoneSlabs(LIST_QUERY);
-  const systemConfigsQuery = useSystemConfigs();
-  const loadingCounts =
-    metalsQuery.isLoading ||
-    stoneTypesQuery.isLoading ||
-    stoneSlabsQuery.isLoading ||
-    systemConfigsQuery.isLoading;
 
   return (
     <div className="mx-auto flex h-[calc(100svh-2rem)] w-full max-w-7xl flex-col overflow-hidden sm:h-[calc(100svh-3rem)]">
       {activeSection === "overview" ? (
-        <Overview
-          metalsTotal={metalsQuery.data?.total ?? 0}
-          stoneTypesTotal={stoneTypesQuery.data?.total ?? 0}
-          slabTotal={stoneSlabsQuery.data?.total ?? 0}
-          systemConfigTotal={systemConfigsQuery.data?.length ?? 0}
-          loadingCounts={loadingCounts}
-          onSelect={setActiveSection}
-        />
+        <Overview onSelect={setActiveSection} />
       ) : null}
       {activeSection === "metals" ? (
         <MetalsEditor onBack={() => setActiveSection("overview")} />
