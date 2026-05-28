@@ -1221,6 +1221,8 @@ export function CalculatorPageClient() {
     syncFromSheet,
   } = useCalculatorSettings();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const summaryCardRef = useRef<HTMLDivElement | null>(null);
+  const shouldScrollToSummaryRef = useRef(false);
   const [activeTab, setActiveTab] = useState<CalculatorTab>("calculate");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [form, setForm] = useState<CalculatorFormState>({
@@ -1260,6 +1262,25 @@ export function CalculatorPageClient() {
       }
     };
   }, [form.productImageUrl]);
+
+  useEffect(() => {
+    if (activeTab !== "calculate" || !shouldScrollToSummaryRef.current) {
+      return;
+    }
+
+    shouldScrollToSummaryRef.current = false;
+
+    if (window.matchMedia("(min-width: 640px)").matches) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      summaryCardRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }, [activeTab]);
 
   function updateForm<K extends keyof CalculatorFormState>(
     key: K,
@@ -1348,6 +1369,7 @@ export function CalculatorPageClient() {
       productNote: result.product.description || "",
       productImageUrl: result.product.imageUrl || undefined,
     });
+    shouldScrollToSummaryRef.current = true;
     setActiveTab("calculate");
   }
 
@@ -1376,12 +1398,14 @@ export function CalculatorPageClient() {
                 onImageChange={handleImageChange}
                 onOpenSettings={() => setSettingsOpen(true)}
               />
-              <EstimationSummaryCard
-                form={form}
-                breakdown={breakdown}
-                gstRate={settings.gstRate}
-                className="lg:sticky lg:top-8 lg:self-start"
-              />
+              <div ref={summaryCardRef} className="min-w-0">
+                <EstimationSummaryCard
+                  form={form}
+                  breakdown={breakdown}
+                  gstRate={settings.gstRate}
+                  className="lg:sticky lg:top-8 lg:self-start"
+                />
+              </div>
             </div>
           )}
         </div>

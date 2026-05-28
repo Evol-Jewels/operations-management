@@ -9,10 +9,11 @@ export const systemConfigKeys = {
   list: () => [...systemConfigKeys.all, "list"] as const,
 };
 
-export function useSystemConfigs() {
+export function useSystemConfigs(enabled = true) {
   return useQuery({
     queryKey: systemConfigKeys.list(),
     queryFn: fetchSystemConfigs,
+    enabled,
   });
 }
 
