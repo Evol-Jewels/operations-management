@@ -1,8 +1,20 @@
 "use client";
 
-import { ArrowLeft, Calendar, Check, Copy, Phone, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Calendar,
+  Check,
+  Copy,
+  Gift,
+  IndianRupee,
+  MapPin,
+  Phone,
+  User,
+  X,
+} from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { EnquiryProductList } from "@/components/enquiry/EnquiryProductList";
 import {
   type EnquiryStage,
@@ -12,10 +24,26 @@ import { ActivityTimeline } from "@/components/order/ActivityTimeline";
 import { ComposeBox } from "@/components/order/ComposeBox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { getFirstName, getInitials } from "@/lib/people";
-import { cn, formatDate, formatDateTime } from "@/lib/utils";
-import type { ActorRole, Order, ProductEstimation, Stage } from "@/types";
-import { ACTOR_ROLE_COLORS } from "@/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { getInitials } from "@/lib/people";
+import { cn, formatDateTime } from "@/lib/utils";
+import type { Order, ProductEstimation } from "@/types";
 
 function deriveEnquiryStage(order: Order): EnquiryStage {
   if (order.status === "closed") return "Closed / Converted";
@@ -23,6 +51,11 @@ function deriveEnquiryStage(order: Order): EnquiryStage {
     return "Estimation Submitted";
   }
   return "Enquiry Created";
+}
+
+function formatRefCode(refCode?: number) {
+  if (!refCode) return "Enquiry";
+  return `#${String(refCode).padStart(4, "0")}`;
 }
 
 function CopyLinkButton() {
@@ -44,7 +77,7 @@ function CopyLinkButton() {
     >
       {copied ? (
         <>
-          <Check className="size-3.5 text-muted-foreground" />
+          <Check className="size-3.5" />
           Copied
         </>
       ) : (
@@ -57,59 +90,177 @@ function CopyLinkButton() {
   );
 }
 
-function ContactCard({
-  icon,
+const CLOSE_REASONS = [
+  "Customer not interested",
+  "Out of budget",
+  "Product not available",
+  "Duplicate enquiry",
+  "Customer Ordered another product",
+  "Customer didn't respond for a month",
+  "Other",
+] as const;
+
+type CloseReason = (typeof CLOSE_REASONS)[number];
+
+function CloseEnquiryDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+  isSubmitting,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (data: { reason: CloseReason; notes: string }) => void;
+  isSubmitting?: boolean;
+}) {
+  const [reason, setReason] = useState<CloseReason | "">("");
+  const [notes, setNotes] = useState("");
+
+  function handleOpenChange(nextOpen: boolean) {
+    onOpenChange(nextOpen);
+    if (!nextOpen) {
+      setReason("");
+      setNotes("");
+    }
+  }
+
+  function handleSubmit() {
+    if (!reason) return;
+    onSubmit({ reason, notes });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Close enquiry</DialogTitle>
+          <DialogDescription>
+            Select a close reason and add any extra notes before closing this
+            enquiry.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label htmlFor="close-reason">Close reason</Label>
+            <Select
+              value={reason}
+              onValueChange={(value) => setReason(value as CloseReason)}
+            >
+              <SelectTrigger id="close-reason">
+                <SelectValue placeholder="Select a reason" />
+              </SelectTrigger>
+              <SelectContent>
+                {CLOSE_REASONS.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="close-notes">Notes</Label>
+            <Textarea
+              id="close-notes"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder="Add optional closing notes"
+              rows={4}
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => handleOpenChange(false)}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!reason || isSubmitting}
+          >
+            {isSubmitting ? "Closing..." : "Close enquiry"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PersonCard({
   label,
   name,
   detail,
-  actorRole,
   imageUrl,
+  tone,
+  icon,
 }: {
-  icon?: React.ReactNode;
   label: string;
   name: string;
-  detail?: string;
-  actorRole?: ActorRole;
+  detail?: string | null;
   imageUrl?: string | null;
+  tone?: "customer" | "sales";
+  icon?: ReactNode;
 }) {
-  const colors = actorRole ? ACTOR_ROLE_COLORS[actorRole] : null;
+  const roleStyles =
+    tone === "customer"
+      ? "bg-emerald-100 text-emerald-700"
+      : tone === "sales"
+        ? "bg-blue-100 text-blue-700"
+        : "bg-muted text-muted-foreground";
 
   return (
     <div className="flex min-w-0 items-center gap-3">
-      {imageUrl || actorRole ? (
-        <Avatar
-          className={cn(
-            "size-11 shrink-0 text-sm font-semibold",
-            colors
-              ? [colors.bg, colors.text]
-              : "bg-muted text-muted-foreground",
-          )}
-        >
-          {imageUrl ? <AvatarImage src={imageUrl} alt={name} /> : null}
-          <AvatarFallback
-            className={cn(
-              colors
-                ? [colors.bg, colors.text]
-                : "bg-muted text-muted-foreground",
-            )}
-          >
-            {getInitials(name)}
-          </AvatarFallback>
-        </Avatar>
-      ) : (
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
-          {icon}
-        </div>
-      )}
+      <Avatar className={cn("size-11 shrink-0", roleStyles)}>
+        {imageUrl ? <AvatarImage src={imageUrl} alt={name} /> : null}
+        <AvatarFallback className={roleStyles}>
+          {getInitials(name)}
+        </AvatarFallback>
+      </Avatar>
       <div className="min-w-0">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="truncate text-base font-medium text-foreground">{name}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/70">
+          {label}
+        </p>
+        <p className="truncate text-sm font-medium text-foreground">{name}</p>
         {detail ? (
           <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-            {label === "Customer" ? <Phone className="size-3.5" /> : null}
-            {detail}
+            {icon}
+            <span className="truncate">{detail}</span>
           </p>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value?: string | number | null;
+}) {
+  if (value === null || value === undefined || value === "") return null;
+
+  return (
+    <div className="flex items-start gap-3">
+      <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/65">
+          {label}
+        </p>
+        <p className="mt-0.5 break-words text-sm text-foreground">{value}</p>
       </div>
     </div>
   );
@@ -119,25 +270,25 @@ function ClosedBanner({ order }: { order: Order }) {
   if (order.status !== "closed") return null;
 
   return (
-    <div className="rounded-xl border border-border bg-muted/30 px-4 py-3.5">
+    <div className="rounded-2xl border border-amber-200/80 bg-amber-50 px-4 py-4 text-amber-950 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100">
       <div className="flex items-start gap-3">
-        <X className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground">
-            Enquiry Closed
-          </p>
+        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200">
+          <AlertTriangle className="size-4" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Enquiry closed</p>
           {order.closeReason ? (
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-amber-900/80 dark:text-amber-100/80">
               {order.closeReason}
             </p>
           ) : null}
           {order.closeNotes ? (
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-amber-900/80 dark:text-amber-100/80">
               {order.closeNotes}
             </p>
           ) : null}
           {order.closedAt ? (
-            <p className="mt-1 text-xs text-muted-foreground/70">
+            <p className="mt-1 text-xs text-amber-900/70 dark:text-amber-100/70">
               Closed on {formatDateTime(order.closedAt)}
             </p>
           ) : null}
@@ -150,13 +301,8 @@ function ClosedBanner({ order }: { order: Order }) {
 interface EnquiryDetailPageProps {
   order: Order;
   onSaveEstimation: (productId: string, estimation: ProductEstimation) => void;
-  onPostUpdate: (data: {
-    name: string;
-    role: ActorRole;
-    note: string;
-    newStage: Stage | null;
-  }) => void;
-  onCloseEnquiry: () => void;
+  onPostUpdate: (data: { message: string }) => void;
+  onCloseEnquiry: (data: { reason: string; notes: string }) => Promise<void>;
   isSavingEstimation?: boolean;
   isPostingUpdate?: boolean;
   isClosingEnquiry?: boolean;
@@ -176,28 +322,33 @@ export function EnquiryDetailPage({
   const selectedProducts = order.selectedProducts ?? [];
   const customProducts = order.customProducts ?? [];
   const estimations = order.estimations ?? [];
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
 
   function handleSaveEstimation(estimation: ProductEstimation) {
     onSaveEstimation(estimation.productId, estimation);
   }
 
-  function handlePostUpdate(data: {
-    name: string;
-    role: ActorRole;
-    note: string;
-    newStage: Stage | null;
+  async function handleCloseEnquiry(data: {
+    reason: CloseReason;
+    notes: string;
   }) {
+    await onCloseEnquiry(data);
+    setCloseDialogOpen(false);
+  }
+
+  function handlePostUpdate(data: { message: string }) {
     onPostUpdate(data);
 
     setTimeout(() => {
-      document
-        .getElementById("timeline-end")
-        ?.scrollIntoView({ behavior: "smooth", block: "end" });
+      document.getElementById("timeline-end")?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
     }, 100);
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="mx-auto w-full max-w-5xl">
       <div className="mb-5">
         <Button
           variant="ghost"
@@ -212,37 +363,55 @@ export function EnquiryDetailPage({
         </Button>
       </div>
 
-      <header className="mb-6">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-border bg-background px-3 py-1 text-sm text-muted-foreground">
-            Enquiry
-          </span>
-          {isClosed ? (
-            <span className="rounded-full border border-border bg-muted px-3 py-1 text-sm text-muted-foreground">
-              Closed
+      <header className="mb-6 space-y-4">
+        <div className="flex flex-col gap-4 lg:flex-row items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              {order.customerName}
+            </h1>
+            <span className="text-base text-muted-foreground">
+              {formatRefCode(order.refCode)}
             </span>
-          ) : null}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {isClosed ? (
+              <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                Closed
+              </span>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             {!isClosed ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onCloseEnquiry}
-                disabled={isClosingEnquiry}
-                className="gap-1.5"
-              >
-                <X className="size-3.5" />
-                Close Enquiry
+              <Button size="sm" asChild className="h-8 gap-1.5 text-xs">
+                <Link href={`/orders/new?from=${order.id}`}>
+                  <Calendar className="size-3.5" />
+                  <span className="hidden sm:inline">Convert to Order</span>
+                  <span className="sm:hidden">Convert</span>
+                </Link>
               </Button>
+            ) : null}
+            {!isClosed ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setCloseDialogOpen(true)}
+                >
+                  <X className="size-3.5" />
+                  Close Enquiry
+                </Button>
+                <CloseEnquiryDialog
+                  open={closeDialogOpen}
+                  onOpenChange={setCloseDialogOpen}
+                  isSubmitting={isClosingEnquiry}
+                  onSubmit={handleCloseEnquiry}
+                />
+              </>
             ) : null}
             <CopyLinkButton />
           </div>
         </div>
-
-        <h1 className="mb-5 text-2xl font-semibold tracking-tight text-foreground">
-          {order.customerName}
-        </h1>
       </header>
 
       {isClosed ? (
@@ -251,90 +420,151 @@ export function EnquiryDetailPage({
         </div>
       ) : null}
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(20rem,1fr)]">
-        <section className="flex items-center rounded-xl border border-border bg-card p-4">
-          <EnquiryStageBar currentStage={stage} />
-        </section>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-6">
+          <section className="rounded-2xl border border-border bg-card px-5 py-4">
+            <EnquiryStageBar currentStage={stage} />
+          </section>
 
-        <section className="rounded-xl border border-border bg-card px-5 py-5">
-          <div className="grid gap-5 sm:grid-cols-3 lg:grid-cols-1">
-            <ContactCard
-              label="Customer"
-              name={order.customerName}
-              detail={order.customerPhone}
-              actorRole="customer"
-            />
-            <ContactCard
-              label="Salesperson"
-              name={getFirstName(order.salespersonName)}
-              actorRole="sales"
-            />
-            <ContactCard
-              label="Created By"
-              name={getFirstName(order.createdBy)}
-              actorRole="sales"
-              imageUrl={order.createdBy?.image}
-            />
-            <ContactCard
-              label="Created"
-              name={formatDate(order.createdAt)}
-              icon={<Calendar className="size-5" />}
-            />
-          </div>
-        </section>
-      </div>
-
-      <section className="mb-6">
-        <EnquiryProductList
-          selectedProducts={selectedProducts}
-          customProducts={customProducts}
-          estimations={estimations}
-          isClosed={isClosed}
-          onSaveEstimation={handleSaveEstimation}
-          isSavingEstimation={isSavingEstimation}
-        />
-      </section>
-
-      <section className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <span className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-            Activity
-          </span>
-          <span className="text-sm text-muted-foreground">
-            {order.activityFeed.length}{" "}
-            {order.activityFeed.length === 1 ? "event" : "events"}
-          </span>
-        </div>
-
-        <div className="px-5 pt-5">
-          <ActivityTimeline entries={order.activityFeed} />
-        </div>
-
-        <div className="mx-5 border-t border-dashed border-border" />
-
-        {!isClosed ? (
-          <div className="px-5 pb-5 pt-4">
-            <p className="mb-3 text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-              Post an update
-            </p>
-            <ComposeBox
-              currentStage={order.currentStage}
-              onSubmit={handlePostUpdate}
-            />
-            {isPostingUpdate ? (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Posting update...
+          {order.customerNotes ? (
+            <section className="rounded-2xl border border-border bg-card px-5 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/65">
+                Notes
               </p>
-            ) : null}
-          </div>
-        ) : (
-          <div className="px-5 py-5 text-center text-sm text-muted-foreground">
-            This enquiry is closed. No new updates can be posted.
-          </div>
-        )}
+              <p className="mt-2 text-sm leading-6 text-foreground">
+                {order.customerNotes}
+              </p>
+            </section>
+          ) : null}
 
-        <div id="timeline-end" />
-      </section>
+          <section>
+            <EnquiryProductList
+              selectedProducts={selectedProducts}
+              customProducts={customProducts}
+              estimations={estimations}
+              isClosed={isClosed}
+              onSaveEstimation={handleSaveEstimation}
+              isSavingEstimation={isSavingEstimation}
+            />
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
+                Activity
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {order.activityFeed.length}{" "}
+                {order.activityFeed.length === 1 ? "event" : "events"}
+              </span>
+            </div>
+
+            <div className="px-5 pt-5">
+              <ActivityTimeline entries={order.activityFeed} />
+            </div>
+
+            <div className="mx-5 border-t border-dashed border-border" />
+
+            {!isClosed ? (
+              <div className="px-5 pb-5 pt-4">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                  Post an update
+                </p>
+                <ComposeBox
+                  onSubmit={handlePostUpdate}
+                  isSubmitting={isPostingUpdate}
+                />
+                {isPostingUpdate ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Posting update...
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="px-5 py-5 text-center text-sm text-muted-foreground">
+                This enquiry is closed. No new updates can be posted.
+              </div>
+            )}
+
+            <div id="timeline-end" />
+          </section>
+        </div>
+
+        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+          <section className="overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="border-b border-border px-5 py-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/60">
+                People
+              </p>
+            </div>
+            <div className="space-y-0">
+              <div className="px-5 py-4">
+                <PersonCard
+                  label="Customer"
+                  name={order.customerName}
+                  detail={order.customerPhone}
+                  tone="customer"
+                  icon={<Phone className="size-3.5" />}
+                />
+              </div>
+              <div className="border-t border-border px-5 py-4">
+                <PersonCard
+                  label="Salesperson"
+                  name={order.salespersonName}
+                  tone="sales"
+                />
+              </div>
+              {order.createdBy ? (
+                <div className="border-t border-border px-5 py-4">
+                  <PersonCard
+                    label="Created by"
+                    name={order.createdBy.name}
+                    imageUrl={order.createdBy.image}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="border-b border-border px-5 py-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/60">
+                Details
+              </p>
+            </div>
+            <div className="space-y-4 px-5 py-5">
+              <InfoRow
+                icon={<IndianRupee className="size-3.5" />}
+                label="Budget range"
+                value={
+                  order.budget
+                    ? new Intl.NumberFormat("en-IN", {
+                        style: "currency",
+                        currency: "INR",
+                        maximumFractionDigits: 0,
+                      }).format(order.budget)
+                    : "Not provided"
+                }
+              />
+              <InfoRow
+                icon={<Gift className="size-3.5" />}
+                label="Notes"
+                value={order.customerNotes ?? "Not provided"}
+              />
+              <InfoRow
+                icon={<MapPin className="size-3.5" />}
+                label="Last updated"
+                value={formatDateTime(order.lastUpdatedAt)}
+              />
+              <InfoRow
+                icon={<User className="size-3.5" />}
+                label="Ref code"
+                value={formatRefCode(order.refCode)}
+              />
+            </div>
+          </section>
+        </aside>
+      </div>
 
       <div className="h-16" />
     </div>

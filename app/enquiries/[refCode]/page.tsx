@@ -11,7 +11,7 @@ import {
   useUpdateEstimation,
 } from "@/hooks/useEnquiries";
 import { mapBackendEnquiryDetailsToOrder } from "@/lib/enquiryMappers";
-import type { ActorRole, ProductEstimation, Stage } from "@/types";
+import type { ProductEstimation } from "@/types";
 
 function toDecimal(value: number, digits = 2) {
   return value.toFixed(digits);
@@ -28,13 +28,6 @@ function estimationToApiInput(estimation: ProductEstimation) {
     })),
     makingCost: toDecimal(estimation.finalAmount),
   };
-}
-
-function stageToBackendStatus(stage: Stage | null) {
-  if (stage === "Estimation") return "ESTIMATE_SENT" as const;
-  if (stage === "Order Confirmed") return "ORDER_PLACED" as const;
-  if (stage === "Enquiry") return "IN_PROGRESS" as const;
-  return null;
 }
 
 function EnquiryPageContent() {
@@ -86,24 +79,25 @@ function EnquiryPageContent() {
     });
   }
 
-  function handlePostUpdate({
-    note,
-    newStage,
+  async function handlePostUpdate({ message }: { message: string }) {
+    await createEvent.mutateAsync({ message: message.trim() });
+  }
+
+  async function handleCloseEnquiry({
+    reason,
+    notes,
   }: {
-    name: string;
-    role: ActorRole;
-    note: string;
-    newStage: Stage | null;
+    reason: string;
+    notes: string;
   }) {
-    const backendStatus = stageToBackendStatus(newStage);
+    await updateEnquiry.mutateAsync({ status: "CLOSED" });
 
-    if (backendStatus) {
-      updateEnquiry.mutate({ status: backendStatus });
+    const messageParts = [`Enquiry closed. Reason: ${reason}`];
+    if (notes.trim()) {
+      messageParts.push(notes.trim());
     }
 
-    if (note.trim()) {
-      createEvent.mutate({ message: note.trim() });
-    }
+    await createEvent.mutateAsync({ message: messageParts.join(" - ") });
   }
 
   return (
@@ -111,12 +105,12 @@ function EnquiryPageContent() {
       order={order}
       onSaveEstimation={handleSaveEstimation}
       onPostUpdate={handlePostUpdate}
-      onCloseEnquiry={() => updateEnquiry.mutate({ status: "CLOSED" })}
+      onCloseEnquiry={handleCloseEnquiry}
       isSavingEstimation={
         createEstimation.isPending || updateEstimation.isPending
       }
       isPostingUpdate={createEvent.isPending || updateEnquiry.isPending}
-      isClosingEnquiry={updateEnquiry.isPending}
+      isClosingEnquiry={updateEnquiry.isPending || createEvent.isPending}
     />
   );
 }
