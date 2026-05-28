@@ -88,3 +88,33 @@ export interface UpdateMetalInput {
   ratePerGram?: string | null;
   notes?: string | null;
 }
+
+export interface LocationResponse {
+  id: string;
+  name: string;
+  city: string;
+  type: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
+}
+
+export interface LocationListResponse {
+  data: LocationResponse[];
+  total: number;
+}
+
+export interface CreateLocationInput {
+  name: string;
+  city: string;
+  type: "WAREHOUSE" | "STORE";
+  notes?: string;
+}
+
+export interface UpdateLocationInput {
+  name?: string | null;
+  city?: string | null;
+  type?: "WAREHOUSE" | "STORE" | null;
+  notes?: string | null;
+}

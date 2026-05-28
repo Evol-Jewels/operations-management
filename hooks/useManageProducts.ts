@@ -2,26 +2,33 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  createLocation,
   createMetal,
   createStoneSlab,
   createStoneType,
+  deleteLocation,
   deleteMetal,
   deleteStoneSlab,
   deleteStoneType,
+  fetchLocations,
   fetchMetals,
   fetchStoneSlabs,
   fetchStoneTypes,
+  type ListLocationsQuery,
   type ListMetalsQuery,
   type ListStoneSlabsQuery,
   type ListStoneTypesQuery,
+  updateLocation,
   updateMetal,
   updateStoneSlab,
   updateStoneType,
 } from "@/lib/manageProductsApi";
 import type {
+  CreateLocationInput,
   CreateMetalInput,
   CreateStoneSlabInput,
   CreateStoneTypeInput,
+  UpdateLocationInput,
   UpdateMetalInput,
   UpdateStoneSlabInput,
   UpdateStoneTypeInput,
@@ -35,15 +42,15 @@ export const manageProductsKeys = {
   stoneSlabs: () => [...manageProductsKeys.all, "stone-slabs"] as const,
   stoneSlabsList: (query: ListStoneSlabsQuery = {}) =>
     [...manageProductsKeys.stoneSlabs(), query] as const,
+  locations: () => [...manageProductsKeys.all, "locations"] as const,
+  locationsList: (query: ListLocationsQuery = {}) =>
+    [...manageProductsKeys.locations(), query] as const,
   metals: () => [...manageProductsKeys.all, "metals"] as const,
   metalsList: (query: ListMetalsQuery = {}) =>
     [...manageProductsKeys.metals(), query] as const,
 };
 
-export function useStoneTypes(
-  query: ListStoneTypesQuery = {},
-  enabled = true,
-) {
+export function useStoneTypes(query: ListStoneTypesQuery = {}, enabled = true) {
   return useQuery({
     queryKey: manageProductsKeys.stoneTypesList(query),
     queryFn: () => fetchStoneTypes(query),
@@ -137,6 +144,54 @@ export function useDeleteStoneSlab() {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: manageProductsKeys.stoneSlabs(),
+      });
+    },
+  });
+}
+
+export function useLocations(query: ListLocationsQuery = {}, enabled = true) {
+  return useQuery({
+    queryKey: manageProductsKeys.locationsList(query),
+    queryFn: () => fetchLocations(query),
+    enabled,
+  });
+}
+
+export function useCreateLocation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateLocationInput) => createLocation(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: manageProductsKeys.locations(),
+      });
+    },
+  });
+}
+
+export function useUpdateLocation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateLocationInput }) =>
+      updateLocation(id, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: manageProductsKeys.locations(),
+      });
+    },
+  });
+}
+
+export function useDeleteLocation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deleteLocation(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: manageProductsKeys.locations(),
       });
     },
   });
