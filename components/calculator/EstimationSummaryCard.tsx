@@ -7,13 +7,47 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { CalculatorFormState, CalculatorPricingBreakdown } from "@/types";
+import type {
+  CalculatorFormState,
+  CalculatorPricingBreakdown,
+  CatalogueEstimateResult,
+} from "@/types";
+
+interface SharedSummaryData {
+  name: string;
+  code: string;
+  note: string;
+  imageUrl?: string | null;
+  grossWeight: number;
+  netGoldWeight: number;
+  purity: string;
+  goldRateValue: number;
+  goldCost: number;
+  makingCost: number;
+  stoneDetails: CalculatorPricingBreakdown["stoneDetails"];
+  totalStoneCost: number;
+  subTotal: number;
+  gst: number;
+  total: number;
+  gstRate: number;
+}
 
 interface EstimationSummaryCardProps {
-  form: CalculatorFormState;
-  breakdown: CalculatorPricingBreakdown;
-  gstRate: number;
   className?: string;
+  showDownloadButton?: boolean;
+  downloadFilename?: string;
+  title?: string;
+  data:
+    | {
+        kind: "calculator";
+        form: CalculatorFormState;
+        breakdown: CalculatorPricingBreakdown;
+        gstRate: number;
+      }
+    | {
+        kind: "estimate";
+        result: CatalogueEstimateResult;
+      };
 }
 
 function formatWeight(value: number, suffix: string, decimals = 3) {
@@ -30,19 +64,66 @@ function makeSlug(value: string) {
   );
 }
 
+function getSummaryData(
+  data: EstimationSummaryCardProps["data"],
+): SharedSummaryData {
+  if (data.kind === "calculator") {
+    return {
+      name: data.form.productName.trim(),
+      code: "",
+      note: data.form.productNote.trim(),
+      imageUrl: data.form.productImageUrl,
+      grossWeight: data.breakdown.grossWeight,
+      netGoldWeight: data.form.netGoldWeight,
+      purity: data.form.purity,
+      goldRateValue: data.breakdown.goldRateValue,
+      goldCost: data.breakdown.goldCost,
+      makingCost: data.breakdown.makingCost,
+      stoneDetails: data.breakdown.stoneDetails,
+      totalStoneCost: data.breakdown.totalStoneCost,
+      subTotal: data.breakdown.subTotal,
+      gst: data.breakdown.gst,
+      total: data.breakdown.total,
+      gstRate: data.gstRate,
+    };
+  }
+
+  return {
+    name: data.result.product.productName,
+    code: data.result.product.productCode,
+    note: data.result.product.description?.trim() ?? "",
+    imageUrl: data.result.product.imageUrl,
+    grossWeight: data.result.pricing.grossWeight,
+    netGoldWeight: data.result.product.netGoldWeight,
+    purity: data.result.product.purity,
+    goldRateValue: data.result.pricing.goldRateValue,
+    goldCost: data.result.pricing.goldCost,
+    makingCost: data.result.pricing.makingCost,
+    stoneDetails: data.result.pricing.stoneDetails,
+    totalStoneCost: data.result.pricing.totalStoneCost,
+    subTotal: data.result.pricing.subTotal,
+    gst: data.result.pricing.gst,
+    total: data.result.pricing.total,
+    gstRate: data.result.pricing.gst / data.result.pricing.subTotal || 0,
+  };
+}
+
 export function EstimationSummaryCard({
-  form,
-  breakdown,
-  gstRate,
   className,
+  showDownloadButton = true,
+  downloadFilename,
+  title = "Summary",
+  data,
 }: EstimationSummaryCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const hasStones = breakdown.stoneDetails.some((stone) => stone.weight > 0);
-  const displayName = form.productName.trim();
-  const displaySubtotal = Math.round(breakdown.subTotal);
-  const displayGst = Math.round(breakdown.gst);
-  const displayTotal = displaySubtotal + displayGst;
+  const summary = getSummaryData(data);
+  const hasStones = summary.stoneDetails.some((stone) => stone.weight > 0);
+  const displayName = summary.name || "Summary";
+  const displayCode = summary.code.trim();
+  const displaySubtotal = Math.round(summary.subTotal);
+  const displayGst = Math.round(summary.gst);
+  const displayTotal = Math.round(summary.total);
 
   async function downloadSummary() {
     if (!cardRef.current) return;
@@ -55,9 +136,11 @@ export function EstimationSummaryCard({
       });
       const link = document.createElement("a");
       link.href = dataUrl;
-      link.download = `evol-estimate-${makeSlug(displayName)}-${new Date()
-        .toISOString()
-        .slice(0, 10)}.png`;
+      link.download =
+        downloadFilename ??
+        `evol-estimate-${makeSlug(displayName)}-${new Date()
+          .toISOString()
+          .slice(0, 10)}.png`;
       link.click();
     } finally {
       setIsDownloading(false);
@@ -72,22 +155,24 @@ export function EstimationSummaryCard({
       )}
     >
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">Summary</h2>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-lg"
-          className="rounded-lg"
-          onClick={downloadSummary}
-          disabled={isDownloading}
-          aria-label="Download summary"
-        >
-          {isDownloading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
-        </Button>
+        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+        {showDownloadButton ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-lg"
+            className="rounded-lg"
+            onClick={downloadSummary}
+            disabled={isDownloading}
+            aria-label="Download summary"
+          >
+            {isDownloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+          </Button>
+        ) : null}
       </div>
 
       <div
@@ -96,7 +181,7 @@ export function EstimationSummaryCard({
       >
         <div className="flex items-center justify-center border-b border-border py-3">
           <Image
-            src="/evol-logo.webp"
+            src="/evol-jewels-logo.png"
             alt="Evol"
             width={82}
             height={30}
@@ -107,9 +192,9 @@ export function EstimationSummaryCard({
 
         <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr]">
           <div className="relative flex min-h-56 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0">
-            {form.productImageUrl ? (
+            {summary.imageUrl ? (
               <Image
-                src={form.productImageUrl}
+                src={summary.imageUrl}
                 alt={displayName}
                 fill
                 className="object-cover"
@@ -125,9 +210,11 @@ export function EstimationSummaryCard({
               <p className="break-words text-sm font-semibold leading-snug">
                 {displayName}
               </p>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                {form.productNote.trim()}
-              </p>
+              {displayCode ? (
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  {displayCode}
+                </p>
+              ) : null}
             </div>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
@@ -145,7 +232,7 @@ export function EstimationSummaryCard({
             Gross Weight
           </span>
           <span className="text-sm font-semibold tabular">
-            {formatWeight(breakdown.grossWeight, "g")}
+            {formatWeight(summary.grossWeight, "g")}
           </span>
         </div>
 
@@ -156,14 +243,14 @@ export function EstimationSummaryCard({
             Gold
           </p>
           <p className="mt-3 text-xs text-muted-foreground">
-            {formatWeight(form.netGoldWeight, "g")} - {form.purity} -{" "}
-            {formatCurrency(breakdown.goldRateValue)}/g
+            {formatWeight(summary.netGoldWeight, "g")} - {summary.purity} -{" "}
+            {formatCurrency(summary.goldRateValue)}/g
           </p>
           <div className="mt-3 space-y-3">
             <div className="flex items-center justify-between gap-4">
               <span className="text-sm text-muted-foreground">Gold Cost</span>
               <span className="text-sm font-semibold tabular">
-                {formatCurrency(breakdown.goldCost)}
+                {formatCurrency(summary.goldCost)}
               </span>
             </div>
             <div className="flex items-center justify-between gap-4">
@@ -171,7 +258,7 @@ export function EstimationSummaryCard({
                 Making Charges
               </span>
               <span className="text-sm font-semibold tabular">
-                {formatCurrency(breakdown.makingCost)}
+                {formatCurrency(summary.makingCost)}
               </span>
             </div>
           </div>
@@ -185,7 +272,7 @@ export function EstimationSummaryCard({
                 Stones
               </p>
               <div className="mt-3 divide-y divide-border/70">
-                {breakdown.stoneDetails
+                {summary.stoneDetails
                   .filter((stone) => stone.weight > 0)
                   .map((stone) => (
                     <div
@@ -215,7 +302,7 @@ export function EstimationSummaryCard({
                   Total Stones
                 </span>
                 <span className="text-sm font-semibold tabular">
-                  {formatCurrency(breakdown.totalStoneCost)}
+                  {formatCurrency(summary.totalStoneCost)}
                 </span>
               </div>
             </div>
@@ -233,7 +320,7 @@ export function EstimationSummaryCard({
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">
-              GST ({(gstRate * 100).toFixed(1)}%)
+              GST ({(summary.gstRate * 100).toFixed(1)}%)
             </span>
             <span className="text-sm text-muted-foreground tabular">
               {formatCurrency(displayGst)}

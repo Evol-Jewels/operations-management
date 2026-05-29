@@ -68,7 +68,10 @@ export function fetchRecentProductEstimates(
   );
 }
 
-export function createRecentProductEstimate(input: { productCode: string }) {
+export function createRecentProductEstimate(input: {
+  productCode: string;
+  imageUrl?: string;
+}) {
   return apiFetch<RecentProductEstimate>(
     buildUrl("api/v1/recent-product-estimates"),
     {

@@ -237,6 +237,7 @@ export interface ProductEstimation {
 export interface RecentProductEstimate {
   id: string;
   productCode: string;
+  imageUrl?: string | null;
   totalSearches: number;
   createdAt: string;
   updatedAt: string;
