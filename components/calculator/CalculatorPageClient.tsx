@@ -1,11 +1,9 @@
 "use client";
 
-import { toPng } from "html-to-image";
 import {
   ArrowUpRight,
   CircleDollarSign,
   Diamond,
-  Download,
   Eye,
   ImageIcon,
   Loader2,
@@ -457,26 +455,41 @@ function RecentEstimateRow({
   estimate: RecentProductEstimate;
   onOpen: (estimate: RecentProductEstimate) => void;
 }) {
+  const imageUrl = estimate.imageUrl ?? undefined;
+  const hasImage = Boolean(imageUrl);
+
   return (
     <button
       type="button"
       onClick={() => onOpen(estimate)}
-      className="group grid min-h-16 w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-xl px-3 py-3 text-left transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+      className={cn(
+        "group grid min-h-16 w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+        hasImage
+          ? "grid-cols-[auto_minmax(0,1fr)_auto]"
+          : "grid-cols-[minmax(0,1fr)_auto]",
+      )}
     >
+      {hasImage && (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+          <Image
+            src={imageUrl as string}
+            alt={estimate.productCode}
+            width={44}
+            height={44}
+            className="h-full w-full object-cover"
+            unoptimized
+          />
+        </div>
+      )}
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold">{estimate.productCode}</p>
         <p className="mt-1 text-xs text-muted-foreground">
           <SearchCountLabel count={estimate.totalSearches} />
         </p>
       </div>
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground">
-          {formatEstimateDate(estimate.updatedAt)}
-        </span>
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors group-hover:border-foreground/30 group-hover:text-foreground">
-          <Eye className="h-4 w-4" />
-        </span>
-      </div>
+      <span className="text-xs text-muted-foreground">
+        {formatEstimateDate(estimate.updatedAt)}
+      </span>
     </button>
   );
 }
@@ -511,19 +524,13 @@ function RecentEstimatesList({
       }
     }
 
-    void loadRecentEstimates(`${refreshKey}:${manualRefreshKey}`);
+    loadRecentEstimates(`${refreshKey}:${manualRefreshKey}`);
   }, [refreshKey, manualRefreshKey]);
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 shadow-md">
+    <section className="rounded-2xl border border-border bg-card p-4 my-8 shadow-md">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-base font-semibold">Recent Estimates</h2>
-          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Sparkles className="h-3.5 w-3.5" />
-            Live prices
-          </p>
-        </div>
+        <h2 className="text-base font-semibold">Recent Estimates</h2>
         <Button
           type="button"
           variant="ghost"
@@ -541,7 +548,7 @@ function RecentEstimatesList({
         </Button>
       </div>
 
-      <div className="mt-4 divide-y divide-border/70">
+      <div>
         {isLoading ? (
           RECENT_ESTIMATE_SKELETON_IDS.map((id) => (
             <div key={id} className="flex min-h-16 items-center gap-4 px-3">
@@ -583,30 +590,6 @@ function RecentEstimatesList({
   );
 }
 
-function EstimateBadge({
-  icon,
-  children,
-  dark = false,
-}: {
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-  dark?: boolean;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium",
-        dark
-          ? "bg-foreground text-background"
-          : "bg-muted text-muted-foreground",
-      )}
-    >
-      {icon}
-      {children}
-    </span>
-  );
-}
-
 function RecentEstimateSummaryDialog({
   open,
   onOpenChange,
@@ -620,15 +603,9 @@ function RecentEstimateSummaryDialog({
   settings: CalculatorSettings;
   onLoadProduct: (result: CatalogueEstimateResult) => void;
 }) {
-  const summaryRef = useRef<HTMLDivElement | null>(null);
   const [result, setResult] = useState<CatalogueEstimateResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const displayTotal = result
-    ? Math.round(result.pricing.subTotal) + Math.round(result.pricing.gst)
-    : 0;
 
   useEffect(() => {
     if (!open || !estimate) return;
@@ -658,28 +635,8 @@ function RecentEstimateSummaryDialog({
       }
     }
 
-    void loadEstimateDetails();
+    loadEstimateDetails();
   }, [estimate, open, settings]);
-
-  async function downloadSummary() {
-    if (!summaryRef.current || !result) return;
-
-    setIsDownloading(true);
-    try {
-      const dataUrl = await toPng(summaryRef.current, {
-        pixelRatio: 2,
-        cacheBust: true,
-      });
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = `evol-estimate-${result.product.productCode}-${new Date()
-        .toISOString()
-        .slice(0, 10)}.png`;
-      link.click();
-    } finally {
-      setIsDownloading(false);
-    }
-  }
 
   function loadIntoCalculator() {
     if (!result || result.issues.length > 0) return;
@@ -729,164 +686,18 @@ function RecentEstimateSummaryDialog({
           </div>
         ) : result ? (
           <>
-            <div ref={summaryRef} className="max-h-[72vh] overflow-y-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr]">
-                <div className="relative min-h-72 overflow-hidden bg-muted/60 sm:min-h-0">
-                  {result.product.imageUrl ? (
-                    <Image
-                      src={result.product.imageUrl}
-                      alt={result.product.productName}
-                      fill
-                      className="object-cover"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="flex h-full min-h-72 items-center justify-center">
-                      <ImageIcon className="h-9 w-9 text-muted-foreground/35" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex min-h-72 flex-col justify-between border-t border-border px-5 py-5 sm:border-l sm:border-t-0">
-                  <div>
-                    <p className="text-xl font-semibold leading-tight">
-                      {result.product.productName}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {result.product.productCode}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <EstimateBadge
-                        dark
-                        icon={<CircleDollarSign className="h-3.5 w-3.5" />}
-                      >
-                        {result.product.purity}K
-                      </EstimateBadge>
-                      <EstimateBadge>
-                        {formatWeight(result.product.netGoldWeight)}g
-                      </EstimateBadge>
-                      <EstimateBadge icon={<Diamond className="h-3.5 w-3.5" />}>
-                        {result.product.categoryLabel}
-                      </EstimateBadge>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                      Total
-                    </p>
-                    <p className="mt-1 text-3xl font-semibold tabular">
-                      {formatCurrency(displayTotal)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between border-y border-border bg-muted/30 px-5 py-4">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Gross Weight
-                </span>
-                <span className="text-base font-semibold tabular">
-                  {formatWeight(result.product.grossWeight)} g
-                </span>
-              </div>
-
-              <section className="px-5 py-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  Gold
-                </p>
-                <div className="mt-5 grid grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Net Wt</p>
-                    <p className="mt-2 font-medium tabular">
-                      {formatWeight(result.product.netGoldWeight)} g
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Purity</p>
-                    <p className="mt-2 font-medium">{result.product.purity}K</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Rate</p>
-                    <p className="mt-2 font-medium tabular">
-                      {formatCurrency(result.pricing.goldRateValue)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Cost</p>
-                    <p className="mt-2 font-semibold tabular">
-                      {formatCurrency(result.pricing.goldCost)}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
-                  <span className="text-sm text-muted-foreground">
-                    Making Charges
-                  </span>
-                  <span className="font-semibold tabular">
-                    {formatCurrency(result.pricing.makingCost)}
-                  </span>
-                </div>
-              </section>
-
-              {result.pricing.stoneDetails.some((stone) => stone.weight > 0) ? (
-                <section className="border-t border-border px-5 py-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    Stones
-                  </p>
-                  <div className="mt-4 divide-y divide-border/70">
-                    {result.pricing.stoneDetails
-                      .filter((stone) => stone.weight > 0)
-                      .map((stone) => (
-                        <div
-                          key={stone.id}
-                          className="flex items-start justify-between gap-4 py-4 first:pt-0"
-                        >
-                          <div>
-                            <p className="font-medium">
-                              {stone.stoneType?.name || "Stone"}
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {formatWeight(stone.weight)} ct - {stone.quantity}{" "}
-                              pcs
-                              {stone.slabInfo
-                                ? ` @ ${formatCurrency(
-                                    stone.slabInfo.pricePerCarat,
-                                  )}/ct`
-                                : ""}
-                            </p>
-                          </div>
-                          <p className="font-semibold tabular">
-                            {formatCurrency(stone.totalCost)}
-                          </p>
-                        </div>
-                      ))}
-                  </div>
-                  <div className="flex items-center justify-between border-t border-border pt-4">
-                    <span className="text-sm text-muted-foreground">
-                      Total Stones
-                    </span>
-                    <span className="font-semibold tabular">
-                      {formatCurrency(result.pricing.totalStoneCost)}
-                    </span>
-                  </div>
-                </section>
-              ) : null}
+            <div className="max-h-[72vh] overflow-y-auto p-5">
+              <EstimationSummaryCard
+                data={{ kind: "estimate", result }}
+                downloadFilename={`evol-estimate-${result.product.productCode}-${new Date()
+                  .toISOString()
+                  .slice(0, 10)}.png`}
+                className="border-0 bg-transparent p-0 shadow-none"
+                title="Summary"
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-3 border-t border-border bg-background px-5 py-4 sm:grid-cols-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-12 rounded-xl"
-                onClick={downloadSummary}
-                disabled={isDownloading}
-              >
-                {isDownloading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                Download
-              </Button>
               <Button
                 type="button"
                 className="h-12 rounded-xl"
@@ -948,8 +759,9 @@ function SearchPanel({
         return;
       }
 
-      void createRecentProductEstimate({
+      createRecentProductEstimate({
         productCode: normalized.product.productCode,
+        imageUrl: normalized.product.imageUrl ?? undefined,
       })
         .then(() => {
           setRecentRefreshKey((current) => current + 1);
@@ -976,14 +788,14 @@ function SearchPanel({
               setSearchInput(event.target.value.toUpperCase())
             }
             onKeyDown={(event) => {
-              if (event.key === "Enter") void submitLookupCode(searchInput);
+              if (event.key === "Enter") submitLookupCode(searchInput);
             }}
             placeholder="Enter barcode"
             className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-background px-4 text-sm uppercase outline-none transition-shadow focus:ring-2 focus:ring-ring/20"
           />
           <Button
             type="button"
-            onClick={() => void submitLookupCode(searchInput)}
+            onClick={() => submitLookupCode(searchInput)}
             disabled={!searchInput.trim() || isLoading}
             className="h-11 w-11 shrink-0 rounded-xl px-0"
             aria-label="Search"
@@ -1010,7 +822,7 @@ function SearchPanel({
         open={isScannerOpen}
         onOpenChange={setIsScannerOpen}
         onDecoded={(code) => {
-          void submitLookupCode(code);
+          submitLookupCode(code);
         }}
       />
 
@@ -1400,9 +1212,12 @@ export function CalculatorPageClient() {
               />
               <div ref={summaryCardRef} className="min-w-0">
                 <EstimationSummaryCard
-                  form={form}
-                  breakdown={breakdown}
-                  gstRate={settings.gstRate}
+                  data={{
+                    kind: "calculator",
+                    form,
+                    breakdown,
+                    gstRate: settings.gstRate,
+                  }}
                   className="lg:sticky lg:top-8 lg:self-start"
                 />
               </div>
