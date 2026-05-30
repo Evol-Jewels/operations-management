@@ -6,6 +6,7 @@ import {
   House,
   LogOut,
   BookA,
+  Warehouse,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -55,6 +56,11 @@ const navItems = [
     icon: Calculator,
     label: "Calculator",
     href: "/calculator",
+  },
+  {
+    icon: Warehouse,
+    label: "Inventory",
+    href: "/inventory",
   },
   {
     icon: Boxes,

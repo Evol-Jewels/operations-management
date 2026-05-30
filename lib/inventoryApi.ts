@@ -1,0 +1,104 @@
+import type {
+  InventoryProduct,
+  InventoryProductListResponse,
+} from "@/types/inventory-api";
+
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
+
+function ensureApiConfig() {
+  if (!apiBaseUrl) {
+    throw new Error("Missing NEXT_PUBLIC_API_BASE_URL in .env");
+  }
+}
+
+function buildUrl(path: string) {
+  ensureApiConfig();
+  return new URL(path, `${apiBaseUrl}/`).toString();
+}
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+      ...init?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    let message = `Request failed (HTTP ${response.status})`;
+
+    try {
+      const body = (await response.json()) as {
+        message?: string | string[];
+        error?: string;
+      };
+      message = Array.isArray(body.message)
+        ? body.message.join(", ")
+        : body.message || body.error || message;
+    } catch {
+      // Keep HTTP fallback.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function normalizeProductList(response: unknown): InventoryProductListResponse {
+  if (Array.isArray(response)) {
+    return { data: response as InventoryProduct[], total: response.length };
+  }
+
+  if (!response || typeof response !== "object") {
+    return { data: [], total: 0 };
+  }
+
+  const record = response as Record<string, unknown>;
+  const nestedData = record.data;
+
+  if (Array.isArray(nestedData)) {
+    return {
+      data: nestedData as InventoryProduct[],
+      total:
+        typeof record.total === "number" ? record.total : nestedData.length,
+    };
+  }
+
+  if (nestedData && typeof nestedData === "object") {
+    const nestedRecord = nestedData as Record<string, unknown>;
+    if (Array.isArray(nestedRecord.data)) {
+      return {
+        data: nestedRecord.data as InventoryProduct[],
+        total:
+          typeof nestedRecord.total === "number"
+            ? nestedRecord.total
+            : nestedRecord.data.length,
+      };
+    }
+  }
+
+  for (const key of ["items", "results", "products"]) {
+    const value = record[key];
+    if (Array.isArray(value)) {
+      return {
+        data: value as InventoryProduct[],
+        total: typeof record.total === "number" ? record.total : value.length,
+      };
+    }
+  }
+
+  return { data: [], total: 0 };
+}
+
+export function fetchInventoryProducts() {
+  return apiFetch<unknown>(buildUrl("api/v1/products")).then(
+    normalizeProductList,
+  );
+}
+
+export function fetchInventoryProduct(id: string) {
+  return apiFetch<InventoryProduct>(buildUrl(`api/v1/products/${id}`));
+}
