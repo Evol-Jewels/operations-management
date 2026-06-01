@@ -461,18 +461,16 @@ function EnquiryCard({ order }: { order: Order }) {
       className="group flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-background/70 px-6 py-4 transition-colors hover:border-foreground/15 hover:bg-muted/30"
     >
       <div className="flex min-w-0 items-center gap-3">
-        <span className="text-sm text-muted-foreground">
-          #{order.refCode}
-        </span>
+        <span className="text-sm text-muted-foreground">#{order.refCode}</span>
         <span className="text-foreground">{order.customerName}</span>
 
         {order.status && (
-            <Badge
-              variant={order.status === "open" ? "default" : "secondary"}
-              className="text-[10px] capitalize"
-            >
-              {order.status}
-            </Badge>
+          <Badge
+            variant={order.status === "open" ? "default" : "secondary"}
+            className="text-[10px] capitalize"
+          >
+            {order.status}
+          </Badge>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-2 text-right">

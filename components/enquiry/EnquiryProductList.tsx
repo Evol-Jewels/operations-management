@@ -336,7 +336,11 @@ export function EnquiryProductList({
       const estimation = estimations.find(
         (item) => item.productId === product.id,
       );
-      const title = [product.category || "Custom", product.metalType, product.metalPurity]
+      const title = [
+        product.category || "Custom",
+        product.metalType,
+        product.metalPurity,
+      ]
         .filter(Boolean)
         .join(" · ");
       const subtitle =

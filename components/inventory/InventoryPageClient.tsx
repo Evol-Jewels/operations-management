@@ -56,16 +56,36 @@ function getPrimaryImage(product: InventoryProduct) {
   return product.media.find((item) => item.isPrimary) ?? product.media[0];
 }
 
-function getStoneWeight(product: InventoryProduct) {
-  return Number(product.totalStoneWeight) || 0;
+function getMetalLabel(product: InventoryProduct) {
+  const color = product.color.trim().toLowerCase();
+  const metalColor = color.includes("rose")
+    ? "Rose Gold"
+    : color.includes("white")
+      ? "White Gold"
+      : color.includes("yellow") || color === "gold"
+        ? "Yellow Gold"
+        : product.color;
+
+  return `${metalColor} ${product.purity}K`;
 }
 
-function getStockLabel(product: InventoryProduct) {
-  const pieces = (product.stones ?? []).reduce(
+function getTotalStonePieces(product: InventoryProduct) {
+  return (product.stones ?? []).reduce(
     (sum, stone) => sum + stone.totalPieces,
     0,
   );
-  return `${pieces.toLocaleString("en-IN")} pcs`;
+}
+
+function getTotalStoneCarat(product: InventoryProduct) {
+  const totalStoneWeight = Number(product.totalStoneWeight);
+  if (Number.isFinite(totalStoneWeight) && totalStoneWeight > 0) {
+    return totalStoneWeight;
+  }
+
+  return (product.stones ?? []).reduce(
+    (sum, stone) => sum + (Number(stone.totalNetWeight) || 0),
+    0,
+  );
 }
 
 function productSearchText(product: InventoryProduct) {
@@ -82,13 +102,40 @@ function productSearchText(product: InventoryProduct) {
     .toLowerCase();
 }
 
-function InventoryStat({ label, value }: { label: string; value: string }) {
+function InventoryStat({
+  label,
+  value,
+  emphasis = false,
+}: {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+}) {
   return (
-    <div className="rounded-2xl border border-border bg-background px-4 py-3.5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+    <div
+      className={cn(
+        "rounded-2xl border px-4 py-3.5",
+        emphasis
+          ? "border-foreground bg-foreground"
+          : "border-border bg-background",
+      )}
+    >
+      <p
+        className={cn(
+          "text-[11px] font-semibold uppercase tracking-[0.2em]",
+          emphasis ? "text-background/70" : "text-muted-foreground",
+        )}
+      >
         {label}
       </p>
-      <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
+      <p
+        className={cn(
+          "mt-2 text-sm font-medium",
+          emphasis ? "text-background" : "text-foreground",
+        )}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -143,10 +190,10 @@ function ProductListItem({
         </div>
 
         <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-          {product.vendor}
+          {getMetalLabel(product)}
         </p>
         <p className="mt-2 text-sm text-foreground">
-          {getStockLabel(product)} · {formatWeight(product.netWeight, "g")}
+          Net wt {formatWeight(product.netWeight, "g")}
         </p>
       </div>
     </button>
@@ -205,7 +252,7 @@ function ProductDetail({ product }: { product: InventoryProduct }) {
           </div>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            <InventoryStat label="Metal" value={`Gold ${product.purity}K`} />
+            <InventoryStat label="Metal" value={getMetalLabel(product)} />
             <InventoryStat
               label="Net wt"
               value={formatWeight(product.netWeight, "g")}
@@ -213,6 +260,7 @@ function ProductDetail({ product }: { product: InventoryProduct }) {
             <InventoryStat
               label="Price"
               value={formatCurrency(Number(product.grossWeight) * 16000)}
+              emphasis
             />
           </div>
         </div>
@@ -231,10 +279,9 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 function ProductSpecification({ product }: { product: InventoryProduct }) {
-  const totalStonePieces = (product.stones ?? []).reduce(
-    (sum, stone) => sum + stone.totalPieces,
-    0,
-  );
+  const totalStonePieces = getTotalStonePieces(product);
+  const totalStoneTypes = product.stones?.length ?? 0;
+  const totalStoneCarat = getTotalStoneCarat(product);
 
   return (
     <section className="rounded-[28px] border border-border bg-card p-6 shadow-sm">
@@ -260,7 +307,7 @@ function ProductSpecification({ product }: { product: InventoryProduct }) {
           />
           <DetailRow
             label="Metal"
-            value={`Gold ${product.purity}K · ${formatWeight(product.netWeight, "g")}`}
+            value={`${getMetalLabel(product)} · ${formatWeight(product.netWeight, "g")}`}
           />
         </dl>
         <dl className="space-y-3">
@@ -269,22 +316,10 @@ function ProductSpecification({ product }: { product: InventoryProduct }) {
             value={formatWeight(product.grossWeight, "g")}
           />
           <DetailRow
-            label="Stones"
-            value={
-              totalStonePieces > 0
-                ? `${(product.stones ?? [])[0]?.slab.stoneType.name ?? "Diamond"}, ${formatWeight(getStoneWeight(product), "ct")}`
-                : "No stones"
-            }
-          />
-          <DetailRow
             label="Source"
             value={
               product.isCustomerProduct ? "Customer product" : "Stock product"
             }
-          />
-          <DetailRow
-            label="Pieces"
-            value={`${totalStonePieces.toLocaleString("en-IN")} pcs`}
           />
         </dl>
       </div>
@@ -316,6 +351,20 @@ function ProductSpecification({ product }: { product: InventoryProduct }) {
               <p className="text-sm font-medium text-foreground">
                 Stone composition
               </p>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <InventoryStat
+                label="Total stones"
+                value={totalStoneTypes.toLocaleString("en-IN")}
+              />
+              <InventoryStat
+                label="Total carat"
+                value={formatWeight(totalStoneCarat, "ct")}
+              />
+              <InventoryStat
+                label="Total pieces"
+                value={`${totalStonePieces.toLocaleString("en-IN")} pcs`}
+              />
             </div>
             <div className="mt-4 space-y-3">
               {(product.stones ?? []).map((stone) => (
@@ -767,7 +816,8 @@ export function InventoryPageClient() {
         <section
           className={cn(
             "rounded-md pr-4",
-            hasSelectedProduct && "hidden xl:block xl:h-full xl:overflow-y-auto",
+            hasSelectedProduct &&
+              "hidden xl:block xl:h-full xl:overflow-y-auto",
           )}
         >
           {productsQuery.isLoading ? (
