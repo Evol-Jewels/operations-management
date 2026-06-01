@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { AppShell } from "@/components/layout/AppShell";
 import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -26,16 +28,34 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const themeBootstrapScript = `
+    (function() {
+      try {
+        var theme = window.localStorage.getItem("theme");
+        if (theme !== "dark" && theme !== "light") theme = "light";
+        document.documentElement.classList.toggle("dark", theme === "dark");
+        document.documentElement.style.colorScheme = theme;
+      } catch (error) {}
+    })();
+  `;
+
   return (
     <html lang="en">
+      <head>
+        <Script id="theme-bootstrap" strategy="beforeInteractive">
+          {themeBootstrapScript}
+        </Script>
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}
       >
-        <TooltipProvider>
-          <ReactQueryProvider>
-            <AppShell>{children}</AppShell>
-          </ReactQueryProvider>
-        </TooltipProvider>
+        <ThemeProvider>
+          <TooltipProvider>
+            <ReactQueryProvider>
+              <AppShell>{children}</AppShell>
+            </ReactQueryProvider>
+          </TooltipProvider>
+        </ThemeProvider>
         <Toaster richColors />
       </body>
     </html>

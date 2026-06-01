@@ -2,15 +2,20 @@
 
 import {
   AlertCircle,
+  ArrowLeft,
   Diamond,
+  Filter,
   MapPin,
   PackageSearch,
+  ScanLine,
   Search,
 } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -20,11 +25,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  useInfiniteInventoryProducts,
   useInventoryProduct,
-  useInventoryProducts,
 } from "@/hooks/useInventoryProducts";
+import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { InventoryProduct } from "@/types/inventory-api";
 
@@ -368,6 +380,34 @@ function ProductListSkeleton() {
   );
 }
 
+function ProductGridSkeleton() {
+  const rows = ["row-1", "row-2", "row-3", "row-4", "row-5", "row-6"];
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+      {rows.map((row) => (
+        <div
+          key={row}
+          className="flex w-full items-start gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm"
+        >
+          <Skeleton className="h-20 w-20 shrink-0 rounded-xl" />
+          <div className="min-w-0 flex-1 space-y-3">
+            <div className="flex justify-between gap-3">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-6 w-20 rounded-full" />
+            </div>
+            <Skeleton className="h-3 w-48" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ProductDetailSkeleton() {
   return (
     <div className="space-y-6">
@@ -422,20 +462,78 @@ export function InventoryPageClient() {
   const [colorFilter, setColorFilter] = useState("ALL");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("ALL");
   const [locationFilter, setLocationFilter] = useState("ALL");
-  const productsQuery = useInventoryProducts();
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const productsQuery = useInfiniteInventoryProducts();
   const detailQuery = useInventoryProduct(selectedProductId);
 
-  const products = productsQuery.data?.data ?? [];
+  const products = productsQuery.data?.pages.flatMap((page) => page.data) ?? [];
   const selectedListProduct = products.find(
     (product) => product.id === selectedProductId,
   );
   const selectedProduct = detailQuery.data ?? selectedListProduct ?? null;
+  const hasSelectedProduct = Boolean(selectedProductId);
 
   function selectProduct(productId: string) {
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set("productId", productId);
     router.push(`${pathname}?${nextParams.toString()}`);
   }
+
+  function closeProductDetails() {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("productId");
+    const query = nextParams.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
+
+  function resetFilters() {
+    setSearchQuery("");
+    setCategoryFilter("ALL");
+    setColorFilter("ALL");
+    setSourceFilter("ALL");
+    setLocationFilter("ALL");
+  }
+
+  function handleDecodedBarcode(rawCode: string) {
+    const code = normalizeDecodedId(rawCode);
+    if (!code) return;
+
+    setSearchQuery(code);
+    setIsScannerOpen(false);
+
+    const exactProduct = products.find(
+      (product) => product.productCode.toUpperCase() === code.toUpperCase(),
+    );
+    if (exactProduct) selectProduct(exactProduct.id);
+  }
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (
+          entry.isIntersecting &&
+          productsQuery.hasNextPage &&
+          !productsQuery.isFetchingNextPage
+        ) {
+          productsQuery.fetchNextPage();
+        }
+      },
+      { rootMargin: "360px" },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    productsQuery.fetchNextPage,
+    productsQuery.hasNextPage,
+    productsQuery.isFetchingNextPage,
+  ]);
 
   const categoryOptions = useMemo(
     () =>
@@ -490,57 +588,154 @@ export function InventoryPageClient() {
     sourceFilter,
   ]);
 
-  const visibleCount = filteredProducts.length;
-  const totalCount = productsQuery.data?.total ?? products.length;
-  const customerCount = products.filter(
-    (product) => product.isCustomerProduct,
-  ).length;
+  const activeFilterCount =
+    (searchQuery.trim() ? 1 : 0) +
+    (categoryFilter !== "ALL" ? 1 : 0) +
+    (colorFilter !== "ALL" ? 1 : 0) +
+    (sourceFilter !== "ALL" ? 1 : 0) +
+    (locationFilter !== "ALL" ? 1 : 0);
+
+  const filterControls = (
+    <>
+      <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+        <SelectTrigger className="h-10">
+          <SelectValue placeholder="Category" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All categories</SelectItem>
+          {categoryOptions.map((category) => (
+            <SelectItem key={category} value={category}>
+              {category}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select value={colorFilter} onValueChange={setColorFilter}>
+        <SelectTrigger className="h-10">
+          <SelectValue placeholder="Color" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All colors</SelectItem>
+          {colorOptions.map((color) => (
+            <SelectItem key={color} value={color}>
+              {color}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={sourceFilter}
+        onValueChange={(value) => setSourceFilter(value as SourceFilter)}
+      >
+        <SelectTrigger className="h-10">
+          <SelectValue placeholder="Source" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All sources</SelectItem>
+          <SelectItem value="CUSTOMER">Customer product</SelectItem>
+          <SelectItem value="STOCK">Stock product</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select value={locationFilter} onValueChange={setLocationFilter}>
+        <SelectTrigger className="h-10">
+          <SelectValue placeholder="Location" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All locations</SelectItem>
+          {locationOptions.map((location) => (
+            <SelectItem key={location.id} value={location.id}>
+              {location.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </>
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-            Product Inventory
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
-            Browse inventory and inspect product details
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Search products, narrow by inventory attributes, and open a product
-            on the right for a full detail view.
-          </p>
-        </div>
-        <div className="grid grid-cols-3 gap-3 rounded-[28px] border border-border bg-card p-4 shadow-sm sm:min-w-[28rem]">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Products
-            </p>
-            <p className="mt-1 text-lg font-semibold tabular-nums text-foreground">
-              {productsQuery.isLoading ? "-" : totalCount}
-            </p>
-          </div>
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Shown
-            </p>
-            <p className="mt-1 text-lg font-semibold tabular-nums text-foreground">
-              {productsQuery.isLoading ? "-" : visibleCount}
-            </p>
-          </div>
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Customer
-            </p>
-            <p className="mt-1 text-lg font-semibold tabular-nums text-foreground">
-              {productsQuery.isLoading ? "-" : customerCount}
-            </p>
-          </div>
-        </div>
+      <div className={cn(hasSelectedProduct && "hidden xl:block")}>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Browse product inventory
+        </h1>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          Search products, narrow by inventory attributes, and open any item for
+          a full detail view.
+        </p>
       </div>
 
-      <section className="rounded-[28px] border border-border bg-card p-4 shadow-sm">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_180px_180px_180px]">
+      <div
+        className={cn(
+          "grid grid-cols-2 gap-2 lg:hidden",
+          hasSelectedProduct && "hidden",
+        )}
+      >
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setIsScannerOpen(true)}
+          className="h-10 justify-center gap-2"
+        >
+          <ScanLine className="h-4 w-4" />
+          Scan Barcode
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setIsMobileFiltersOpen(true)}
+          className="h-10 justify-center gap-2"
+        >
+          <Filter className="h-4 w-4" />
+          Filters
+          {activeFilterCount > 0 ? (
+            <Badge variant="secondary" className="ml-0.5 px-1.5">
+              {activeFilterCount}
+            </Badge>
+          ) : null}
+        </Button>
+      </div>
+
+      <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
+        <SheetContent
+          side="bottom"
+          className="w-full rounded-t-xl p-0 sm:left-1/2 sm:w-1/2 sm:-translate-x-1/2 lg:hidden"
+        >
+          <SheetHeader className="border-b border-border px-4 py-4 text-left">
+            <SheetTitle>Filters</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 px-4 py-4">
+            <div className="grid gap-1.5">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search code, vendor, location"
+                  className="h-10"
+                />
+              </div>
+            </div>
+            <div className="grid gap-3">{filterControls}</div>
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={resetFilters}>
+                Clear
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setIsMobileFiltersOpen(false)}
+              >
+                Apply
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <section className="hidden gap-3 lg:grid lg:grid-cols-[minmax(320px,1fr)_auto_minmax(150px,170px)_minmax(130px,150px)_minmax(150px,170px)_minmax(150px,170px)] lg:items-end">
+        <div className="grid min-w-0 gap-1.5">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -550,88 +745,51 @@ export function InventoryPageClient() {
               className="h-10 pl-9"
             />
           </div>
-
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All categories</SelectItem>
-              {categoryOptions.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={colorFilter} onValueChange={setColorFilter}>
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Color" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All colors</SelectItem>
-              {colorOptions.map((color) => (
-                <SelectItem key={color} value={color}>
-                  {color}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={sourceFilter}
-            onValueChange={(value) => setSourceFilter(value as SourceFilter)}
-          >
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Source" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All sources</SelectItem>
-              <SelectItem value="CUSTOMER">Customer product</SelectItem>
-              <SelectItem value="STOCK">Stock product</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={locationFilter} onValueChange={setLocationFilter}>
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Location" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All locations</SelectItem>
-              {locationOptions.map((location) => (
-                <SelectItem key={location.id} value={location.id}>
-                  {location.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setIsScannerOpen(true)}
+          className="h-10"
+        >
+          <ScanLine className="h-4 w-4" />
+          Scan Barcode
+        </Button>
+        {filterControls}
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-        <section className="rounded-[28px] border border-border bg-card p-4 shadow-sm xl:max-h-[calc(100vh-17rem)] xl:overflow-y-auto">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Results
-              </p>
-              <h2 className="mt-1 text-base font-semibold tracking-tight text-foreground">
-                Product list
-              </h2>
-            </div>
-            <Badge variant="secondary">{visibleCount}</Badge>
-          </div>
-
+      <div
+        className={cn(
+          "grid gap-3 w-full h-[80vh] overflow-hidden",
+          hasSelectedProduct && "xl:grid-cols-[420px_minmax(0,1fr)]",
+        )}
+      >
+        <section
+          className={cn(
+            "rounded-md pr-4",
+            hasSelectedProduct && "hidden xl:block xl:h-full xl:overflow-y-auto",
+          )}
+        >
           {productsQuery.isLoading ? (
-            <ProductListSkeleton />
+            hasSelectedProduct ? (
+              <ProductListSkeleton />
+            ) : (
+              <ProductGridSkeleton />
+            )
           ) : productsQuery.isError ? (
             <ErrorPanel
               title="Unable to load products"
               message={getErrorMessage(productsQuery.error)}
             />
           ) : filteredProducts.length > 0 ? (
-            <div className="space-y-2.5">
+            <div
+              className={cn(
+                "grid gap-3",
+                hasSelectedProduct
+                  ? "grid-cols-1"
+                  : "md:grid-cols-2 2xl:grid-cols-3",
+              )}
+            >
               {filteredProducts.map((product) => (
                 <ProductListItem
                   key={product.id}
@@ -652,35 +810,55 @@ export function InventoryPageClient() {
               </p>
             </div>
           )}
+          <div ref={loadMoreRef} className="h-4" />
+          {productsQuery.isFetchingNextPage ? (
+            <p className="py-2 text-center text-xs text-muted-foreground">
+              Fetching more products...
+            </p>
+          ) : products.length > 0 && !productsQuery.hasNextPage ? (
+            <p className="py-2 text-center text-xs text-muted-foreground">
+              -- End of List --
+            </p>
+          ) : null}
         </section>
 
-        <div className="min-w-0 space-y-6">
-          {selectedProductId && detailQuery.isLoading && !selectedProduct ? (
-            <ProductDetailSkeleton />
-          ) : selectedProductId && detailQuery.isError ? (
-            <section className="rounded-[28px] border border-border bg-card p-6 shadow-sm">
-              <ErrorPanel
-                title="Unable to load product details"
-                message={getErrorMessage(detailQuery.error)}
-              />
-            </section>
-          ) : selectedProduct ? (
-            <>
-              <ProductDetail product={selectedProduct} />
-              <ProductSpecification product={selectedProduct} />
-            </>
-          ) : (
-            <section className="flex min-h-[28rem] items-center justify-center rounded-[28px] border border-dashed border-border bg-card text-center shadow-sm">
-              <div>
-                <PackageSearch className="mx-auto h-8 w-8 text-muted-foreground/40" />
-                <p className="mt-3 text-sm font-medium text-muted-foreground">
-                  Select a product to view its details
-                </p>
-              </div>
-            </section>
-          )}
-        </div>
+        {hasSelectedProduct ? (
+          <div className="min-w-0 space-y-3 pr-4 xl:h-full xl:overflow-y-auto">
+            <div>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={closeProductDetails}
+                className="h-9 gap-2 px-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to inventory
+              </Button>
+            </div>
+            {selectedProductId && detailQuery.isLoading && !selectedProduct ? (
+              <ProductDetailSkeleton />
+            ) : selectedProductId && detailQuery.isError ? (
+              <section className="rounded-[28px] border border-border bg-card p-6 shadow-sm">
+                <ErrorPanel
+                  title="Unable to load product details"
+                  message={getErrorMessage(detailQuery.error)}
+                />
+              </section>
+            ) : selectedProduct ? (
+              <>
+                <ProductDetail product={selectedProduct} />
+                <ProductSpecification product={selectedProduct} />
+              </>
+            ) : null}
+          </div>
+        ) : null}
       </div>
+
+      <BarcodeScanDialog
+        open={isScannerOpen}
+        onOpenChange={setIsScannerOpen}
+        onDecoded={handleDecodedBarcode}
+      />
     </div>
   );
 }

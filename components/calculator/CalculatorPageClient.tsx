@@ -119,7 +119,7 @@ function NumericLineInput({
         value={value || ""}
         onChange={(event) => onChange(Number(event.target.value) || 0)}
         placeholder={placeholder}
-        className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/40"
+        className="min-w-0 flex-1 bg-transparent px-1 text-base outline-none placeholder:text-muted-foreground/40"
       />
       {suffix ? (
         <span className="shrink-0 text-xs text-muted-foreground">{suffix}</span>
@@ -153,14 +153,14 @@ function TabsSwitcher({
   onTabChange: (tab: CalculatorTab) => void;
 }) {
   return (
-    <div className="grid h-11 w-full grid-cols-2 rounded-xl bg-muted p-1">
+    <div className="grid h-12 w-full grid-cols-2 rounded-2xl border border-border bg-muted/70 p-1 shadow-sm">
       <button
         type="button"
         onClick={() => onTabChange("search")}
         className={cn(
-          "flex min-h-10 items-center justify-center gap-2 rounded-lg text-sm transition-all",
+          "flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors",
           activeTab === "search"
-            ? "bg-background text-foreground shadow-sm"
+            ? "bg-primary text-primary-foreground shadow-sm"
             : "text-muted-foreground hover:text-foreground",
         )}
       >
@@ -171,9 +171,9 @@ function TabsSwitcher({
         type="button"
         onClick={() => onTabChange("calculate")}
         className={cn(
-          "flex min-h-10 items-center justify-center gap-2 rounded-lg text-sm transition-all",
+          "flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors",
           activeTab === "calculate"
-            ? "bg-background text-foreground shadow-sm"
+            ? "bg-primary text-primary-foreground shadow-sm"
             : "text-muted-foreground hover:text-foreground",
         )}
       >
@@ -291,7 +291,7 @@ function StoneRow({
         value={stone.stoneTypeId}
         onValueChange={(stoneTypeId) => onChange({ stoneTypeId })}
       >
-        <SelectTrigger className="h-10 w-full rounded-none border-0 border-b bg-transparent px-0 shadow-none focus:ring-0">
+        <SelectTrigger className="h-10 w-full border-0 border-b bg-transparent px-1 shadow-none focus:ring-0">
           <SelectValue placeholder="Select stone" />
         </SelectTrigger>
         <SelectContent>
@@ -655,11 +655,11 @@ function RecentEstimateSummaryDialog({
         </DialogTitle>
         <div className="flex items-center justify-center border-b border-border px-5 py-4">
           <Image
-            src="/evol-logo.webp"
+            src="/evol-logo-white.webp"
             alt="Evol"
             width={82}
             height={30}
-            className="h-7 w-auto object-contain"
+            className="h-7 w-auto object-contain dark:brightness-0 dark:invert"
             priority
           />
           <button

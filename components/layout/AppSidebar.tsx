@@ -1,20 +1,22 @@
 "use client";
 
 import {
+  BookA,
   Boxes,
   Calculator,
   House,
   LogOut,
-  BookA,
-  Warehouse,
+  MoonStar,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
   ShieldUser,
+  SunMedium,
+  Warehouse,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "@/components/providers/ThemeProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -88,6 +90,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
   const { state, toggleSidebar } = useSidebar();
+  const { theme, setTheme } = useTheme();
 
   const sessionRole = session ? getSessionRole(session) : "";
   const isActive = (href: string) => {
@@ -115,11 +118,21 @@ export function AppSidebar() {
                 className="group/logo"
               >
                 <div className="relative flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-                  <div className={`relative ${state === "collapsed" ? "w-full" : "w-1/3"}`}>
+                  <div
+                    className={`relative ${state === "collapsed" ? "w-full" : "w-1/3"}`}
+                  >
                     <Avatar
                       className={`rounded-sm ${state === "collapsed" ? "group-hover:opacity-0 size-6" : "size-8"} w-full`}
                     >
-                      <AvatarImage src="/evol-logo.webp" alt="EVOL" />
+                      <AvatarImage
+                        src={
+                          theme === "dark"
+                            ? "/evol-logo-white.webp"
+                            : "/evol-logo.webp"
+                        }
+                        alt="EVOL"
+                        className="object-contain dark:brightness-0 dark:invert"
+                      />
                       <AvatarFallback className="bg-sidebar-accent text-xs font-semibold">
                         Evol
                       </AvatarFallback>
@@ -129,9 +142,7 @@ export function AppSidebar() {
                     )}
                   </div>
                   <div className="flex flex-col items-start group-data-[collapsible=icon]:hidden">
-                    <span className="text-sm font-semibold">
-                      EVOL
-                    </span>
+                    <span className="text-sm font-semibold">EVOL</span>
                     <Badge
                       variant="default"
                       className="mt-1 h-4 px-1.5 text-[10px] font-medium"
@@ -208,6 +219,41 @@ export function AppSidebar() {
       <SidebarSeparator className="mx-3" />
 
       <SidebarFooter>
+        <div className="group-data-[collapsible=icon]:px-0">
+          <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/40 p-1 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:w-fit">
+            <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
+              <Button
+                type="button"
+                variant={theme === "light" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setTheme("light")}
+                className="h-8 justify-center gap-2 px-3 group-data-[collapsible=icon]:size-6 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:px-0"
+                aria-pressed={theme === "light"}
+                aria-label="Switch to light theme"
+              >
+                <SunMedium className="h-4 w-4" />
+                <span className="group-data-[collapsible=icon]:hidden">
+                  Light
+                </span>
+              </Button>
+              <Button
+                type="button"
+                variant={theme === "dark" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setTheme("dark")}
+                className="h-8 flex-1 justify-center gap-2 px-3 group-data-[collapsible=icon]:size-6 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:px-0"
+                aria-pressed={theme === "dark"}
+                aria-label="Switch to dark theme"
+              >
+                <MoonStar className="h-4 w-4" />
+                <span className="group-data-[collapsible=icon]:hidden">
+                  Dark
+                </span>
+              </Button>
+            </div>
+          </div>
+        </div>
+
         {session ? (
           <Popover>
             <PopoverTrigger asChild>
