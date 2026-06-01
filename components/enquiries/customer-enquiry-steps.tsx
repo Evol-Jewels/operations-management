@@ -494,7 +494,10 @@ export function NotesStep({
           autoFocus
         />
         <div className="space-y-2">
-          <label htmlFor="budget" className="text-xs font-medium text-foreground/80">
+          <label
+            htmlFor="budget"
+            className="text-xs font-medium text-foreground/80"
+          >
             Budget (₹)
           </label>
           <Input

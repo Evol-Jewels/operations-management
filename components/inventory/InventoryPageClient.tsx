@@ -767,7 +767,8 @@ export function InventoryPageClient() {
         <section
           className={cn(
             "rounded-md pr-4",
-            hasSelectedProduct && "hidden xl:block xl:h-full xl:overflow-y-auto",
+            hasSelectedProduct &&
+              "hidden xl:block xl:h-full xl:overflow-y-auto",
           )}
         >
           {productsQuery.isLoading ? (

@@ -219,7 +219,8 @@ export const mockInventoryProducts: InventoryProduct[] = [
       {
         id: "f0571444-288b-4a55-9368-af1b1e128dc8",
         mediaType: "IMAGE",
-        storageKey: "https://files.synergicserp.com/PML/IMAGES/708b8dfe-164b-4dc9-b4e5-fbe7d1943ebb.jpg",
+        storageKey:
+          "https://files.synergicserp.com/PML/IMAGES/708b8dfe-164b-4dc9-b4e5-fbe7d1943ebb.jpg",
         altText: "Pendant SPND679608",
         sortOrder: 0,
         isPrimary: true,
@@ -303,7 +304,8 @@ export const mockInventoryProducts: InventoryProduct[] = [
       {
         id: "c14a57f1-9249-4aaa-b879-076d44ab8373",
         mediaType: "IMAGE",
-        storageKey: "https://files.synergicserp.com/PML/IMAGES/6621e8e4-6b7c-473f-aafa-a04a22972fe3.jpg",
+        storageKey:
+          "https://files.synergicserp.com/PML/IMAGES/6621e8e4-6b7c-473f-aafa-a04a22972fe3.jpg",
         altText: "Bracelets SBRC679605",
         sortOrder: 0,
         isPrimary: true,
@@ -407,7 +409,8 @@ export const mockInventoryProducts: InventoryProduct[] = [
       {
         id: "3711ea74-52a3-480f-8743-7c40e058b9ac",
         mediaType: "IMAGE",
-        storageKey: "https://files.synergicserp.com/PML/IMAGES/4ee87c2c-f215-4850-8242-faea4708d817.jpg",
+        storageKey:
+          "https://files.synergicserp.com/PML/IMAGES/4ee87c2c-f215-4850-8242-faea4708d817.jpg",
         altText: "Ring SRNG679607",
         sortOrder: 0,
         isPrimary: true,
@@ -512,7 +515,8 @@ export const mockInventoryProducts: InventoryProduct[] = [
       {
         id: "c97b6e79-3466-49c1-8c05-e756a25eecb2",
         mediaType: "IMAGE",
-        storageKey: "https://files.synergicserp.com/PML/IMAGES/44b40e10-f8e5-4aa1-b77e-156e316e0003.jpg",
+        storageKey:
+          "https://files.synergicserp.com/PML/IMAGES/44b40e10-f8e5-4aa1-b77e-156e316e0003.jpg",
         altText: "Ring SRNG679604",
         sortOrder: 0,
         isPrimary: true,
@@ -596,7 +600,8 @@ export const mockInventoryProducts: InventoryProduct[] = [
       {
         id: "c8f61a97-61fb-4e59-9ffb-6c726e6751be",
         mediaType: "IMAGE",
-        storageKey: "https://files.synergicserp.com/PML/IMAGES/3a9157da-66a5-4252-ae31-8e608faf378a.jpg",
+        storageKey:
+          "https://files.synergicserp.com/PML/IMAGES/3a9157da-66a5-4252-ae31-8e608faf378a.jpg",
         altText: "Earrings SERN679603",
         sortOrder: 0,
         isPrimary: true,
@@ -701,7 +706,8 @@ export const mockInventoryProducts: InventoryProduct[] = [
       {
         id: "c5f22f70-b36d-4e1b-a161-237f07a79ef8",
         mediaType: "IMAGE",
-        storageKey: "https://files.synergicserp.com/PML/IMAGES/1d1bbe05-a78d-40b9-a04c-606abdeaa9f2.jpg",
+        storageKey:
+          "https://files.synergicserp.com/PML/IMAGES/1d1bbe05-a78d-40b9-a04c-606abdeaa9f2.jpg",
         altText: "Earrings SERN679606",
         sortOrder: 0,
         isPrimary: true,
@@ -806,7 +812,8 @@ export const mockInventoryProducts: InventoryProduct[] = [
       {
         id: "d1898aa2-2779-4ca4-acdf-12a115603422",
         mediaType: "IMAGE",
-        storageKey: "https://files.synergicserp.com/PML/IMAGES/131dd1a1-4009-4aca-8d93-8468dd1f0f7a.jpg",
+        storageKey:
+          "https://files.synergicserp.com/PML/IMAGES/131dd1a1-4009-4aca-8d93-8468dd1f0f7a.jpg",
         altText: "Earrings SERN679602",
         sortOrder: 0,
         isPrimary: true,
@@ -911,7 +918,8 @@ export const mockInventoryProducts: InventoryProduct[] = [
       {
         id: "d9b7222a-a3ff-4e93-a15c-280f9a9c95d8",
         mediaType: "IMAGE",
-        storageKey: "https://files.synergicserp.com/PML/IMAGES/0ad3315c-f8e5-4308-89b3-303e0e597b05.jpg",
+        storageKey:
+          "https://files.synergicserp.com/PML/IMAGES/0ad3315c-f8e5-4308-89b3-303e0e597b05.jpg",
         altText: "Bracelets CBRC647635",
         sortOrder: 0,
         isPrimary: true,
