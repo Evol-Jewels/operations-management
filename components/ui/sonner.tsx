@@ -6,6 +6,7 @@ function Toaster({ ...props }: React.ComponentProps<typeof SonnerToaster>) {
   return (
     <SonnerToaster
       className="toaster group"
+      position="top-center"
       toastOptions={{
         classNames: {
           toast:

@@ -11,9 +11,17 @@ function ensureApiConfig() {
   }
 }
 
-function buildUrl(path: string) {
+function buildUrl(path: string, query?: Record<string, string | number>) {
   ensureApiConfig();
-  return new URL(path, `${apiBaseUrl}/`).toString();
+  const url = new URL(path, `${apiBaseUrl}/`);
+
+  if (query) {
+    for (const [key, value] of Object.entries(query)) {
+      url.searchParams.set(key, String(value));
+    }
+  }
+
+  return url.toString();
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -49,7 +57,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 function normalizeProductList(response: unknown): InventoryProductListResponse {
   if (Array.isArray(response)) {
-    return { data: response as InventoryProduct[], total: response.length };
+    return { data: response as InventoryProduct[], total: 0 };
   }
 
   if (!response || typeof response !== "object") {
@@ -62,8 +70,7 @@ function normalizeProductList(response: unknown): InventoryProductListResponse {
   if (Array.isArray(nestedData)) {
     return {
       data: nestedData as InventoryProduct[],
-      total:
-        typeof record.total === "number" ? record.total : nestedData.length,
+      total: typeof record.total === "number" ? record.total : 0,
     };
   }
 
@@ -72,10 +79,7 @@ function normalizeProductList(response: unknown): InventoryProductListResponse {
     if (Array.isArray(nestedRecord.data)) {
       return {
         data: nestedRecord.data as InventoryProduct[],
-        total:
-          typeof nestedRecord.total === "number"
-            ? nestedRecord.total
-            : nestedRecord.data.length,
+        total: typeof nestedRecord.total === "number" ? nestedRecord.total : 0,
       };
     }
   }
@@ -85,7 +89,7 @@ function normalizeProductList(response: unknown): InventoryProductListResponse {
     if (Array.isArray(value)) {
       return {
         data: value as InventoryProduct[],
-        total: typeof record.total === "number" ? record.total : value.length,
+        total: typeof record.total === "number" ? record.total : 0,
       };
     }
   }
@@ -93,8 +97,12 @@ function normalizeProductList(response: unknown): InventoryProductListResponse {
   return { data: [], total: 0 };
 }
 
-export function fetchInventoryProducts() {
-  return apiFetch<unknown>(buildUrl("api/v1/products")).then(
+export function fetchInventoryProducts({
+  offset = 0,
+}: {
+  offset?: number;
+} = {}) {
+  return apiFetch<unknown>(buildUrl("api/v1/products", { offset })).then(
     normalizeProductList,
   );
 }

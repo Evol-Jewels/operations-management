@@ -75,7 +75,7 @@ const sectionTriggerClass =
 const sectionTitleClass =
   "text-xs font-medium uppercase tracking-wide text-foreground";
 const compactInputClass =
-  "border-0 border-b border-border bg-transparent px-0 text-foreground focus:border-foreground focus:ring-0";
+  "border-0 border-b border-border bg-transparent px-1 text-foreground focus:border-foreground focus:ring-0";
 
 export function SettingsView({
   settings,

@@ -112,14 +112,14 @@ export function EstimationSummaryCard({
   className,
   showDownloadButton = true,
   downloadFilename,
-  title = "Summary",
+  title = "Estimation Summary",
   data,
 }: EstimationSummaryCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const summary = getSummaryData(data);
   const hasStones = summary.stoneDetails.some((stone) => stone.weight > 0);
-  const displayName = summary.name || "Summary";
+  const displayName = summary.name || "";
   const displayCode = summary.code.trim();
   const displaySubtotal = Math.round(summary.subTotal);
   const displayGst = Math.round(summary.gst);
@@ -181,11 +181,11 @@ export function EstimationSummaryCard({
       >
         <div className="flex items-center justify-center border-b border-border py-3">
           <Image
-            src="/evol-jewels-logo.png"
+            src="/evol-logo-white.webp"
             alt="Evol"
             width={82}
             height={30}
-            className="h-7 w-auto object-contain"
+            className="h-7 w-auto object-contain dark:brightness-0 dark:invert"
             priority
           />
         </div>
