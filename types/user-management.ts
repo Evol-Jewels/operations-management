@@ -28,6 +28,7 @@ export interface InternalUserWithProfile {
   id: string;
   email: string;
   name: string;
+  username?: string;
   role: "internal";
   status: InternalUserStatus;
   emailVerifiedAt: string | null;
@@ -41,8 +42,10 @@ export interface InternalInviteRow {
   id: string;
   userId: string;
   email: string;
+  username?: string;
   role: InternalProfileRole;
   status: InternalInviteStatus;
+  onlyUsernameLogin?: boolean;
   expirationAt: string;
   createdBy: string;
   acceptedAt: string | null;
@@ -64,6 +67,8 @@ export interface InternalInvitesQuery {
 export interface CreateInternalInviteInput {
   email: string;
   role: InternalProfileRole;
+  username?: string;
+  onlyUsernameLogin?: boolean;
   expiration?: string;
 }
 
@@ -71,6 +76,8 @@ export interface CreateInternalInviteResponse {
   id: string;
   email: string;
   role: InternalProfileRole;
+  username?: string;
+  password?: string;
   userStatus: InternalUserStatus;
   inviteStatus: InternalInviteStatus;
   expiration: string;

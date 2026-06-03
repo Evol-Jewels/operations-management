@@ -3,6 +3,7 @@
 import { Send } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -23,13 +24,18 @@ import {
 } from "@/components/ui/select";
 import type {
   CreateInternalInviteInput,
+  CreateInternalInviteResponse,
   InternalProfileRole,
 } from "@/types/user-management";
 import { INTERNAL_PROFILE_ROLES } from "@/types/user-management";
 
+function isAdmin(role: InternalProfileRole) {
+  return role === "ADMIN";
+}
+
 interface SendInviteDialogProps {
   isSubmitting: boolean;
-  onSubmit: (input: CreateInternalInviteInput) => Promise<void>;
+  onSubmit: (input: CreateInternalInviteInput) => Promise<CreateInternalInviteResponse>;
 }
 
 function defaultExpirationValue() {
@@ -52,6 +58,8 @@ export function SendInviteDialog({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<InternalProfileRole>("SALES");
   const [expiration, setExpiration] = useState(defaultExpirationValue);
+  const [username, setUsername] = useState("");
+  const [allowLoginWithUsername, setAllowLoginWithUsername] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -69,11 +77,19 @@ export function SendInviteDialog({
       await onSubmit({
         email: trimmedEmail,
         role,
+        ...(isAdmin(role)
+          ? {}
+          : {
+              username: username.trim() || undefined,
+              onlyUsernameLogin: allowLoginWithUsername,
+            }),
         expiration: toIsoDateTime(expiration),
       });
       setEmail("");
       setRole("SALES");
       setExpiration(defaultExpirationValue());
+      setUsername("");
+      setAllowLoginWithUsername(false);
       setOpen(false);
     } catch (submitError) {
       setError(
@@ -132,6 +148,37 @@ export function SendInviteDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {!isAdmin(role) && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="invite-username">Username</Label>
+                <Input
+                  id="invite-username"
+                  type="text"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="username"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="invite-allow-username"
+                  checked={allowLoginWithUsername}
+                  onCheckedChange={(checked) =>
+                    setAllowLoginWithUsername(checked === true)
+                  }
+                />
+                <Label
+                  htmlFor="invite-allow-username"
+                  className="text-sm leading-5 text-muted-foreground"
+                >
+                  Only allow login with username
+                </Label>
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="invite-expiration">Expiration</Label>

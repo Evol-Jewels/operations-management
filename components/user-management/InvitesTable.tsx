@@ -67,7 +67,9 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
                   {invite.email}
                 </p>
                 <p className="mt-1 truncate text-xs text-muted-foreground">
-                  User: {invite.userId}
+                  {invite.username
+                    ? `Username: ${invite.username}`
+                    : `User: ${invite.userId}`}
                 </p>
               </div>
               <Badge
@@ -121,7 +123,9 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
                       {invite.email}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      User: {invite.userId}
+                      {invite.username
+                        ? `Username: ${invite.username}`
+                        : `User: ${invite.userId}`}
                     </p>
                   </div>
                 </TableCell>
