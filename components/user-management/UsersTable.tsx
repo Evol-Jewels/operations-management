@@ -78,7 +78,7 @@ export function UsersTable({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate font-medium text-foreground">
-                      {user.name || "Unnamed user"}
+                      {user.username || user.name || "Unnamed user"}
                     </p>
                     <p className="mt-1 truncate text-xs text-muted-foreground">
                       {user.email}
@@ -135,7 +135,7 @@ export function UsersTable({
                     </div>
                     <div className="min-w-0">
                       <p className="truncate font-medium text-foreground">
-                        {user.name || "Unnamed user"}
+                        {user.username || user.name || "Unnamed user"}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
                         {user.email}

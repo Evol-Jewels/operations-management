@@ -1,8 +1,9 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { RefreshCw, UserCheck, UserCog, UserX, X } from "lucide-react";
+import { Check, Copy, RefreshCw, UserCheck, UserCog, UserX, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +13,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -29,6 +40,7 @@ import {
 } from "@/lib/internalUserManagementApi";
 import type {
   CreateInternalInviteInput,
+  CreateInternalInviteResponse,
   InternalInviteRow,
   InternalInviteStatus,
   InternalProfileRole,
@@ -147,15 +159,47 @@ export function UserManagementPageClient() {
     loadInvites();
   }, [loadInvites]);
 
+  const [credentials, setCredentials] =
+    useState<CreateInternalInviteResponse | null>(null);
+  const [credentialsOpen, setCredentialsOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   async function handleInviteSubmit(input: CreateInternalInviteInput) {
     setInviteSubmitting(true);
 
     try {
-      await createInternalInvite(input);
+      const response = await createInternalInvite(input);
+      setCredentials(response);
+      setCredentialsOpen(true);
+
+      const text = [
+        response.username && `username: ${response.username}`,
+        `password: ${response.password}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+
+      toast.success("Invite created and credentials shared");
+
       await Promise.all([loadUsers(), loadInvites()]);
     } finally {
       setInviteSubmitting(false);
     }
+  }
+
+  async function handleCopy() {
+    if (!credentials) return;
+    const text = [
+      credentials.username && `username: ${credentials.username}`,
+      `password: ${credentials.password}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   const activeUsers = users.filter((user) => user.status === "ACTIVE").length;
@@ -336,6 +380,60 @@ export function UserManagementPageClient() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={credentialsOpen} onOpenChange={setCredentialsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Invite sent</DialogTitle>
+            <DialogDescription>
+              Credentials for {credentials?.email}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
+                {credentials?.email}
+              </div>
+            </div>
+
+            {credentials?.username && (
+              <div className="space-y-2">
+                <Label>Username</Label>
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
+                  {credentials.username}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Password</Label>
+              <Input
+                readOnly
+                value={credentials?.password ?? ""}
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+              Credentials are copied to clipboard. This password
+              cannot be viewed and needs to be reset to view again.
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" onClick={handleCopy}>
+              {copied ? (
+                <Check className="size-4" />
+              ) : (
+                <Copy className="size-4" />
+              )}
+              {copied ? "Copied" : "Copy credentials"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { createAuthClient } from "better-auth/react";
 import {
   emailOTPClient,
   inferAdditionalFields,
+  usernameClient,
 } from "better-auth/client/plugins";
 
 const baseURL =
@@ -17,6 +18,7 @@ export const authClient = createAuthClient({
   },
   plugins: [
     emailOTPClient(),
+    usernameClient(),
     inferAdditionalFields({
       user: {
         role: {
