@@ -448,7 +448,7 @@ export function EnquiryDetailPage({
             />
           </section>
 
-          <section className="overflow-hidden rounded-2xl border border-border bg-card">
+          <section className="overflow-hidden rounded-2xl">
             <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
               <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
                 Activity

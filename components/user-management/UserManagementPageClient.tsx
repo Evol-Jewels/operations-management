@@ -64,13 +64,7 @@ function ErrorBanner({
   );
 }
 
-function Metric({
-  label,
-  value,
-}: {
-  label: string;
-  value: number;
-}) {
+function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="px-4 py-4 sm:px-5">
       <p className="text-sm text-muted-foreground">{label}</p>
@@ -156,19 +150,26 @@ export function UserManagementPageClient() {
 
     try {
       const response = await createInternalInvite(input);
-      setCredentials(response);
-      setCredentialsOpen(true);
+      const hasCredentials = Boolean(response.username && response.password);
 
-      const text = [
-        response.username && `username: ${response.username}`,
-        `password: ${response.password}`,
-      ]
-        .filter(Boolean)
-        .join("\n");
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
+      if (!hasCredentials) {
+        setCredentials(null);
+        setCredentialsOpen(false);
+        setCopied(false);
+        toast.success("Invite created");
+      } else {
+        setCredentials(response);
+        setCredentialsOpen(true);
 
-      toast.success("Invite created and credentials shared");
+        const text = [
+          `username: ${response.username}`,
+          `password: ${response.password}`,
+        ].join("\n");
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+
+        toast.success("Invite created and credentials shared");
+      }
 
       await Promise.all([loadUsers(), loadInvites()]);
     } finally {
@@ -196,23 +197,13 @@ export function UserManagementPageClient() {
   ).length;
 
   return (
-    <div className="space-y-7">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-2">
-          <nav
-            aria-label="Breadcrumb"
-            className="flex items-center gap-2 text-sm"
-          >
-            <span className="text-muted-foreground">Home</span>
-            <ChevronRight className="size-4 text-muted-foreground/60" />
-            <span className="font-medium text-foreground">Users</span>
-          </nav>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+    <div className="flex min-h-[calc(100dvh-5.25rem)] flex-1 flex-col gap-5">
+      <div className="flex flex-col">
+        <div className="flex gap-2 justify-between">
+          <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
             Users
           </h1>
-        </div>
-
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+          <div className="flex gap-2">
           <Button
             type="button"
             variant="outline"
@@ -230,7 +221,12 @@ export function UserManagementPageClient() {
             isSubmitting={inviteSubmitting}
             onSubmit={handleInviteSubmit}
           />
+          </div>
         </div>
+        <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+          Filter, review, and move production records without crowding the
+          dashboard.
+        </p>
       </div>
 
       <div className="grid overflow-hidden rounded-lg border border-border bg-background sm:grid-cols-2 lg:grid-cols-4">
@@ -246,7 +242,7 @@ export function UserManagementPageClient() {
         <Metric label="Pending invites" value={pendingInvites} />
       </div>
 
-      <section className="space-y-4">
+      <section className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h2 className="text-base font-semibold text-foreground">
             Internal users
@@ -291,21 +287,23 @@ export function UserManagementPageClient() {
             </Select>
           </div>
         </div>
-        {usersError ? (
-          <ErrorBanner message={usersError} onRetry={loadUsers} />
-        ) : (
-          <UsersTable
-            users={users}
-            isLoading={usersLoading}
-            onFilterInvitesByUser={(user) => {
-              setInviteUserId(user.id);
-              setInviteUserLabel(user.name || user.email);
-            }}
-          />
-        )}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {usersError ? (
+            <ErrorBanner message={usersError} onRetry={loadUsers} />
+          ) : (
+            <UsersTable
+              users={users}
+              isLoading={usersLoading}
+              onFilterInvitesByUser={(user) => {
+                setInviteUserId(user.id);
+                setInviteUserLabel(user.name || user.email);
+              }}
+            />
+          )}
+        </div>
       </section>
 
-      <section className="space-y-4">
+      <section className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h2 className="text-base font-semibold text-foreground">Invites</h2>
           <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
@@ -349,11 +347,13 @@ export function UserManagementPageClient() {
             </Select>
           </div>
         </div>
-        {invitesError ? (
-          <ErrorBanner message={invitesError} onRetry={loadInvites} />
-        ) : (
-          <InvitesTable invites={invites} isLoading={invitesLoading} />
-        )}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {invitesError ? (
+            <ErrorBanner message={invitesError} onRetry={loadInvites} />
+          ) : (
+            <InvitesTable invites={invites} isLoading={invitesLoading} />
+          )}
+        </div>
       </section>
 
       <Dialog open={credentialsOpen} onOpenChange={setCredentialsOpen}>

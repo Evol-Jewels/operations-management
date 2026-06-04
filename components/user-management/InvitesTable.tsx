@@ -54,8 +54,8 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
   }
 
   return (
-    <>
-      <div className="space-y-3 sm:hidden">
+    <div className="min-h-0 h-[30vh] overflow-y-auto rounded-md border border-border/70">
+      <div className="space-y-3 p-3 sm:hidden">
         {invites.map((invite) => (
           <div
             key={invite.id}
@@ -149,6 +149,6 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
           </TableBody>
         </Table>
       </div>
-    </>
+    </div>
   );
 }
