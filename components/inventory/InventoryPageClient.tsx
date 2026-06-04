@@ -647,7 +647,7 @@ export function InventoryPageClient() {
   const filterControls = (
     <>
       <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-        <SelectTrigger className="h-10">
+        <SelectTrigger className="h-10 w-full">
           <SelectValue placeholder="Category" />
         </SelectTrigger>
         <SelectContent>
@@ -661,7 +661,7 @@ export function InventoryPageClient() {
       </Select>
 
       <Select value={colorFilter} onValueChange={setColorFilter}>
-        <SelectTrigger className="h-10">
+        <SelectTrigger className="h-10 w-full">
           <SelectValue placeholder="Color" />
         </SelectTrigger>
         <SelectContent>
@@ -678,7 +678,7 @@ export function InventoryPageClient() {
         value={sourceFilter}
         onValueChange={(value) => setSourceFilter(value as SourceFilter)}
       >
-        <SelectTrigger className="h-10">
+        <SelectTrigger className="h-10 w-full">
           <SelectValue placeholder="Source" />
         </SelectTrigger>
         <SelectContent>
@@ -689,7 +689,7 @@ export function InventoryPageClient() {
       </Select>
 
       <Select value={locationFilter} onValueChange={setLocationFilter}>
-        <SelectTrigger className="h-10">
+        <SelectTrigger className="h-10 w-full">
           <SelectValue placeholder="Location" />
         </SelectTrigger>
         <SelectContent>
@@ -783,8 +783,8 @@ export function InventoryPageClient() {
         </SheetContent>
       </Sheet>
 
-      <section className="hidden gap-3 lg:grid lg:grid-cols-[minmax(320px,1fr)_auto_minmax(150px,170px)_minmax(130px,150px)_minmax(150px,170px)_minmax(150px,170px)] lg:items-end">
-        <div className="grid min-w-0 gap-1.5">
+      <section className="hidden items-center gap-3 lg:flex lg:flex-wrap">
+        <div className="min-w-[320px] flex-1">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -799,12 +799,12 @@ export function InventoryPageClient() {
           type="button"
           variant="outline"
           onClick={() => setIsScannerOpen(true)}
-          className="h-10"
+          className="h-10 shrink-0"
         >
           <ScanLine className="h-4 w-4" />
           Scan Barcode
         </Button>
-        {filterControls}
+        <div className="grid grid-cols-4 gap-3">{filterControls}</div>
       </section>
 
       <div
