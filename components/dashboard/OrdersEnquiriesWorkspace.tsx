@@ -498,7 +498,7 @@ export function OrdersEnquiriesWorkspace() {
   );
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col gap-2 text-left sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center justify-between gap-3">
@@ -535,7 +535,7 @@ export function OrdersEnquiriesWorkspace() {
               type="button"
               onClick={() => setTypeTab(tab.key)}
               className={cn(
-                "flex min-h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors",
+                "flex min-h-8 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
                 typeTab === tab.key
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -601,6 +601,52 @@ export function OrdersEnquiriesWorkspace() {
             ) : null}
           </Button>
         </div>
+      </div>
+
+      <div className="hidden gap-3 lg:grid lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end">
+        <div className="grid gap-1.5">
+          <span className="text-[11px] font-medium text-muted-foreground">
+            Search
+          </span>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search customer or ID"
+              className="pl-9"
+              disabled={isFilterDisabled}
+            />
+          </div>
+        </div>
+
+        <FilterSelect
+          label="Status"
+          value={statusFilter}
+          onValueChange={setStatusFilter}
+          disabled={isFilterDisabled}
+        >
+          {(typeTab === "enquiry"
+            ? ENQUIRY_STATUS_OPTIONS
+            : ORDER_STATUS_OPTIONS
+          ).map((status) => (
+            <SelectItem key={status} value={status}>
+              {status === "all" ? "All statuses" : status.toLowerCase()}
+            </SelectItem>
+          ))}
+        </FilterSelect>
+
+        <FilterSelect
+          label="Creation Date"
+          value={dateFilter}
+          onValueChange={(value) => setDateFilter(value as DateFilter)}
+          disabled={isFilterDisabled}
+        >
+          <SelectItem value="all">All time</SelectItem>
+          <SelectItem value="7d">Last 7 days</SelectItem>
+          <SelectItem value="30d">Last 30 days</SelectItem>
+          <SelectItem value="90d">Last 90 days</SelectItem>
+        </FilterSelect>
       </div>
 
       <div className="flex items-center justify-between gap-3">
@@ -713,52 +759,6 @@ export function OrdersEnquiriesWorkspace() {
           </div>
         </SheetContent>
       </Sheet>
-
-      <div className="hidden gap-3 lg:grid lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end">
-        <div className="grid gap-1.5">
-          <span className="text-[11px] font-medium text-muted-foreground">
-            Search
-          </span>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search customer or ID"
-              className="pl-9"
-              disabled={isFilterDisabled}
-            />
-          </div>
-        </div>
-
-        <FilterSelect
-          label="Status"
-          value={statusFilter}
-          onValueChange={setStatusFilter}
-          disabled={isFilterDisabled}
-        >
-          {(typeTab === "enquiry"
-            ? ENQUIRY_STATUS_OPTIONS
-            : ORDER_STATUS_OPTIONS
-          ).map((status) => (
-            <SelectItem key={status} value={status}>
-              {status === "all" ? "All statuses" : status.toLowerCase()}
-            </SelectItem>
-          ))}
-        </FilterSelect>
-
-        <FilterSelect
-          label="Creation Date"
-          value={dateFilter}
-          onValueChange={(value) => setDateFilter(value as DateFilter)}
-          disabled={isFilterDisabled}
-        >
-          <SelectItem value="all">All time</SelectItem>
-          <SelectItem value="7d">Last 7 days</SelectItem>
-          <SelectItem value="30d">Last 30 days</SelectItem>
-          <SelectItem value="90d">Last 90 days</SelectItem>
-        </FilterSelect>
-      </div>
 
       {/* <FilterSelect
         label="Created By"
