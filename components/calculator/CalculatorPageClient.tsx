@@ -4,7 +4,6 @@ import {
   ArrowUpRight,
   CircleDollarSign,
   Diamond,
-  Eye,
   ImageIcon,
   Loader2,
   MapPin,
@@ -13,7 +12,6 @@ import {
   ScanLine,
   Search,
   Settings2,
-  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -110,7 +108,7 @@ function NumericLineInput({
   step?: number;
 }) {
   return (
-    <div className="flex items-end gap-2 border-b border-border pb-2 focus-within:border-foreground">
+    <div className="flex items-end gap-2 border-b border-border pb-2.5 focus-within:border-foreground">
       <input
         type="number"
         inputMode="decimal"
@@ -119,10 +117,12 @@ function NumericLineInput({
         value={value || ""}
         onChange={(event) => onChange(Number(event.target.value) || 0)}
         placeholder={placeholder}
-        className="min-w-0 flex-1 bg-transparent px-1 text-base outline-none placeholder:text-muted-foreground/40"
+        className="min-w-0 flex-1 bg-transparent px-0 text-lg outline-none placeholder:text-muted-foreground/35"
       />
       {suffix ? (
-        <span className="shrink-0 text-xs text-muted-foreground">{suffix}</span>
+        <span className="shrink-0 pb-0.5 text-sm text-muted-foreground">
+          {suffix}
+        </span>
       ) : null}
     </div>
   );
@@ -137,7 +137,7 @@ function SectionLabel({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
         {title}
       </p>
       {action}
@@ -153,14 +153,14 @@ function TabsSwitcher({
   onTabChange: (tab: CalculatorTab) => void;
 }) {
   return (
-    <div className="grid h-12 w-full grid-cols-2 rounded-2xl border border-border bg-muted/70 p-1 shadow-sm">
+    <div className="grid h-14 w-full grid-cols-2 rounded-2xl border border-border bg-muted/70 p-1 shadow-sm sm:w-[360px]">
       <button
         type="button"
         onClick={() => onTabChange("search")}
         className={cn(
-          "flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors",
+          "flex h-12 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors",
           activeTab === "search"
-            ? "bg-primary text-primary-foreground shadow-sm"
+            ? "bg-card text-foreground shadow-sm"
             : "text-muted-foreground hover:text-foreground",
         )}
       >
@@ -171,9 +171,9 @@ function TabsSwitcher({
         type="button"
         onClick={() => onTabChange("calculate")}
         className={cn(
-          "flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors",
+          "flex h-12 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors",
           activeTab === "calculate"
-            ? "bg-primary text-primary-foreground shadow-sm"
+            ? "bg-card text-foreground shadow-sm"
             : "text-muted-foreground hover:text-foreground",
         )}
       >
@@ -205,7 +205,7 @@ function PurityCards({
   }, [settings.goldRate24k, settings.purityPercentages]);
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
       {purityCards.map((card) => {
         const selected = value === card.purity;
 
@@ -215,7 +215,7 @@ function PurityCards({
             type="button"
             onClick={() => onChange(card.purity)}
             className={cn(
-              "rounded-xl border px-3 py-3 text-center transition-colors",
+              "flex min-h-[84px] flex-col items-center justify-center rounded-2xl border px-3 py-3 text-center transition-colors",
               selected
                 ? "border-foreground bg-foreground text-background"
                 : "border-border bg-background hover:border-foreground/30",
@@ -291,7 +291,7 @@ function StoneRow({
         value={stone.stoneTypeId}
         onValueChange={(stoneTypeId) => onChange({ stoneTypeId })}
       >
-        <SelectTrigger className="h-10 w-full border-0 border-b bg-transparent px-1 shadow-none focus:ring-0">
+        <SelectTrigger className="h-11 w-full border-0 border-b bg-transparent px-0 text-base shadow-none focus:ring-0">
           <SelectValue placeholder="Select stone" />
         </SelectTrigger>
         <SelectContent>
@@ -310,7 +310,7 @@ function StoneRow({
         </SelectContent>
       </Select>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-5 min-[430px]:grid-cols-2 min-[430px]:gap-6">
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Weight
@@ -358,7 +358,7 @@ function ProductImageInput({
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="flex h-14 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+        className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
       >
         <ImageIcon className="h-4 w-4" />
         {imageUrl ? "Change image" : "Add image"}
@@ -898,9 +898,14 @@ function CalculatorForm({
   onOpenSettings: () => void;
 }) {
   return (
-    <div className="min-w-0 space-y-6 rounded-xl border border-border bg-card p-4 shadow-md sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-base font-semibold">Calculator</h1>
+    <div className="min-w-0 space-y-7 rounded-[1.5rem] border border-border bg-card p-5 shadow-sm sm:p-7">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">Inputs</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Metal, stones and product details
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-1 sm:gap-2">
           <Button
             type="button"
@@ -925,7 +930,9 @@ function CalculatorForm({
         </div>
       </div>
 
-      <section className="space-y-4">
+      <Separator />
+
+      <section className="space-y-5">
         <SectionLabel title="Metal Details" />
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -941,7 +948,7 @@ function CalculatorForm({
           />
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Purity
           </p>
@@ -955,7 +962,7 @@ function CalculatorForm({
 
       <Separator />
 
-      <section className="space-y-4">
+      <section className="space-y-5">
         <SectionLabel
           title="Stone Details"
           action={
@@ -988,7 +995,7 @@ function CalculatorForm({
 
       <Separator />
 
-      <section className="space-y-4">
+      <section className="space-y-5">
         <SectionLabel title="Product Details (Optional)" />
         <ProductImageInput
           imageUrl={form.productImageUrl}
@@ -1187,43 +1194,54 @@ export function CalculatorPageClient() {
 
   return (
     <RequireInternalAuth>
-      <div className="mx-auto w-full">
-        <div className="p-0 sm:rounded-2xl sm:p-4">
+      <div className="mx-auto w-full max-w-[1280px]">
+        <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              Calculator
+            </h1>
+            <p className="mt-2 text-base text-muted-foreground">
+              Enter metal and stone details to build a customer-ready price
+              estimate.
+            </p>
+          </div>
           <TabsSwitcher activeTab={activeTab} onTabChange={setActiveTab} />
+        </div>
 
-          {activeTab === "search" ? (
+        {activeTab === "search" ? (
+          <div className="rounded-[1.5rem] border border-border bg-card px-5 shadow-sm sm:px-7">
             <SearchPanel
               settings={settings}
               onLoadProduct={loadCatalogueProduct}
             />
-          ) : (
-            <div className="grid gap-4 pt-7 lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,475px)] xl:justify-center">
-              <CalculatorForm
-                settings={settings}
-                form={form}
-                updateForm={updateForm}
-                updateStone={updateStone}
-                addStone={addStone}
-                removeStone={removeStone}
-                resetForm={resetForm}
-                fileInputRef={fileInputRef}
-                onImageChange={handleImageChange}
-                onOpenSettings={() => setSettingsOpen(true)}
+          </div>
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <CalculatorForm
+              settings={settings}
+              form={form}
+              updateForm={updateForm}
+              updateStone={updateStone}
+              addStone={addStone}
+              removeStone={removeStone}
+              resetForm={resetForm}
+              fileInputRef={fileInputRef}
+              onImageChange={handleImageChange}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
+            <div ref={summaryCardRef} className="min-w-0">
+              <EstimationSummaryCard
+                data={{
+                  kind: "calculator",
+                  form,
+                  breakdown,
+                  gstRate: settings.gstRate,
+                }}
+                className="lg:sticky lg:top-6 lg:self-start"
               />
-              <div ref={summaryCardRef} className="min-w-0">
-                <EstimationSummaryCard
-                  data={{
-                    kind: "calculator",
-                    form,
-                    breakdown,
-                    gstRate: settings.gstRate,
-                  }}
-                  className="lg:sticky lg:top-8 lg:self-start"
-                />
-              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Settings Drawer */}

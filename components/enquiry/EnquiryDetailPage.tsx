@@ -1,20 +1,8 @@
 "use client";
 
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Calendar,
-  Check,
-  Copy,
-  Gift,
-  IndianRupee,
-  MapPin,
-  Phone,
-  User,
-  X,
-} from "lucide-react";
+import { AlertTriangle, ArrowLeft, Calendar, X } from "lucide-react";
 import Link from "next/link";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { EnquiryProductList } from "@/components/enquiry/EnquiryProductList";
 import {
   type EnquiryStage,
@@ -42,7 +30,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getInitials } from "@/lib/people";
-import { cn, formatDateTime } from "@/lib/utils";
+import {
+  cn,
+  formatCurrency,
+  formatDateTime,
+  formatRelativeTime,
+} from "@/lib/utils";
 import type { Order, ProductEstimation } from "@/types";
 
 function deriveEnquiryStage(order: Order): EnquiryStage {
@@ -53,41 +46,8 @@ function deriveEnquiryStage(order: Order): EnquiryStage {
   return "Enquiry Created";
 }
 
-function formatRefCode(refCode?: number) {
-  if (!refCode) return "Enquiry";
-  return `#${String(refCode).padStart(4, "0")}`;
-}
-
-function CopyLinkButton() {
-  const [copied, setCopied] = useState(false);
-
-  function handleCopy() {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={handleCopy}
-      className="gap-1.5"
-    >
-      {copied ? (
-        <>
-          <Check className="size-3.5" />
-          Copied
-        </>
-      ) : (
-        <>
-          <Copy className="size-3.5" />
-          Copy link
-        </>
-      )}
-    </Button>
-  );
+function formatProductCount(count: number) {
+  return `${count} product${count === 1 ? "" : "s"}`;
 }
 
 const CLOSE_REASONS = [
@@ -195,19 +155,15 @@ function CloseEnquiryDialog({
 }
 
 function PersonCard({
-  label,
   name,
   detail,
   imageUrl,
   tone,
-  icon,
 }: {
-  label: string;
   name: string;
   detail?: string | null;
   imageUrl?: string | null;
   tone?: "customer" | "sales";
-  icon?: ReactNode;
 }) {
   const roleStyles =
     tone === "customer"
@@ -218,20 +174,18 @@ function PersonCard({
 
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <Avatar className={cn("size-11 shrink-0", roleStyles)}>
+      <Avatar
+        className={cn("size-8 shrink-0 text-xs font-semibold", roleStyles)}
+      >
         {imageUrl ? <AvatarImage src={imageUrl} alt={name} /> : null}
         <AvatarFallback className={roleStyles}>
           {getInitials(name)}
         </AvatarFallback>
       </Avatar>
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/70">
-          {label}
-        </p>
         <p className="truncate text-sm font-medium text-foreground">{name}</p>
         {detail ? (
-          <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-            {icon}
+          <p className="mt-0.5 text-xs leading-4 text-muted-foreground">
             <span className="truncate">{detail}</span>
           </p>
         ) : null}
@@ -240,28 +194,21 @@ function PersonCard({
   );
 }
 
-function InfoRow({
-  icon,
+function DetailMetric({
   label,
   value,
 }: {
-  icon: ReactNode;
   label: string;
   value?: string | number | null;
 }) {
   if (value === null || value === undefined || value === "") return null;
 
   return (
-    <div className="flex items-start gap-3">
-      <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/65">
-          {label}
-        </p>
-        <p className="mt-0.5 break-words text-sm text-foreground">{value}</p>
-      </div>
+    <div className="flex items-center justify-between gap-5">
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="text-right text-sm font-medium tabular-nums text-foreground">
+        {value}
+      </dd>
     </div>
   );
 }
@@ -322,6 +269,7 @@ export function EnquiryDetailPage({
   const selectedProducts = order.selectedProducts ?? [];
   const customProducts = order.customProducts ?? [];
   const estimations = order.estimations ?? [];
+  const productCount = selectedProducts.length + customProducts.length;
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
 
   function handleSaveEstimation(estimation: ProductEstimation) {
@@ -348,7 +296,7 @@ export function EnquiryDetailPage({
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="mx-auto w-full max-w-6xl">
       <div className="mb-5">
         <Button
           variant="ghost"
@@ -363,27 +311,52 @@ export function EnquiryDetailPage({
         </Button>
       </div>
 
-      <header className="mb-6 space-y-4">
-        <div className="flex flex-col gap-4 lg:flex-row items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              {order.customerName}
-            </h1>
-            <span className="text-base text-muted-foreground">
-              {formatRefCode(order.refCode)}
-            </span>
-            {isClosed ? (
-              <span className="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                Closed
+      <header className="mb-7 border-b border-border pb-6">
+        <div className="flex flex-col gap-5 lg:flex-row items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+              <h1 className="text-3xl font-semibold text-foreground sm:text-4xl">
+                {order.customerName}
+              </h1>
+              <span className="text-2xl font-normal text-muted-foreground sm:text-3xl">
+                {"#" + order.refCode}
               </span>
-            ) : null}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground sm:text-base">
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium",
+                  isClosed
+                    ? "border border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
+                    : "bg-emerald-600 text-white",
+                )}
+              >
+                <span
+                  className={cn(
+                    "size-2 rounded-full",
+                    isClosed ? "bg-amber-600" : "bg-white",
+                  )}
+                />
+                {isClosed ? "Closed" : "Open"}
+              </span>
+              <span>
+                {order.salespersonName} opened this enquiry{" "}
+                {formatRelativeTime(order.createdAt)}
+              </span>
+              <span className="text-muted-foreground/50">·</span>
+              <span>{formatProductCount(productCount)}</span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             {!isClosed ? (
-              <Button size="sm" asChild className="h-8 gap-1.5 text-xs">
+              <Button
+                size="sm"
+                asChild
+                className="bg-foreground text-background hover:bg-foreground/90"
+              >
                 <Link href={`/orders/new?from=${order.id}`}>
-                  <Calendar className="size-3.5" />
+                  <Calendar className="size-4" />
                   <span className="hidden sm:inline">Convert to Order</span>
                   <span className="sm:hidden">Convert</span>
                 </Link>
@@ -395,11 +368,10 @@ export function EnquiryDetailPage({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="gap-1.5"
                   onClick={() => setCloseDialogOpen(true)}
                 >
-                  <X className="size-3.5" />
-                  Close Enquiry
+                  <X className="size-4" />
+                  Close enquiry
                 </Button>
                 <CloseEnquiryDialog
                   open={closeDialogOpen}
@@ -409,7 +381,6 @@ export function EnquiryDetailPage({
                 />
               </>
             ) : null}
-            <CopyLinkButton />
           </div>
         </div>
       </header>
@@ -420,24 +391,32 @@ export function EnquiryDetailPage({
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_370px]">
         <div className="space-y-6">
-          <section className="rounded-2xl border border-border bg-card px-5 py-4">
-            <EnquiryStageBar currentStage={stage} />
-          </section>
+          <EnquiryStageBar currentStage={stage} />
 
-          {order.customerNotes ? (
-            <section className="rounded-2xl border border-border bg-card px-5 py-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/65">
-                Notes
-              </p>
-              <p className="mt-2 text-sm leading-6 text-foreground">
-                {order.customerNotes}
+          {order.customerNotes || order.budget ? (
+            <section className="rounded-2xl border border-border bg-card px-6 py-6">
+              <div className="flex items-start justify-between gap-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Notes
+                </p>
+                {order.budget ? (
+                  <p className="shrink-0 text-sm text-muted-foreground">
+                    Budget{" "}
+                    <span className="font-medium text-foreground">
+                      {formatCurrency(order.budget)}
+                    </span>
+                  </p>
+                ) : null}
+              </div>
+              <p className="mt-4 text-base leading-7 text-foreground">
+                {order.customerNotes ?? "No notes added."}
               </p>
             </section>
           ) : null}
 
-          <section>
+          <section className="my-8">
             <EnquiryProductList
               selectedProducts={selectedProducts}
               customProducts={customProducts}
@@ -448,9 +427,9 @@ export function EnquiryDetailPage({
             />
           </section>
 
-          <section className="overflow-hidden rounded-2xl">
-            <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
-              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                 Activity
               </span>
               <span className="text-xs text-muted-foreground">
@@ -459,14 +438,14 @@ export function EnquiryDetailPage({
               </span>
             </div>
 
-            <div className="px-5 pt-5">
+            <div>
               <ActivityTimeline entries={order.activityFeed} />
             </div>
 
-            <div className="mx-5 border-t border-dashed border-border" />
+            <div className="border-t border-dashed border-border" />
 
             {!isClosed ? (
-              <div className="px-5 pb-5 pt-4">
+              <div className="pt-4">
                 <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
                   Post an update
                 </p>
@@ -481,7 +460,7 @@ export function EnquiryDetailPage({
                 ) : null}
               </div>
             ) : (
-              <div className="px-5 py-5 text-center text-sm text-muted-foreground">
+              <div className="py-5 text-center text-sm text-muted-foreground">
                 This enquiry is closed. No new updates can be posted.
               </div>
             )}
@@ -490,77 +469,49 @@ export function EnquiryDetailPage({
           </section>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+        <aside className="lg:sticky lg:top-6 lg:self-start">
           <section className="overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="border-b border-border px-5 py-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/60">
+            <div className="px-5 py-5">
+              <p className="mb-5 text-sm font-semibold text-foreground">
                 People
               </p>
-            </div>
-            <div className="space-y-0">
-              <div className="px-5 py-4">
+              <div className="space-y-5">
                 <PersonCard
-                  label="Customer"
                   name={order.customerName}
                   detail={order.customerPhone}
                   tone="customer"
-                  icon={<Phone className="size-3.5" />}
                 />
-              </div>
-              <div className="border-t border-border px-5 py-4">
                 <PersonCard
-                  label="Salesperson"
                   name={order.salespersonName}
+                  detail="Salesperson"
                   tone="sales"
                 />
-              </div>
-              {order.createdBy ? (
-                <div className="border-t border-border px-5 py-4">
+                {order.createdBy ? (
                   <PersonCard
-                    label="Created by"
                     name={order.createdBy.name}
+                    detail="Created by"
                     imageUrl={order.createdBy.image}
                   />
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </div>
-          </section>
 
-          <section className="overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="border-b border-border px-5 py-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/60">
+            <div className="border-t border-border px-5 py-5">
+              <p className="mb-4 text-sm font-semibold text-foreground">
                 Details
               </p>
-            </div>
-            <div className="space-y-4 px-5 py-5">
-              <InfoRow
-                icon={<IndianRupee className="size-3.5" />}
-                label="Budget range"
-                value={
-                  order.budget
-                    ? new Intl.NumberFormat("en-IN", {
-                        style: "currency",
-                        currency: "INR",
-                        maximumFractionDigits: 0,
-                      }).format(order.budget)
-                    : "Not provided"
-                }
-              />
-              <InfoRow
-                icon={<Gift className="size-3.5" />}
-                label="Notes"
-                value={order.customerNotes ?? "Not provided"}
-              />
-              <InfoRow
-                icon={<MapPin className="size-3.5" />}
-                label="Last updated"
-                value={formatDateTime(order.lastUpdatedAt)}
-              />
-              <InfoRow
-                icon={<User className="size-3.5" />}
-                label="Ref code"
-                value={formatRefCode(order.refCode)}
-              />
+              <dl className="space-y-4">
+                <DetailMetric
+                  label="Ref code"
+                  value={"#" + order.refCode}
+                />
+                <DetailMetric label="Products" value={productCount} />
+                <DetailMetric label="Estimates" value={estimations.length} />
+                <DetailMetric
+                  label="Updated"
+                  value={formatRelativeTime(order.lastUpdatedAt)}
+                />
+              </dl>
             </div>
           </section>
         </aside>

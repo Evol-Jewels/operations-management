@@ -1,9 +1,16 @@
 "use client";
 
-import { ChevronDown, Package, Palette } from "lucide-react";
+import {
+  ChevronDown,
+  LayoutGrid,
+  Package,
+  Palette,
+  TableIcon,
+} from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import { EnquiryEstimationDialog } from "@/components/enquiry/EnquiryEstimationDialog";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -11,6 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type {
@@ -24,6 +39,7 @@ import type {
 
 type ItemKind = "existing" | "custom";
 type StatusFilter = "ALL" | EnquiryItemStatus;
+type ViewMode = "grid" | "table";
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "ALL", label: "All statuses" },
@@ -290,6 +306,82 @@ function ProductCard({
   );
 }
 
+function ProductTable({
+  items,
+  settings,
+  isClosed,
+  isSavingEstimation,
+  onSaveEstimation,
+}: {
+  items: NormalizedItem[];
+  settings: CalculatorSettings;
+  isClosed: boolean;
+  isSavingEstimation?: boolean;
+  onSaveEstimation: (estimation: ProductEstimation) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/35 hover:bg-muted/35">
+            <TableHead className="pl-5">Product</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Estimate</TableHead>
+            {!isClosed ? (
+              <TableHead className="pr-5 text-right">Action</TableHead>
+            ) : null}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell className="max-w-[320px] py-4 pl-5">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">
+                    {item.title}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {item.subtitle}
+                  </p>
+                </div>
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground">
+                {item.kind === "existing" ? "Existing" : "Custom"}
+              </TableCell>
+              <TableCell>
+                <StatusBadge status={item.status} />
+              </TableCell>
+              <TableCell className="text-right text-sm tabular-nums">
+                {item.estimation ? (
+                  <span className="font-medium text-foreground">
+                    {formatCurrency(item.estimation.finalAmount)}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">-</span>
+                )}
+              </TableCell>
+              {!isClosed ? (
+                <TableCell className="pr-5 text-right">
+                  <EnquiryEstimationDialog
+                    productId={item.id}
+                    productName={item.title}
+                    defaultPurity={item.defaultPurity}
+                    settings={settings}
+                    existingEstimation={item.estimation}
+                    onSave={onSaveEstimation}
+                    disabled={isSavingEstimation}
+                  />
+                </TableCell>
+              ) : null}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 interface EnquiryProductListProps {
   selectedProducts: EnquirySelectedProduct[];
   customProducts: EnquiryCustomProduct[];
@@ -308,6 +400,7 @@ export function EnquiryProductList({
   onSaveEstimation,
 }: EnquiryProductListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
   const { settings } = useCalculatorSettings();
 
   const items = useMemo<NormalizedItem[]>(() => {
@@ -372,7 +465,7 @@ export function EnquiryProductList({
     <div className="grid gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[0.75rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+          <p className="text-[0.75rem] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
             Products
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -380,21 +473,47 @@ export function EnquiryProductList({
             {items.length === 1 ? "" : "s"}
           </p>
         </div>
-        <Select
-          value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-        >
-          <SelectTrigger className="w-full bg-background sm:w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-lg border border-border bg-background p-1">
+            <Button
+              type="button"
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              size="icon-sm"
+              aria-label="Grid view"
+              aria-pressed={viewMode === "grid"}
+              className="size-8"
+              onClick={() => setViewMode("grid")}
+            >
+              <LayoutGrid className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === "table" ? "secondary" : "ghost"}
+              size="icon-sm"
+              aria-label="Table view"
+              aria-pressed={viewMode === "table"}
+              className="size-8"
+              onClick={() => setViewMode("table")}
+            >
+              <TableIcon className="size-4" />
+            </Button>
+          </div>
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+          >
+            <SelectTrigger className="w-full bg-background sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -410,6 +529,14 @@ export function EnquiryProductList({
             No products match this status.
           </p>
         </div>
+      ) : viewMode === "table" ? (
+        <ProductTable
+          items={filteredItems}
+          settings={settings}
+          isClosed={isClosed}
+          isSavingEstimation={isSavingEstimation}
+          onSaveEstimation={onSaveEstimation}
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filteredItems.map((item) => (
