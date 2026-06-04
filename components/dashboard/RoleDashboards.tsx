@@ -600,6 +600,15 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="space-y-5">
+        <div className="flex flex-col">
+          <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            Admin Dashboard
+            </h1>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+            View analytics and get an overview of your ongoing records.
+          </p>
+          </div>
+
         <MetricsGrid>
           {cards.map((card) => (
             <MetricCard key={card.label} card={card} />
@@ -717,6 +726,14 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="space-y-5">
+        <div className="flex flex-col">
+          <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            Operations Dashboard
+          </h1>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+            Get a bird's-eye view of the ongoing records.
+          </p>
+        </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <MetricsGrid>
             <MetricCard
@@ -898,6 +915,14 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-col">
+        <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+          Sales Dashboard
+          </h1>
+        <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+          Keep on eye on your customer and sales pipeline.
+        </p>
+        </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <MetricsGrid>
           <MetricCard
@@ -916,14 +941,6 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
             card={{ label: "Overdue", value: String(data.overdueCount) }}
           />
         </MetricsGrid>
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <Button asChild size="sm">
-            <Link href="/enquiries/new" className="gap-1.5">
-              <Plus className="h-3.5 w-3.5" />
-              New Enquiry
-            </Link>
-          </Button>
-        </div>
       </div>
 
       {data.actionItems.length > 0 && (
