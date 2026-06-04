@@ -150,14 +150,14 @@ export function EstimationSummaryCard({
   return (
     <section
       className={cn(
-        "min-w-0 rounded-[1.5rem] border border-border bg-card p-5 shadow-sm sm:p-7",
+        "min-w-0 rounded-lg border border-border bg-background p-4 sm:p-5",
         className,
       )}
     >
-      <div className="mb-5 flex items-start justify-between gap-4">
+      <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
             Shareable customer estimate
           </p>
         </div>
@@ -166,7 +166,7 @@ export function EstimationSummaryCard({
             type="button"
             variant="outline"
             size="sm"
-            className="h-10 shrink-0 rounded-lg px-3 sm:px-4"
+            className="h-8 shrink-0 rounded-md px-2.5 sm:px-3"
             onClick={downloadSummary}
             disabled={isDownloading}
             aria-label="Download summary"
@@ -181,11 +181,11 @@ export function EstimationSummaryCard({
         ) : null}
       </div>
 
-      <Separator className="mb-5" />
+      <Separator className="mb-4" />
 
       <div
         ref={cardRef}
-        className="overflow-hidden rounded-[1.25rem] border border-border bg-card text-card-foreground"
+        className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
       >
         <div className="flex items-center justify-center border-b border-border py-3">
           <Image
@@ -199,7 +199,7 @@ export function EstimationSummaryCard({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr]">
-          <div className="relative flex min-h-60 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0">
+          <div className="relative flex min-h-48 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0">
             {summary.imageUrl ? (
               <Image
                 src={summary.imageUrl}
@@ -213,7 +213,7 @@ export function EstimationSummaryCard({
             )}
           </div>
 
-          <div className="flex min-h-60 min-w-0 flex-col justify-between border-t border-border px-5 py-5 sm:min-h-0 sm:border-t-0 sm:border-l">
+          <div className="flex min-h-48 min-w-0 flex-col justify-between border-t border-border px-4 py-4 sm:min-h-0 sm:border-t-0 sm:border-l">
             <div className="min-w-0">
               <p className="break-words text-sm font-semibold leading-snug sm:text-base">
                 {displayName}
@@ -228,14 +228,14 @@ export function EstimationSummaryCard({
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                 Total
               </p>
-              <p className="mt-2 text-3xl font-semibold tabular">
+              <p className="mt-2 text-2xl font-semibold tabular">
                 {formatCurrency(displayTotal)}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between bg-muted/35 px-5 py-3.5">
+        <div className="flex items-center justify-between bg-muted/35 px-4 py-3">
           <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             Gross Weight
           </span>
@@ -246,7 +246,7 @@ export function EstimationSummaryCard({
 
         <Separator />
 
-        <div className="px-5 py-5">
+        <div className="px-4 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             Gold
           </p>
@@ -275,7 +275,7 @@ export function EstimationSummaryCard({
         {hasStones ? (
           <>
             <Separator />
-            <div className="px-5 py-5">
+            <div className="px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                 Stones
               </p>
@@ -319,7 +319,7 @@ export function EstimationSummaryCard({
 
         <Separator />
 
-        <div className="space-y-3 px-5 py-5">
+        <div className="space-y-3 px-4 py-4">
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Subtotal</span>
             <span className="text-sm font-medium tabular">
@@ -336,14 +336,14 @@ export function EstimationSummaryCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4 bg-foreground px-5 py-4 text-background">
+        <div className="flex items-center justify-between gap-4 bg-foreground px-4 py-3.5 text-background">
           <span className="text-sm font-medium">Total</span>
-          <span className="text-2xl font-semibold tabular sm:text-3xl">
+          <span className="text-2xl font-semibold tabular">
             {formatCurrency(displayTotal)}
           </span>
         </div>
 
-        <div className="border-t border-border bg-muted/20 px-5 py-3.5">
+        <div className="border-t border-border bg-muted/20 px-4 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             Terms & Conditions
           </p>

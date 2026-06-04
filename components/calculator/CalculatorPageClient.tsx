@@ -117,7 +117,7 @@ function NumericLineInput({
         value={value || ""}
         onChange={(event) => onChange(Number(event.target.value) || 0)}
         placeholder={placeholder}
-        className="min-w-0 flex-1 bg-transparent px-0 text-lg outline-none placeholder:text-muted-foreground/35"
+        className="min-w-0 flex-1 bg-transparent px-0 text-base outline-none placeholder:text-muted-foreground/35"
       />
       {suffix ? (
         <span className="shrink-0 pb-0.5 text-sm text-muted-foreground">
@@ -137,7 +137,7 @@ function SectionLabel({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {title}
       </p>
       {action}
@@ -153,14 +153,14 @@ function TabsSwitcher({
   onTabChange: (tab: CalculatorTab) => void;
 }) {
   return (
-    <div className="grid h-14 w-full grid-cols-2 rounded-2xl border border-border bg-muted/70 p-1 shadow-sm sm:w-[360px]">
+    <div className="grid h-9 w-full grid-cols-2 rounded-lg border border-border bg-muted/50 p-0.5 sm:w-[300px]">
       <button
         type="button"
         onClick={() => onTabChange("search")}
         className={cn(
-          "flex h-12 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors",
+          "flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
           activeTab === "search"
-            ? "bg-card text-foreground shadow-sm"
+            ? "bg-background text-foreground"
             : "text-muted-foreground hover:text-foreground",
         )}
       >
@@ -171,9 +171,9 @@ function TabsSwitcher({
         type="button"
         onClick={() => onTabChange("calculate")}
         className={cn(
-          "flex h-12 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors",
+          "flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
           activeTab === "calculate"
-            ? "bg-card text-foreground shadow-sm"
+            ? "bg-background text-foreground"
             : "text-muted-foreground hover:text-foreground",
         )}
       >
@@ -205,7 +205,7 @@ function PurityCards({
   }, [settings.goldRate24k, settings.purityPercentages]);
 
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {purityCards.map((card) => {
         const selected = value === card.purity;
 
@@ -215,17 +215,17 @@ function PurityCards({
             type="button"
             onClick={() => onChange(card.purity)}
             className={cn(
-              "flex min-h-[84px] flex-col items-center justify-center rounded-2xl border px-3 py-3 text-center transition-colors",
+              "flex min-h-10 flex-col items-center justify-center rounded-lg border px-2 py-2 text-center transition-colors",
               selected
-                ? "border-foreground bg-foreground text-background"
+                ? "border-foreground bg-muted text-foreground"
                 : "border-border bg-background hover:border-foreground/30",
             )}
           >
             <span className="text-sm font-semibold">{card.purity}</span>
             <span
               className={cn(
-                "mt-1 block text-[10px]",
-                selected ? "text-background/70" : "text-muted-foreground",
+                "mt-0.5 hidden text-[10px] sm:block",
+                "text-muted-foreground",
               )}
             >
               {formatCurrency(card.rate)}/g
@@ -261,7 +261,7 @@ function StoneRow({
   const hasUnmatchedWeight = stone.weight > 0 && !resolvedSlab;
 
   return (
-    <div className="space-y-3 border-b border-border pb-5 last:border-b-0 last:pb-0">
+    <div className="space-y-3 border-b border-border pb-4 last:border-b-0 last:pb-0">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -291,7 +291,7 @@ function StoneRow({
         value={stone.stoneTypeId}
         onValueChange={(stoneTypeId) => onChange({ stoneTypeId })}
       >
-        <SelectTrigger className="h-11 w-full border-0 border-b bg-transparent px-0 text-base shadow-none focus:ring-0">
+        <SelectTrigger className="h-10 w-full border-0 border-b bg-transparent px-0 text-sm shadow-none focus:ring-0">
           <SelectValue placeholder="Select stone" />
         </SelectTrigger>
         <SelectContent>
@@ -358,7 +358,7 @@ function ProductImageInput({
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+        className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
       >
         <ImageIcon className="h-4 w-4" />
         {imageUrl ? "Change image" : "Add image"}
@@ -376,7 +376,7 @@ function ProductImageInput({
 
 function BlockedLookupCard({ result }: { result: CatalogueEstimateResult }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+    <div className="rounded-lg border border-border bg-background p-3">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="font-semibold">{result.product.productName}</p>
@@ -411,7 +411,7 @@ function BlockedLookupCard({ result }: { result: CatalogueEstimateResult }) {
         {result.product.stones.map((stone) => (
           <div
             key={stone.id}
-            className="flex items-start justify-between gap-4 rounded-xl bg-muted/30 px-3 py-3"
+            className="flex items-start justify-between gap-4 rounded-md bg-muted/25 px-3 py-2"
           >
             <div className="min-w-0">
               <p className="text-sm font-medium">{stone.code}</p>
@@ -463,19 +463,19 @@ function RecentEstimateRow({
       type="button"
       onClick={() => onOpen(estimate)}
       className={cn(
-        "group grid min-h-16 w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+        "group grid min-h-14 w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
         hasImage
           ? "grid-cols-[auto_minmax(0,1fr)_auto]"
           : "grid-cols-[minmax(0,1fr)_auto]",
       )}
     >
       {hasImage && (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
           <Image
             src={imageUrl as string}
             alt={estimate.productCode}
-            width={44}
-            height={44}
+            width={36}
+            height={36}
             className="h-full w-full object-cover"
             unoptimized
           />
@@ -528,14 +528,14 @@ function RecentEstimatesList({
   }, [refreshKey, manualRefreshKey]);
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 my-8 shadow-md">
+    <section className="my-5 space-y-2">
       <div className="flex items-start justify-between gap-4">
         <h2 className="text-base font-semibold">Recent Estimates</h2>
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="gap-1.5"
+          className="h-8 gap-1.5"
           onClick={() => setManualRefreshKey((current) => current + 1)}
           disabled={isLoading}
         >
@@ -573,7 +573,7 @@ function RecentEstimatesList({
             </Button>
           </div>
         ) : estimates.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+          <div className="rounded-md border border-dashed border-border px-4 py-5 text-center text-sm text-muted-foreground">
             No recent estimates yet.
           </div>
         ) : (
@@ -779,7 +779,7 @@ function SearchPanel({
   }
 
   return (
-    <div className="space-y-4 py-6">
+    <div className="space-y-4 py-4">
       <div className="grid gap-4 sm:grid-cols-[minmax(180px,2fr)_1fr]">
         <div className="flex min-w-0 gap-3">
           <input
@@ -791,13 +791,13 @@ function SearchPanel({
               if (event.key === "Enter") submitLookupCode(searchInput);
             }}
             placeholder="Enter barcode"
-            className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-background px-4 text-sm uppercase outline-none transition-shadow focus:ring-2 focus:ring-ring/20"
+            className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm uppercase outline-none transition-shadow focus:ring-2 focus:ring-ring/20"
           />
           <Button
             type="button"
             onClick={() => submitLookupCode(searchInput)}
             disabled={!searchInput.trim() || isLoading}
-            className="h-11 w-11 shrink-0 rounded-xl px-0"
+            className="h-9 w-9 shrink-0 rounded-lg px-0"
             aria-label="Search"
           >
             {isLoading ? (
@@ -811,7 +811,7 @@ function SearchPanel({
           type="button"
           variant="outline"
           onClick={() => setIsScannerOpen(true)}
-          className="h-11 rounded-xl"
+          className="h-9 rounded-lg"
         >
           <ScanLine className="h-4 w-4" />
           Scan Barcode
@@ -827,13 +827,13 @@ function SearchPanel({
       />
 
       {error ? (
-        <div className="rounded-xl border border-destructive/35 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-md border border-destructive/35 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       ) : null}
 
       {notFoundCode ? (
-        <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+        <div className="rounded-md border border-border bg-muted/25 px-3 py-2 text-sm text-muted-foreground">
           No product found for code{" "}
           <span className="font-semibold text-foreground">{notFoundCode}</span>.
         </div>
@@ -846,12 +846,10 @@ function SearchPanel({
       !notFoundCode &&
       submittedCode &&
       !isLoading ? (
-        <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+        <div className="rounded-md border border-border bg-muted/25 px-3 py-2 text-sm text-muted-foreground">
           Search completed. Valid products open in the calculate tab.
         </div>
       ) : null}
-
-      <Separator className="my-4" />
 
       <RecentEstimatesList
         refreshKey={recentRefreshKey}
@@ -898,11 +896,11 @@ function CalculatorForm({
   onOpenSettings: () => void;
 }) {
   return (
-    <div className="min-w-0 space-y-7 rounded-[1.5rem] border border-border bg-card p-5 shadow-sm sm:p-7">
+    <div className="min-w-0 space-y-5 rounded-lg border border-border bg-background p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Inputs</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h2 className="text-lg font-semibold tracking-tight">Inputs</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
             Metal, stones and product details
           </p>
         </div>
@@ -932,10 +930,10 @@ function CalculatorForm({
 
       <Separator />
 
-      <section className="space-y-5">
+      <section className="space-y-4">
         <SectionLabel title="Metal Details" />
         <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Net Weight
           </p>
           <NumericLineInput
@@ -949,7 +947,7 @@ function CalculatorForm({
         </div>
 
         <div className="space-y-3.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Purity
           </p>
           <PurityCards
@@ -962,7 +960,7 @@ function CalculatorForm({
 
       <Separator />
 
-      <section className="space-y-5">
+      <section className="space-y-4">
         <SectionLabel
           title="Stone Details"
           action={
@@ -978,7 +976,7 @@ function CalculatorForm({
             </Button>
           }
         />
-        <div className="space-y-5">
+        <div className="space-y-4">
           {form.stones.map((stone, index) => (
             <StoneRow
               key={stone.id}
@@ -995,7 +993,7 @@ function CalculatorForm({
 
       <Separator />
 
-      <section className="space-y-5">
+      <section className="space-y-4">
         <SectionLabel title="Product Details (Optional)" />
         <ProductImageInput
           imageUrl={form.productImageUrl}
@@ -1003,7 +1001,7 @@ function CalculatorForm({
           onImageChange={onImageChange}
         />
         <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Product Name
           </p>
           <input
@@ -1014,14 +1012,14 @@ function CalculatorForm({
           />
         </div>
         <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Note
           </p>
           <textarea
             value={form.productNote}
             onChange={(event) => updateForm("productNote", event.target.value)}
             placeholder="Any notes for the customer (optional)"
-            rows={3}
+            rows={2}
             className="w-full resize-none border-b border-border bg-transparent pb-2 text-sm leading-6 outline-none placeholder:text-muted-foreground/40 focus:border-foreground"
           />
         </div>
@@ -1194,13 +1192,13 @@ export function CalculatorPageClient() {
 
   return (
     <RequireInternalAuth>
-      <div className="mx-auto w-full max-w-[1280px]">
-        <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="mx-auto w-full">
+        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-2xl">
               Calculator
             </h1>
-            <p className="mt-2 text-base text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               Enter metal and stone details to build a customer-ready price
               estimate.
             </p>
@@ -1209,14 +1207,14 @@ export function CalculatorPageClient() {
         </div>
 
         {activeTab === "search" ? (
-          <div className="rounded-[1.5rem] border border-border bg-card px-5 shadow-sm sm:px-7">
+          <div className="">
             <SearchPanel
               settings={settings}
               onLoadProduct={loadCatalogueProduct}
             />
           </div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <CalculatorForm
               settings={settings}
               form={form}
