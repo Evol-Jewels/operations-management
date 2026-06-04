@@ -1,7 +1,8 @@
 "use client";
 
+import { Camera, Loader2, RefreshCcw, Upload } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Camera, Upload, RefreshCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import {
   decodeBarcodeFromImage,
   normalizeDecodedId,
@@ -155,8 +155,8 @@ export function BarcodeScanDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5">
-          <div className="relative h-[360px] overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
+        <div className="space-y-4">
+          <div className="relative h-[280px] overflow-hidden rounded-lg border border-border bg-black sm:h-[320px]">
             <video
               ref={videoRef}
               className="absolute inset-0 h-full w-full object-cover"
@@ -164,12 +164,12 @@ export function BarcodeScanDialog({
               playsInline
             />
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/50" />
-            <div className="absolute inset-[9%] rounded-[30px] border border-white/20 bg-white/5 backdrop-blur-[1px]" />
+            <div className="absolute inset-[9%] rounded-lg border border-white/20 bg-white/5 backdrop-blur-[1px]" />
 
-            <div className="absolute left-[9%] top-[9%] h-14 w-14 rounded-tl-[28px] border-l-[7px] border-t-[7px] border-[#222]" />
-            <div className="absolute right-[9%] top-[9%] h-14 w-14 rounded-tr-[28px] border-r-[7px] border-t-[7px] border-[#222]" />
-            <div className="absolute bottom-[9%] left-[9%] h-14 w-14 rounded-bl-[28px] border-b-[7px] border-l-[7px] border-[#222]" />
-            <div className="absolute bottom-[9%] right-[9%] h-14 w-14 rounded-br-[28px] border-b-[7px] border-r-[7px] border-[#222]" />
+            <div className="absolute left-[9%] top-[9%] h-10 w-10 rounded-tl-lg border-l-[3px] border-t-[3px] border-white/80" />
+            <div className="absolute right-[9%] top-[9%] h-10 w-10 rounded-tr-lg border-r-[3px] border-t-[3px] border-white/80" />
+            <div className="absolute bottom-[9%] left-[9%] h-10 w-10 rounded-bl-lg border-b-[3px] border-l-[3px] border-white/80" />
+            <div className="absolute bottom-[9%] right-[9%] h-10 w-10 rounded-br-lg border-b-[3px] border-r-[3px] border-white/80" />
 
             {!cameraStarted && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/45 px-6 text-center text-sm text-white/85">
@@ -195,7 +195,7 @@ export function BarcodeScanDialog({
                         void startCamera();
                       }}
                       disabled={cameraBusy}
-                      className="mx-auto gap-2 rounded-full"
+                      className="mx-auto h-9 gap-2 rounded-lg"
                     >
                       <RefreshCcw className="h-4 w-4" />
                       Retry camera
@@ -206,14 +206,14 @@ export function BarcodeScanDialog({
             )}
           </div>
 
-          <div className="flex flex-col gap-2 my-4 justify-center items-center">
-            <div className="">or</div>
+          <div className="my-3 flex flex-col items-center justify-center gap-2">
+            <div className="text-xs text-muted-foreground">or</div>
             <Button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={galleryBusy}
               variant="secondary"
-              className="min-w-[220px] gap-2 rounded-full p-4 text-base font-semibold shadow-sm"
+              className="h-9 gap-2 rounded-lg px-3 text-sm"
             >
               {galleryBusy ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -224,8 +224,8 @@ export function BarcodeScanDialog({
             </Button>
           </div>
 
-          <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center">
-            <p className="text-sm text-muted-foreground">
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">
               Align the code inside the frame, it might take a few seconds.
               Upload image from device if scan doesn&apos;t work.
             </p>

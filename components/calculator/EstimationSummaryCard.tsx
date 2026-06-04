@@ -112,7 +112,7 @@ export function EstimationSummaryCard({
   className,
   showDownloadButton = true,
   downloadFilename,
-  title = "Estimation Summary",
+  title = "Estimate summary",
   data,
 }: EstimationSummaryCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -150,18 +150,23 @@ export function EstimationSummaryCard({
   return (
     <section
       className={cn(
-        "min-w-0 rounded-xl border border-border bg-card p-3 shadow-md sm:p-4",
+        "min-w-0 rounded-lg border border-border bg-background p-4 sm:p-5",
         className,
       )}
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Shareable customer estimate
+          </p>
+        </div>
         {showDownloadButton ? (
           <Button
             type="button"
             variant="outline"
-            size="icon-lg"
-            className="rounded-lg"
+            size="sm"
+            className="h-8 shrink-0 rounded-md px-2.5 sm:px-3"
             onClick={downloadSummary}
             disabled={isDownloading}
             aria-label="Download summary"
@@ -171,17 +176,20 @@ export function EstimationSummaryCard({
             ) : (
               <Download className="h-4 w-4" />
             )}
+            <span className="hidden sm:inline">Download</span>
           </Button>
         ) : null}
       </div>
 
+      <Separator className="mb-4" />
+
       <div
         ref={cardRef}
-        className="overflow-hidden rounded-xl border border-border bg-card text-card-foreground"
+        className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
       >
         <div className="flex items-center justify-center border-b border-border py-3">
           <Image
-            src="/evol-logo-white.webp"
+            src="/evol-logo.webp"
             alt="Evol"
             width={82}
             height={30}
@@ -191,7 +199,7 @@ export function EstimationSummaryCard({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr]">
-          <div className="relative flex min-h-56 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0">
+          <div className="relative flex min-h-48 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0">
             {summary.imageUrl ? (
               <Image
                 src={summary.imageUrl}
@@ -205,9 +213,9 @@ export function EstimationSummaryCard({
             )}
           </div>
 
-          <div className="flex min-h-72 min-w-0 flex-col justify-between border-t border-border px-4 py-4 sm:border-t-0 sm:border-l">
+          <div className="flex min-h-48 min-w-0 flex-col justify-between border-t border-border px-4 py-4 sm:min-h-0 sm:border-t-0 sm:border-l">
             <div className="min-w-0">
-              <p className="break-words text-sm font-semibold leading-snug">
+              <p className="break-words text-sm font-semibold leading-snug sm:text-base">
                 {displayName}
               </p>
               {displayCode ? (
@@ -220,7 +228,7 @@ export function EstimationSummaryCard({
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                 Total
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular">
+              <p className="mt-2 text-2xl font-semibold tabular">
                 {formatCurrency(displayTotal)}
               </p>
             </div>
@@ -328,9 +336,9 @@ export function EstimationSummaryCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4 bg-foreground px-4 py-4 text-background">
+        <div className="flex items-center justify-between gap-4 bg-foreground px-4 py-3.5 text-background">
           <span className="text-sm font-medium">Total</span>
-          <span className="text-2xl font-semibold tabular sm:text-3xl">
+          <span className="text-2xl font-semibold tabular">
             {formatCurrency(displayTotal)}
           </span>
         </div>

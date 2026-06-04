@@ -46,7 +46,7 @@ export function UsersTable({
 }: UsersTableProps) {
   if (isLoading) {
     return (
-      <div className="rounded-md border border-border/70 p-6 text-sm text-muted-foreground">
+      <div className="rounded-md border border-border/70 px-4 py-5 text-sm text-muted-foreground">
         Loading users...
       </div>
     );
@@ -61,14 +61,14 @@ export function UsersTable({
   }
 
   return (
-    <>
-      <div className="space-y-3 sm:hidden">
+    <div className="min-h-0 h-[30vh] overflow-y-auto rounded-md border border-border/70">
+      <div className="space-y-3 p-3 sm:hidden">
         {users.map((user) => (
           <button
             key={user.id}
             type="button"
             onClick={() => onFilterInvitesByUser(user)}
-            className="w-full rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="w-full rounded-md border border-border/70 bg-background p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             <div className="flex min-w-0 items-start gap-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
@@ -111,7 +111,7 @@ export function UsersTable({
         ))}
       </div>
 
-      <div className="hidden overflow-x-auto sm:block">
+      <div className="hidden sm:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -128,7 +128,7 @@ export function UsersTable({
                 className="cursor-pointer"
                 onClick={() => onFilterInvitesByUser(user)}
               >
-                <TableCell>
+                <TableCell className="py-3">
                   <div className="flex min-w-64 items-center gap-3">
                     <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
                       {initials(user.name, user.email)}
@@ -143,7 +143,7 @@ export function UsersTable({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-3">
                   <Badge
                     variant="outline"
                     className={cn("border", statusStyles[user.status])}
@@ -151,12 +151,12 @@ export function UsersTable({
                     {user.status}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-3">
                   <p className="text-sm text-foreground">
                     {user.profile?.role ?? "No role"}
                   </p>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="py-3 text-muted-foreground">
                   {formatDate(user.createdAt)}
                 </TableCell>
               </TableRow>
@@ -164,6 +164,6 @@ export function UsersTable({
           </TableBody>
         </Table>
       </div>
-    </>
+    </div>
   );
 }

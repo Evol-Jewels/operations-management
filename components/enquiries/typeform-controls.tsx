@@ -2,11 +2,16 @@ import { ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+const TOTAL_STEPS = 4;
+
 export function StepNumber({ n }: { n: number }) {
   return (
     <span className="mr-2 inline-flex items-center gap-1 text-sm text-primary">
-      {n}
-      <ArrowRight className="h-3 w-3" />
+      <span className="font-semibold text-lg">{n}</span>
+      <span className="text-muted-foreground text-xs">
+        of {TOTAL_STEPS}
+      </span>
+      <ArrowRight className="h-4 w-4" />
     </span>
   );
 }

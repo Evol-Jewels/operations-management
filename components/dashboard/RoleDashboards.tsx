@@ -1,11 +1,9 @@
 "use client";
 
 import {
-  AlertTriangle,
   ArrowDown,
   ArrowRight,
   ArrowUp,
-  Clock,
   Inbox,
   IndianRupee,
   MessageSquare,
@@ -127,82 +125,64 @@ function MetricCard({ card }: { card: MetricCardData }) {
   const isPositive = (card.change ?? 0) >= 0;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-muted-foreground">
-            {card.label}
-          </p>
-          <p className="mt-3 truncate text-3xl font-semibold tracking-tight text-foreground">
-            {card.value}
-          </p>
-        </div>
-        {card.icon && (
-          <div
-            className={cn(
-              "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
-              card.accent,
+    <div className="border-border/70 px-5 py-4 max-sm:border-b sm:border-r sm:last:border-r-0">
+      <p className="text-sm text-muted-foreground">{card.label}</p>
+      <div className="mt-2 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+        <p className="truncate text-2xl font-semibold tracking-tight text-foreground">
+          {card.value}
+        </p>
+        {card.change !== undefined && (
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 text-xs font-medium",
+                isPositive
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-red-600 dark:text-red-400",
+              )}
+            >
+              {isPositive ? (
+                <ArrowUp className="h-3 w-3" />
+              ) : (
+                <ArrowDown className="h-3 w-3" />
+              )}
+              {Math.abs(card.change)}%
+            </span>
+            {card.helper && (
+              <span className="text-xs text-muted-foreground">
+                {card.helper}
+              </span>
             )}
-          >
-            {card.icon}
           </div>
         )}
       </div>
-      {card.change !== undefined && (
-        <div className="mt-7 flex items-center gap-2">
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold",
-              isPositive
-                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-                : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400",
-            )}
-          >
-            {isPositive ? (
-              <ArrowUp className="h-3 w-3" />
-            ) : (
-              <ArrowDown className="h-3 w-3" />
-            )}
-            {Math.abs(card.change)}%
-          </span>
-          {card.helper && (
-            <span className="text-xs text-muted-foreground">{card.helper}</span>
-          )}
-        </div>
-      )}
+    </div>
+  );
+}
+
+function MetricsGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid overflow-hidden rounded-lg border border-border/70 bg-card sm:grid-cols-2 xl:grid-cols-4">
+      {children}
     </div>
   );
 }
 
 function Panel({
-  eyebrow,
   title,
   children,
   className,
   action,
 }: {
-  eyebrow: string;
   title: string;
   children: React.ReactNode;
   className?: string;
   action?: React.ReactNode;
 }) {
   return (
-    <section
-      className={cn(
-        "rounded-2xl border border-border bg-card p-6 shadow-sm",
-        className,
-      )}
-    >
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-            {eyebrow}
-          </span>
-          <h2 className="mt-3 text-lg font-semibold tracking-tight text-foreground">
-            {title}
-          </h2>
-        </div>
+    <section className={cn("space-y-3", className)}>
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         {action}
       </div>
       {children}
@@ -226,10 +206,10 @@ function HorizontalBar({
       <span className="truncate text-sm text-muted-foreground">
         {item.label}
       </span>
-      <div className="h-8 overflow-hidden rounded-lg bg-muted/60">
+      <div className="h-2 overflow-hidden rounded-full bg-muted">
         <div
           className={cn(
-            "h-full rounded-lg transition-all duration-500",
+            "h-full rounded-full transition-all duration-500",
             BAR_COLORS[index % BAR_COLORS.length],
           )}
           style={{ width: `${Math.max(pct, item.value > 0 ? 3 : 0)}%` }}
@@ -320,17 +300,18 @@ function SignalBadge({ signal }: { signal: "stale" | "stuck" }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+        "inline-flex items-center gap-1 text-xs font-medium",
         isStale
-          ? "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300"
-          : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
+          ? "text-orange-700 dark:text-orange-300"
+          : "text-amber-700 dark:text-amber-300",
       )}
     >
-      {isStale ? (
-        <Clock className="h-3 w-3" />
-      ) : (
-        <AlertTriangle className="h-3 w-3" />
-      )}
+      <span
+        className={cn(
+          "h-1.5 w-1.5 rounded-full",
+          isStale ? "bg-orange-500" : "bg-amber-500",
+        )}
+      />
       {isStale ? "Stale" : "Stuck"}
     </span>
   );
@@ -354,22 +335,16 @@ function ActionItemRow({
   return (
     <Link
       href={getRecordHref(order)}
-      className="group flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background/70 px-5 py-4 transition-colors hover:border-foreground/15 hover:bg-muted/30"
+      className="group flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
-      <div className="min-w-0 space-y-2">
+      <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <SignalBadge signal={signal} />
-          <Badge variant="outline" className="capitalize text-[10px]">
-            {order.type === "order" ? "Order" : "Enquiry"}
-          </Badge>
-          <span className="text-xs font-medium text-muted-foreground">
-            {order.currentStage}
-          </span>
-        </div>
-        <div>
-          <p className="truncate text-base font-semibold text-foreground">
+          <p className="truncate text-base font-medium text-foreground">
             {order.customerName}
           </p>
+          <SignalBadge signal={signal} />
+        </div>
+        <div>
           <p className="truncate text-sm text-muted-foreground">
             {order.orderNumber ?? "Enquiry"} - {order.category} - {timingLabel}
           </p>
@@ -395,7 +370,7 @@ function ActionItemRow({
             {formatRelativeTime(order.lastUpdatedAt)}
           </p>
         </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-colors group-hover:text-foreground" />
+        <ArrowRight className="h-4 w-4 text-muted-foreground/35 transition-colors group-hover:text-muted-foreground" />
       </div>
     </Link>
   );
@@ -407,7 +382,7 @@ function RecordRow({ order }: { order: Order }) {
   return (
     <Link
       href={getRecordHref(order)}
-      className="group flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background/70 px-5 py-4 transition-colors hover:border-foreground/15 hover:bg-muted/30"
+      className="group flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
       <div className="min-w-0 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -446,7 +421,7 @@ function RecordRow({ order }: { order: Order }) {
             {formatRelativeTime(order.lastUpdatedAt)}
           </p>
         </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-colors group-hover:text-foreground" />
+        <ArrowRight className="h-4 w-4 text-muted-foreground/35 transition-colors group-hover:text-muted-foreground" />
       </div>
     </Link>
   );
@@ -458,7 +433,7 @@ function EnquiryCard({ order }: { order: Order }) {
   return (
     <Link
       href={getRecordHref(order)}
-      className="group flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-background/70 px-6 py-4 transition-colors hover:border-foreground/15 hover:bg-muted/30"
+      className="group flex items-center justify-between gap-4 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
       <div className="flex min-w-0 items-center gap-3">
         <span className="text-sm text-muted-foreground">#{order.refCode}</span>
@@ -499,7 +474,7 @@ function EmptyRows({
   description: string;
 }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border py-12 text-center">
+    <div className="rounded-lg border border-dashed border-border/70 py-10 text-center">
       <Inbox className="mx-auto mb-2 h-7 w-7 text-muted-foreground/30" />
       <p className="text-sm font-medium text-muted-foreground">{title}</p>
       <p className="mt-1 text-xs text-muted-foreground/70">{description}</p>
@@ -623,33 +598,30 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
   ];
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="space-y-6">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="space-y-5">
+        <div className="flex flex-col">
+          <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
             Admin Dashboard
+            </h1>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+            View analytics and get an overview of your ongoing records.
           </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-            Operational overview
-          </h1>
-          <p className="mt-2 text-base text-muted-foreground">
-            Stale records, pipeline health, and business analytics.
-          </p>
-        </div>
+          </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricsGrid>
           {cards.map((card) => (
             <MetricCard key={card.label} card={card} />
           ))}
-        </div>
+        </MetricsGrid>
 
-        <Panel eyebrow="Needs Attention" title="Stale and stuck records">
-          <div className="space-y-3">
+        <Panel title="Needs attention">
+          <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
             {analytics.riskItems.slice(0, 6).map(({ order, signal }) => (
               <ActionItemRow key={order.id} order={order} signal={signal} />
             ))}
             {analytics.riskItems.length === 0 && (
-              <div className="rounded-xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+              <div className="py-10 text-center text-sm text-muted-foreground">
                 No stale or stuck records right now.
               </div>
             )}
@@ -665,9 +637,9 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
           </div>
         </Panel>
 
-        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <Panel eyebrow="Pipeline" title="Orders by stage">
-            <div className="space-y-3">
+        <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+          <Panel title="Orders by stage">
+            <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
               {analytics.stageCounts.map((item, index) => (
                 <HorizontalBar
                   key={item.label}
@@ -682,13 +654,15 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
             </div>
           </Panel>
 
-          <Panel eyebrow="Products" title="By category">
-            <DonutChart data={analytics.categoryCounts} />
+          <Panel title="By category">
+            <div className="rounded-lg border border-border/70 bg-card p-4">
+              <DonutChart data={analytics.categoryCounts} />
+            </div>
           </Panel>
         </div>
 
-        <Panel eyebrow="Enquiries" title="Status breakdown">
-          <div className="flex flex-col items-center gap-5 sm:flex-row sm:justify-around">
+        <Panel title="Status breakdown">
+          <div className="flex flex-col items-center gap-5 rounded-lg border border-border/70 bg-card p-4 sm:flex-row sm:justify-around">
             <DonutChart
               data={[
                 {
@@ -716,10 +690,7 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
                 { label: "Avg Response", value: "2.4h" },
                 { label: "Close Time", value: "6d" },
               ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-lg bg-muted/50 px-3 py-2.5 text-center"
-                >
+                <div key={stat.label} className="px-3 py-2 text-center">
                   <p className="text-lg font-semibold tracking-tight text-foreground">
                     {stat.value}
                   </p>
@@ -733,10 +704,10 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
         </Panel>
       </div>
 
-      <div className="xl:sticky xl:top-6 xl:self-start">
+      <div className="xl:sticky xl:top-5 xl:self-start">
         <RecentActivities
           orders={orders}
-          className="xl:max-h-[calc(100vh-3rem)]"
+          className="xl:max-h-[calc(100vh-2.5rem)]"
         />
       </div>
     </div>
@@ -753,74 +724,69 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
   ).length;
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Operations Dashboard
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-              Production and pipeline health
-            </h1>
-            <p className="mt-2 text-base text-muted-foreground">
-              Action items, stage distribution, and category analytics.
-            </p>
-          </div>
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="space-y-5">
+        <div className="flex flex-col">
+          <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            Operations Dashboard
+          </h1>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+            Get a bird's-eye view of the ongoing records.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <MetricsGrid>
+            <MetricCard
+              card={{
+                label: "Active Orders",
+                value: String(analytics.activeOrders.length),
+              }}
+            />
+            <MetricCard
+              card={{
+                label: "Open Enquiries",
+                value: String(analytics.openEnquiries.length),
+              }}
+            />
+            <MetricCard
+              card={{
+                label: "Overdue",
+                value: String(analytics.urgency.overdue),
+              }}
+            />
+            <MetricCard
+              card={{
+                label: "Pipeline Value",
+                value: formatCurrency(analytics.revenue),
+              }}
+            />
+          </MetricsGrid>
           <Button asChild variant="outline" className="self-start sm:self-auto">
             <Link href="/orders-and-enquiries">Open workspace</Link>
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <MetricCard
-            card={{
-              label: "Active Orders",
-              value: String(analytics.activeOrders.length),
-            }}
-          />
-          <MetricCard
-            card={{
-              label: "Open Enquiries",
-              value: String(analytics.openEnquiries.length),
-            }}
-          />
-          <MetricCard
-            card={{
-              label: "Overdue",
-              value: String(analytics.urgency.overdue),
-            }}
-          />
-          <MetricCard
-            card={{
-              label: "Pipeline Value",
-              value: formatCurrency(analytics.revenue),
-            }}
-          />
-        </div>
-
         {analytics.riskItems.length > 0 && (
           <Panel
-            eyebrow="Action Items"
             title="Records needing intervention"
             action={
               <div className="flex flex-wrap items-center justify-end gap-1.5">
                 {staleCount > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700 dark:bg-orange-950/50 dark:text-orange-400">
-                    <Clock className="h-2.5 w-2.5" />
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-700 dark:text-orange-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
                     {staleCount} stale
                   </span>
                 )}
                 {stuckCount > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
-                    <AlertTriangle className="h-2.5 w-2.5" />
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                     {stuckCount} stuck
                   </span>
                 )}
               </div>
             }
           >
-            <div className="space-y-3">
+            <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
               {analytics.riskItems.slice(0, 5).map(({ order, signal }) => (
                 <ActionItemRow
                   key={order.id}
@@ -842,9 +808,9 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
           </Panel>
         )}
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Panel eyebrow="Pipeline" title="Records by stage">
-            <div className="space-y-3">
+        <div className="grid gap-5 xl:grid-cols-2">
+          <Panel title="Records by stage">
+            <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
               {analytics.stageCounts.map((item, index) => (
                 <HorizontalBar
                   key={item.label}
@@ -859,43 +825,47 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
             </div>
           </Panel>
 
-          <Panel eyebrow="Delivery" title="Urgency breakdown">
-            <DonutChart
-              data={[
-                {
-                  label: "Overdue",
-                  value: analytics.urgency.overdue,
-                  color: "oklch(0.62 0.22 25)",
-                },
-                {
-                  label: "Due Soon",
-                  value: analytics.urgency["due-soon"],
-                  color: "oklch(0.76 0.17 72)",
-                },
-                {
-                  label: "On Track",
-                  value: analytics.urgency["on-track"],
-                  color: "oklch(0.59 0.14 145)",
-                },
-                {
-                  label: "No Date",
-                  value: analytics.urgency.none,
-                  color: "oklch(0.55 0.02 260)",
-                },
-              ]}
-            />
+          <Panel title="Urgency breakdown">
+            <div className="rounded-lg border border-border/70 bg-card p-4">
+              <DonutChart
+                data={[
+                  {
+                    label: "Overdue",
+                    value: analytics.urgency.overdue,
+                    color: "oklch(0.62 0.22 25)",
+                  },
+                  {
+                    label: "Due Soon",
+                    value: analytics.urgency["due-soon"],
+                    color: "oklch(0.76 0.17 72)",
+                  },
+                  {
+                    label: "On Track",
+                    value: analytics.urgency["on-track"],
+                    color: "oklch(0.59 0.14 145)",
+                  },
+                  {
+                    label: "No Date",
+                    value: analytics.urgency.none,
+                    color: "oklch(0.55 0.02 260)",
+                  },
+                ]}
+              />
+            </div>
           </Panel>
         </div>
 
-        <Panel eyebrow="Products" title="By category">
-          <DonutChart data={analytics.categoryCounts} size={132} />
+        <Panel title="By category">
+          <div className="rounded-lg border border-border/70 bg-card p-4">
+            <DonutChart data={analytics.categoryCounts} size={132} />
+          </div>
         </Panel>
       </div>
 
-      <div className="xl:sticky xl:top-6 xl:self-start">
+      <div className="xl:sticky xl:top-5 xl:self-start">
         <RecentActivities
           orders={orders}
-          className="xl:max-h-[calc(100vh-3rem)]"
+          className="xl:max-h-[calc(100vh-2.5rem)]"
         />
       </div>
     </div>
@@ -944,66 +914,56 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
   ).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-            Sales Dashboard
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-            Your open work
+    <div className="space-y-5">
+      <div className="flex flex-col">
+        <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+          Sales Dashboard
           </h1>
-          <p className="mt-2 text-base text-muted-foreground">
-            Action items, open orders and enquiries that need your attention.
-          </p>
+        <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+          Keep on eye on your customer and sales pipeline.
+        </p>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <Button asChild size="sm">
-            <Link href="/enquiries/new" className="gap-1.5">
-              <Plus className="h-3.5 w-3.5" />
-              New Enquiry
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <MetricCard
-          card={{ label: "Open Orders", value: String(data.openOrders.length) }}
-        />
-        <MetricCard
-          card={{
-            label: "Open Enquiries",
-            value: String(data.openEnquiries.length),
-          }}
-        />
-        <MetricCard
-          card={{ label: "Overdue", value: String(data.overdueCount) }}
-        />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <MetricsGrid>
+          <MetricCard
+            card={{
+              label: "Open Orders",
+              value: String(data.openOrders.length),
+            }}
+          />
+          <MetricCard
+            card={{
+              label: "Open Enquiries",
+              value: String(data.openEnquiries.length),
+            }}
+          />
+          <MetricCard
+            card={{ label: "Overdue", value: String(data.overdueCount) }}
+          />
+        </MetricsGrid>
       </div>
 
       {data.actionItems.length > 0 && (
         <Panel
-          eyebrow="Action Items"
           title="Records that need follow-up"
           action={
             <div className="flex flex-wrap items-center justify-end gap-1.5">
               {staleCount > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700 dark:bg-orange-950/50 dark:text-orange-400">
-                  <Clock className="h-2.5 w-2.5" />
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-700 dark:text-orange-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
                   {staleCount} stale
                 </span>
               )}
               {stuckCount > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
-                  <AlertTriangle className="h-2.5 w-2.5" />
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                   {stuckCount} stuck
                 </span>
               )}
             </div>
           }
         >
-          <div className="space-y-3">
+          <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
             {data.actionItems.slice(0, 5).map(({ order, signal }) => (
               <ActionItemRow
                 key={order.id}
@@ -1022,7 +982,7 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
             type="button"
             onClick={() => setActiveTab("orders")}
             className={cn(
-              "flex min-h-11 cursor-pointer items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+              "flex min-h-11 cursor-pointer items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
               activeTab === "orders"
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground",
@@ -1038,7 +998,7 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
             type="button"
             onClick={() => setActiveTab("enquiries")}
             className={cn(
-              "flex min-h-11 cursor-pointer items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+              "flex min-h-11 cursor-pointer items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
               activeTab === "enquiries"
                 ? "border-foreground text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground",
@@ -1052,7 +1012,7 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
           </button>
         </div>
 
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 overflow-hidden rounded-lg border border-border/70 bg-card">
           {activeTab === "orders" &&
             (data.openOrders.length > 0 ? (
               data.openOrders.map((order) => (
