@@ -1,18 +1,10 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
-import { Check, Copy, RefreshCw, UserCheck, UserCog, UserX, X } from "lucide-react";
+import { Check, ChevronRight, Copy, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -75,21 +67,16 @@ function ErrorBanner({
 function Metric({
   label,
   value,
-  icon: Icon,
 }: {
   label: string;
   value: number;
-  icon: LucideIcon;
 }) {
   return (
-    <div className="rounded-md border border-border/70 bg-background px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-medium uppercase text-muted-foreground">
-          {label}
-        </p>
-        <Icon className="size-4 text-muted-foreground" />
-      </div>
-      <p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
+    <div className="px-4 py-4 sm:px-5">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-2 text-2xl font-semibold leading-none text-foreground">
+        {value}
+      </p>
     </div>
   );
 }
@@ -209,18 +196,20 @@ export function UserManagementPageClient() {
   ).length;
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase text-muted-foreground">
-            Access Control
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
-            User management
+    <div className="space-y-7">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-2">
+          <nav
+            aria-label="Breadcrumb"
+            className="flex items-center gap-2 text-sm"
+          >
+            <span className="text-muted-foreground">Home</span>
+            <ChevronRight className="size-4 text-muted-foreground/60" />
+            <span className="font-medium text-foreground">Users</span>
+          </nav>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Users
           </h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Review internal users, track invites, and send access invitations.
-          </p>
         </div>
 
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
@@ -244,142 +233,128 @@ export function UserManagementPageClient() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Total Users" value={users.length} icon={UserCog} />
-        <Metric label="Active" value={activeUsers} icon={UserCheck} />
-        <Metric label="Blocked" value={blockedUsers} icon={UserX} />
-        <Metric
-          label="Pending Invites"
-          value={pendingInvites}
-          icon={RefreshCw}
-        />
+      <div className="grid overflow-hidden rounded-lg border border-border bg-background sm:grid-cols-2 lg:grid-cols-4">
+        <div className="border-b border-border sm:border-r lg:border-b-0">
+          <Metric label="Total users" value={users.length} />
+        </div>
+        <div className="border-b border-border lg:border-r lg:border-b-0">
+          <Metric label="Active" value={activeUsers} />
+        </div>
+        <div className="border-b border-border sm:border-r sm:border-b-0">
+          <Metric label="Blocked" value={blockedUsers} />
+        </div>
+        <Metric label="Pending invites" value={pendingInvites} />
       </div>
 
-      <Card className="rounded-lg">
-        <CardHeader className="gap-4 px-4 sm:px-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="min-w-0">
-              <CardTitle>Internal users</CardTitle>
-              <CardDescription>
-                Filter by account status or operational role.
-              </CardDescription>
-            </div>
-            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto">
-              <Select
-                value={userStatus}
-                onValueChange={(value) =>
-                  setUserStatus(value as FilterValue<InternalUserStatus>)
-                }
-              >
-                <SelectTrigger className="w-full md:w-36">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All statuses</SelectItem>
-                  {INTERNAL_USER_STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      <section className="space-y-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <h2 className="text-base font-semibold text-foreground">
+            Internal users
+          </h2>
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto">
+            <Select
+              value={userStatus}
+              onValueChange={(value) =>
+                setUserStatus(value as FilterValue<InternalUserStatus>)
+              }
+            >
+              <SelectTrigger className="w-full md:w-36">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All statuses</SelectItem>
+                {INTERNAL_USER_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-              <Select
-                value={userRole}
-                onValueChange={(value) =>
-                  setUserRole(value as FilterValue<InternalProfileRole>)
-                }
-              >
-                <SelectTrigger className="w-full md:w-36">
-                  <SelectValue placeholder="Role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All roles</SelectItem>
-                  {INTERNAL_PROFILE_ROLES.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select
+              value={userRole}
+              onValueChange={(value) =>
+                setUserRole(value as FilterValue<InternalProfileRole>)
+              }
+            >
+              <SelectTrigger className="w-full md:w-36">
+                <SelectValue placeholder="Role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All roles</SelectItem>
+                {INTERNAL_PROFILE_ROLES.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4 px-4 sm:px-6">
-          {usersError ? (
-            <ErrorBanner message={usersError} onRetry={loadUsers} />
-          ) : (
-            <UsersTable
-              users={users}
-              isLoading={usersLoading}
-              onFilterInvitesByUser={(user) => {
-                setInviteUserId(user.id);
-                setInviteUserLabel(user.name || user.email);
-              }}
-            />
-          )}
-        </CardContent>
-      </Card>
+        </div>
+        {usersError ? (
+          <ErrorBanner message={usersError} onRetry={loadUsers} />
+        ) : (
+          <UsersTable
+            users={users}
+            isLoading={usersLoading}
+            onFilterInvitesByUser={(user) => {
+              setInviteUserId(user.id);
+              setInviteUserLabel(user.name || user.email);
+            }}
+          />
+        )}
+      </section>
 
-      <Card className="rounded-lg">
-        <CardHeader className="gap-4 px-4 sm:px-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="min-w-0">
-              <CardTitle>Invites</CardTitle>
-              <CardDescription>
-                Track pending, accepted, expired, and cancelled invitations.
-              </CardDescription>
-            </div>
-            <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
-              {inviteUserId && (
-                <Badge
-                  variant="outline"
-                  className="h-9 max-w-full gap-2 rounded-md border-border px-3"
+      <section className="space-y-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <h2 className="text-base font-semibold text-foreground">Invites</h2>
+          <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+            {inviteUserId && (
+              <Badge
+                variant="outline"
+                className="h-9 max-w-full gap-2 rounded-md border-border px-3"
+              >
+                <span className="min-w-0 truncate">{inviteUserLabel}</span>
+                <button
+                  type="button"
+                  className="cursor-pointer rounded-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setInviteUserId("");
+                    setInviteUserLabel("");
+                  }}
+                  aria-label="Clear selected user invite filter"
                 >
-                  <span className="min-w-0 truncate">{inviteUserLabel}</span>
-                  <button
-                    type="button"
-                    className="cursor-pointer rounded-sm text-muted-foreground hover:text-foreground"
-                    onClick={() => {
-                      setInviteUserId("");
-                      setInviteUserLabel("");
-                    }}
-                    aria-label="Clear selected user invite filter"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </Badge>
-              )}
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            )}
 
-              <Select
-                value={inviteStatus}
-                onValueChange={(value) =>
-                  setInviteStatus(value as FilterValue<InternalInviteStatus>)
-                }
-              >
-                <SelectTrigger className="w-full sm:w-40">
-                  <SelectValue placeholder="Invite status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All invites</SelectItem>
-                  {INTERNAL_INVITE_STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select
+              value={inviteStatus}
+              onValueChange={(value) =>
+                setInviteStatus(value as FilterValue<InternalInviteStatus>)
+              }
+            >
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="Invite status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All invites</SelectItem>
+                {INTERNAL_INVITE_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4 px-4 sm:px-6">
-          {invitesError ? (
-            <ErrorBanner message={invitesError} onRetry={loadInvites} />
-          ) : (
-            <InvitesTable invites={invites} isLoading={invitesLoading} />
-          )}
-        </CardContent>
-      </Card>
+        </div>
+        {invitesError ? (
+          <ErrorBanner message={invitesError} onRetry={loadInvites} />
+        ) : (
+          <InvitesTable invites={invites} isLoading={invitesLoading} />
+        )}
+      </section>
 
       <Dialog open={credentialsOpen} onOpenChange={setCredentialsOpen}>
         <DialogContent className="sm:max-w-md">
@@ -417,8 +392,7 @@ export function UserManagementPageClient() {
             </div>
 
             <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-              Credentials are copied to clipboard. This password
-              cannot be viewed and needs to be reset to view again.
+              Credentials were copied. This password cannot be viewed again.
             </div>
           </div>
 

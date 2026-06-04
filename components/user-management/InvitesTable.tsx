@@ -39,7 +39,7 @@ function formatDate(value: string | null) {
 export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
   if (isLoading) {
     return (
-      <div className="rounded-md border border-border/70 p-6 text-sm text-muted-foreground">
+      <div className="rounded-md border border-border/70 px-4 py-5 text-sm text-muted-foreground">
         Loading invites...
       </div>
     );
@@ -59,7 +59,7 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
         {invites.map((invite) => (
           <div
             key={invite.id}
-            className="rounded-lg border border-border bg-card p-4"
+            className="rounded-md border border-border/70 bg-background p-4"
           >
             <div className="flex min-w-0 items-start justify-between gap-3">
               <div className="min-w-0">
@@ -103,7 +103,7 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
         ))}
       </div>
 
-      <div className="hidden overflow-x-auto sm:block">
+      <div className="hidden sm:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -117,7 +117,7 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
           <TableBody>
             {invites.map((invite) => (
               <TableRow key={invite.id}>
-                <TableCell>
+                <TableCell className="py-3">
                   <div className="min-w-56">
                     <p className="truncate font-medium text-foreground">
                       {invite.email}
@@ -129,8 +129,8 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
                     </p>
                   </div>
                 </TableCell>
-                <TableCell>{invite.role}</TableCell>
-                <TableCell>
+                <TableCell className="py-3">{invite.role}</TableCell>
+                <TableCell className="py-3">
                   <Badge
                     variant="outline"
                     className={cn("border", statusStyles[invite.status])}
@@ -138,10 +138,10 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
                     {invite.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="py-3 text-muted-foreground">
                   {formatDate(invite.expirationAt)}
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="py-3 text-muted-foreground">
                   {formatDate(invite.createdAt)}
                 </TableCell>
               </TableRow>

@@ -112,8 +112,7 @@ export function SendInviteDialog({
         <DialogHeader>
           <DialogTitle>Send internal invite</DialogTitle>
           <DialogDescription>
-            Create an inactive internal user and send an invite for dashboard
-            access.
+            Create access for an internal user.
           </DialogDescription>
         </DialogHeader>
 
