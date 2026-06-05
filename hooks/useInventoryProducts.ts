@@ -2,20 +2,33 @@
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
-  fetchInventoryProduct,
+  fetchInventoryProductByCode,
   fetchInventoryProducts,
+  INVENTORY_LIST_DEFAULT_LIMIT,
 } from "@/lib/inventoryApi";
+import type { InventoryProduct } from "@/types/inventory-api";
 
 export const inventoryProductKeys = {
   all: ["inventory-products"] as const,
-  list: () => [...inventoryProductKeys.all, "list"] as const,
-  detail: (id: string) => [...inventoryProductKeys.all, "detail", id] as const,
+  list: (query: Record<string, unknown>) =>
+    [...inventoryProductKeys.all, "list", query] as const,
+  detailByCode: (code: string | null) =>
+    [...inventoryProductKeys.all, "detail-by-code", code ?? ""] as const,
 };
 
-export function useInfiniteInventoryProducts() {
+export function useInfiniteInventoryProducts(
+  query: Record<string, unknown> = {},
+) {
+  const { limit = INVENTORY_LIST_DEFAULT_LIMIT, ...filters } = query;
+
   return useInfiniteQuery({
-    queryKey: inventoryProductKeys.list(),
-    queryFn: ({ pageParam }) => fetchInventoryProducts({ offset: pageParam }),
+    queryKey: inventoryProductKeys.list({ ...filters, limit }),
+    queryFn: ({ pageParam }) =>
+      fetchInventoryProducts({
+        ...(filters as Parameters<typeof fetchInventoryProducts>[0]),
+        limit: limit as number,
+        offset: pageParam as number,
+      }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       if (lastPage.data.length === 0) return undefined;
@@ -35,10 +48,15 @@ export function useInfiniteInventoryProducts() {
   });
 }
 
-export function useInventoryProduct(id: string | null) {
+export function useInventoryProductByCode(productCode: string | null) {
   return useQuery({
-    queryKey: inventoryProductKeys.detail(id ?? ""),
-    queryFn: () => fetchInventoryProduct(id ?? ""),
-    enabled: Boolean(id),
+    queryKey: inventoryProductKeys.detailByCode(productCode),
+    enabled: Boolean(productCode),
+    queryFn: async (): Promise<InventoryProduct | null> => {
+      const trimmed = productCode?.trim();
+      if (!trimmed) return null;
+
+      return fetchInventoryProductByCode(trimmed);
+    },
   });
 }

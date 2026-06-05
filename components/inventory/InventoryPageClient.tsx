@@ -4,19 +4,29 @@ import {
   AlertCircle,
   ArrowLeft,
   Diamond,
-  Filter,
   MapPin,
   PackageSearch,
   ScanLine,
   Search,
+  SlidersHorizontal,
 } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
+import { EstimationSummaryCard } from "@/components/calculator/EstimationSummaryCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -25,27 +35,87 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import {
   useInfiniteInventoryProducts,
-  useInventoryProduct,
+  useInventoryProductByCode,
 } from "@/hooks/useInventoryProducts";
+import { useLocations } from "@/hooks/useManageProducts";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
+import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { InventoryProduct } from "@/types/inventory-api";
+import type {
+  CalculatorFormState,
+  CalculatorSettings,
+  CalculatorStoneInput,
+  MetalPurity,
+} from "@/types";
+import type {
+  InventoryProduct,
+  InventoryProductListQuery,
+  ProductColor,
+} from "@/types/inventory-api";
 
+type InventoryCategory =
+  | "RING"
+  | "NECKLACE"
+  | "EARRING"
+  | "BRACELET"
+  | "PENDANT"
+  | "BANGLE"
+  | "ANKLET"
+  | "OTHER";
 type SourceFilter = "ALL" | "CUSTOMER" | "STOCK";
+type ColorFilter = "ALL" | ProductColor;
+type PurityFilter = "ALL" | "14" | "18" | "24";
+
+const CATEGORY_VALUES: readonly InventoryCategory[] = [
+  "RING",
+  "NECKLACE",
+  "EARRING",
+  "BRACELET",
+  "PENDANT",
+  "BANGLE",
+  "ANKLET",
+  "OTHER",
+] as const;
+
+const CATEGORY_LABELS: Record<InventoryCategory, string> = {
+  RING: "Ring",
+  NECKLACE: "Necklace",
+  EARRING: "Earring",
+  BRACELET: "Bracelet",
+  PENDANT: "Pendant",
+  BANGLE: "Bangle",
+  ANKLET: "Anklet",
+  OTHER: "Other",
+};
+
+const COLOR_LABELS: Record<ProductColor, string> = {
+  YELLOW: "Yellow",
+  ROSE: "Rose",
+  WHITE: "White",
+  OTHERS: "Others",
+};
+
+const PURITY_LABELS: Record<Exclude<PurityFilter, "ALL">, string> = {
+  "14": "14K",
+  "18": "18K",
+  "24": "24K",
+};
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 function formatWeight(value: string | number, unit: string) {
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return `- ${unit}`;
   return `${numeric.toFixed(2)} ${unit}`;
+}
+
+function parseNumber(value: string | number | null | undefined) {
+  const numeric = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
 }
 
 function getErrorMessage(error: unknown) {
@@ -88,38 +158,133 @@ function getTotalStoneCarat(product: InventoryProduct) {
   );
 }
 
-function productSearchText(product: InventoryProduct) {
-  return [
-    product.productCode,
-    product.name,
-    product.category,
-    product.vendor,
-    product.color,
-    product.location.name,
-    product.location.city,
-  ]
-    .join(" ")
-    .toLowerCase();
+function getInventoryPurity(product: InventoryProduct): MetalPurity {
+  const purity = `${product.purity}K`;
+  return ["14K", "18K", "22K", "24K"].includes(purity)
+    ? (purity as MetalPurity)
+    : "Other";
+}
+
+function findStoneTypeIdBySlabCode(settings: CalculatorSettings, code: string) {
+  const normalizedCode = code.trim();
+
+  for (const stoneType of settings.stoneTypes) {
+    if (stoneType.slabs.some((slab) => slab.code === normalizedCode)) {
+      return stoneType.stoneId;
+    }
+  }
+
+  return null;
+}
+
+function buildInventoryCalculatorStones(
+  product: InventoryProduct,
+  settings: CalculatorSettings,
+): CalculatorStoneInput[] {
+  return (product.stones ?? []).flatMap((stone) => {
+    const stoneTypeId = findStoneTypeIdBySlabCode(
+      settings,
+      stone.stoneSlabCode,
+    );
+    const weight = parseNumber(stone.totalNetWeight);
+
+    if (!stoneTypeId || weight <= 0) return [];
+
+    return [
+      {
+        id: stone.id,
+        stoneTypeId,
+        weight,
+        quantity: Math.max(1, stone.totalPieces),
+      },
+    ];
+  });
+}
+
+function buildInventoryPricingSettings(
+  product: InventoryProduct,
+  settings: CalculatorSettings,
+): CalculatorSettings {
+  const stoneTypes = settings.stoneTypes.map((stoneType) => ({
+    ...stoneType,
+    slabs: [...stoneType.slabs],
+  }));
+
+  for (const stone of product.stones ?? []) {
+    if (
+      findStoneTypeIdBySlabCode(
+        { ...settings, stoneTypes },
+        stone.stoneSlabCode,
+      )
+    ) {
+      continue;
+    }
+
+    const stoneTypeId = stone.slab.stoneType.id;
+    const existingStoneType = stoneTypes.find(
+      (stoneType) => stoneType.stoneId === stoneTypeId,
+    );
+    const apiSlab = {
+      code: stone.stoneSlabCode,
+      fromWeight: parseNumber(stone.slab.rangeFrom),
+      toWeight: parseNumber(stone.slab.rangeTo),
+      pricePerCarat: parseNumber(stone.slab.pricePerCarat),
+    };
+
+    if (existingStoneType) {
+      existingStoneType.slabs = [...existingStoneType.slabs, apiSlab];
+      continue;
+    }
+
+    stoneTypes.push({
+      stoneId: stoneTypeId,
+      name: stone.slab.stoneType.name,
+      category:
+        stone.slab.stoneType.category === "Gemstone" ? "Gemstone" : "Diamond",
+      clarity: stone.slab.stoneType.clarity,
+      color: stone.slab.stoneType.color ?? undefined,
+      slabs: [apiSlab],
+    });
+  }
+
+  return { ...settings, stoneTypes };
+}
+
+function buildInventoryCalculatorForm(
+  product: InventoryProduct,
+  settings: CalculatorSettings,
+): CalculatorFormState {
+  return {
+    netGoldWeight: parseNumber(product.netWeight),
+    purity: getInventoryPurity(product),
+    stones: buildInventoryCalculatorStones(product, settings),
+    productName: product.name,
+    productNote: product.description ?? "",
+    productImageUrl: getPrimaryImage(product)?.storageKey,
+  };
 }
 
 function InventoryStat({
   label,
   value,
   emphasis = false,
+  onClick,
 }: {
   label: string;
   value: string;
   emphasis?: boolean;
+  onClick?: () => void;
 }) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border px-4 py-3.5",
-        emphasis
-          ? "border-foreground bg-foreground"
-          : "border-border bg-background",
-      )}
-    >
+  const className = cn(
+    "rounded-2xl border px-4 py-3.5 text-left",
+    emphasis
+      ? "border-foreground bg-foreground"
+      : "border-border bg-background",
+    onClick &&
+      "min-h-20 cursor-pointer transition-colors hover:border-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+  );
+  const content = (
+    <>
       <p
         className={cn(
           "text-[11px] font-semibold uppercase tracking-[0.2em]",
@@ -136,8 +301,23 @@ function InventoryStat({
       >
         {value}
       </p>
-    </div>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={className}
+        aria-label="View estimation price breakdown"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={className}>{content}</div>;
 }
 
 function ProductListItem({
@@ -155,7 +335,7 @@ function ProductListItem({
       type="button"
       onClick={onSelect}
       className={cn(
-        "flex w-full items-start gap-3 rounded-2xl border bg-card p-3 text-left shadow-sm transition-colors hover:border-foreground/25 hover:bg-muted/20",
+        "flex w-full items-start gap-3 rounded-2xl border bg-card p-3 text-left shadow-sm transition-colors cursor-pointer hover:border-foreground/25 hover:bg-muted/20",
         selected
           ? "border-foreground/60 ring-1 ring-foreground/10"
           : "border-border",
@@ -200,8 +380,41 @@ function ProductListItem({
   );
 }
 
-function ProductDetail({ product }: { product: InventoryProduct }) {
+function ProductDetail({
+  product,
+  settings,
+  estimationSectionRef,
+}: {
+  product: InventoryProduct;
+  settings: CalculatorSettings;
+  estimationSectionRef: RefObject<HTMLElement | null>;
+}) {
   const image = getPrimaryImage(product);
+  const pricingSettings = useMemo(
+    () => buildInventoryPricingSettings(product, settings),
+    [product, settings],
+  );
+  const form = useMemo(
+    () => buildInventoryCalculatorForm(product, pricingSettings),
+    [product, pricingSettings],
+  );
+  const breakdown = useMemo(
+    () =>
+      computeEstimateFromInputs(
+        pricingSettings,
+        form.netGoldWeight,
+        form.purity,
+        form.stones,
+      ),
+    [form.netGoldWeight, form.purity, form.stones, pricingSettings],
+  );
+
+  function scrollToEstimation() {
+    estimationSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
@@ -251,20 +464,79 @@ function ProductDetail({ product }: { product: InventoryProduct }) {
             </p>
           </div>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            <InventoryStat label="Metal" value={getMetalLabel(product)} />
-            <InventoryStat
-              label="Net wt"
-              value={formatWeight(product.netWeight, "g")}
-            />
-            <InventoryStat
-              label="Price"
-              value={formatCurrency(Number(product.grossWeight) * 16000)}
-              emphasis
-            />
+          <div className="mt-8 space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <InventoryStat label="Metal" value={getMetalLabel(product)} />
+              <InventoryStat
+                label="Net wt"
+                value={formatWeight(product.netWeight, "g")}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <InventoryStat
+                label="Stone wt"
+                value={formatWeight(getTotalStoneCarat(product), "ct")}
+              />
+              <InventoryStat
+                label="Gross wt"
+                value={formatWeight(product.grossWeight, "g")}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <InventoryStat label="Location" value={product.location.city} />
+              <InventoryStat
+                label="Price"
+                value={formatCurrency(Math.round(breakdown.total))}
+                emphasis
+                onClick={scrollToEstimation}
+              />
+            </div>
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+function ProductEstimationSection({
+  product,
+  settings,
+  estimationSectionRef,
+}: {
+  product: InventoryProduct;
+  settings: CalculatorSettings;
+  estimationSectionRef: RefObject<HTMLElement | null>;
+}) {
+  const pricingSettings = useMemo(
+    () => buildInventoryPricingSettings(product, settings),
+    [product, settings],
+  );
+  const form = useMemo(
+    () => buildInventoryCalculatorForm(product, pricingSettings),
+    [product, pricingSettings],
+  );
+  const breakdown = useMemo(
+    () =>
+      computeEstimateFromInputs(
+        pricingSettings,
+        form.netGoldWeight,
+        form.purity,
+        form.stones,
+      ),
+    [form.netGoldWeight, form.purity, form.stones, pricingSettings],
+  );
+
+  return (
+    <section ref={estimationSectionRef} className="scroll-mt-4">
+      <EstimationSummaryCard
+        title="Product estimation"
+        data={{
+          kind: "calculator",
+          form,
+          breakdown,
+          gstRate: settings.gstRate,
+        }}
+      />
     </section>
   );
 }
@@ -287,9 +559,6 @@ function ProductSpecification({ product }: { product: InventoryProduct }) {
     <section className="rounded-[28px] border border-border bg-card p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-            Product Details
-          </p>
           <h2 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
             Specification
           </h2>
@@ -301,14 +570,6 @@ function ProductSpecification({ product }: { product: InventoryProduct }) {
         <dl className="space-y-3">
           <DetailRow label="Code" value={product.productCode} />
           <DetailRow label="Vendor" value={product.vendor} />
-          <DetailRow
-            label="Location"
-            value={`${product.location.name}, ${product.location.city}`}
-          />
-          <DetailRow
-            label="Metal"
-            value={`${getMetalLabel(product)} · ${formatWeight(product.netWeight, "g")}`}
-          />
         </dl>
         <dl className="space-y-3">
           <DetailRow
@@ -501,61 +762,123 @@ function ErrorPanel({ title, message }: { title: string; message: string }) {
   );
 }
 
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const handle = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(handle);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 export function InventoryPageClient() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const selectedProductId = searchParams.get("productId");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("ALL");
-  const [colorFilter, setColorFilter] = useState("ALL");
+  const selectedProductCode = searchParams.get("productCode");
+
+  const [searchInput, setSearchInput] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<
+    InventoryCategory | "ALL"
+  >("ALL");
+  const [colorFilter, setColorFilter] = useState<ColorFilter>("ALL");
+  const [purityFilter, setPurityFilter] = useState<PurityFilter>("ALL");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("ALL");
-  const [locationFilter, setLocationFilter] = useState("ALL");
-  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [locationFilter, setLocationFilter] = useState<string>("ALL");
+
+  const [netWeightFrom, setNetWeightFrom] = useState("");
+  const [netWeightTo, setNetWeightTo] = useState("");
+  const [sourceCreatedFrom, setSourceCreatedFrom] = useState("");
+  const [sourceCreatedTo, setSourceCreatedTo] = useState("");
+
+  const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
-  const productsQuery = useInfiniteInventoryProducts();
-  const detailQuery = useInventoryProduct(selectedProductId);
+  const estimationSectionRef = useRef<HTMLElement | null>(null);
+  const { settings } = useCalculatorSettings();
 
-  const products = productsQuery.data?.pages.flatMap((page) => page.data) ?? [];
-  const selectedListProduct = products.find(
-    (product) => product.id === selectedProductId,
+  const debouncedSearch = useDebouncedValue(
+    searchInput.trim(),
+    SEARCH_DEBOUNCE_MS,
   );
-  const selectedProduct = detailQuery.data ?? selectedListProduct ?? null;
-  const hasSelectedProduct = Boolean(selectedProductId);
 
-  function selectProduct(productId: string) {
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set("productId", productId);
-    router.push(`${pathname}?${nextParams.toString()}`);
-  }
+  const listQuery = useInfiniteInventoryProducts(
+    useMemo<InventoryProductListQuery>(() => {
+      const isCustomerProduct =
+        sourceFilter === "ALL" ? undefined : sourceFilter === "CUSTOMER";
 
-  function closeProductDetails() {
+      const filters: InventoryProductListQuery = {
+        q: debouncedSearch || undefined,
+        category: categoryFilter === "ALL" ? undefined : categoryFilter,
+        color: colorFilter === "ALL" ? undefined : colorFilter,
+        purity: purityFilter === "ALL" ? undefined : Number(purityFilter),
+        locationId: locationFilter === "ALL" ? undefined : locationFilter,
+        isCustomerProduct,
+        netWeightFrom: netWeightFrom ? Number(netWeightFrom) : undefined,
+        netWeightTo: netWeightTo ? Number(netWeightTo) : undefined,
+        sourceCreatedFrom: sourceCreatedFrom || undefined,
+        sourceCreatedTo: sourceCreatedTo || undefined,
+      };
+      return filters;
+    }, [
+      categoryFilter,
+      colorFilter,
+      debouncedSearch,
+      locationFilter,
+      netWeightFrom,
+      netWeightTo,
+      purityFilter,
+      sourceCreatedFrom,
+      sourceCreatedTo,
+      sourceFilter,
+    ]),
+  );
+
+  const detailQuery = useInventoryProductByCode(selectedProductCode);
+  const locationsQuery = useLocations({ limit: 100 });
+
+  const products = listQuery.data?.pages.flatMap((page) => page.data) ?? [];
+  const hasSelectedProduct = Boolean(selectedProductCode);
+  const selectedProduct = detailQuery.data ?? null;
+
+  function updateSearchParams(updater: (params: URLSearchParams) => void) {
     const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.delete("productId");
+    updater(nextParams);
     const query = nextParams.toString();
     router.push(query ? `${pathname}?${query}` : pathname);
   }
 
-  function resetFilters() {
-    setSearchQuery("");
+  function selectProduct(productCode: string) {
+    updateSearchParams((params) => {
+      params.set("productCode", productCode);
+    });
+  }
+
+  function closeProductDetails() {
+    updateSearchParams((params) => {
+      params.delete("productCode");
+    });
+  }
+
+  function resetDialogFilters() {
     setCategoryFilter("ALL");
     setColorFilter("ALL");
+    setPurityFilter("ALL");
     setSourceFilter("ALL");
     setLocationFilter("ALL");
+    setNetWeightFrom("");
+    setNetWeightTo("");
+    setSourceCreatedFrom("");
+    setSourceCreatedTo("");
   }
 
   function handleDecodedBarcode(rawCode: string) {
     const code = normalizeDecodedId(rawCode);
     if (!code) return;
 
-    setSearchQuery(code);
+    setSearchInput(code);
     setIsScannerOpen(false);
-
-    const exactProduct = products.find(
-      (product) => product.productCode.toUpperCase() === code.toUpperCase(),
-    );
-    if (exactProduct) selectProduct(exactProduct.id);
+    selectProduct(code);
   }
 
   useEffect(() => {
@@ -567,10 +890,10 @@ export function InventoryPageClient() {
         const [entry] = entries;
         if (
           entry.isIntersecting &&
-          productsQuery.hasNextPage &&
-          !productsQuery.isFetchingNextPage
+          listQuery.hasNextPage &&
+          !listQuery.isFetchingNextPage
         ) {
-          productsQuery.fetchNextPage();
+          listQuery.fetchNextPage();
         }
       },
       { rootMargin: "360px" },
@@ -579,96 +902,76 @@ export function InventoryPageClient() {
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [
-    productsQuery.fetchNextPage,
-    productsQuery.hasNextPage,
-    productsQuery.isFetchingNextPage,
+    listQuery.fetchNextPage,
+    listQuery.hasNextPage,
+    listQuery.isFetchingNextPage,
   ]);
 
-  const categoryOptions = useMemo(
-    () =>
-      Array.from(new Set(products.map((product) => product.category))).sort(),
-    [products],
-  );
-  const colorOptions = useMemo(
-    () => Array.from(new Set(products.map((product) => product.color))).sort(),
-    [products],
-  );
-  const locationOptions = useMemo(
-    () =>
-      Array.from(
-        new Map(
-          products.map((product) => [product.location.id, product.location]),
-        ).values(),
-      ),
-    [products],
-  );
-
-  const filteredProducts = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-
-    return products.filter((product) => {
-      const matchesQuery = !query || productSearchText(product).includes(query);
-      const matchesCategory =
-        categoryFilter === "ALL" || product.category === categoryFilter;
-      const matchesColor =
-        colorFilter === "ALL" || product.color === colorFilter;
-      const matchesSource =
-        sourceFilter === "ALL" ||
-        (sourceFilter === "CUSTOMER"
-          ? product.isCustomerProduct
-          : !product.isCustomerProduct);
-      const matchesLocation =
-        locationFilter === "ALL" || product.location.id === locationFilter;
-
-      return (
-        matchesQuery &&
-        matchesCategory &&
-        matchesColor &&
-        matchesSource &&
-        matchesLocation
-      );
-    });
-  }, [
-    categoryFilter,
-    colorFilter,
-    locationFilter,
-    products,
-    searchQuery,
-    sourceFilter,
-  ]);
-
-  const activeFilterCount =
-    (searchQuery.trim() ? 1 : 0) +
+  const activeDialogFilterCount =
     (categoryFilter !== "ALL" ? 1 : 0) +
     (colorFilter !== "ALL" ? 1 : 0) +
+    (purityFilter !== "ALL" ? 1 : 0) +
     (sourceFilter !== "ALL" ? 1 : 0) +
-    (locationFilter !== "ALL" ? 1 : 0);
+    (locationFilter !== "ALL" ? 1 : 0) +
+    (netWeightFrom ? 1 : 0) +
+    (netWeightTo ? 1 : 0) +
+    (sourceCreatedFrom ? 1 : 0) +
+    (sourceCreatedTo ? 1 : 0);
+
+  const hasActiveDialogFilters = activeDialogFilterCount > 0;
 
   const filterControls = (
     <>
-      <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+      <Select
+        value={categoryFilter}
+        onValueChange={(value) =>
+          setCategoryFilter(value as InventoryCategory | "ALL")
+        }
+      >
         <SelectTrigger className="h-10 w-full">
           <SelectValue placeholder="Category" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="ALL">All categories</SelectItem>
-          {categoryOptions.map((category) => (
+          {CATEGORY_VALUES.map((category) => (
             <SelectItem key={category} value={category}>
-              {category}
+              {CATEGORY_LABELS[category]}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
 
-      <Select value={colorFilter} onValueChange={setColorFilter}>
+      <Select
+        value={colorFilter}
+        onValueChange={(value) => setColorFilter(value as ColorFilter)}
+      >
         <SelectTrigger className="h-10 w-full">
           <SelectValue placeholder="Color" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="ALL">All colors</SelectItem>
-          {colorOptions.map((color) => (
+          {(Object.keys(COLOR_LABELS) as ProductColor[]).map((color) => (
             <SelectItem key={color} value={color}>
-              {color}
+              {COLOR_LABELS[color]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={purityFilter}
+        onValueChange={(value) => setPurityFilter(value as PurityFilter)}
+      >
+        <SelectTrigger className="h-10 w-full">
+          <SelectValue placeholder="Purity" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All purities</SelectItem>
+          {(
+            Object.keys(PURITY_LABELS) as Array<Exclude<PurityFilter, "ALL">>
+          ).map((purity) => (
+            <SelectItem key={purity} value={purity}>
+              {PURITY_LABELS[purity]}
             </SelectItem>
           ))}
         </SelectContent>
@@ -694,9 +997,9 @@ export function InventoryPageClient() {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="ALL">All locations</SelectItem>
-          {locationOptions.map((location) => (
+          {locationsQuery.data?.data.map((location) => (
             <SelectItem key={location.id} value={location.id}>
-              {location.name}
+              {location.name} · {location.city}
             </SelectItem>
           ))}
         </SelectContent>
@@ -706,7 +1009,7 @@ export function InventoryPageClient() {
 
   return (
     <div className="space-y-6">
-      <div className={cn(hasSelectedProduct && "hidden xl:block")}>
+      <div className={cn(hasSelectedProduct && "hidden lg:block")}>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Browse product inventory
         </h1>
@@ -716,80 +1019,18 @@ export function InventoryPageClient() {
         </p>
       </div>
 
-      <div
+      <section
         className={cn(
-          "grid grid-cols-2 gap-2 lg:hidden",
-          hasSelectedProduct && "hidden",
+          "grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center lg:flex lg:flex-wrap lg:gap-3",
+          hasSelectedProduct && "hidden lg:flex",
         )}
       >
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setIsScannerOpen(true)}
-          className="h-10 justify-center gap-2"
-        >
-          <ScanLine className="h-4 w-4" />
-          Scan Barcode
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setIsMobileFiltersOpen(true)}
-          className="h-10 justify-center gap-2"
-        >
-          <Filter className="h-4 w-4" />
-          Filters
-          {activeFilterCount > 0 ? (
-            <Badge variant="secondary" className="ml-0.5 px-1.5">
-              {activeFilterCount}
-            </Badge>
-          ) : null}
-        </Button>
-      </div>
-
-      <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
-        <SheetContent
-          side="bottom"
-          className="w-full rounded-t-xl p-0 sm:left-1/2 sm:w-1/2 sm:-translate-x-1/2 lg:hidden"
-        >
-          <SheetHeader className="border-b border-border px-4 py-4 text-left">
-            <SheetTitle>Filters</SheetTitle>
-          </SheetHeader>
-          <div className="space-y-4 px-4 py-4">
-            <div className="grid gap-1.5">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search code, vendor, location"
-                  className="h-10"
-                />
-              </div>
-            </div>
-            <div className="grid gap-3">{filterControls}</div>
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={resetFilters}>
-                Clear
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setIsMobileFiltersOpen(false)}
-              >
-                Apply
-              </Button>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      <section className="hidden items-center gap-3 lg:flex lg:flex-wrap">
-        <div className="min-w-[320px] flex-1">
+        <div className="min-w-0 flex-1 lg:min-w-[320px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Search code, vendor, location, category"
               className="h-10 pl-9"
             />
@@ -799,39 +1040,131 @@ export function InventoryPageClient() {
           type="button"
           variant="outline"
           onClick={() => setIsScannerOpen(true)}
-          className="h-10 shrink-0"
+          className="h-10 shrink-0 gap-2"
         >
           <ScanLine className="h-4 w-4" />
           Scan Barcode
         </Button>
-        <div className="grid grid-cols-4 gap-3">{filterControls}</div>
+        <Button
+          type="button"
+          variant={hasActiveDialogFilters ? "default" : "outline"}
+          onClick={() => setIsAdvancedFiltersOpen(true)}
+          className="h-10 shrink-0 gap-2"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          More filters
+          {hasActiveDialogFilters ? (
+            <Badge variant="secondary" className="ml-0.5 px-1.5">
+              {activeDialogFilterCount}
+            </Badge>
+          ) : null}
+        </Button>
       </section>
+
+      <Dialog
+        open={isAdvancedFiltersOpen}
+        onOpenChange={setIsAdvancedFiltersOpen}
+      >
+        <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto p-0 sm:max-w-2xl">
+          <DialogHeader>
+            <div className="px-5 pt-5 sm:px-6 sm:pt-6">
+              <DialogTitle>More filters</DialogTitle>
+              <DialogDescription className="mt-2">
+                Refine inventory results by product attributes, location,
+                weight, and source date.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+          <div className="space-y-6 px-5 pb-5 sm:px-6">
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Product attributes</Label>
+              <div className="grid gap-3 sm:grid-cols-2">{filterControls}</div>
+            </div>
+
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Net weight (g)</Label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="0.01"
+                    value={netWeightFrom}
+                    onChange={(event) => setNetWeightFrom(event.target.value)}
+                    placeholder="From"
+                  />
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="0.01"
+                    value={netWeightTo}
+                    onChange={(event) => setNetWeightTo(event.target.value)}
+                    placeholder="To"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Source created at</Label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input
+                    type="date"
+                    value={sourceCreatedFrom}
+                    onChange={(event) =>
+                      setSourceCreatedFrom(event.target.value)
+                    }
+                  />
+                  <Input
+                    type="date"
+                    value={sourceCreatedTo}
+                    onChange={(event) => setSourceCreatedTo(event.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="border-t border-border px-5 py-4 sm:px-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={resetDialogFilters}
+              className="w-full sm:w-auto"
+            >
+              Clear all filters
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div
         className={cn(
-          "grid gap-3 w-full h-[80vh] overflow-hidden",
-          hasSelectedProduct && "xl:grid-cols-[420px_minmax(0,1fr)]",
+          "grid gap-3 w-full",
+          hasSelectedProduct
+            ? "lg:h-[calc(100svh-3rem)] lg:min-h-0 lg:grid-cols-[420px_minmax(0,1fr)] lg:overflow-hidden"
+            : "",
         )}
       >
         <section
           className={cn(
             "rounded-md pr-4",
             hasSelectedProduct &&
-              "hidden xl:block xl:h-full xl:overflow-y-auto",
+              "hidden lg:block lg:h-full lg:overflow-y-auto",
           )}
         >
-          {productsQuery.isLoading ? (
+          {listQuery.isLoading ? (
             hasSelectedProduct ? (
               <ProductListSkeleton />
             ) : (
               <ProductGridSkeleton />
             )
-          ) : productsQuery.isError ? (
+          ) : listQuery.isError ? (
             <ErrorPanel
               title="Unable to load products"
-              message={getErrorMessage(productsQuery.error)}
+              message={getErrorMessage(listQuery.error)}
             />
-          ) : filteredProducts.length > 0 ? (
+          ) : products.length > 0 ? (
             <div
               className={cn(
                 "grid gap-3",
@@ -840,12 +1173,12 @@ export function InventoryPageClient() {
                   : "md:grid-cols-2 2xl:grid-cols-3",
               )}
             >
-              {filteredProducts.map((product) => (
+              {products.map((product) => (
                 <ProductListItem
                   key={product.id}
                   product={product}
-                  selected={product.id === selectedProductId}
-                  onSelect={() => selectProduct(product.id)}
+                  selected={product.productCode === selectedProductCode}
+                  onSelect={() => selectProduct(product.productCode)}
                 />
               ))}
             </div>
@@ -861,11 +1194,11 @@ export function InventoryPageClient() {
             </div>
           )}
           <div ref={loadMoreRef} className="h-4" />
-          {productsQuery.isFetchingNextPage ? (
+          {listQuery.isFetchingNextPage ? (
             <p className="py-2 text-center text-xs text-muted-foreground">
               Fetching more products...
             </p>
-          ) : products.length > 0 && !productsQuery.hasNextPage ? (
+          ) : products.length > 0 && !listQuery.hasNextPage ? (
             <p className="py-2 text-center text-xs text-muted-foreground">
               -- End of List --
             </p>
@@ -873,7 +1206,7 @@ export function InventoryPageClient() {
         </section>
 
         {hasSelectedProduct ? (
-          <div className="min-w-0 space-y-3 pr-4 xl:h-full xl:overflow-y-auto">
+          <div className="min-w-0 space-y-3 pr-4 lg:h-full lg:min-h-0 xl:overflow-y-auto">
             <div>
               <Button
                 type="button"
@@ -885,9 +1218,11 @@ export function InventoryPageClient() {
                 Back to inventory
               </Button>
             </div>
-            {selectedProductId && detailQuery.isLoading && !selectedProduct ? (
+            {selectedProductCode &&
+            detailQuery.isLoading &&
+            !selectedProduct ? (
               <ProductDetailSkeleton />
-            ) : selectedProductId && detailQuery.isError ? (
+            ) : selectedProductCode && detailQuery.isError ? (
               <section className="rounded-[28px] border border-border bg-card p-6 shadow-sm">
                 <ErrorPanel
                   title="Unable to load product details"
@@ -896,8 +1231,17 @@ export function InventoryPageClient() {
               </section>
             ) : selectedProduct ? (
               <>
-                <ProductDetail product={selectedProduct} />
+                <ProductDetail
+                  product={selectedProduct}
+                  settings={settings}
+                  estimationSectionRef={estimationSectionRef}
+                />
                 <ProductSpecification product={selectedProduct} />
+                <ProductEstimationSection
+                  product={selectedProduct}
+                  settings={settings}
+                  estimationSectionRef={estimationSectionRef}
+                />
               </>
             ) : null}
           </div>

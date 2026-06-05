@@ -1,5 +1,6 @@
 import type {
   InventoryProduct,
+  InventoryProductListQuery,
   InventoryProductListResponse,
 } from "@/types/inventory-api";
 
@@ -11,12 +12,16 @@ function ensureApiConfig() {
   }
 }
 
-function buildUrl(path: string, query?: Record<string, string | number>) {
+function buildUrl(
+  path: string,
+  query?: Record<string, string | number | boolean | undefined | null>,
+) {
   ensureApiConfig();
   const url = new URL(path, `${apiBaseUrl}/`);
 
   if (query) {
     for (const [key, value] of Object.entries(query)) {
+      if (value === undefined || value === null || value === "") continue;
       url.searchParams.set(key, String(value));
     }
   }
@@ -97,16 +102,38 @@ function normalizeProductList(response: unknown): InventoryProductListResponse {
   return { data: [], total: 0 };
 }
 
-export function fetchInventoryProducts({
-  offset = 0,
-}: {
-  offset?: number;
-} = {}) {
-  return apiFetch<unknown>(buildUrl("api/v1/products", { offset })).then(
+function normalizeProductDetail(response: unknown): InventoryProduct | null {
+  if (!response || typeof response !== "object") {
+    return null;
+  }
+
+  const record = response as Record<string, unknown>;
+
+  if ("productCode" in record) {
+    return record as InventoryProduct;
+  }
+
+  const nestedData = record.data;
+  if (nestedData && typeof nestedData === "object") {
+    const nestedRecord = nestedData as Record<string, unknown>;
+    if ("productCode" in nestedRecord) {
+      return nestedRecord as InventoryProduct;
+    }
+  }
+
+  return null;
+}
+
+export const INVENTORY_LIST_DEFAULT_LIMIT = 24;
+
+export function fetchInventoryProducts(query: InventoryProductListQuery = {}) {
+  return apiFetch<unknown>(buildUrl("api/v1/products", query)).then(
     normalizeProductList,
   );
 }
 
-export function fetchInventoryProduct(id: string) {
-  return apiFetch<InventoryProduct>(buildUrl(`api/v1/products/${id}`));
+export function fetchInventoryProductByCode(productCode: string) {
+  return apiFetch<unknown>(
+    buildUrl(`api/v1/products/code/${encodeURIComponent(productCode)}`),
+  ).then(normalizeProductDetail);
 }

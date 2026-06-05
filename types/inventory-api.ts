@@ -29,6 +29,17 @@ export type InventoryStone = {
   };
 };
 
+export type ProductColor = "YELLOW" | "ROSE" | "WHITE" | "OTHERS";
+
+export const PRODUCT_COLOR_VALUES: readonly ProductColor[] = [
+  "YELLOW",
+  "ROSE",
+  "WHITE",
+  "OTHERS",
+] as const;
+
+export const PRODUCT_PURITY_VALUES: readonly number[] = [14, 18, 24] as const;
+
 export type InventoryProduct = {
   id: string;
   productCode: string;
@@ -36,7 +47,7 @@ export type InventoryProduct = {
   category: string;
   description: string;
   vendor: string;
-  color: string;
+  color: ProductColor | string;
   purity: number;
   size: string | null;
   isCustomerProduct: boolean;
@@ -59,6 +70,21 @@ export type InventoryProduct = {
   createdAt: string;
   updatedAt: string;
   isDeleted: boolean;
+};
+
+export type InventoryProductListQuery = {
+  q?: string;
+  category?: string;
+  color?: ProductColor;
+  purity?: number;
+  locationId?: string;
+  isCustomerProduct?: boolean;
+  netWeightFrom?: number;
+  netWeightTo?: number;
+  sourceCreatedFrom?: string;
+  sourceCreatedTo?: string;
+  limit?: number;
+  offset?: number;
 };
 
 export type InventoryProductListResponse = {
