@@ -418,8 +418,8 @@ function ProductDetail({
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
-      <div className="grid min-h-[26rem] lg:grid-cols-[minmax(320px,0.95fr)_1fr]">
-        <div className="relative min-h-72 bg-muted/40">
+      <div className="grid lg:min-h-[26rem] lg:grid-cols-[minmax(280px,0.95fr)_minmax(300px,1fr)]">
+        <div className="relative aspect-[4/3] min-h-72 bg-muted/40 lg:aspect-auto lg:min-h-full">
           {image ? (
             <Image
               src={image.storageKey}
@@ -465,14 +465,14 @@ function ProductDetail({
           </div>
 
           <div className="mt-8 space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 min-[1180px]:grid-cols-2">
               <InventoryStat label="Metal" value={getMetalLabel(product)} />
               <InventoryStat
                 label="Net wt"
                 value={formatWeight(product.netWeight, "g")}
               />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 min-[1180px]:grid-cols-2">
               <InventoryStat
                 label="Stone wt"
                 value={formatWeight(getTotalStoneCarat(product), "ct")}
@@ -482,7 +482,7 @@ function ProductDetail({
                 value={formatWeight(product.grossWeight, "g")}
               />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 min-[1180px]:grid-cols-2">
               <InventoryStat label="Location" value={product.location.city} />
               <InventoryStat
                 label="Price"
@@ -1140,17 +1140,17 @@ export function InventoryPageClient() {
 
       <div
         className={cn(
-          "grid gap-3 w-full",
+          "grid w-full gap-3",
           hasSelectedProduct
-            ? "lg:h-[calc(100svh-3rem)] lg:min-h-0 lg:grid-cols-[420px_minmax(0,1fr)] lg:overflow-hidden"
+            ? "lg:h-[calc(100svh-12rem)] lg:min-h-[32rem] lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)] lg:overflow-hidden"
             : "",
         )}
       >
         <section
           className={cn(
-            "rounded-md pr-4",
+            "rounded-md",
             hasSelectedProduct &&
-              "hidden lg:block lg:h-full lg:overflow-y-auto",
+              "hidden lg:block lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-3",
           )}
         >
           {listQuery.isLoading ? (
@@ -1206,7 +1206,7 @@ export function InventoryPageClient() {
         </section>
 
         {hasSelectedProduct ? (
-          <div className="min-w-0 space-y-3 pr-4 lg:h-full lg:min-h-0 xl:overflow-y-auto">
+          <div className="min-w-0 space-y-3 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-3">
             <div>
               <Button
                 type="button"
