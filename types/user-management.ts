@@ -83,3 +83,38 @@ export interface CreateInternalInviteResponse {
   expiration: string;
   createdAt: string;
 }
+
+export interface ExpireInviteResponse {
+  id: string;
+  userId: string;
+  email: string;
+  role: InternalProfileRole;
+  status: "EXPIRED";
+  expirationAt: string;
+  acceptedAt: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlockUserResponse {
+  id: string;
+  email: string;
+  username: string;
+  status: "BLOCKED";
+  updatedAt: string;
+}
+
+export interface UnblockUserResponse {
+  id: string;
+  email: string;
+  username: string;
+  status: "ACTIVE";
+  updatedAt: string;
+}
+
+export interface ResetPasswordResponse {
+  id: string;
+  username: string;
+  passwordUpdated: boolean;
+}

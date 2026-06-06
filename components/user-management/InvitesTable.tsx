@@ -1,6 +1,13 @@
 "use client";
 
+import { Key, MoreHorizontal, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -15,6 +22,9 @@ import type { InternalInviteRow } from "@/types/user-management";
 interface InvitesTableProps {
   invites: InternalInviteRow[];
   isLoading: boolean;
+  onExpireInvite: (invite: InternalInviteRow) => void;
+  onResetPassword: (invite: InternalInviteRow) => void;
+  actionLoading?: string;
 }
 
 const statusStyles = {
@@ -39,7 +49,81 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
+function InviteActions({
+  invite,
+  onExpireInvite,
+  onResetPassword,
+  isLoading,
+}: {
+  invite: InternalInviteRow;
+  onExpireInvite: () => void;
+  onResetPassword: () => void;
+  isLoading: boolean;
+}) {
+  const canExpire = invite.status === "PENDING";
+  const canResetPassword =
+    invite.status === "ACCEPTED" && Boolean(invite.username);
+
+  if (!canExpire && !canResetPassword) {
+    return null;
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className="mx-auto cursor-pointer"
+          onClick={(e) => e.stopPropagation()}
+          disabled={isLoading}
+        >
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-40 p-1">
+        <div className="flex flex-col">
+          {canExpire && (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                onExpireInvite();
+              }}
+              disabled={isLoading}
+            >
+              <X className="size-4" />
+              Cancel Invite
+            </button>
+          )}
+          {canResetPassword && (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                onResetPassword();
+              }}
+              disabled={isLoading}
+            >
+              <Key className="size-4" />
+              Reset Password
+            </button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function InvitesTable({
+  invites,
+  isLoading,
+  onExpireInvite,
+  onResetPassword,
+  actionLoading,
+}: InvitesTableProps) {
   if (isLoading) {
     return (
       <div className="rounded-md border border-border/70 px-4 py-5 text-sm text-muted-foreground">
@@ -62,7 +146,7 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
         {invites.map((invite) => (
           <div
             key={invite.id}
-            className="rounded-md border border-border/70 bg-background p-4"
+            className="relative rounded-md border border-border/70 bg-background p-4"
           >
             <div className="flex min-w-0 items-start justify-between gap-3">
               <div className="min-w-0">
@@ -102,6 +186,14 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
                 </span>
               </div>
             </div>
+            <div className="absolute right-4 top-4">
+              <InviteActions
+                invite={invite}
+                onExpireInvite={() => onExpireInvite(invite)}
+                onResetPassword={() => onResetPassword(invite)}
+                isLoading={actionLoading === invite.id}
+              />
+            </div>
           </div>
         ))}
       </div>
@@ -115,6 +207,7 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
               <TableHead>Status</TableHead>
               <TableHead>Expiration</TableHead>
               <TableHead>Created</TableHead>
+              <TableHead className="w-12">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -146,6 +239,17 @@ export function InvitesTable({ invites, isLoading }: InvitesTableProps) {
                 </TableCell>
                 <TableCell className="py-3 text-muted-foreground">
                   {formatDate(invite.createdAt)}
+                </TableCell>
+                <TableCell
+                  className="py-3"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <InviteActions
+                    invite={invite}
+                    onExpireInvite={() => onExpireInvite(invite)}
+                    onResetPassword={() => onResetPassword(invite)}
+                    isLoading={actionLoading === invite.id}
+                  />
                 </TableCell>
               </TableRow>
             ))}

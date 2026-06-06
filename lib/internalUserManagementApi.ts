@@ -85,3 +85,45 @@ export function createInternalInvite(input: CreateInternalInviteInput) {
     },
   );
 }
+
+export function expireInternalInvite(inviteId: string) {
+  return apiFetch<{ id: string; status: string }>(
+    buildUrl(`api/v1/internal-invites/${inviteId}/expire`),
+    { method: "POST" },
+  );
+}
+
+export function blockInternalUser(userId: string) {
+  return apiFetch<{
+    id: string;
+    email: string;
+    username: string;
+    status: string;
+    updatedAt: string;
+  }>(buildUrl(`api/v1/internal-users/${userId}/block`), { method: "POST" });
+}
+
+export function unblockInternalUser(userId: string) {
+  return apiFetch<{
+    id: string;
+    email: string;
+    username: string;
+    status: string;
+    updatedAt: string;
+  }>(buildUrl(`api/v1/internal-users/${userId}/unblock`), { method: "POST" });
+}
+
+export function resetInternalUserPassword(
+  username: string,
+  newPassword: string,
+) {
+  return apiFetch<{
+    id: string;
+    username: string;
+    passwordUpdated: boolean;
+  }>(buildUrl("api/v1/internal-users/reset-password"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, newPassword }),
+  });
+}

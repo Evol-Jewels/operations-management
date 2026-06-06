@@ -1,6 +1,13 @@
 "use client";
 
+import { Ban, Check, Key, MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -16,6 +23,10 @@ interface UsersTableProps {
   users: InternalUserWithProfile[];
   isLoading: boolean;
   onFilterInvitesByUser: (user: InternalUserWithProfile) => void;
+  onBlock: (user: InternalUserWithProfile) => void;
+  onUnblock: (user: InternalUserWithProfile) => void;
+  onResetPassword: (user: InternalUserWithProfile) => void;
+  actionLoading?: string;
 }
 
 const statusStyles = {
@@ -41,10 +52,100 @@ function initials(name: string, email: string) {
   return source.slice(0, 2).toUpperCase();
 }
 
+function UserActions({
+  user,
+  onBlock,
+  onUnblock,
+  onResetPassword,
+  isLoading,
+}: {
+  user: InternalUserWithProfile;
+  onBlock: () => void;
+  onUnblock: () => void;
+  onResetPassword: () => void;
+  isLoading: boolean;
+}) {
+  const hasUsername = Boolean(user.username);
+  const canBlock = user.status === "ACTIVE";
+  const canUnblock = user.status === "BLOCKED";
+  const canResetPassword =
+    hasUsername && (user.status === "ACTIVE" || user.status === "BLOCKED");
+
+  if (!canBlock && !canUnblock && !canResetPassword) {
+    return null;
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className="mx-auto cursor-pointer"
+          onClick={(e) => e.stopPropagation()}
+          disabled={isLoading}
+        >
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-40 p-1">
+        <div className="flex flex-col">
+          {canBlock && (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                onBlock();
+              }}
+              disabled={isLoading}
+            >
+              <Ban className="size-4" />
+              Block
+            </button>
+          )}
+          {canUnblock && (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnblock();
+              }}
+              disabled={isLoading}
+            >
+              <Check className="size-4" />
+              Unblock
+            </button>
+          )}
+          {canResetPassword && (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                onResetPassword();
+              }}
+              disabled={isLoading}
+            >
+              <Key className="size-4" />
+              Reset Password
+            </button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function UsersTable({
   users,
   isLoading,
   onFilterInvitesByUser,
+  onBlock,
+  onUnblock,
+  onResetPassword,
+  actionLoading,
 }: UsersTableProps) {
   if (isLoading) {
     return (
@@ -66,50 +167,66 @@ export function UsersTable({
     <div className="min-h-0 h-[30vh] overflow-y-auto rounded-md border border-border/70">
       <div className="space-y-3 p-3 sm:hidden">
         {users.map((user) => (
-          <button
+          <div
             key={user.id}
-            type="button"
-            onClick={() => onFilterInvitesByUser(user)}
-            className="w-full rounded-md border border-border/70 bg-background p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="relative rounded-md border border-border/70 bg-background p-4"
           >
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
-                {initials(user.name, user.email)}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-foreground">
-                      {user.username || user.name || "Unnamed user"}
-                    </p>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">
-                      {user.email}
-                    </p>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className={cn("shrink-0 border", statusStyles[user.status])}
-                  >
-                    {user.status}
-                  </Badge>
+            <button
+              type="button"
+              onClick={() => onFilterInvitesByUser(user)}
+              className="w-full text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            >
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
+                  {initials(user.name, user.email)}
                 </div>
-                <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
-                  <div className="flex justify-between gap-3">
-                    <span>Role</span>
-                    <span className="font-medium text-foreground">
-                      {user.profile?.role ?? "No role"}
-                    </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-foreground">
+                        {user.username || user.name || "Unnamed user"}
+                      </p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "shrink-0 border",
+                        statusStyles[user.status],
+                      )}
+                    >
+                      {user.status}
+                    </Badge>
                   </div>
-                  <div className="flex justify-between gap-3">
-                    <span>Created</span>
-                    <span className="font-medium text-foreground">
-                      {formatDate(user.createdAt)}
-                    </span>
+                  <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
+                    <div className="flex justify-between gap-3">
+                      <span>Role</span>
+                      <span className="font-medium text-foreground">
+                        {user.profile?.role ?? "No role"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span>Created</span>
+                      <span className="font-medium text-foreground">
+                        {formatDate(user.createdAt)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
+            </button>
+            <div className="absolute right-4 top-4">
+              <UserActions
+                user={user}
+                onBlock={() => onBlock(user)}
+                onUnblock={() => onUnblock(user)}
+                onResetPassword={() => onResetPassword(user)}
+                isLoading={actionLoading === user.id}
+              />
             </div>
-          </button>
+          </div>
         ))}
       </div>
 
@@ -121,6 +238,7 @@ export function UsersTable({
               <TableHead>Status</TableHead>
               <TableHead>Team</TableHead>
               <TableHead>Created</TableHead>
+              <TableHead className="w-12">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -160,6 +278,18 @@ export function UsersTable({
                 </TableCell>
                 <TableCell className="py-3 text-muted-foreground">
                   {formatDate(user.createdAt)}
+                </TableCell>
+                <TableCell
+                  className="py-3"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <UserActions
+                    user={user}
+                    onBlock={() => onBlock(user)}
+                    onUnblock={() => onUnblock(user)}
+                    onResetPassword={() => onResetPassword(user)}
+                    isLoading={actionLoading === user.id}
+                  />
                 </TableCell>
               </TableRow>
             ))}
