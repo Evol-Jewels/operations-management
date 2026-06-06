@@ -167,9 +167,9 @@ function PersonCard({
 }) {
   const roleStyles =
     tone === "customer"
-      ? "bg-emerald-100 text-emerald-700"
+      ? "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
       : tone === "sales"
-        ? "bg-blue-100 text-blue-700"
+        ? "bg-blue-500/10 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400"
         : "bg-muted text-muted-foreground";
 
   return (
@@ -217,9 +217,9 @@ function ClosedBanner({ order }: { order: Order }) {
   if (order.status !== "closed") return null;
 
   return (
-    <div className="rounded-2xl border border-amber-200/80 bg-amber-50 px-4 py-4 text-amber-950 shadow-sm dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100">
+    <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-4 text-amber-950 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200">
+        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200">
           <AlertTriangle className="size-4" />
         </div>
         <div className="min-w-0">
@@ -327,14 +327,14 @@ export function EnquiryDetailPage({
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium",
                   isClosed
-                    ? "border border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
-                    : "bg-emerald-600 text-white",
+                    ? "border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300"
+                    : "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
                 )}
               >
                 <span
                   className={cn(
                     "size-2 rounded-full",
-                    isClosed ? "bg-amber-600" : "bg-white",
+                    isClosed ? "bg-amber-500" : "bg-emerald-500",
                   )}
                 />
                 {isClosed ? "Closed" : "Open"}
@@ -396,7 +396,7 @@ export function EnquiryDetailPage({
           <EnquiryStageBar currentStage={stage} />
 
           {order.customerNotes || order.budget ? (
-            <section className="rounded-2xl border border-border bg-card px-6 py-6">
+            <section className="rounded-xl border border-border bg-card px-6 py-6">
               <div className="flex items-start justify-between gap-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                   Notes
@@ -470,7 +470,7 @@ export function EnquiryDetailPage({
         </div>
 
         <aside className="lg:sticky lg:top-6 lg:self-start">
-          <section className="overflow-hidden rounded-2xl border border-border bg-card">
+          <section className="overflow-hidden rounded-xl border border-border bg-card">
             <div className="px-5 py-5">
               <p className="mb-5 text-sm font-semibold text-foreground">
                 People
@@ -501,10 +501,7 @@ export function EnquiryDetailPage({
                 Details
               </p>
               <dl className="space-y-4">
-                <DetailMetric
-                  label="Ref code"
-                  value={"#" + order.refCode}
-                />
+                <DetailMetric label="Ref code" value={"#" + order.refCode} />
                 <DetailMetric label="Products" value={productCount} />
                 <DetailMetric label="Estimates" value={estimations.length} />
                 <DetailMetric

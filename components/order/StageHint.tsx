@@ -90,14 +90,14 @@ const TONE_STYLES = {
   neutral:
     "border-border bg-muted/40 text-muted-foreground dark:border-border dark:bg-muted/20",
   action:
-    "border-blue-200 bg-blue-50/60 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/20 dark:text-blue-200",
-  info: "border-zinc-200 bg-zinc-50 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-300",
+    "border-blue-500/20 bg-blue-500/10 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300",
+  info: "border-muted-foreground/20 bg-muted text-muted-foreground dark:border-muted-foreground/20 dark:bg-muted/50",
 };
 
 const TONE_ICON_STYLES = {
   neutral: "text-muted-foreground",
   action: "text-blue-600 dark:text-blue-400",
-  info: "text-zinc-500 dark:text-zinc-400",
+  info: "text-muted-foreground",
 };
 
 // ─── Actor badge ──────────────────────────────────────────────────────────────
@@ -106,10 +106,10 @@ function ActorBadge({ actor }: { actor: StageHintDef["actor"] }) {
   if (actor === "both") {
     return (
       <div className="flex gap-1">
-        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+        <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
           Vendor
         </span>
-        <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-400">
+        <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
           Sales
         </span>
       </div>
@@ -117,13 +117,13 @@ function ActorBadge({ actor }: { actor: StageHintDef["actor"] }) {
   }
   if (actor === "vendor") {
     return (
-      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+      <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
         Vendor
       </span>
     );
   }
   return (
-    <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-950 dark:text-blue-400">
+    <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
       Sales
     </span>
   );

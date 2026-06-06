@@ -103,8 +103,8 @@ function AttentionRow({
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
               isStale
-                ? "bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300"
-                : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
+                ? "bg-orange-500/10 text-orange-600 dark:bg-orange-500/10 dark:text-orange-300"
+                : "bg-amber-500/10 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300",
             )}
           >
             {isStale ? (
@@ -184,7 +184,7 @@ export function TodaysFocus({ orders }: TodaysFocusProps) {
   const stuckCount = atRiskOrders.filter((r) => r.signal === "stuck").length;
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -206,13 +206,13 @@ export function TodaysFocus({ orders }: TodaysFocusProps) {
 
         <div className="flex flex-wrap items-center gap-1.5">
           {staleCount > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700 dark:bg-orange-950/50 dark:text-orange-400">
+            <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-medium text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
               <Clock className="h-2.5 w-2.5" />
               {staleCount} stale
             </span>
           )}
           {stuckCount > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
               <AlertTriangle className="h-2.5 w-2.5" />
               {stuckCount} stuck
             </span>

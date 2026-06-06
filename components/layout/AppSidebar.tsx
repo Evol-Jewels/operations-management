@@ -262,7 +262,7 @@ export function AppSidebar() {
                 className="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-lg p-2 text-left transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
               >
                 <Avatar className="h-7 w-7 flex-shrink-0 border border-sidebar-border">
-                  <AvatarFallback className="bg-blue-100 text-[10px] font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                  <AvatarFallback className="bg-sidebar-accent text-[10px] font-semibold text-sidebar-accent-foreground">
                     {initials(session.user.name)}
                   </AvatarFallback>
                 </Avatar>

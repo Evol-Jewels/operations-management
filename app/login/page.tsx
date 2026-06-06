@@ -128,7 +128,7 @@ function LoginForm() {
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-7rem)] max-w-md items-center">
-      <div className="w-full rounded-2xl border border-border bg-card p-6 shadow-sm">
+      <div className="w-full rounded-xl border border-border bg-card p-6 shadow-sm">
         <div className="mb-6 space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             EVOL Jewels

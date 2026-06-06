@@ -90,19 +90,19 @@ function getKanbanStatus(record: Order): string {
 
 function statusBadgeClass(status: string) {
   if (status === "CLOSED" || status === "Customer Pickup") {
-    return "border-zinc-200 bg-zinc-50 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-100";
+    return "border-muted-foreground/20 bg-muted text-foreground dark:border-muted-foreground/20 dark:bg-muted/50";
   }
   if (status === "CONVERTED" || status === "Order Confirmed") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300";
+    return "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400";
   }
   if (status === "ESTIMATED" || status === "Estimation") {
-    return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
+    return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400";
   }
   if (status === "PENDING" || status === "Enquiry") {
-    return "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300";
+    return "border-red-500/20 bg-red-500/10 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400";
   }
   if (status === "Building" || status === "Certification") {
-    return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
+    return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400";
   }
   return "border-border bg-muted text-muted-foreground";
 }
@@ -137,7 +137,7 @@ function FilterSelect({
 
 function OrdersNotAvailable() {
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-card py-20 text-center">
+    <div className="rounded-xl border border-dashed border-border bg-card py-20 text-center">
       <p className="text-base font-medium text-foreground">
         Orders are not available yet!
       </p>
@@ -178,7 +178,7 @@ function RecordsTable({
 }) {
   if (records.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border py-16 text-center">
+      <div className="rounded-xl border border-dashed border-border py-16 text-center">
         <p className="text-sm font-medium text-muted-foreground">
           No records match these filters
         </p>
@@ -190,7 +190,7 @@ function RecordsTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -809,7 +809,7 @@ export function OrdersEnquiriesWorkspace() {
           </div>
         </>
       ) : (
-        <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <KanbanBoard
             orders={kanbanRecords}
             columns={enquiryKanbanColumns}

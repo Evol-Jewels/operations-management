@@ -27,22 +27,16 @@ interface OrderListProps {
 }
 
 const STAGE_COLORS: Record<string, string> = {
-  Enquiry:
-    "border-zinc-200 text-zinc-500 dark:border-zinc-700 dark:text-zinc-400",
-  Estimation:
-    "border-sky-200 text-sky-600 dark:border-sky-800 dark:text-sky-400",
-  "CAD Design":
-    "border-violet-200 text-violet-600 dark:border-violet-800 dark:text-violet-400",
-  "Order Confirmed":
-    "border-blue-200 text-blue-600 dark:border-blue-800 dark:text-blue-400",
-  Building:
-    "border-amber-200 text-amber-600 dark:border-amber-800 dark:text-amber-400",
-  Certification:
-    "border-orange-200 text-orange-600 dark:border-orange-800 dark:text-orange-400",
+  Enquiry: "border-muted-foreground/20 text-muted-foreground",
+  Estimation: "border-blue-500/20 text-blue-600 dark:text-blue-400",
+  "CAD Design": "border-violet-500/20 text-violet-600 dark:text-violet-400",
+  "Order Confirmed": "border-blue-500/20 text-blue-600 dark:text-blue-400",
+  Building: "border-amber-500/20 text-amber-600 dark:text-amber-400",
+  Certification: "border-orange-500/20 text-orange-600 dark:text-orange-400",
   "Shipped to Store":
-    "border-teal-200 text-teal-600 dark:border-teal-800 dark:text-teal-400",
+    "border-emerald-500/20 text-emerald-600 dark:text-emerald-400",
   "Customer Pickup":
-    "border-emerald-200 text-emerald-700 bg-emerald-50/50 dark:border-emerald-800 dark:text-emerald-400 dark:bg-emerald-950/20",
+    "border-emerald-500/20 text-emerald-600 bg-emerald-500/5 dark:text-emerald-400",
 };
 
 function UrgencyTooltip({
@@ -119,8 +113,8 @@ function RiskBadge({ order }: { order: Order }) {
           className={cn(
             "ml-1.5 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium",
             isStale
-              ? "bg-orange-100 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400"
-              : "bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400",
+              ? "bg-orange-500/10 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400"
+              : "bg-amber-500/10 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
           )}
         >
           {isStale ? (
@@ -384,7 +378,7 @@ function DesktopOrderRow({ order }: { order: Order }) {
 export function OrderList({ orders }: OrderListProps) {
   if (orders.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-20 text-center">
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
         <Inbox className="mb-3 h-8 w-8 text-muted-foreground/30" />
         <p className="text-sm font-medium text-muted-foreground">
           No orders found
@@ -398,7 +392,7 @@ export function OrderList({ orders }: OrderListProps) {
 
   return (
     <TooltipProvider>
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         {/* ── Desktop: column header row (hidden on mobile) ── */}
         <div className="hidden md:grid grid-cols-[16px_1fr_140px_100px_100px_90px_90px_28px] items-center gap-3 border-b border-border bg-muted/30 px-4 py-2">
           <span />

@@ -158,7 +158,7 @@ export function ProductionSpecCard({ order }: ProductionSpecCardProps) {
 
         {/* Special instructions — always full-width, highlighted if present */}
         {order.specialInstructions && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3.5 py-3 dark:border-amber-500/20 dark:bg-amber-500/10">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
             <div>
               <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">

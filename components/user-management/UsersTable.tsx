@@ -19,9 +19,11 @@ interface UsersTableProps {
 }
 
 const statusStyles = {
-  ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  INACTIVE: "border-slate-200 bg-slate-50 text-slate-700",
-  BLOCKED: "border-red-200 bg-red-50 text-red-700",
+  ACTIVE:
+    "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400",
+  INACTIVE: "border-muted-foreground/20 bg-muted text-muted-foreground",
+  BLOCKED:
+    "border-red-500/20 bg-red-500/10 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400",
 };
 
 function formatDate(value: string | null) {

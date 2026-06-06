@@ -53,7 +53,7 @@ export function PostUpdateForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {submitted ? (
-        <div className="flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 py-6 text-sm font-medium text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400">
+        <div className="flex items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 py-6 text-sm font-medium text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
           Update posted successfully
         </div>
       ) : (

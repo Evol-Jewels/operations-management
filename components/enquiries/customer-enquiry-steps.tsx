@@ -93,7 +93,7 @@ export function NameStep({
       <div>
         {customer.isExisting && (
           <div className="mb-3">
-            <span className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+            <span className="inline-flex rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
               Existing customer found
             </span>
           </div>
@@ -143,7 +143,8 @@ export function NotesStep({
       <div>
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           <StepNumber n={stepNumber} />
-          Any notes? <span className="text-sm text-muted-foreground/60">(optional)</span>
+          Any notes?{" "}
+          <span className="text-sm text-muted-foreground/60">(optional)</span>
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Customer preferences, behaviour notes, or anything useful for enquiry.

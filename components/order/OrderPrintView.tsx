@@ -153,7 +153,7 @@ function PrintHeader({ order }: { order: Order }) {
           style={{
             display: "inline-block",
             padding: "2px 10px",
-            borderRadius: 99,
+            borderRadius: "9999px",
             fontSize: "8pt",
             fontWeight: 600,
             background: order.type === "order" ? "#111827" : "transparent",
@@ -182,7 +182,7 @@ function PrintHeader({ order }: { order: Order }) {
           style={{
             display: "inline-block",
             padding: "2px 10px",
-            borderRadius: 99,
+            borderRadius: "9999px",
             fontSize: "8pt",
             fontWeight: 500,
             background: "#f3f4f6",
@@ -284,7 +284,7 @@ function PrintStagePipeline({ order }: { order: Order }) {
               <span
                 style={{
                   padding: "2px 8px",
-                  borderRadius: 99,
+                  borderRadius: "9999px",
                   fontSize: "8pt",
                   fontWeight: isCurrent ? 700 : 400,
                   background: isCurrent
@@ -486,7 +486,7 @@ function PrintProductionSpec({ order }: { order: Order }) {
             padding: "8px 12px",
             background: "#fffbeb",
             border: "1px solid #fcd34d",
-            borderRadius: 6,
+            borderRadius: "var(--radius-md)",
           }}
         >
           <div
@@ -612,7 +612,7 @@ function PrintActivityEntry({
                 fontSize: "7pt",
                 fontWeight: 600,
                 padding: "1px 6px",
-                borderRadius: 99,
+                borderRadius: "9999px",
                 border: `1px solid ${roleColor.border}`,
                 background: roleColor.bg,
                 color: roleColor.text,
@@ -655,7 +655,8 @@ function PrintActivityEntry({
               background: "#f9fafb",
               border: "1px solid #e5e7eb",
               borderLeft: `3px solid ${roleColor.border}`,
-              borderRadius: "0 6px 6px 6px",
+              borderRadius:
+                "0 var(--radius-md) var(--radius-md) var(--radius-md)",
               fontSize: "10pt",
               color: "#374151",
               lineHeight: 1.6,
@@ -676,7 +677,7 @@ function PrintActivityEntry({
               padding: "4px 10px",
               background: "#f3f4f6",
               border: "1px solid #e5e7eb",
-              borderRadius: 6,
+              borderRadius: "var(--radius-md)",
               fontSize: "9pt",
               color: "#374151",
             }}
@@ -691,7 +692,7 @@ function PrintActivityEntry({
                 background: "#fff",
                 border: "1px solid #e5e7eb",
                 padding: "0 4px",
-                borderRadius: 3,
+                borderRadius: "var(--radius-sm)",
               }}
             >
               {entry.file.fileType}

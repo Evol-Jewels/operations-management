@@ -72,12 +72,14 @@ function ActorsBar({ order }: { order: Order }) {
   ];
 
   const roleColors: Record<ActorRole, string> = {
-    sales: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-    vendor: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+    sales:
+      "bg-blue-500/10 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
+    vendor:
+      "bg-amber-500/10 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
     owner:
-      "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300",
+      "bg-purple-500/10 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400",
     customer:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+      "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
   };
 
   return (
@@ -209,11 +211,11 @@ export default function OrderPage() {
               className={cn(
                 "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
                 urgency === "overdue" &&
-                  "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400",
+                  "bg-red-500/10 text-red-600 dark:bg-red-500/10 dark:text-red-400",
                 urgency === "due-soon" &&
-                  "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
+                  "bg-amber-500/10 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
                 urgency === "on-track" &&
-                  "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
+                  "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
               )}
             >
               <UrgencyDot level={urgency} />

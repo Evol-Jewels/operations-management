@@ -28,10 +28,7 @@ export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-xl border border-border"
-    >
+    <form onSubmit={handleSubmit} className="rounded-xl border border-border">
       <label htmlFor="activity-message" className="sr-only">
         Message
       </label>

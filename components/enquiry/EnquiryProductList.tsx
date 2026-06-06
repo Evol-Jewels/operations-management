@@ -193,7 +193,7 @@ function ProductCard({
     : null;
 
   return (
-    <article className="flex min-h-full flex-col rounded-2xl border border-border bg-card p-3.5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    <article className="flex min-h-full flex-col rounded-xl border border-border bg-card p-3.5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
       <ProductVisual
         imageUrl={item.imageUrl}
         title={item.title}
@@ -320,7 +320,7 @@ function ProductTable({
   onSaveEstimation: (estimation: ProductEstimation) => void;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/35 hover:bg-muted/35">
@@ -517,14 +517,14 @@ export function EnquiryProductList({
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-card px-5 py-10 text-center">
+        <div className="rounded-xl border border-border bg-card px-5 py-10 text-center">
           <Package className="mx-auto mb-3 size-6 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">
             No products added to this enquiry.
           </p>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center">
+        <div className="rounded-xl border border-dashed border-border px-5 py-8 text-center">
           <p className="text-sm text-muted-foreground">
             No products match this status.
           </p>

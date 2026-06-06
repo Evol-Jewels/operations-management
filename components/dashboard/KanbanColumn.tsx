@@ -19,10 +19,10 @@ interface KanbanColumnProps {
 }
 
 const COLUMN_COLORS: Record<string, string> = {
-  Enquiry: "bg-zinc-50 dark:bg-zinc-950/30",
-  Estimation: "bg-amber-50/50 dark:bg-amber-950/20",
-  "Order Confirmed": "bg-emerald-50/50 dark:bg-emerald-950/20",
-  Closed: "bg-zinc-50 dark:bg-zinc-950/30",
+  Enquiry: "bg-muted/30 dark:bg-muted/20",
+  Estimation: "bg-amber-500/5 dark:bg-amber-500/10",
+  "Order Confirmed": "bg-emerald-500/5 dark:bg-emerald-500/10",
+  Closed: "bg-muted/30 dark:bg-muted/20",
 };
 
 export function KanbanColumn({
