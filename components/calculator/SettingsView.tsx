@@ -70,8 +70,9 @@ function formatCurrency(n: number) {
 }
 
 const GOLD_PURITIES: MetalPurity[] = ["24K", "22K", "18K", "14K"];
+const settingsCardClass = "rounded-lg border border-border py-0";
 const sectionTriggerClass =
-  "-mx-2 flex min-h-12 w-full items-center justify-between gap-3 rounded px-2 py-2 text-left transition-colors hover:bg-muted/50";
+  "flex min-h-16 w-full items-center justify-between gap-3 rounded-lg px-4 py-3.5 text-left transition-colors hover:bg-muted/50 sm:px-5";
 const sectionTitleClass =
   "text-xs font-medium uppercase tracking-wide text-foreground";
 const compactInputClass =
@@ -240,7 +241,7 @@ export function SettingsView({
   return (
     <div className="space-y-3 pb-20 sm:pb-4">
       {/* Sync Banner */}
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-border bg-muted/40 px-4 py-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-2">
           {syncError ? (
             <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
@@ -266,8 +267,8 @@ export function SettingsView({
       </div>
 
       {/* Gold Rates */}
-      <Card className="rounded-lg border border-border">
-        <CardContent className="p-3 sm:p-4">
+      <Card className={settingsCardClass}>
+        <CardContent className="p-0">
           <Collapsible open={goldExpanded} onOpenChange={setGoldExpanded}>
             <CollapsibleTrigger asChild>
               <button type="button" className={sectionTriggerClass}>
@@ -285,7 +286,7 @@ export function SettingsView({
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="space-y-3 pt-3">
+              <div className="space-y-3 px-4 pb-4 pt-1 sm:px-5">
                 <div className="rounded-md bg-muted p-3">
                   <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
                     24K Gold Rate (Base)
@@ -354,8 +355,8 @@ export function SettingsView({
       </Card>
 
       {/* Making Charges */}
-      <Card className="rounded-lg border border-border">
-        <CardContent className="p-3 sm:p-4">
+      <Card className={settingsCardClass}>
+        <CardContent className="p-0">
           <Collapsible open={makingExpanded} onOpenChange={setMakingExpanded}>
             <CollapsibleTrigger asChild>
               <button type="button" className={sectionTriggerClass}>
@@ -376,7 +377,7 @@ export function SettingsView({
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="grid gap-3 pt-3">
+              <div className="grid gap-3 px-4 pb-4 pt-1 sm:px-5">
                 <div className="rounded-md bg-muted p-3">
                   <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
                     Flat Fee (≤ 2g)
@@ -421,8 +422,8 @@ export function SettingsView({
       </Card>
 
       {/* GST / Tax */}
-      <Card className="rounded-lg border border-border">
-        <CardContent className="p-3 sm:p-4">
+      <Card className={settingsCardClass}>
+        <CardContent className="p-0">
           <Collapsible open={taxExpanded} onOpenChange={setTaxExpanded}>
             <CollapsibleTrigger asChild>
               <button type="button" className={sectionTriggerClass}>
@@ -440,7 +441,7 @@ export function SettingsView({
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="pt-3">
+              <div className="px-4 pb-4 pt-1 sm:px-5">
                 <div className="rounded-md bg-muted p-3">
                   <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
                     GST Percentage
@@ -464,8 +465,8 @@ export function SettingsView({
       </Card>
 
       {/* Stone Types */}
-      <Card className="rounded-lg border border-border">
-        <CardContent className="p-3 sm:p-4">
+      <Card className={settingsCardClass}>
+        <CardContent className="p-0">
           <Collapsible open={stonesExpanded} onOpenChange={setStonesExpanded}>
             <CollapsibleTrigger asChild>
               <button type="button" className={sectionTriggerClass}>
@@ -495,7 +496,7 @@ export function SettingsView({
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="pt-3">
+              <div className="px-4 pb-4 pt-1 sm:px-5">
                 {editingStone ? (
                   <motion.div
                     key="editing"
