@@ -18,10 +18,13 @@ interface InvitesTableProps {
 }
 
 const statusStyles = {
-  PENDING: "border-amber-200 bg-amber-50 text-amber-700",
-  ACCEPTED: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  EXPIRED: "border-slate-200 bg-slate-50 text-slate-700",
-  CANCELLED: "border-red-200 bg-red-50 text-red-700",
+  PENDING:
+    "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400",
+  ACCEPTED:
+    "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400",
+  EXPIRED: "border-muted-foreground/20 bg-muted text-muted-foreground",
+  CANCELLED:
+    "border-red-500/20 bg-red-500/10 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400",
 };
 
 function formatDate(value: string | null) {

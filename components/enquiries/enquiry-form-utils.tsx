@@ -120,22 +120,23 @@ export function getTodayDateString(): string {
 
 function getCategoryColor(category: string): string {
   const colors: Record<string, string> = {
-    Ring: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+    Ring: "bg-amber-500/10 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300",
     Necklace:
-      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+      "bg-purple-500/10 text-purple-700 dark:bg-purple-500/10 dark:text-purple-300",
     Bracelet:
-      "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-    Earrings: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
+      "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
+    Earrings:
+      "bg-pink-500/10 text-pink-700 dark:bg-pink-500/10 dark:text-pink-300",
     Bangle:
-      "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-    Pendant: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-    Chain: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
-    Brooch: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",
+      "bg-orange-500/10 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300",
+    Pendant:
+      "bg-blue-500/10 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300",
+    Chain:
+      "bg-cyan-500/10 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300",
+    Brooch:
+      "bg-rose-500/10 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300",
   };
-  return (
-    colors[category] ||
-    "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-  );
+  return colors[category] || "bg-muted text-muted-foreground";
 }
 
 export function ProductThumbnail({

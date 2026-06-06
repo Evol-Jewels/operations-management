@@ -276,7 +276,7 @@ function InventoryStat({
   onClick?: () => void;
 }) {
   const className = cn(
-    "rounded-2xl border px-4 py-3.5 text-left",
+    "rounded-xl border px-4 py-3.5 text-left",
     emphasis
       ? "border-foreground bg-foreground"
       : "border-border bg-background",
@@ -335,7 +335,7 @@ function ProductListItem({
       type="button"
       onClick={onSelect}
       className={cn(
-        "flex w-full items-start gap-3 rounded-2xl border bg-card p-3 text-left shadow-sm transition-colors cursor-pointer hover:border-foreground/25 hover:bg-muted/20",
+        "flex w-full items-start gap-3 rounded-xl border bg-card p-3 text-left shadow-sm transition-colors cursor-pointer hover:border-foreground/25 hover:bg-muted/20",
         selected
           ? "border-foreground/60 ring-1 ring-foreground/10"
           : "border-border",
@@ -417,7 +417,7 @@ function ProductDetail({
   }
 
   return (
-    <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
+    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="grid lg:min-h-[26rem] lg:grid-cols-[minmax(280px,0.95fr)_minmax(300px,1fr)]">
         <div className="relative aspect-[4/3] min-h-72 bg-muted/40 lg:aspect-auto lg:min-h-full">
           {image ? (
@@ -556,7 +556,7 @@ function ProductSpecification({ product }: { product: InventoryProduct }) {
   const totalStoneCarat = getTotalStoneCarat(product);
 
   return (
-    <section className="rounded-[28px] border border-border bg-card p-6 shadow-sm">
+    <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
@@ -631,7 +631,7 @@ function ProductSpecification({ product }: { product: InventoryProduct }) {
               {(product.stones ?? []).map((stone) => (
                 <div
                   key={stone.id}
-                  className="rounded-2xl border border-border bg-background px-4 py-3"
+                  className="rounded-xl border border-border bg-background px-4 py-3"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -670,7 +670,7 @@ function ProductListSkeleton() {
       {rows.map((row) => (
         <div
           key={row}
-          className="flex w-full items-start gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm"
+          className="flex w-full items-start gap-3 rounded-xl border border-border bg-card p-3 shadow-sm"
         >
           <Skeleton className="h-20 w-20 shrink-0 rounded-xl" />
           <div className="min-w-0 flex-1 space-y-3">
@@ -698,7 +698,7 @@ function ProductGridSkeleton() {
       {rows.map((row) => (
         <div
           key={row}
-          className="flex w-full items-start gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm"
+          className="flex w-full items-start gap-3 rounded-xl border border-border bg-card p-3 shadow-sm"
         >
           <Skeleton className="h-20 w-20 shrink-0 rounded-xl" />
           <div className="min-w-0 flex-1 space-y-3">
@@ -721,9 +721,9 @@ function ProductGridSkeleton() {
 function ProductDetailSkeleton() {
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
+      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="grid min-h-[26rem] lg:grid-cols-[minmax(320px,0.95fr)_1fr]">
-          <Skeleton className="min-h-72 rounded-none" />
+          <Skeleton className="min-h-72 rounded-xl" />
           <div className="space-y-6 p-5 lg:p-6">
             <div className="flex gap-2">
               <Skeleton className="h-7 w-24 rounded-full" />
@@ -736,21 +736,21 @@ function ProductDetailSkeleton() {
               <Skeleton className="h-4 w-3/4" />
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              <Skeleton className="h-20 rounded-2xl" />
-              <Skeleton className="h-20 rounded-2xl" />
-              <Skeleton className="h-20 rounded-2xl" />
+              <Skeleton className="h-20 rounded-xl" />
+              <Skeleton className="h-20 rounded-xl" />
+              <Skeleton className="h-20 rounded-xl" />
             </div>
           </div>
         </div>
       </section>
-      <Skeleton className="h-80 rounded-[28px]" />
+      <Skeleton className="h-80 rounded-xl" />
     </div>
   );
 }
 
 function ErrorPanel({ title, message }: { title: string; message: string }) {
   return (
-    <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5">
+    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
       <div className="flex items-start gap-3">
         <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
         <div>
@@ -1183,7 +1183,7 @@ export function InventoryPageClient() {
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-border py-16 text-center">
+            <div className="rounded-xl border border-dashed border-border py-16 text-center">
               <PackageSearch className="mx-auto h-7 w-7 text-muted-foreground/40" />
               <p className="mt-3 text-sm font-medium text-muted-foreground">
                 No products match these filters
@@ -1223,7 +1223,7 @@ export function InventoryPageClient() {
             !selectedProduct ? (
               <ProductDetailSkeleton />
             ) : selectedProductCode && detailQuery.isError ? (
-              <section className="rounded-[28px] border border-border bg-card p-6 shadow-sm">
+              <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
                 <ErrorPanel
                   title="Unable to load product details"
                   message={getErrorMessage(detailQuery.error)}

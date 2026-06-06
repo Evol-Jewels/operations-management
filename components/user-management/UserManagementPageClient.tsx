@@ -55,7 +55,7 @@ function ErrorBanner({
   onRetry: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
       <span>{message}</span>
       <Button type="button" variant="outline" size="sm" onClick={onRetry}>
         Retry
@@ -204,23 +204,23 @@ export function UserManagementPageClient() {
             Users
           </h1>
           <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={() => {
-              loadUsers();
-              loadInvites();
-            }}
-            disabled={usersLoading || invitesLoading}
-          >
-            <RefreshCw className="size-4" />
-            Refresh
-          </Button>
-          <SendInviteDialog
-            isSubmitting={inviteSubmitting}
-            onSubmit={handleInviteSubmit}
-          />
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                loadUsers();
+                loadInvites();
+              }}
+              disabled={usersLoading || invitesLoading}
+            >
+              <RefreshCw className="size-4" />
+              Refresh
+            </Button>
+            <SendInviteDialog
+              isSubmitting={inviteSubmitting}
+              onSubmit={handleInviteSubmit}
+            />
           </div>
         </div>
         <p className="max-w-xl text-sm leading-6 text-muted-foreground">

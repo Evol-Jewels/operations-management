@@ -116,8 +116,8 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
                 className={cn(
                   "absolute right-2 top-2 flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-semibold",
                   isStale
-                    ? "bg-orange-100 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400"
-                    : "bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400",
+                    ? "bg-orange-500/10 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400"
+                    : "bg-amber-500/10 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
                 )}
               >
                 {isStale ? (
@@ -180,7 +180,7 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
 
                 {/* Salesperson avatar */}
                 <div
-                  className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[9px] font-bold text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                  className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/10 text-[9px] font-bold text-blue-600 dark:bg-blue-500/10 dark:text-blue-400"
                   title={order.salespersonName}
                 >
                   {initials(order.salespersonName)}

@@ -8,9 +8,7 @@ export function StepNumber({ n }: { n: number }) {
   return (
     <span className="mr-2 inline-flex items-center gap-1 text-sm text-primary">
       <span className="font-semibold text-lg">{n}</span>
-      <span className="text-muted-foreground text-xs">
-        of {TOTAL_STEPS}
-      </span>
+      <span className="text-muted-foreground text-xs">of {TOTAL_STEPS}</span>
       <ArrowRight className="h-4 w-4" />
     </span>
   );

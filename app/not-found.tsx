@@ -10,7 +10,7 @@ export default function NotFound() {
 
   return (
     <div className="mx-auto flex min-h-[70svh] max-w-3xl items-center justify-center">
-      <div className="w-full rounded-[2rem] border border-border/70 bg-card/95 p-8 text-center shadow-[0_24px_70px_-42px_rgba(15,23,42,0.35)] sm:p-10">
+      <div className="w-full rounded-xl border border-border/70 bg-card/95 p-8 text-center shadow-xl sm:p-10">
         <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
           404 Error
         </p>

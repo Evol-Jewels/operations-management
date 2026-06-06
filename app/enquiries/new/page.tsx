@@ -451,7 +451,7 @@ function EnquiryForm() {
   if (submitted) {
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center justify-center gap-4 py-28 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 dark:border-emerald-500/20 dark:bg-emerald-500/10">
           <CheckCircle2 className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
         </div>
         <div>

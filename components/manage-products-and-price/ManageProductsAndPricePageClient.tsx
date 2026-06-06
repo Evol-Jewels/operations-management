@@ -208,9 +208,7 @@ function SectionShell({
               </p>
             </div>
           </div>
-          {action ? (
-            <div className="shrink-0 pt-1">{action}</div>
-          ) : null}
+          {action ? <div className="shrink-0 pt-1">{action}</div> : null}
         </div>
       </div>
 
@@ -277,7 +275,7 @@ function OverviewCard({
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-36 cursor-pointer flex-col rounded-2xl border border-border bg-card p-5 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
+      className="group flex min-h-36 cursor-pointer flex-col rounded-xl border border-border bg-card p-5 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
     >
       <div className="flex items-start gap-4">
         <div className="mt-0.5 text-foreground">{icon}</div>
@@ -1245,14 +1243,14 @@ function StonesAndSlabsEditor({ onBack }: { onBack: () => void }) {
                         key={stone.id}
                         className={
                           selected
-                            ? "relative rounded-2xl border border-foreground bg-foreground text-background"
-                            : "relative rounded-2xl border border-border bg-muted/20"
+                            ? "relative rounded-xl border border-foreground bg-foreground text-background"
+                            : "relative rounded-xl border border-border bg-muted/20"
                         }
                       >
                         <button
                           type="button"
                           onClick={() => setSelectedStoneId(stone.id)}
-                          className="block w-full cursor-pointer rounded-2xl p-4 pr-24 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                          className="block w-full cursor-pointer rounded-xl p-4 pr-24 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                         >
                           <p className="break-words font-semibold">
                             {stone.name}
@@ -1708,7 +1706,7 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
                   key={config.id}
                   type="button"
                   onClick={() => setEditingConfig(config)}
-                  className="group rounded-2xl border border-border bg-card p-4 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
+                  className="group rounded-xl border border-border bg-card p-4 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
