@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Trash2,
 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -327,16 +328,23 @@ function ErrorPanel({
   );
 }
 
-function Overview({
-  onSelect,
-}: {
-  onSelect: (section: ManageSection) => void;
-}) {
+function Overview() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function updateSearchParams(updater: (params: URLSearchParams) => void) {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    updater(nextParams);
+    const query = nextParams.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
+
   return (
     <div className="space-y-6 overflow-y-auto pr-1">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Manage Products & Pricing
+          Manage Config & Pricing
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
           Manage backend pricing records for store locations, stone types, and
@@ -349,19 +357,19 @@ function Overview({
           icon={<CircleDollarSign className="h-5 w-5" />}
           title="Stores & Locations"
           description="Manage store and warehouse locations used across the app."
-          onClick={() => onSelect("locations")}
+          onClick={() => updateSearchParams((p) => p.set("tab", "stores"))}
         />
         <OverviewCard
           icon={<Layers3 className="h-5 w-5" />}
           title="Stones & Slabs"
           description="Manage stone types and their per-carat slab ranges."
-          onClick={() => onSelect("stones-slabs")}
+          onClick={() => updateSearchParams((p) => p.set("tab", "stones"))}
         />
         <OverviewCard
           icon={<ReceiptText className="h-5 w-5" />}
           title="System Config"
           description="Edit shared GST and making keys from system config."
-          onClick={() => onSelect("misc")}
+          onClick={() => updateSearchParams((p) => p.set("tab", "system"))}
         />
       </div>
     </div>
@@ -605,140 +613,128 @@ function LocationsEditor({ onBack }: { onBack: () => void }) {
       title="Stores & Locations"
       description="Manage store and warehouse locations used across the app."
       onBack={onBack}
+      action={
+        <Button type="button" onClick={openAddDialog} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Add Location
+        </Button>
+      }
     >
-      <Card className="h-full overflow-hidden py-0">
-        <CardContent className="flex h-full min-h-0 flex-col gap-5 p-5 lg:p-6">
-          <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Location Records
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {locations.length} of {locationsQuery.data?.total ?? 0} loaded
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <Input
+          value={nameFilter}
+          onChange={(event) => setNameFilter(event.target.value)}
+          placeholder="Filter by name"
+        />
+        <Input
+          value={cityFilter}
+          onChange={(event) => setCityFilter(event.target.value)}
+          placeholder="Filter by city"
+        />
+        <Select
+          value={typeFilter}
+          onValueChange={(value) =>
+            setTypeFilter(value as "WAREHOUSE" | "STORE" | "")
+          }
+        >
+          <SelectTrigger className="h-10 w-full">
+            <SelectValue placeholder="Filter by type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="WAREHOUSE">WAREHOUSE</SelectItem>
+            <SelectItem value="STORE">STORE</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {locationsQuery.isLoading ? <LoadingRows /> : null}
+        {locationsQuery.isError ? (
+          <ErrorPanel
+            message={getErrorMessage(
+              locationsQuery.error,
+              "Could not load locations.",
+            )}
+            onRetry={() => void locationsQuery.refetch()}
+          />
+        ) : null}
+        {!locationsQuery.isLoading && !locationsQuery.isError ? (
+          locations.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border py-10 text-center">
+              <p className="text-sm text-muted-foreground">
+                No locations configured.
               </p>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={openAddDialog}
+                className="mt-3 gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Location
+              </Button>
             </div>
-            <Button type="button" onClick={openAddDialog} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Location
-            </Button>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            <Input
-              value={nameFilter}
-              onChange={(event) => setNameFilter(event.target.value)}
-              placeholder="Filter by name"
-            />
-            <Input
-              value={cityFilter}
-              onChange={(event) => setCityFilter(event.target.value)}
-              placeholder="Filter by city"
-            />
-            <Select
-              value={typeFilter}
-              onValueChange={(value) =>
-                setTypeFilter(value as "WAREHOUSE" | "STORE" | "")
-              }
-            >
-              <SelectTrigger className="h-10 w-full">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="WAREHOUSE">WAREHOUSE</SelectItem>
-                <SelectItem value="STORE">STORE</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {locationsQuery.isLoading ? <LoadingRows /> : null}
-            {locationsQuery.isError ? (
-              <ErrorPanel
-                message={getErrorMessage(
-                  locationsQuery.error,
-                  "Could not load locations.",
-                )}
-                onRetry={() => void locationsQuery.refetch()}
-              />
-            ) : null}
-            {!locationsQuery.isLoading && !locationsQuery.isError ? (
-              locations.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border py-10 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    No locations configured.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={openAddDialog}
-                    className="mt-3 gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Location
-                  </Button>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>City</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Notes</TableHead>
-                      <TableHead>Updated</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {locations.map((location) => (
-                      <TableRow key={location.id}>
-                        <TableCell className="font-medium">
-                          {location.name}
-                        </TableCell>
-                        <TableCell>{location.city}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="uppercase">
-                            {location.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-64 truncate">
-                          {location.notes || "No notes"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDate(location.updatedAt)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => openEditDialog(location)}
-                              aria-label={`Edit ${location.name}`}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => setLocationToDelete(location)}
-                              aria-label={`Delete ${location.name}`}
-                              className="text-muted-foreground hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>City</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {locations.map((location) => (
+                  <TableRow key={location.id}>
+                    <TableCell className="font-medium">
+                      {location.name}
+                    </TableCell>
+                    <TableCell>{location.city}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="uppercase">
+                        {location.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-64 truncate">
+                      {location.notes || "No notes"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(location.updatedAt)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => openEditDialog(location)}
+                          aria-label={`Edit ${location.name}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setLocationToDelete(location)}
+                          aria-label={`Delete ${location.name}`}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )
+        ) : null}
+      </div>
 
       <LocationDialog
         mode={dialogMode}
@@ -1752,21 +1748,44 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
 }
 
 export function ManageProductsAndPricePageClient() {
-  const [activeSection, setActiveSection] = useState<ManageSection>("overview");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function updateSearchParams(updater: (params: URLSearchParams) => void) {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    updater(nextParams);
+    const query = nextParams.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
+
+  const activeTab = searchParams.get("tab");
+  const activeSection: ManageSection =
+    activeTab === "stores"
+      ? "locations"
+      : activeTab === "stones"
+        ? "stones-slabs"
+        : activeTab === "system"
+          ? "misc"
+          : "overview";
 
   return (
     <div className="mx-auto flex h-[calc(100svh-2rem)] w-full max-w-7xl flex-col overflow-hidden sm:h-[calc(100svh-3rem)]">
-      {activeSection === "overview" ? (
-        <Overview onSelect={setActiveSection} />
-      ) : null}
+      {activeSection === "overview" ? <Overview /> : null}
       {activeSection === "locations" ? (
-        <LocationsEditor onBack={() => setActiveSection("overview")} />
+        <LocationsEditor
+          onBack={() => updateSearchParams((p) => p.delete("tab"))}
+        />
       ) : null}
       {activeSection === "stones-slabs" ? (
-        <StonesAndSlabsEditor onBack={() => setActiveSection("overview")} />
+        <StonesAndSlabsEditor
+          onBack={() => updateSearchParams((p) => p.delete("tab"))}
+        />
       ) : null}
       {activeSection === "misc" ? (
-        <SystemConfigsEditor onBack={() => setActiveSection("overview")} />
+        <SystemConfigsEditor
+          onBack={() => updateSearchParams((p) => p.delete("tab"))}
+        />
       ) : null}
     </div>
   );
