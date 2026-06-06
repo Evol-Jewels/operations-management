@@ -170,12 +170,14 @@ function SectionShell({
   title,
   description,
   onBack,
+  action,
   children,
 }: {
   icon: ReactNode;
   title: string;
   description: string;
   onBack: () => void;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -192,18 +194,23 @@ function SectionShell({
           Back to categories
         </Button>
 
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card">
-            {icon}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card">
+              {icon}
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                {title}
+              </h1>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                {description}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              {title}
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              {description}
-            </p>
-          </div>
+          {action ? (
+            <div className="shrink-0 pt-1">{action}</div>
+          ) : null}
         </div>
       </div>
 
@@ -1662,86 +1669,76 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
       title="System Config"
       description="View and update GST and making values from system config keys."
       onBack={onBack}
+      action={
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void systemConfigsQuery.refetch()}
+          className="gap-2"
+          disabled={systemConfigsQuery.isFetching}
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </Button>
+      }
     >
-      <Card className="h-full overflow-hidden py-0">
-        <CardContent className="flex h-full min-h-0 flex-col gap-5 p-5 lg:p-6">
-          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">
-                System Config
-              </h2>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {systemConfigsQuery.isLoading ? <LoadingRows count={3} /> : null}
+        {systemConfigsQuery.isError ? (
+          <ErrorPanel
+            message={getErrorMessage(
+              systemConfigsQuery.error,
+              "Could not load system configs.",
+            )}
+            onRetry={() => void systemConfigsQuery.refetch()}
+          />
+        ) : null}
+
+        {!systemConfigsQuery.isLoading && !systemConfigsQuery.isError ? (
+          sortedConfigs.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border py-10 text-center">
+              <p className="text-sm text-muted-foreground">
+                No miscellaneous config keys found.
+              </p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void systemConfigsQuery.refetch()}
-              className="gap-2"
-              disabled={systemConfigsQuery.isFetching}
-            >
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </Button>
-          </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {sortedConfigs.map((config) => (
+                <button
+                  key={config.id}
+                  type="button"
+                  onClick={() => setEditingConfig(config)}
+                  className="group rounded-2xl border border-border bg-card p-4 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {formatSystemConfigLabel(config.key)}
+                      </p>
+                      <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-foreground">
+                        {formatSystemConfigValue(config)}
+                      </p>
+                    </div>
+                    <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
+                  </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {systemConfigsQuery.isLoading ? <LoadingRows count={3} /> : null}
-            {systemConfigsQuery.isError ? (
-              <ErrorPanel
-                message={getErrorMessage(
-                  systemConfigsQuery.error,
-                  "Could not load system configs.",
-                )}
-                onRetry={() => void systemConfigsQuery.refetch()}
-              />
-            ) : null}
+                  {config.description ? (
+                    <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+                      {config.description}
+                    </p>
+                  ) : null}
 
-            {!systemConfigsQuery.isLoading && !systemConfigsQuery.isError ? (
-              sortedConfigs.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border py-10 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    No miscellaneous config keys found.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {sortedConfigs.map((config) => (
-                    <button
-                      key={config.id}
-                      type="button"
-                      onClick={() => setEditingConfig(config)}
-                      className="group rounded-2xl border border-border bg-card p-4 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <Badge variant="secondary" className="uppercase">
-                            {config.key}
-                          </Badge>
-                          <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-foreground">
-                            {formatSystemConfigValue(config)}
-                          </p>
-                        </div>
-                        <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
-                      </div>
-
-                      {config.description ? (
-                        <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
-                          {config.description}
-                        </p>
-                      ) : null}
-
-                      <div className="mt-4 flex items-center justify-end gap-3 text-xs text-muted-foreground">
-                        <span>
-                          {new Date(config.updatedAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+                  <div className="mt-4 flex items-center justify-end gap-3 text-xs text-muted-foreground">
+                    <span>
+                      {new Date(config.updatedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )
+        ) : null}
+      </div>
 
       <SystemConfigDialog
         config={editingConfig}
