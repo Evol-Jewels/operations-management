@@ -257,7 +257,7 @@ function TextInput({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="h-10 rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+      className="h-10 rounded-none border-0 border-b bg-transparent px-2 shadow-none focus-visible:ring-0"
     />
   );
 }
@@ -1209,7 +1209,7 @@ function StonesAndSlabsEditor({ onBack }: { onBack: () => void }) {
               </Button>
             </div>
 
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-1 py-1">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-1 pr-2 py-1">
               {stoneTypesQuery.isLoading ? <LoadingRows /> : null}
               {stoneTypesQuery.isError ? (
                 <ErrorPanel
