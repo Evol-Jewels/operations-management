@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Check, Key, MoreHorizontal, ShieldMinus } from "lucide-react";
+import { Ban, Key, MoreHorizontal, ShieldMinus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/user-management/TableSkeleton";
 import { cn } from "@/lib/utils";
 import type { InternalUserWithProfile } from "@/types/user-management";
 
@@ -159,11 +160,7 @@ export function UsersTable({
   actionLoading,
 }: UsersTableProps) {
   if (isLoading) {
-    return (
-      <div className="rounded-md border border-border/70 px-4 py-5 text-sm text-muted-foreground">
-        Loading users...
-      </div>
-    );
+    return <TableSkeleton columns={5} />;
   }
 
   if (users.length === 0) {

@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/user-management/TableSkeleton";
 import { cn } from "@/lib/utils";
 import type { InternalInviteRow } from "@/types/user-management";
 
@@ -125,11 +126,7 @@ export function InvitesTable({
   actionLoading,
 }: InvitesTableProps) {
   if (isLoading) {
-    return (
-      <div className="rounded-md border border-border/70 px-4 py-5 text-sm text-muted-foreground">
-        Loading invites...
-      </div>
-    );
+    return <TableSkeleton columns={6} />;
   }
 
   if (invites.length === 0) {
