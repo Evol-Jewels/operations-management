@@ -29,6 +29,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { getSessionRole } from "@/lib/auth";
+import { authClient } from "@/lib/auth-client";
 import { getInitials } from "@/lib/people";
 import {
   cn,
@@ -271,6 +273,9 @@ export function EnquiryDetailPage({
   const estimations = order.estimations ?? [];
   const productCount = selectedProducts.length + customProducts.length;
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const { data: session } = authClient.useSession();
+  const sessionRole = session ? getSessionRole(session) : "";
+  const canConvertToOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
 
   function handleSaveEstimation(estimation: ProductEstimation) {
     onSaveEstimation(estimation.productId, estimation);
@@ -319,7 +324,7 @@ export function EnquiryDetailPage({
                 {order.customerName}
               </h1>
               <span className="text-2xl font-normal text-muted-foreground sm:text-3xl">
-                {"#" + order.refCode}
+                {`#${order.refCode}`}
               </span>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground sm:text-base">
@@ -349,7 +354,7 @@ export function EnquiryDetailPage({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            {!isClosed ? (
+            {!isClosed && canConvertToOrder ? (
               <Button
                 size="sm"
                 asChild
@@ -501,7 +506,7 @@ export function EnquiryDetailPage({
                 Details
               </p>
               <dl className="space-y-4">
-                <DetailMetric label="Ref code" value={"#" + order.refCode} />
+                <DetailMetric label="Ref code" value={`#${order.refCode}`} />
                 <DetailMetric label="Products" value={productCount} />
                 <DetailMetric label="Estimates" value={estimations.length} />
                 <DetailMetric

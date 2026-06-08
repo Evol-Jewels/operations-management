@@ -620,7 +620,6 @@ function LocationsEditor({ onBack }: { onBack: () => void }) {
         </Button>
       }
     >
-
       <div className="grid gap-3 mb-3 md:grid-cols-3">
         <Input
           value={nameFilter}

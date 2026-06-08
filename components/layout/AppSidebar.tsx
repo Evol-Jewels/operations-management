@@ -7,6 +7,7 @@ import {
   House,
   LogOut,
   MoonStar,
+  PackagePlus,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -93,6 +94,7 @@ export function AppSidebar() {
   const { theme, setTheme } = useTheme();
 
   const sessionRole = session ? getSessionRole(session) : "";
+  const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const isActive = (href: string) => {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
@@ -211,6 +213,26 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {canCreateOrder && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === "/orders/new"}
+                    tooltip="Create New Order"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground data-[active=true]:bg-primary/90 data-[active=true]:text-primary-foreground data-[active=true]:shadow-none my-1"
+                  >
+                    <Link
+                      href="/orders/new"
+                      className="flex w-full min-w-0 items-center gap-2 overflow-hidden"
+                    >
+                      <PackagePlus className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate group-data-[collapsible=icon]:hidden">
+                        Create New Order
+                      </span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
