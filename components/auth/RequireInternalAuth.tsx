@@ -24,12 +24,6 @@ function UnauthorizedState() {
         Your account is signed in, but it does not have access to the operations
         dashboard.
       </p>
-      <Link
-        href="/orders/evl-001-priya-ring"
-        className="text-sm font-medium text-foreground underline underline-offset-4"
-      >
-        Open a shared order page
-      </Link>
     </div>
   );
 }
