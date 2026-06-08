@@ -621,7 +621,7 @@ function LocationsEditor({ onBack }: { onBack: () => void }) {
       }
     >
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 mb-3 md:grid-cols-3">
         <Input
           value={nameFilter}
           onChange={(event) => setNameFilter(event.target.value)}
