@@ -25,6 +25,7 @@ import {
 import { InvitesTable } from "@/components/user-management/InvitesTable";
 import { SendInviteDialog } from "@/components/user-management/SendInviteDialog";
 import { UsersTable } from "@/components/user-management/UsersTable";
+import { authClient } from "@/lib/auth-client";
 import {
   blockInternalUser,
   createInternalInvite,
@@ -93,6 +94,7 @@ interface ResetPasswordDialogData {
 }
 
 export function UserManagementPageClient() {
+  const { data: session } = authClient.useSession();
   const [users, setUsers] = useState<InternalUserWithProfile[]>([]);
   const [invites, setInvites] = useState<InternalInviteRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
@@ -237,7 +239,7 @@ export function UserManagementPageClient() {
   ) {
     setResetPasswordDialog(
       isInvite
-        ? { invite: invite as InternalInviteRow }
+        ? { invite: user as InternalInviteRow }
         : { user: user as InternalUserWithProfile },
     );
     setNewPassword("");
@@ -434,6 +436,7 @@ export function UserManagementPageClient() {
             <UsersTable
               users={users}
               isLoading={usersLoading}
+              currentUserEmail={session?.user.email}
               onFilterInvitesByUser={(user) => {
                 setInviteUserId(user.id);
                 setInviteUserLabel(user.name || user.email);

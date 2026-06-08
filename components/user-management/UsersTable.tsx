@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Check, Key, MoreHorizontal } from "lucide-react";
+import { Ban, Check, Key, MoreHorizontal, ShieldMinus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,7 @@ import type { InternalUserWithProfile } from "@/types/user-management";
 interface UsersTableProps {
   users: InternalUserWithProfile[];
   isLoading: boolean;
+  currentUserEmail?: string;
   onFilterInvitesByUser: (user: InternalUserWithProfile) => void;
   onBlock: (user: InternalUserWithProfile) => void;
   onUnblock: (user: InternalUserWithProfile) => void;
@@ -54,22 +55,31 @@ function initials(name: string, email: string) {
 
 function UserActions({
   user,
+  currentUserEmail,
   onBlock,
   onUnblock,
   onResetPassword,
   isLoading,
 }: {
   user: InternalUserWithProfile;
+  currentUserEmail?: string;
   onBlock: () => void;
   onUnblock: () => void;
   onResetPassword: () => void;
   isLoading: boolean;
 }) {
-  const hasUsername = Boolean(user.username);
+  const isOwnUser =
+    currentUserEmail?.trim().toLowerCase() === user.email.trim().toLowerCase();
+  const isAdmin = user.profile?.role === "ADMIN";
+
+  if (isOwnUser || isAdmin) {
+    return null;
+  }
+
+  const hasUsername = Boolean(user.username?.trim());
   const canBlock = user.status === "ACTIVE";
   const canUnblock = user.status === "BLOCKED";
-  const canResetPassword =
-    hasUsername && (user.status === "ACTIVE" || user.status === "BLOCKED");
+  const canResetPassword = hasUsername && user.status !== "BLOCKED";
 
   if (!canBlock && !canUnblock && !canResetPassword) {
     return null;
@@ -88,7 +98,7 @@ function UserActions({
           <MoreHorizontal className="size-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-40 p-1">
+      <PopoverContent align="end" className="w-fit p-1">
         <div className="flex flex-col">
           {canBlock && (
             <button
@@ -101,7 +111,7 @@ function UserActions({
               disabled={isLoading}
             >
               <Ban className="size-4" />
-              Block
+              Block User
             </button>
           )}
           {canUnblock && (
@@ -114,8 +124,8 @@ function UserActions({
               }}
               disabled={isLoading}
             >
-              <Check className="size-4" />
-              Unblock
+              <ShieldMinus className="size-4" />
+              Unblock User
             </button>
           )}
           {canResetPassword && (
@@ -141,6 +151,7 @@ function UserActions({
 export function UsersTable({
   users,
   isLoading,
+  currentUserEmail,
   onFilterInvitesByUser,
   onBlock,
   onUnblock,
@@ -173,7 +184,7 @@ export function UsersTable({
           >
             <button
               type="button"
-              onClick={() => onFilterInvitesByUser(user)}
+              onDoubleClick={() => onFilterInvitesByUser(user)}
               className="w-full text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               <div className="flex min-w-0 items-start gap-3">
@@ -220,6 +231,7 @@ export function UsersTable({
             <div className="absolute right-4 top-4">
               <UserActions
                 user={user}
+                currentUserEmail={currentUserEmail}
                 onBlock={() => onBlock(user)}
                 onUnblock={() => onUnblock(user)}
                 onResetPassword={() => onResetPassword(user)}
@@ -246,7 +258,7 @@ export function UsersTable({
               <TableRow
                 key={user.id}
                 className="cursor-pointer"
-                onClick={() => onFilterInvitesByUser(user)}
+                onDoubleClick={() => onFilterInvitesByUser(user)}
               >
                 <TableCell className="py-3">
                   <div className="flex min-w-64 items-center gap-3">
@@ -285,6 +297,7 @@ export function UsersTable({
                 >
                   <UserActions
                     user={user}
+                    currentUserEmail={currentUserEmail}
                     onBlock={() => onBlock(user)}
                     onUnblock={() => onUnblock(user)}
                     onResetPassword={() => onResetPassword(user)}
