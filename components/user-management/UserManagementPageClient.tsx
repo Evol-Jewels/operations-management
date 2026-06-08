@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronRight, Copy, RefreshCw, X } from "lucide-react";
+import { Check, Copy, Eye, EyeOff, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -25,10 +25,15 @@ import {
 import { InvitesTable } from "@/components/user-management/InvitesTable";
 import { SendInviteDialog } from "@/components/user-management/SendInviteDialog";
 import { UsersTable } from "@/components/user-management/UsersTable";
+import { authClient } from "@/lib/auth-client";
 import {
+  blockInternalUser,
   createInternalInvite,
+  expireInternalInvite,
   fetchInternalInvites,
   fetchInternalUsers,
+  resetInternalUserPassword,
+  unblockInternalUser,
 } from "@/lib/internalUserManagementApi";
 import type {
   CreateInternalInviteInput,
@@ -75,7 +80,21 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
+type ConfirmDialogType = "block" | "unblock" | "expire" | null;
+
+interface ConfirmDialogData {
+  type: ConfirmDialogType;
+  user?: InternalUserWithProfile;
+  invite?: InternalInviteRow;
+}
+
+interface ResetPasswordDialogData {
+  user?: InternalUserWithProfile;
+  invite?: InternalInviteRow;
+}
+
 export function UserManagementPageClient() {
+  const { data: session } = authClient.useSession();
   const [users, setUsers] = useState<InternalUserWithProfile[]>([]);
   const [invites, setInvites] = useState<InternalInviteRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
@@ -93,6 +112,18 @@ export function UserManagementPageClient() {
     useState<FilterValue<InternalInviteStatus>>("ALL");
   const [inviteUserId, setInviteUserId] = useState("");
   const [inviteUserLabel, setInviteUserLabel] = useState("");
+
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogData>({
+    type: null,
+  });
+
+  const [resetPasswordDialog, setResetPasswordDialog] =
+    useState<ResetPasswordDialogData | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [resetPasswordSubmitting, setResetPasswordSubmitting] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -188,6 +219,117 @@ export function UserManagementPageClient() {
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleBlock(user: InternalUserWithProfile) {
+    setConfirmDialog({ type: "block", user });
+  }
+
+  async function handleUnblock(user: InternalUserWithProfile) {
+    setConfirmDialog({ type: "unblock", user });
+  }
+
+  async function handleExpireInvite(invite: InternalInviteRow) {
+    setConfirmDialog({ type: "expire", invite });
+  }
+
+  async function handleResetPassword(
+    user: InternalUserWithProfile | InternalInviteRow,
+    isInvite?: boolean,
+  ) {
+    setResetPasswordDialog(
+      isInvite
+        ? { invite: user as InternalInviteRow }
+        : { user: user as InternalUserWithProfile },
+    );
+    setNewPassword("");
+    setShowPassword(false);
+  }
+
+  async function executeBlock() {
+    const user = confirmDialog.user;
+    if (!user) return;
+
+    setActionLoading(user.id);
+    try {
+      await blockInternalUser(user.id);
+      toast.success(`${user.username || user.name} has been blocked`);
+      setConfirmDialog({ type: null });
+      await loadUsers();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to block user",
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function executeUnblock() {
+    const user = confirmDialog.user;
+    if (!user) return;
+
+    setActionLoading(user.id);
+    try {
+      await unblockInternalUser(user.id);
+      toast.success(`${user.username || user.name} has been unblocked`);
+      setConfirmDialog({ type: null });
+      await loadUsers();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to unblock user",
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function executeExpireInvite() {
+    const invite = confirmDialog.invite;
+    if (!invite) return;
+
+    setActionLoading(invite.id);
+    try {
+      await expireInternalInvite(invite.id);
+      toast.success("Invite has been cancelled");
+      setConfirmDialog({ type: null });
+      await loadInvites();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to cancel invite",
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function executeResetPassword() {
+    const dialog = resetPasswordDialog;
+    if (!dialog) return;
+
+    const username = dialog.user?.username || dialog.invite?.username;
+    if (!username) {
+      toast.error("Username not available for this user");
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+
+    setResetPasswordSubmitting(true);
+    try {
+      await resetInternalUserPassword(username, newPassword);
+      toast.success("Password has been reset");
+      setResetPasswordDialog(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to reset password",
+      );
+    } finally {
+      setResetPasswordSubmitting(false);
+    }
   }
 
   const activeUsers = users.filter((user) => user.status === "ACTIVE").length;
@@ -294,10 +436,15 @@ export function UserManagementPageClient() {
             <UsersTable
               users={users}
               isLoading={usersLoading}
+              currentUserEmail={session?.user.email}
               onFilterInvitesByUser={(user) => {
                 setInviteUserId(user.id);
                 setInviteUserLabel(user.name || user.email);
               }}
+              onBlock={handleBlock}
+              onUnblock={handleUnblock}
+              onResetPassword={(user) => handleResetPassword(user)}
+              actionLoading={actionLoading}
             />
           )}
         </div>
@@ -351,7 +498,13 @@ export function UserManagementPageClient() {
           {invitesError ? (
             <ErrorBanner message={invitesError} onRetry={loadInvites} />
           ) : (
-            <InvitesTable invites={invites} isLoading={invitesLoading} />
+            <InvitesTable
+              invites={invites}
+              isLoading={invitesLoading}
+              onExpireInvite={handleExpireInvite}
+              onResetPassword={(invite) => handleResetPassword(invite, true)}
+              actionLoading={actionLoading}
+            />
           )}
         </div>
       </section>
@@ -404,6 +557,162 @@ export function UserManagementPageClient() {
                 <Copy className="size-4" />
               )}
               {copied ? "Copied" : "Copy credentials"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmDialog.type === "block"}
+        onOpenChange={(open) => !open && setConfirmDialog({ type: null })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Block {confirmDialog.user?.username || confirmDialog.user?.name}?
+            </DialogTitle>
+            <DialogDescription>
+              This user will lose access to their account until unblocked.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmDialog({ type: null })}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={executeBlock}
+              disabled={actionLoading !== null}
+            >
+              Block
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmDialog.type === "unblock"}
+        onOpenChange={(open) => !open && setConfirmDialog({ type: null })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Unblock {confirmDialog.user?.username || confirmDialog.user?.name}
+              ?
+            </DialogTitle>
+            <DialogDescription>
+              This user will regain access to their account.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmDialog({ type: null })}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={executeUnblock}
+              disabled={actionLoading !== null}
+            >
+              Unblock
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmDialog.type === "expire"}
+        onOpenChange={(open) => !open && setConfirmDialog({ type: null })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel this invite?</DialogTitle>
+            <DialogDescription>
+              The invite sent to {confirmDialog.invite?.email} will be cancelled
+              and cannot be used.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmDialog({ type: null })}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={executeExpireInvite}
+              disabled={actionLoading !== null}
+            >
+              Cancel Invite
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={resetPasswordDialog !== null}
+        onOpenChange={(open) => !open && setResetPasswordDialog(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Enter a new password for{" "}
+              {resetPasswordDialog?.user?.username ||
+                resetPasswordDialog?.invite?.username}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="new-password"
+                  type={showPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password (min 8 characters)"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setResetPasswordDialog(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={executeResetPassword}
+              disabled={resetPasswordSubmitting || newPassword.length < 8}
+            >
+              Reset Password
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -3,6 +3,8 @@
 import {
   AlertCircle,
   ArrowLeft,
+  Columns2,
+  Columns3,
   Diamond,
   MapPin,
   PackageSearch,
@@ -69,6 +71,7 @@ type InventoryCategory =
 type SourceFilter = "ALL" | "CUSTOMER" | "STOCK";
 type ColorFilter = "ALL" | ProductColor;
 type PurityFilter = "ALL" | "14" | "18" | "24";
+type InventoryGridColumns = 2 | 3;
 
 const CATEGORY_VALUES: readonly InventoryCategory[] = [
   "RING",
@@ -156,6 +159,17 @@ function getTotalStoneCarat(product: InventoryProduct) {
     (sum, stone) => sum + (Number(stone.totalNetWeight) || 0),
     0,
   );
+}
+
+function getInventoryGridClass({
+  columns,
+  hasSelectedProduct,
+}: {
+  columns: InventoryGridColumns;
+  hasSelectedProduct: boolean;
+}) {
+  if (hasSelectedProduct) return "grid-cols-1";
+  return columns === 3 ? "md:grid-cols-2 xl:grid-cols-3" : "md:grid-cols-2";
 }
 
 function getInventoryPurity(product: InventoryProduct): MetalPurity {
@@ -330,6 +344,10 @@ function ProductListItem({
   onSelect: () => void;
 }) {
   const image = getPrimaryImage(product);
+  const stonePieces = getTotalStonePieces(product);
+  const stoneCarat = getTotalStoneCarat(product);
+  const hasStoneInfo = stonePieces > 0 || stoneCarat > 0;
+
   return (
     <button
       type="button"
@@ -341,40 +359,65 @@ function ProductListItem({
           : "border-border",
       )}
     >
-      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
+      <div className="relative h-[5.5rem] w-[5.5rem] shrink-0 overflow-hidden rounded-xl border border-border bg-muted sm:h-24 sm:w-24">
         {image ? (
           <Image
             src={image.storageKey}
             alt={image.altText}
             fill
             unoptimized
-            sizes="80px"
+            sizes="96px"
             className="object-cover"
           />
         ) : null}
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 space-y-2">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-base font-semibold text-foreground">
               {product.name}
             </h3>
-            <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+            <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
               {product.productCode}
             </p>
           </div>
-          <Badge variant={product.isCustomerProduct ? "default" : "outline"}>
+          <Badge
+            variant={product.isCustomerProduct ? "default" : "outline"}
+            className="shrink-0"
+          >
             {product.isCustomerProduct ? "Customer" : "Stock"}
           </Badge>
         </div>
 
-        <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+        <p className="line-clamp-1 text-sm text-muted-foreground">
           {getMetalLabel(product)}
         </p>
-        <p className="mt-2 text-sm text-foreground">
-          Net wt {formatWeight(product.netWeight, "g")}
-        </p>
+
+        <div className="flex flex-wrap gap-1.5">
+          <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground">
+            Net {formatWeight(product.netWeight, "g")}
+          </span>
+          <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
+            Gross {formatWeight(product.grossWeight, "g")}
+          </span>
+          {hasStoneInfo ? (
+            <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
+              Stones{" "}
+              {stoneCarat > 0
+                ? formatWeight(stoneCarat, "ct")
+                : `${stonePieces.toLocaleString("en-IN")} pcs`}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">
+            {product.location.name}
+            {product.location.city ? `, ${product.location.city}` : ""}
+          </span>
+        </div>
       </div>
     </button>
   );
@@ -690,11 +733,16 @@ function ProductListSkeleton() {
   );
 }
 
-function ProductGridSkeleton() {
+function ProductGridSkeleton({ columns }: { columns: InventoryGridColumns }) {
   const rows = ["row-1", "row-2", "row-3", "row-4", "row-5", "row-6"];
 
   return (
-    <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+    <div
+      className={cn(
+        "grid gap-3",
+        getInventoryGridClass({ columns, hasSelectedProduct: false }),
+      )}
+    >
       {rows.map((row) => (
         <div
           key={row}
@@ -793,6 +841,7 @@ export function InventoryPageClient() {
 
   const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [gridColumns, setGridColumns] = useState<InventoryGridColumns>(2);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const estimationSectionRef = useRef<HTMLElement | null>(null);
   const { settings } = useCalculatorSettings();
@@ -1059,6 +1108,30 @@ export function InventoryPageClient() {
             </Badge>
           ) : null}
         </Button>
+        <div className="hidden h-10 shrink-0 items-center rounded-md border border-border bg-background p-1 lg:flex">
+          <Button
+            type="button"
+            variant={gridColumns === 2 ? "secondary" : "ghost"}
+            size="icon"
+            aria-label="Show 2 columns"
+            aria-pressed={gridColumns === 2}
+            onClick={() => setGridColumns(2)}
+            className="size-8"
+          >
+            <Columns2 className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant={gridColumns === 3 ? "secondary" : "ghost"}
+            size="icon"
+            aria-label="Show 3 columns"
+            aria-pressed={gridColumns === 3}
+            onClick={() => setGridColumns(3)}
+            className="size-8"
+          >
+            <Columns3 className="size-4" />
+          </Button>
+        </div>
       </section>
 
       <Dialog
@@ -1157,7 +1230,7 @@ export function InventoryPageClient() {
             hasSelectedProduct ? (
               <ProductListSkeleton />
             ) : (
-              <ProductGridSkeleton />
+              <ProductGridSkeleton columns={gridColumns} />
             )
           ) : listQuery.isError ? (
             <ErrorPanel
@@ -1168,9 +1241,10 @@ export function InventoryPageClient() {
             <div
               className={cn(
                 "grid gap-3",
-                hasSelectedProduct
-                  ? "grid-cols-1"
-                  : "md:grid-cols-2 2xl:grid-cols-3",
+                getInventoryGridClass({
+                  columns: gridColumns,
+                  hasSelectedProduct,
+                }),
               )}
             >
               {products.map((product) => (

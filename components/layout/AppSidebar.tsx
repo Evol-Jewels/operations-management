@@ -66,7 +66,7 @@ const navItems = [
   },
   {
     icon: Boxes,
-    label: "Manage Products and Price",
+    label: "Manage Config & Pricing",
     href: "/manage-products-and-price",
     roles: ["ADMIN", "OPERATIONS"],
   },
