@@ -525,6 +525,38 @@ function CustomProductForm({
               setDraft((prev) => ({ ...prev, metalPurity }))
             }
           />
+          <FormField label="Net weight" required>
+            <Input
+              type="number"
+              min="0"
+              step="0.001"
+              placeholder="0.000"
+              value={draft.metalNetWeight}
+              onChange={(event) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  metalNetWeight: event.target.value,
+                }))
+              }
+              className="h-9 w-full"
+            />
+          </FormField>
+          <FormField label="Gross weight" optional>
+            <Input
+              type="number"
+              min="0"
+              step="0.001"
+              placeholder="0.000"
+              value={draft.metalGrossWeight}
+              onChange={(event) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  metalGrossWeight: event.target.value,
+                }))
+              }
+              className="h-9 w-full"
+            />
+          </FormField>
           <SelectField
             label="Polish / finish"
             value={draft.polish}
@@ -718,7 +750,9 @@ function CustomProductForm({
           type="button"
           size="sm"
           onClick={addNewProduct}
-          disabled={!draft.metalType}
+          disabled={
+            !draft.category || !draft.metalType || !draft.metalNetWeight
+          }
           className="gap-2 px-5"
         >
           <Plus className="h-3.5 w-3.5" />

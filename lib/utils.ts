@@ -173,11 +173,13 @@ export function getDaysInCurrentStage(order: Order): number {
  * - null: no risk
  *
  * Stale takes priority over stuck.
- * Terminal stage "Customer Pickup" has no risk signals.
+ * Terminal order stages have no risk signals.
  */
 export function computeRiskSignal(order: Order): RiskSignal {
   // Terminal stage — no risk signals
-  if (order.currentStage === "Customer Pickup") return null;
+  if (order.currentStage === "Delivered" || order.currentStage === "Closed") {
+    return null;
+  }
 
   const daysSinceActivity = getDaysSinceLastActivity(order);
   if (daysSinceActivity !== null && daysSinceActivity >= 7) return "stale";

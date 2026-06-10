@@ -1,11 +1,122 @@
-import type { CreateOrderInput } from "@/types/order-api";
+import type {
+  BackendOrderComment,
+  BackendOrderDetails,
+  BackendOrderRow,
+  CreateOrderCommentInput,
+  CreateOrderCommentResponse,
+  CreateOrdersInput,
+  CreateOrdersResponse,
+  ListOrdersQuery,
+  UpdateOrderInput,
+  UpdateOrderResponse,
+} from "@/types/order-api";
 
-export async function createOrder(input: CreateOrderInput) {
-  console.log("Create order payload", input);
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
 
-  return {
-    order: {
-      id: `order-${Date.now()}`,
+function ensureApiConfig() {
+  if (!apiBaseUrl) {
+    throw new Error("Missing NEXT_PUBLIC_API_BASE_URL in .env");
+  }
+}
+
+function buildUrl(path: string, query?: Record<string, string | undefined>) {
+  ensureApiConfig();
+  const url = new URL(path, `${apiBaseUrl}/`);
+
+  if (query) {
+    for (const [key, value] of Object.entries(query)) {
+      const trimmed = value?.trim();
+      if (trimmed) url.searchParams.set(key, trimmed);
+    }
+  }
+
+  return url.toString();
+}
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+      ...init?.headers,
     },
-  };
+  });
+
+  if (!response.ok) {
+    let message = `Request failed (HTTP ${response.status})`;
+
+    try {
+      const body = (await response.json()) as {
+        message?: string | string[];
+        error?: string;
+      };
+      message = Array.isArray(body.message)
+        ? body.message.join(", ")
+        : body.message || body.error || message;
+    } catch {
+      // Keep HTTP fallback.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function queryToStrings(query: ListOrdersQuery) {
+  return Object.fromEntries(
+    Object.entries(query).map(([key, value]) => [key, String(value)]),
+  ) as Record<string, string>;
+}
+
+export function fetchOrders(query: ListOrdersQuery = {}) {
+  return apiFetch<BackendOrderRow[]>(
+    buildUrl("api/v1/orders", queryToStrings(query)),
+  );
+}
+
+export function fetchOrderDetails(refCode: string | number) {
+  return apiFetch<{ order: BackendOrderDetails }>(
+    buildUrl(`api/v1/orders/ref/${refCode}`),
+  ).then((res) => res.order);
+}
+
+export function createOrders(input: CreateOrdersInput) {
+  return apiFetch<CreateOrdersResponse>(buildUrl("api/v1/orders"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateOrder(refCode: string | number, input: UpdateOrderInput) {
+  return apiFetch<UpdateOrderResponse>(
+    buildUrl(`api/v1/orders/ref/${refCode}`),
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function fetchOrderComments(refCode: string | number) {
+  return apiFetch<BackendOrderComment[]>(
+    buildUrl(`api/v1/orders/ref/${refCode}/comments`),
+  );
+}
+
+export function createOrderComment(
+  refCode: string | number,
+  input: CreateOrderCommentInput,
+) {
+  return apiFetch<CreateOrderCommentResponse>(
+    buildUrl(`api/v1/orders/ref/${refCode}/comments`),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
 }

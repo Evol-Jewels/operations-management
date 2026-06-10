@@ -8,21 +8,22 @@ import {
   SalesDashboard,
 } from "@/components/dashboard/RoleDashboards";
 import { useEnquiries } from "@/hooks/useEnquiries";
+import { useOrders } from "@/hooks/useOrders";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
-import { useOrdersStore } from "@/lib/stores/orders-store";
+import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 
 function RoleDashboardPage() {
   const { data: session } = authClient.useSession();
-  const storeRecords = useOrdersStore((state) => state.records);
   const enquiriesQuery = useEnquiries();
+  const ordersQuery = useOrders({ limit: 100 });
   const orders = useMemo(
     () => [
-      ...storeRecords.filter((record) => record.type === "order"),
+      ...(ordersQuery.data ?? []).map(mapBackendOrderListItemToOrder),
       ...(enquiriesQuery.data ?? []).map(mapBackendEnquiryListItemToOrder),
     ],
-    [enquiriesQuery.data, storeRecords],
+    [enquiriesQuery.data, ordersQuery.data],
   );
   const role = getSessionRole(session).toUpperCase();
 

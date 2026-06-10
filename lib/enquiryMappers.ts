@@ -153,7 +153,6 @@ function baseOrderFromBackend(
     id: enquiry.id,
     type: "enquiry",
     refCode: enquiry.refCode,
-    shareableToken: enquiry.id,
     customerName: enquiry.name,
     customerPhone: enquiry.phoneNumber,
     customerNotes: enquiry.notes ?? undefined,

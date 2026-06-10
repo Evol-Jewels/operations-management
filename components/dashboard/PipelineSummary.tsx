@@ -20,12 +20,15 @@ interface PipelineSummaryProps {
 const STAGE_SHORT: Record<Stage, string> = {
   Enquiry: "Enquiry",
   Estimation: "Estimation",
+  New: "New",
   "CAD Design": "CAD",
   "Order Confirmed": "Confirmed",
-  Building: "Building",
+  Manufacturing: "Mfg.",
   Certification: "Certify",
-  "Shipped to Store": "Shipped",
-  "Customer Pickup": "Pickup",
+  "At Store": "Store",
+  "In Transit": "Transit",
+  Delivered: "Delivered",
+  Closed: "Closed",
 };
 
 export function PipelineSummary({

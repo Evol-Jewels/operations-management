@@ -16,7 +16,7 @@ import {
 
 interface EnrichedActivity extends ActivityEntry {
   customerName: string;
-  shareableToken: string;
+  href: string;
 }
 
 function getActionText(entry: ActivityEntry): ReactNode {
@@ -70,7 +70,7 @@ function PersonAvatar({
 function ActivityItem({ activity }: { activity: EnrichedActivity }) {
   return (
     <Link
-      href={`/orders/${activity.shareableToken}`}
+      href={activity.href}
       className="group flex items-start gap-3 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
       <PersonAvatar person={activity.postedBy} role={activity.actorRole} />
@@ -130,7 +130,10 @@ export function RecentActivities({ orders, className }: RecentActivitiesProps) {
         enriched.push({
           ...entry,
           customerName: order.customerName,
-          shareableToken: order.shareableToken,
+          href:
+            order.type === "enquiry"
+              ? `/enquiries/${order.refCode}`
+              : `/orders/${order.refCode}`,
         });
       }
     }

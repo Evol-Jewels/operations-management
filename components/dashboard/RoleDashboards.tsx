@@ -8,7 +8,6 @@ import {
   IndianRupee,
   MessageSquare,
   Package,
-  Plus,
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
@@ -72,8 +71,8 @@ const CHART_COLORS = [
 
 function getRecordHref(order: Order) {
   return order.type === "enquiry"
-    ? `/enquiries/${order.shareableToken}`
-    : `/orders/${order.shareableToken}`;
+    ? `/enquiries/${order.refCode}`
+    : `/orders/${order.refCode}`;
 }
 
 function sortRiskItems(items: RiskItem[]) {
@@ -97,7 +96,10 @@ function sortRiskItems(items: RiskItem[]) {
 function getRiskItems(orders: Order[]) {
   return sortRiskItems(
     orders
-      .filter((order) => order.currentStage !== "Customer Pickup")
+      .filter(
+        (order) =>
+          order.currentStage !== "Delivered" && order.currentStage !== "Closed",
+      )
       .map((order) => ({ order, signal: computeRiskSignal(order) }))
       .filter(
         (item): item is RiskItem =>
@@ -518,7 +520,9 @@ function getAdminAnalytics(orders: Order[]) {
 function getOpsAnalytics(orders: Order[]) {
   const activeOrders = orders.filter(
     (order) =>
-      order.type === "order" && order.currentStage !== "Customer Pickup",
+      order.type === "order" &&
+      order.currentStage !== "Delivered" &&
+      order.currentStage !== "Closed",
   );
   const openEnquiries = orders.filter(
     (order) => order.type === "enquiry" && order.status !== "closed",
@@ -877,7 +881,12 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
   const data = useMemo(() => {
     const actionItems = getRiskItems(orders);
     const openOrders = orders
-      .filter((o) => o.type === "order" && o.currentStage !== "Customer Pickup")
+      .filter(
+        (o) =>
+          o.type === "order" &&
+          o.currentStage !== "Delivered" &&
+          o.currentStage !== "Closed",
+      )
       .sort(
         (a, b) =>
           new Date(b.lastUpdatedAt).getTime() -

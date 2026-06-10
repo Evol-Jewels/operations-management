@@ -792,7 +792,7 @@ export function OrderPrintView({ order }: OrderPrintViewProps) {
         <span>Evol Jewellery Order Management System</span>
         <span>
           {order.orderNumber ? `${order.orderNumber} · ` : ""}
-          {order.shareableToken}
+          {order.refCode ? `#${order.refCode}` : ""}
         </span>
       </div>
     </div>

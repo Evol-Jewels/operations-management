@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -52,25 +53,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useEnquiryDetails } from "@/hooks/useEnquiries";
+import { enquiryKeys, useEnquiryDetails } from "@/hooks/useEnquiries";
+import { useCreateOrders } from "@/hooks/useOrders";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
   fetchCatalogueProductDetails,
   searchCatalogueProductByCode,
 } from "@/lib/catalogApi";
-import { createOrder } from "@/lib/ordersApi";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { BackendEnquiryMedia } from "@/types/enquiry-api";
-import type {
-  CreateOrderInput,
-  CreateOrderProductInput,
-} from "@/types/order-api";
-import {
-  addDaysDateString,
-  customProductStones,
-  referenceToOrderMedia,
-} from "./order-form-utils";
+import type { CreateOrdersInput } from "@/types/order-api";
+import { addDaysDateString, customProductDetails } from "./order-form-utils";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -88,6 +81,10 @@ interface OrderItem {
   category?: string;
   metalType?: string;
   metalPurity?: string;
+  metalNetWeight?: string;
+  metalGrossWeight?: string;
+  metalColor?: string;
+  size?: string;
   imageUrl?: string;
   basePrice?: number;
   // Custom product fields
@@ -146,6 +143,10 @@ function createOrderItemFromNewCustom(
     category: product.category,
     metalType: product.metalType,
     metalPurity: product.metalPurity,
+    metalNetWeight: product.metalNetWeight,
+    metalGrossWeight: product.metalGrossWeight,
+    metalColor: product.metalColor,
+    size: product.size,
     polish: product.polish,
     stoneDescription: product.stoneDescription,
     stoneCut: product.stoneCut,
@@ -163,7 +164,9 @@ function createOrderItemFromNewCustom(
 
 export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
+  const createOrdersMutation = useCreateOrders();
   const createdAtRef = useRef(new Date());
   const {
     data: enquiryDetails,
@@ -245,6 +248,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
           category: "Custom",
           metalType: item.metalType || undefined,
           metalPurity: item.metalPurity || undefined,
+          metalNetWeight: item.metalWeight || undefined,
           stoneDescription: stoneDesc,
           vendor: "",
           cadApprovalRequired: false,
@@ -343,7 +347,13 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
   }
 
   function addNewCustomProduct() {
-    if (!newProductDraft.metalType) return;
+    if (
+      !newProductDraft.category ||
+      !newProductDraft.metalType ||
+      !newProductDraft.metalNetWeight
+    ) {
+      return;
+    }
     const product = { ...newProductDraft, id: generateId() };
     const newItem = createOrderItemFromNewCustom(product, createdAtRef.current);
     setForm((prev) => ({
@@ -435,6 +445,29 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
       if (form.items.length === 0) {
         nextErrors.items = "Add at least one product";
       }
+      if (
+        form.items.some(
+          (item) =>
+            (item.source === "enquiry-existing" ||
+              item.source === "new-existing") &&
+            !item.productCode?.trim(),
+        )
+      ) {
+        nextErrors.items = "Every existing product needs a product code";
+      }
+      if (
+        form.items.some(
+          (item) =>
+            (item.source === "enquiry-custom" ||
+              item.source === "new-custom") &&
+            (!item.category?.trim() ||
+              !item.metalType?.trim() ||
+              !item.metalNetWeight?.trim()),
+        )
+      ) {
+        nextErrors.items =
+          "Custom products need category, metal type, and net weight";
+      }
       if (form.items.some((item) => !item.estimatedDelivery)) {
         nextErrors.estimatedDelivery =
           "Estimated delivery date is required for every product";
@@ -477,64 +510,55 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     setCurrentStep((prev) => prev - 1);
   }
 
-  function mapItemToOrderProduct(item: OrderItem): CreateOrderProductInput {
-    const media: BackendEnquiryMedia[] = item.imageUrl
-      ? [{ type: "IMAGE", url: item.imageUrl }]
-      : (item.references ?? [])
-          .map(referenceToOrderMedia)
-          .filter((mediaItem): mediaItem is BackendEnquiryMedia =>
-            Boolean(mediaItem),
-          );
+  function mapItemToOrderProduct(
+    item: OrderItem,
+  ): CreateOrdersInput["orders"][number] {
+    if (item.source === "enquiry-existing" || item.source === "new-existing") {
+      return {
+        productType: "EXISTING",
+        productCode: item.productCode ?? "",
+        notes: item.notes,
+        vendor: item.vendor.trim() || undefined,
+        isCadRequired: item.cadApprovalRequired,
+        estimatedDeliveryDate: item.estimatedDelivery,
+      };
+    }
 
     return {
-      id: item.id,
-      source:
-        item.source === "enquiry-existing" || item.source === "new-existing"
-          ? "EXISTING"
-          : "CUSTOM",
-      sourceEnquiryItemId: item.source.startsWith("enquiry-")
-        ? item.id
-        : undefined,
-      productCode: item.productCode,
-      name: item.name,
-      category: item.category,
-      metalType: item.metalType,
-      metalPurity: item.metalPurity,
+      productType: "CUSTOM",
+      customProduct: customProductDetails({
+        ...createEmptyNewProduct(),
+        category: item.category ?? "Other",
+        metalType: item.metalType ?? "",
+        metalPurity: item.metalPurity ?? "",
+        metalNetWeight: item.metalNetWeight ?? "",
+        metalGrossWeight: item.metalGrossWeight ?? "",
+        metalColor: item.metalColor ?? "",
+        size: item.size ?? "",
+        stoneDescription: item.stoneDescription ?? "",
+        stoneCaratEstimate: item.stoneCaratEstimate ?? "",
+      }),
       notes: item.notes,
-      media,
-      stones:
-        item.source === "new-custom"
-          ? customProductStones({
-              ...createEmptyNewProduct(),
-              id: item.id,
-              metalType: item.metalType ?? "",
-              metalPurity: item.metalPurity ?? "",
-              stoneDescription: item.stoneDescription ?? "",
-              stoneCaratEstimate: item.stoneCaratEstimate ?? "",
-            })
-          : item.stoneDescription
-            ? [{ stoneType: item.stoneDescription }]
-            : [],
-      vendorName: item.vendor.trim() || undefined,
-      cadApprovalRequired: item.cadApprovalRequired,
+      vendor: item.vendor.trim() || undefined,
+      isCadRequired: item.cadApprovalRequired,
       estimatedDeliveryDate: item.estimatedDelivery,
     };
   }
 
-  function buildPayload(): CreateOrderInput {
+  function buildPayload(): CreateOrdersInput {
     const createdBy = session?.user?.id;
     if (!createdBy) throw new Error("Unable to determine creator.");
+    if (!enquiryDetails?.enquiry.refCode) {
+      throw new Error("Unable to determine source enquiry.");
+    }
 
     return {
-      sourceEnquiryId: enquiryId,
-      customer: {
-        name: form.customerName.trim(),
-        phoneNumber: form.customerPhone.trim(),
-        notes: enquiryDetails?.enquiry.notes ?? undefined,
-        address: form.customerAddress.trim(),
-      },
-      products: form.items.map(mapItemToOrderProduct),
-      createdBy,
+      sourceEnquiry: enquiryDetails.enquiry.refCode,
+      name: form.customerName.trim(),
+      phoneNumber: form.customerPhone.trim(),
+      customerAddress: form.customerAddress.trim() || undefined,
+      salesPerson: createdBy,
+      orders: form.items.map(mapItemToOrderProduct),
     };
   }
 
@@ -558,10 +582,23 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     setSubmitError("");
 
     try {
-      await createOrder(buildPayload());
+      if (!enquiryDetails) {
+        throw new Error("Unable to load source enquiry.");
+      }
+      const sourceRefCode = enquiryDetails.enquiry.refCode;
+      const response = await createOrdersMutation.mutateAsync(buildPayload());
+      void queryClient.invalidateQueries({
+        queryKey: enquiryKeys.detail(enquiryId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: enquiryKeys.detailByRefCode(sourceRefCode),
+      });
       setSubmitted(true);
       setTimeout(() => {
-        router.push("/orders-and-enquiries");
+        const refCode = response.refCodes?.length === 1 && response.refCodes[0];
+        router.push(
+          refCode ? `/orders/${refCode}` : "/orders-and-enquiries?type=order",
+        );
       }, 1200);
     } catch (error) {
       setSubmitError(
@@ -897,7 +934,6 @@ function OrderItemCard({
   removeItem: (id: string) => void;
 }) {
   const isNew = item.source === "new-existing" || item.source === "new-custom";
-  const isExisting = item.source === "enquiry-existing";
 
   return (
     <div className="space-y-4 rounded-lg border border-border bg-card p-4">
@@ -943,7 +979,7 @@ function OrderItemCard({
               CAD required before order
             </span>
           </div>
-          
+
           <Button
             type="button"
             variant="ghost"
@@ -1283,6 +1319,38 @@ function CustomProductForm({
               setDraft((prev) => ({ ...prev, metalPurity }))
             }
           />
+          <FormField label="Net weight" required>
+            <Input
+              type="number"
+              min="0"
+              step="0.001"
+              placeholder="0.000"
+              value={draft.metalNetWeight}
+              onChange={(e) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  metalNetWeight: e.target.value,
+                }))
+              }
+              className="h-9 w-full"
+            />
+          </FormField>
+          <FormField label="Gross weight" optional>
+            <Input
+              type="number"
+              min="0"
+              step="0.001"
+              placeholder="0.000"
+              value={draft.metalGrossWeight}
+              onChange={(e) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  metalGrossWeight: e.target.value,
+                }))
+              }
+              className="h-9 w-full"
+            />
+          </FormField>
           <SelectField
             label="Polish / finish"
             value={draft.polish}
@@ -1459,7 +1527,9 @@ function CustomProductForm({
           type="button"
           size="sm"
           onClick={addNewProduct}
-          disabled={!draft.metalType}
+          disabled={
+            !draft.category || !draft.metalType || !draft.metalNetWeight
+          }
           className="gap-2 px-5"
         >
           <Plus className="h-3.5 w-3.5" />

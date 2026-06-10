@@ -31,12 +31,13 @@ const STAGE_COLORS: Record<string, string> = {
   Estimation: "border-blue-500/20 text-blue-600 dark:text-blue-400",
   "CAD Design": "border-violet-500/20 text-violet-600 dark:text-violet-400",
   "Order Confirmed": "border-blue-500/20 text-blue-600 dark:text-blue-400",
-  Building: "border-amber-500/20 text-amber-600 dark:text-amber-400",
+  Manufacturing: "border-amber-500/20 text-amber-600 dark:text-amber-400",
   Certification: "border-orange-500/20 text-orange-600 dark:text-orange-400",
-  "Shipped to Store":
-    "border-emerald-500/20 text-emerald-600 dark:text-emerald-400",
-  "Customer Pickup":
+  "At Store": "border-emerald-500/20 text-emerald-600 dark:text-emerald-400",
+  "In Transit": "border-sky-500/20 text-sky-600 dark:text-sky-400",
+  Delivered:
     "border-emerald-500/20 text-emerald-600 bg-emerald-500/5 dark:text-emerald-400",
+  Closed: "border-muted-foreground/20 text-muted-foreground bg-muted/40",
 };
 
 function UrgencyTooltip({
@@ -91,7 +92,7 @@ function RowTooltip({
 function getRecordHref(order: Order) {
   return order.type === "enquiry"
     ? `/enquiries/${order.refCode}`
-    : `/orders/${order.shareableToken}`;
+    : `/orders/${order.refCode}`;
 }
 
 function RiskBadge({ order }: { order: Order }) {

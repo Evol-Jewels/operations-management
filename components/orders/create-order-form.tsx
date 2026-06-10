@@ -34,23 +34,16 @@ import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { validatePhone } from "@/components/ui/phone-input";
 import { Textarea } from "@/components/ui/textarea";
+import { useCreateOrders } from "@/hooks/useOrders";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
   fetchCatalogueProductDetails,
   searchCatalogueProductByCode,
 } from "@/lib/catalogApi";
-import { createOrder } from "@/lib/ordersApi";
 import { cn } from "@/lib/utils";
-import type {
-  CreateOrderInput,
-  CreateOrderProductInput,
-} from "@/types/order-api";
-import {
-  addDaysDateString,
-  customProductStones,
-  referenceToOrderMedia,
-} from "./order-form-utils";
+import type { CreateOrdersInput } from "@/types/order-api";
+import { addDaysDateString, customProductDetails } from "./order-form-utils";
 
 type OrderStepId =
   | "phone"
@@ -88,6 +81,7 @@ function createDefaultMeta(createdAt: Date): OrderProductMeta {
 export function CreateOrderForm() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
+  const createOrdersMutation = useCreateOrders();
   const createdAtRef = useRef(new Date());
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -188,6 +182,26 @@ export function CreateOrderForm() {
 
     if (targetStep === "products" && !hasProducts) {
       nextErrors.products = "Add at least one product";
+    }
+
+    if (
+      targetStep === "products" &&
+      form.selectedProducts.some((product) => !product.productCode.trim())
+    ) {
+      nextErrors.products = "Every catalogue product needs a product code";
+    }
+
+    if (
+      targetStep === "products" &&
+      form.newProducts.some(
+        (product) =>
+          !product.category.trim() ||
+          !product.metalType.trim() ||
+          !product.metalNetWeight.trim(),
+      )
+    ) {
+      nextErrors.products =
+        "Custom products need category, metal type, and net weight";
     }
 
     if (targetStep === "vendor-estimation") {
@@ -313,7 +327,13 @@ export function CreateOrderForm() {
   }
 
   function addNewProduct() {
-    if (!newProductDraft.metalType) return;
+    if (
+      !newProductDraft.category ||
+      !newProductDraft.metalType ||
+      !newProductDraft.metalNetWeight
+    ) {
+      return;
+    }
     const product = { ...newProductDraft, id: generateId() };
     setForm((prev) => ({
       ...prev,
@@ -416,45 +436,26 @@ export function CreateOrderForm() {
     });
   }
 
-  function buildPayload(): CreateOrderInput {
-    const selectedProducts: CreateOrderProductInput[] =
+  function buildPayload(): CreateOrdersInput {
+    const selectedProducts: CreateOrdersInput["orders"] =
       form.selectedProducts.map((product) => {
         const meta = form.productMeta[product.id];
         return {
-          id: product.id,
-          source: "EXISTING",
+          productType: "EXISTING",
           productCode: product.productCode,
-          name: product.name,
-          category: product.category,
-          metalType: product.metalType,
-          metalPurity: product.metalPurity,
-          notes: product.description,
-          media: product.imageUrl
-            ? [{ type: "IMAGE", url: product.imageUrl }]
-            : [],
-          vendorName: meta.vendorName.trim() || undefined,
-          cadApprovalRequired: meta.cadApprovalRequired,
+          notes: product.description || form.customer.notes.trim() || undefined,
+          vendor: meta.vendorName.trim() || undefined,
+          isCadRequired: meta.cadApprovalRequired,
           estimatedDeliveryDate: meta.estimatedDeliveryDate,
         };
       });
 
-    const customProducts: CreateOrderProductInput[] = form.newProducts.map(
+    const customProducts: CreateOrdersInput["orders"] = form.newProducts.map(
       (product) => {
         const meta = form.productMeta[product.id];
         return {
-          id: product.id,
-          source: "CUSTOM",
-          name:
-            [
-              product.category || "Custom",
-              formatMetalTypeLabel(product.metalType),
-              product.metalPurity,
-            ]
-              .filter(Boolean)
-              .join(" ") || "Custom product",
-          category: product.category || undefined,
-          metalType: product.metalType || undefined,
-          metalPurity: product.metalPurity || undefined,
+          productType: "CUSTOM",
+          customProduct: customProductDetails(product),
           notes: [
             product.polish ? `Polish: ${product.polish}` : null,
             product.stoneCut ? `Stone cut: ${product.stoneCut}` : null,
@@ -465,12 +466,8 @@ export function CreateOrderForm() {
           ]
             .filter(Boolean)
             .join("\n"),
-          stones: customProductStones(product),
-          media: product.references
-            .map(referenceToOrderMedia)
-            .filter((item): item is NonNullable<typeof item> => Boolean(item)),
-          vendorName: meta.vendorName.trim() || undefined,
-          cadApprovalRequired: meta.cadApprovalRequired,
+          vendor: meta.vendorName.trim() || undefined,
+          isCadRequired: meta.cadApprovalRequired,
           estimatedDeliveryDate: meta.estimatedDeliveryDate,
         };
       },
@@ -480,15 +477,11 @@ export function CreateOrderForm() {
     if (!createdBy) throw new Error("Unable to determine creator.");
 
     return {
-      sourceEnquiryId: null,
-      customer: {
-        name: form.customer.name.trim(),
-        phoneNumber: form.customer.phone.trim(),
-        notes: form.customer.notes.trim() || undefined,
-        address: form.customer.address.trim(),
-      },
-      products: [...selectedProducts, ...customProducts],
-      createdBy,
+      name: form.customer.name.trim(),
+      phoneNumber: form.customer.phone.trim(),
+      customerAddress: form.customer.address.trim() || undefined,
+      salesPerson: createdBy,
+      orders: [...selectedProducts, ...customProducts],
     };
   }
 
@@ -513,9 +506,14 @@ export function CreateOrderForm() {
     setSubmitError("");
 
     try {
-      await createOrder(buildPayload());
+      const response = await createOrdersMutation.mutateAsync(buildPayload());
       setSubmitted(true);
-      setTimeout(() => router.push("/orders-and-enquiries"), 1200);
+      setTimeout(() => {
+        const refCode = response.refCodes?.length === 1 && response.refCodes[0];
+        router.push(
+          refCode ? `/orders/${refCode}` : "/orders-and-enquiries?type=order",
+        );
+      }, 1200);
     } catch (error) {
       setSubmitError(
         error instanceof Error
