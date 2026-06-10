@@ -903,7 +903,7 @@ function OrderItemCard({
     <div className="space-y-4 rounded-lg border border-border bg-card p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          {isExisting && item.imageUrl ? (
+          {item.imageUrl ? (
             // biome-ignore lint/performance/noImgElement: local object URLs and remote catalogue images
             <img
               src={item.imageUrl}
@@ -943,16 +943,7 @@ function OrderItemCard({
               CAD required before order
             </span>
           </div>
-          <span
-            className={cn(
-              "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
-              isExisting
-                ? "bg-muted text-muted-foreground"
-                : "bg-primary/10 text-primary",
-            )}
-          >
-            {isExisting ? "Enquiry" : "New"}
-          </span>
+          
           <Button
             type="button"
             variant="ghost"

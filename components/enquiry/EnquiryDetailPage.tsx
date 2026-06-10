@@ -9,6 +9,7 @@ import {
   EnquiryStageBar,
 } from "@/components/enquiry/EnquiryStageBar";
 import { ActivityTimeline } from "@/components/order/ActivityTimeline";
+import { RelativeTime } from "@/components/RelativeTime";
 import { ComposeBox } from "@/components/order/ComposeBox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -32,12 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 import { getInitials } from "@/lib/people";
-import {
-  cn,
-  formatCurrency,
-  formatDateTime,
-  formatRelativeTime,
-} from "@/lib/utils";
+import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
 import type { Order, ProductEstimation } from "@/types";
 
 function deriveEnquiryStage(order: Order): EnquiryStage {
@@ -346,7 +342,7 @@ export function EnquiryDetailPage({
               </span>
               <span>
                 {order.salespersonName} opened this enquiry{" "}
-                {formatRelativeTime(order.createdAt)}
+                <RelativeTime isoString={order.createdAt} />
               </span>
               <span className="text-muted-foreground/50">·</span>
               <span>{formatProductCount(productCount)}</span>
@@ -511,7 +507,7 @@ export function EnquiryDetailPage({
                 <DetailMetric label="Estimates" value={estimations.length} />
                 <DetailMetric
                   label="Updated"
-                  value={formatRelativeTime(order.lastUpdatedAt)}
+                  value=<RelativeTime isoString={order.lastUpdatedAt} />
                 />
               </dl>
             </div>

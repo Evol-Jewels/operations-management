@@ -117,7 +117,7 @@ function statusBadgeClass(status: string) {
 }
 
 function FilterSelect({
-  label,
+  label: _label,
   value,
   onValueChange,
   disabled,
@@ -130,17 +130,12 @@ function FilterSelect({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid gap-1.5">
-      <span className="text-[11px] font-medium text-muted-foreground">
-        {label}
-      </span>
-      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-        <SelectTrigger className="h-10 w-full bg-background disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-36">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>{children}</SelectContent>
-      </Select>
-    </div>
+    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+      <SelectTrigger className="h-10 w-full bg-background disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-36">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>{children}</SelectContent>
+    </Select>
   );
 }
 
@@ -642,20 +637,15 @@ export function OrdersEnquiriesWorkspace() {
       </div>
 
       <div className="hidden gap-3 lg:grid lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end">
-        <div className="grid gap-1.5">
-          <span className="text-[11px] font-medium text-muted-foreground">
-            Search
-          </span>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search customer or ID"
-              className="pl-9"
-              disabled={isFilterDisabled}
-            />
-          </div>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search customer or ID"
+            className="pl-9"
+            disabled={isFilterDisabled}
+          />
         </div>
 
         <FilterSelect
@@ -705,26 +695,17 @@ export function OrdersEnquiriesWorkspace() {
             <SheetTitle>Filters</SheetTitle>
           </SheetHeader>
           <div className="space-y-4 px-4 py-4">
-            <div className="grid gap-1.5">
-              <span className="text-[11px] font-medium text-muted-foreground">
-                Search
-              </span>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search customer or ID"
-                  className="pl-9"
-                  disabled={isFilterDisabled}
-                />
-              </div>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search customer or ID"
+                className="pl-9"
+                disabled={isFilterDisabled}
+              />
             </div>
-            <div className="grid gap-1.5">
-              <span className="text-[11px] font-medium text-muted-foreground">
-                View
-              </span>
-              <div className="flex w-full items-center gap-1 rounded-lg border border-border bg-background p-1">
+            <div className="flex w-full items-center gap-1 rounded-lg border border-border bg-background p-1">
                 <button
                   type="button"
                   onClick={() => setViewMode("table")}
@@ -751,7 +732,6 @@ export function OrdersEnquiriesWorkspace() {
                   <LayoutGrid className="h-4 w-4" />
                   Kanban
                 </button>
-              </div>
             </div>
             <FilterSelect
               label="Status"
