@@ -900,62 +900,78 @@ function OrderItemCard({
   const isExisting = item.source === "enquiry-existing";
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-      <div className="flex items-center gap-3">
-        {isExisting && item.imageUrl ? (
-          // biome-ignore lint/performance/noImgElement: local object URLs and remote catalogue images
-          <img
-            src={item.imageUrl}
-            alt={item.name}
-            className="h-10 w-10 shrink-0 rounded-lg border border-border/60 bg-muted object-cover"
-          />
-        ) : (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-            {isNew && item.source === "new-custom" ? (
-              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-            ) : (
-              <span className="text-xs font-bold text-muted-foreground">
-                {item.productCode?.slice(0, 4) || item.name?.slice(0, 2)}
-              </span>
-            )}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">{item.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {item.productCode ? `${item.productCode} · ` : ""}
-            {formatMetalTypeLabel(item.metalType || "")} {item.metalPurity}
-            {item.basePrice ? ` · ${formatCurrency(item.basePrice)}` : ""}
-          </p>
-        </div>
-        <span
-          className={cn(
-            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
-            isExisting
-              ? "bg-muted text-muted-foreground"
-              : "bg-primary/10 text-primary",
+    <div className="space-y-4 rounded-lg border border-border bg-card p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          {isExisting && item.imageUrl ? (
+            // biome-ignore lint/performance/noImgElement: local object URLs and remote catalogue images
+            <img
+              src={item.imageUrl}
+              alt={item.name}
+              className="h-10 w-10 shrink-0 rounded-lg border border-border/60 bg-muted object-cover"
+            />
+          ) : (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+              {isNew && item.source === "new-custom" ? (
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+              ) : (
+                <span className="text-xs font-bold text-muted-foreground">
+                  {item.productCode?.slice(0, 4) || item.name?.slice(0, 2)}
+                </span>
+              )}
+            </div>
           )}
-        >
-          {isExisting ? "Enquiry" : "New"}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => removeItem(item.id)}
-          className="shrink-0 text-muted-foreground/60 hover:text-destructive"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">{item.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {item.productCode ? `${item.productCode} · ` : ""}
+              {formatMetalTypeLabel(item.metalType || "")} {item.metalPurity}
+              {item.basePrice ? ` · ${formatCurrency(item.basePrice)}` : ""}
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm transition-colors hover:bg-muted/30">
+            <Checkbox
+              checked={item.cadApprovalRequired}
+              onCheckedChange={(checked) =>
+                updateItemCadApproval(item.id, checked === true)
+              }
+              aria-label="CAD required before order"
+            />
+            <span className="font-medium text-foreground">
+              CAD required before order
+            </span>
+          </div>
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+              isExisting
+                ? "bg-muted text-muted-foreground"
+                : "bg-primary/10 text-primary",
+            )}
+          >
+            {isExisting ? "Enquiry" : "New"}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => removeItem(item.id)}
+            className="shrink-0 text-muted-foreground/60 hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
         <FormField label="Vendor" optional>
           <Input
             placeholder="e.g. ABC Jewellers"
             value={item.vendor}
             onChange={(e) => updateItem(item.id, { vendor: e.target.value })}
-            className="h-9 w-full"
+            className="h-10 w-full"
           />
         </FormField>
         <FormField label="Estimated delivery date" required>
@@ -965,22 +981,9 @@ function OrderItemCard({
             onChange={(e) =>
               updateItem(item.id, { estimatedDelivery: e.target.value })
             }
-            className="h-9 w-full"
+            className="h-10 w-full"
           />
         </FormField>
-      </div>
-
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm">
-        <Checkbox
-          checked={item.cadApprovalRequired}
-          onCheckedChange={(checked) =>
-            updateItemCadApproval(item.id, checked === true)
-          }
-          aria-label="CAD approval required"
-        />
-        <span className="font-medium text-foreground">
-          CAD approval required
-        </span>
       </div>
     </div>
   );

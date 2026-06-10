@@ -1,6 +1,13 @@
 "use client";
 
-import { Filter, LayoutGrid, List, Search } from "lucide-react";
+import {
+  Filter,
+  LayoutGrid,
+  List,
+  PackagePlus,
+  Plus,
+  Search,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -30,6 +37,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useEnquiries } from "@/hooks/useEnquiries";
+import { getSessionRole } from "@/lib/auth";
+import { authClient } from "@/lib/auth-client";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { useOrdersStore } from "@/lib/stores/orders-store";
@@ -371,6 +380,7 @@ function RecordsMobileList({
 
 export function OrdersEnquiriesWorkspace() {
   const router = useRouter();
+  const { data: session } = authClient.useSession();
   const storeRecords = useOrdersStore((state) => state.records);
   const enquiriesQuery = useEnquiries();
   const [typeTab, setTypeTab] = useState<TypeTab>("all");
@@ -380,6 +390,8 @@ export function OrdersEnquiriesWorkspace() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const isKanbanMode = viewMode === "kanban";
+  const sessionRole = session ? getSessionRole(session) : "";
+  const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
 
   const apiEnquiries = useMemo(
     () =>
@@ -505,18 +517,44 @@ export function OrdersEnquiriesWorkspace() {
             <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
               Orders and enquiries
             </h1>
-            <Button asChild size="sm" className="shrink-0 sm:hidden">
-              <Link href="/enquiries/new">+ New enquiry</Link>
-            </Button>
+            <div className="flex shrink-0 items-center gap-2 sm:hidden">
+              <Button asChild size="sm">
+                <Link href="/enquiries/new">
+                  <Plus className="h-4 w-4" />
+                  New enquiry
+                </Link>
+              </Button>
+              {canCreateOrder ? (
+                <Button asChild size="sm" variant="secondary">
+                  <Link href="/orders/new">
+                    <PackagePlus className="h-4 w-4" />
+                    New order
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
           </div>
           <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
             Filter, review, and move production records without crowding the
             dashboard.
           </p>
         </div>
-        <Button asChild className="hidden sm:inline-flex">
-          <Link href="/enquiries/new">+ New enquiry</Link>
-        </Button>
+        <div className="hidden items-center gap-2 sm:flex">
+          <Button asChild>
+            <Link href="/enquiries/new">
+              <Plus className="h-4 w-4" />
+              New enquiry
+            </Link>
+          </Button>
+          {canCreateOrder ? (
+            <Button asChild variant="secondary">
+              <Link href="/orders/new">
+                <PackagePlus className="h-4 w-4" />
+                New order
+              </Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -44,6 +44,8 @@ import { StepNumber } from "./typeform-controls";
 
 interface ProductInterestStepProps {
   stepNumber: number;
+  totalSteps: number;
+  subtitle?: string;
   selectedProducts: Product[];
   newProducts: NewProduct[];
   productAddMode: ProductAddMode;
@@ -78,6 +80,8 @@ interface ProductInterestStepProps {
 
 export function ProductInterestStep({
   stepNumber,
+  totalSteps,
+  subtitle,
   selectedProducts,
   newProducts,
   productAddMode,
@@ -113,11 +117,12 @@ export function ProductInterestStep({
     <div className="mx-auto w-full max-w-2xl space-y-6 pt-8">
       <div className="text-center">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          <StepNumber n={stepNumber} />
+          <StepNumber n={stepNumber} total={totalSteps} />
           What are they interested in?
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Add products from the catalogue or describe a custom requirement
+          {subtitle ??
+            "Add products from the catalogue or describe a custom requirement"}
         </p>
       </div>
 

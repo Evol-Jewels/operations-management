@@ -187,12 +187,7 @@ function EnquiryForm() {
       customer: {
         ...prev.customer,
         isExisting: false,
-        name: "",
-        city: "",
-        address: "",
-        email: "",
-        category: "Middle",
-        notes: "",
+        category: prev.customer.category || "Middle",
       },
     }));
     advanceStep();
@@ -471,6 +466,7 @@ function EnquiryForm() {
     customer: form.customer,
     errors,
     stepNumber: safeStep + 1,
+    totalSteps: steps.length,
     updateCustomer,
     goNext,
     setIsPhoneValid,
@@ -509,6 +505,7 @@ function EnquiryForm() {
         {stepId === "products" && (
           <ProductInterestStep
             stepNumber={safeStep + 1}
+            totalSteps={steps.length}
             selectedProducts={form.selectedProducts}
             newProducts={form.newProducts}
             productAddMode={productAddMode}

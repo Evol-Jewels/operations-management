@@ -219,7 +219,7 @@ export function AppSidebar() {
                     asChild
                     isActive={pathname === "/orders/new"}
                     tooltip="Create New Order"
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground data-[active=true]:bg-primary/90 data-[active=true]:text-primary-foreground data-[active=true]:shadow-none my-1"
+                    className="my-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-secondary-foreground data-[active=true]:bg-secondary data-[active=true]:text-secondary-foreground data-[active=true]:shadow-none"
                   >
                     <Link
                       href="/orders/new"

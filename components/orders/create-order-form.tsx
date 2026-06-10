@@ -123,6 +123,8 @@ export function CreateOrderForm() {
   const progress = ((safeStep + 1) / ORDER_STEPS.length) * 100;
   const isFirstStep = safeStep === 0;
   const isLastStep = safeStep === ORDER_STEPS.length - 1;
+  const showStepNextButton =
+    stepId === "products" || stepId === "vendor-estimation";
   const hasProducts =
     form.selectedProducts.length > 0 || form.newProducts.length > 0;
 
@@ -225,12 +227,7 @@ export function CreateOrderForm() {
       customer: {
         ...prev.customer,
         isExisting: false,
-        name: "",
-        city: "",
-        address: "",
-        email: "",
-        category: "Middle",
-        notes: "",
+        category: prev.customer.category || "Middle",
       },
     }));
     advanceStep();
@@ -483,6 +480,7 @@ export function CreateOrderForm() {
     if (!createdBy) throw new Error("Unable to determine creator.");
 
     return {
+      sourceEnquiryId: null,
       customer: {
         name: form.customer.name.trim(),
         phoneNumber: form.customer.phone.trim(),
@@ -551,9 +549,12 @@ export function CreateOrderForm() {
     customer: form.customer,
     errors,
     stepNumber: safeStep + 1,
+    totalSteps: ORDER_STEPS.length,
     updateCustomer,
     goNext,
     setIsPhoneValid,
+    phoneSubtitle: "Record customer phone number for order updates",
+    nameSubtitle: "Full name as they'd like to be addressed",
   };
 
   return (
@@ -592,6 +593,8 @@ export function CreateOrderForm() {
         {stepId === "products" && (
           <ProductInterestStep
             stepNumber={safeStep + 1}
+            totalSteps={ORDER_STEPS.length}
+            subtitle="Add existing products or custom product for the order"
             selectedProducts={form.selectedProducts}
             newProducts={form.newProducts}
             productAddMode={productAddMode}
@@ -627,6 +630,7 @@ export function CreateOrderForm() {
         {stepId === "vendor-estimation" && (
           <VendorEstimationStep
             stepNumber={safeStep + 1}
+            totalSteps={ORDER_STEPS.length}
             selectedProducts={form.selectedProducts}
             newProducts={form.newProducts}
             productMeta={form.productMeta}
@@ -640,6 +644,7 @@ export function CreateOrderForm() {
             customer={form.customer}
             errors={errors}
             stepNumber={safeStep + 1}
+            totalSteps={ORDER_STEPS.length}
             updateCustomer={updateCustomer}
           />
         )}
@@ -679,6 +684,18 @@ export function CreateOrderForm() {
               <ChevronDown className="h-4 w-4" />
             </Button>
           </div>
+          {showStepNextButton && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={goNext}
+              disabled={isSubmitting}
+              className="pointer-events-auto ml-auto gap-2 px-5 shadow-md"
+            >
+              Next
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          )}
           {isLastStep && (
             <Button
               type="button"
@@ -698,6 +715,7 @@ export function CreateOrderForm() {
 
 function VendorEstimationStep({
   stepNumber,
+  totalSteps,
   selectedProducts,
   newProducts,
   productMeta,
@@ -706,6 +724,7 @@ function VendorEstimationStep({
   updateCadApproval,
 }: {
   stepNumber: number;
+  totalSteps: number;
   selectedProducts: Product[];
   newProducts: NewProduct[];
   productMeta: Record<string, OrderProductMeta>;
@@ -720,7 +739,7 @@ function VendorEstimationStep({
     <div className="mx-auto w-full max-w-3xl space-y-6 pt-8">
       <div className="text-center">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          <StepNumber n={stepNumber} />
+          <StepNumber n={stepNumber} total={totalSteps} />
           Vendor and estimation
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -805,18 +824,32 @@ function ProductMetaCard({
   updateCadApproval: (productId: string, cadApprovalRequired: boolean) => void;
 }) {
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center gap-3">
-        {thumbnail}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">
-            {title}
-          </p>
-          <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
+    <div className="space-y-4 rounded-lg border border-border bg-card p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          {thumbnail}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground">
+              {title}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm transition-colors hover:bg-muted/30">
+          <Checkbox
+            checked={meta?.cadApprovalRequired ?? false}
+            onCheckedChange={(checked) =>
+              updateCadApproval(id, checked === true)
+            }
+            aria-label="CAD required before order"
+          />
+          <span className="font-medium text-foreground">
+            CAD required before order
+          </span>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
         <FormField label="Vendor" optional>
           <Input
             placeholder="e.g. ABC Jewellers"
@@ -824,7 +857,7 @@ function ProductMetaCard({
             onChange={(event) =>
               updateProductMeta(id, { vendorName: event.target.value })
             }
-            className="h-9 w-full"
+            className="h-10 w-full"
           />
         </FormField>
         <FormField label="Estimated delivery date" required>
@@ -836,20 +869,9 @@ function ProductMetaCard({
                 estimatedDeliveryDate: event.target.value,
               })
             }
-            className="h-9 w-full"
+            className="h-10 w-full"
           />
         </FormField>
-      </div>
-
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm">
-        <Checkbox
-          checked={meta?.cadApprovalRequired ?? false}
-          onCheckedChange={(checked) => updateCadApproval(id, checked === true)}
-          aria-label="CAD approval required"
-        />
-        <span className="font-medium text-foreground">
-          CAD approval required
-        </span>
       </div>
     </div>
   );
@@ -859,18 +881,20 @@ function OrderNotesAddressStep({
   customer,
   errors,
   stepNumber,
+  totalSteps,
   updateCustomer,
 }: {
   customer: CustomerDetails;
   errors: Record<string, string>;
   stepNumber: number;
+  totalSteps: number;
   updateCustomer: (patch: Partial<CustomerDetails>) => void;
 }) {
   return (
     <div className="w-full max-w-md space-y-5">
       <div>
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          <StepNumber n={stepNumber} />
+          <StepNumber n={stepNumber} total={totalSteps} />
           Notes and address
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">

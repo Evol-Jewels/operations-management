@@ -23,7 +23,7 @@ export interface CreateOrderProductInput {
 }
 
 export interface CreateOrderInput {
-  sourceEnquiryId?: string;
+  sourceEnquiryId: string | null;
   customer: CreateOrderCustomerInput;
   products: CreateOrderProductInput[];
   createdBy: string;
