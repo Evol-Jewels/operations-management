@@ -3,15 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { enquiryKeys } from "@/hooks/useEnquiries";
 import {
-  createOrderComment,
   createOrders,
-  fetchOrderComments,
   fetchOrderDetails,
   fetchOrders,
   updateOrder,
 } from "@/lib/ordersApi";
 import type {
-  CreateOrderCommentInput,
   CreateOrdersInput,
   ListOrdersQuery,
   UpdateOrderInput,
@@ -24,8 +21,6 @@ export const orderKeys = {
   details: () => [...orderKeys.all, "detail"] as const,
   detail: (refCode: string | number) =>
     [...orderKeys.details(), String(refCode)] as const,
-  comments: (refCode: string | number) =>
-    [...orderKeys.detail(refCode), "comments"] as const,
 };
 
 export function useOrders(query: ListOrdersQuery = {}) {
@@ -39,14 +34,6 @@ export function useOrderDetails(refCode: string | number) {
   return useQuery({
     queryKey: orderKeys.detail(refCode),
     queryFn: () => fetchOrderDetails(refCode),
-    enabled: Boolean(refCode),
-  });
-}
-
-export function useOrderComments(refCode: string | number) {
-  return useQuery({
-    queryKey: orderKeys.comments(refCode),
-    queryFn: () => fetchOrderComments(refCode),
     enabled: Boolean(refCode),
   });
 }
@@ -77,16 +64,3 @@ export function useUpdateOrder(refCode: string | number) {
   });
 }
 
-export function useCreateOrderComment(refCode: string | number) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (input: CreateOrderCommentInput) =>
-      createOrderComment(refCode, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: orderKeys.comments(refCode),
-      });
-    },
-  });
-}

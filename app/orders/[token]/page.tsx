@@ -15,11 +15,8 @@ import { ProductionSpecCard } from "@/components/order/ProductionSpecCard";
 import { StageBar } from "@/components/order/StageBar";
 import { StageHint } from "@/components/order/StageHint";
 import { Button } from "@/components/ui/button";
-import {
-  useCreateOrderComment,
-  useOrderComments,
-  useOrderDetails,
-} from "@/hooks/useOrders";
+import { orderKeys, useOrderDetails } from "@/hooks/useOrders";
+import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
 import { mapBackendOrderDetailsToOrder } from "@/lib/orderMappers";
 import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
 import type { ActorRole, Order } from "@/types";
@@ -115,9 +112,12 @@ function ActorsBar({ order }: { order: Order }) {
 export default function OrderPage() {
   const params = useParams();
   const refCode = params.token as string;
+  const numericRefCode = Number(refCode);
   const orderQuery = useOrderDetails(refCode);
-  const commentsQuery = useOrderComments(refCode);
-  const createCommentMutation = useCreateOrderComment(refCode);
+  const commentsQuery = useComments("ORDER", numericRefCode);
+  const createCommentMutation = useCreateComment("ORDER", numericRefCode, {
+    invalidateQueryKeys: [orderKeys.detail(refCode)],
+  });
   const order = orderQuery.data
     ? mapBackendOrderDetailsToOrder(orderQuery.data, commentsQuery.data ?? [])
     : null;
@@ -138,7 +138,7 @@ export default function OrderPage() {
     const note = message.trim();
     if (!note) return;
 
-    await createCommentMutation.mutateAsync({ message: note });
+    await createCommentMutation.mutateAsync(note);
 
     setTimeout(() => {
       document

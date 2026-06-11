@@ -4,12 +4,13 @@ import { notFound, useParams } from "next/navigation";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { EnquiryDetailPage } from "@/components/enquiry/EnquiryDetailPage";
 import {
-  useCreateEnquiryEvent,
+  enquiryKeys,
   useCreateEstimation,
   useEnquiryDetailsByRefCode,
   useUpdateEnquiry,
   useUpdateEstimation,
 } from "@/hooks/useEnquiries";
+import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
 import { mapBackendEnquiryDetailsToOrder } from "@/lib/enquiryMappers";
 import type { ProductEstimation } from "@/types";
 
@@ -38,7 +39,10 @@ function EnquiryPageContent() {
   const id = details?.enquiry.id ?? "";
   const createEstimation = useCreateEstimation(id);
   const updateEstimation = useUpdateEstimation(id);
-  const createEvent = useCreateEnquiryEvent(id);
+  const commentsQuery = useComments("ENQUIRY", refCode);
+  const createComment = useCreateComment("ENQUIRY", refCode, {
+    invalidateQueryKeys: [enquiryKeys.detailByRefCode(refCode)],
+  });
   const updateEnquiry = useUpdateEnquiry(id);
 
   if (enquiryQuery.isLoading) {
@@ -55,7 +59,10 @@ function EnquiryPageContent() {
 
   if (!details) return null;
 
-  const order = mapBackendEnquiryDetailsToOrder(details);
+  const order = mapBackendEnquiryDetailsToOrder(
+    details,
+    commentsQuery.data ?? [],
+  );
 
   function handleSaveEstimation(
     productId: string,
@@ -80,7 +87,10 @@ function EnquiryPageContent() {
   }
 
   async function handlePostUpdate({ message }: { message: string }) {
-    await createEvent.mutateAsync({ message: message.trim() });
+    const note = message.trim();
+    if (!note) return;
+
+    await createComment.mutateAsync(note);
   }
 
   async function handleCloseEnquiry({
@@ -92,12 +102,10 @@ function EnquiryPageContent() {
   }) {
     await updateEnquiry.mutateAsync({ status: "CLOSED" });
 
-    const messageParts = [`Enquiry closed. Reason: ${reason}`];
-    if (notes.trim()) {
-      messageParts.push(notes.trim());
+    const closeNote = [reason, notes.trim()].filter(Boolean).join(" - ");
+    if (closeNote) {
+      await createComment.mutateAsync(closeNote);
     }
-
-    await createEvent.mutateAsync({ message: messageParts.join(" - ") });
   }
 
   return (
@@ -109,8 +117,8 @@ function EnquiryPageContent() {
       isSavingEstimation={
         createEstimation.isPending || updateEstimation.isPending
       }
-      isPostingUpdate={createEvent.isPending || updateEnquiry.isPending}
-      isClosingEnquiry={updateEnquiry.isPending || createEvent.isPending}
+      isPostingUpdate={createComment.isPending || updateEnquiry.isPending}
+      isClosingEnquiry={updateEnquiry.isPending || createComment.isPending}
     />
   );
 }

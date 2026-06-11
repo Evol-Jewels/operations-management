@@ -1,3 +1,5 @@
+import type { BackendActivityLog } from "@/types/activity-api";
+
 export type BackendOrderStatus =
   | "NEW"
   | "CAD_DESIGN"
@@ -96,15 +98,12 @@ export interface BackendOrderRow {
   updatedAt: string;
 }
 
-export interface BackendOrderDetails extends BackendOrderRow {}
-
-export interface BackendOrderComment {
-  id: string;
-  orderId: string;
-  message: string;
-  createdBy: BackendOrderCreatedBy;
-  createdAt: string;
+export interface BackendOrderDetailsResponse {
+  order: BackendOrderRow;
+  activityLogs: BackendActivityLog[];
 }
+
+export interface BackendOrderDetails extends BackendOrderRow {}
 
 export interface CreateExistingOrderItemInput {
   productType: "EXISTING";
@@ -156,10 +155,6 @@ export interface UpdateOrderInput {
   isCadRequired?: boolean;
 }
 
-export interface CreateOrderCommentInput {
-  message: string;
-}
-
 export interface CreateOrdersResponse {
   message: "All orders are created" | string;
   orderIds: string[];
@@ -167,5 +162,3 @@ export interface CreateOrdersResponse {
 }
 
 export type UpdateOrderResponse = BackendOrderDetails;
-
-export type CreateOrderCommentResponse = BackendOrderComment;

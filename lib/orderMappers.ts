@@ -1,6 +1,7 @@
 import { normalizePerson } from "@/lib/people";
+import { mergeActivityFeed } from "@/lib/enquiryMappers";
+import type { BackendComment } from "@/types/activity-api";
 import type {
-  ActivityEntry,
   JewelleryCategory,
   MetalPurity,
   MetalType,
@@ -9,8 +10,7 @@ import type {
 } from "@/types";
 import type {
   BackendCustomProductDetails,
-  BackendOrderComment,
-  BackendOrderDetails,
+  BackendOrderDetailsResponse,
   BackendOrderRow,
   BackendOrderStatus,
   BackendProductDetails,
@@ -30,7 +30,7 @@ const ORDER_STATUS_TO_STAGE: Record<BackendOrderStatus, Stage> = {
 function normalizeMetalType(value?: string | null): MetalType {
   if (!value) return "Gold";
   const upper = value.trim().toUpperCase();
-  if (upper === "YELLOW") return "Yellow Gold";
+  if (upper === "YELLOW") return "Gold";
   if (upper === "WHITE") return "White Gold";
   if (upper === "ROSE") return "Rose Gold";
   if (
@@ -60,20 +60,6 @@ export function mapBackendOrderStatusToStage(
   status: BackendOrderStatus,
 ): Stage {
   return ORDER_STATUS_TO_STAGE[status];
-}
-
-export function mapBackendOrderCommentToActivityEntry(
-  comment: BackendOrderComment,
-): ActivityEntry {
-  return {
-    id: comment.id,
-    orderId: comment.orderId,
-    postedBy: normalizePerson(comment.createdBy),
-    actorRole: "sales",
-    timestamp: comment.createdAt,
-    type: "note",
-    note: comment.message,
-  };
 }
 
 function mapProductDetailsCategory(
@@ -112,7 +98,7 @@ function normalizeCategory(
 }
 
 function baseOrderFromBackend(
-  order: BackendOrderRow | BackendOrderDetails,
+  order: BackendOrderRow,
 ): Order {
   const isExisting = order.productType === "EXISTING";
   const productDetails = isExisting ? order.productDetails : undefined;
@@ -201,11 +187,11 @@ export function mapBackendOrderListItemToOrder(order: BackendOrderRow): Order {
 }
 
 export function mapBackendOrderDetailsToOrder(
-  details: BackendOrderDetails,
-  comments: BackendOrderComment[] = [],
+  details: BackendOrderDetailsResponse,
+  comments: BackendComment[] = [],
 ): Order {
   return {
-    ...baseOrderFromBackend(details),
-    activityFeed: comments.map(mapBackendOrderCommentToActivityEntry),
+    ...baseOrderFromBackend(details.order),
+    activityFeed: mergeActivityFeed(comments, details.activityLogs),
   };
 }

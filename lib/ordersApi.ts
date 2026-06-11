@@ -1,9 +1,6 @@
 import type {
-  BackendOrderComment,
-  BackendOrderDetails,
+  BackendOrderDetailsResponse,
   BackendOrderRow,
-  CreateOrderCommentInput,
-  CreateOrderCommentResponse,
   CreateOrdersInput,
   CreateOrdersResponse,
   ListOrdersQuery,
@@ -77,9 +74,9 @@ export function fetchOrders(query: ListOrdersQuery = {}) {
 }
 
 export function fetchOrderDetails(refCode: string | number) {
-  return apiFetch<{ order: BackendOrderDetails }>(
+  return apiFetch<BackendOrderDetailsResponse>(
     buildUrl(`api/v1/orders/ref/${refCode}`),
-  ).then((res) => res.order);
+  );
 }
 
 export function createOrders(input: CreateOrdersInput) {
@@ -101,22 +98,3 @@ export function updateOrder(refCode: string | number, input: UpdateOrderInput) {
   );
 }
 
-export function fetchOrderComments(refCode: string | number) {
-  return apiFetch<BackendOrderComment[]>(
-    buildUrl(`api/v1/orders/ref/${refCode}/comments`),
-  );
-}
-
-export function createOrderComment(
-  refCode: string | number,
-  input: CreateOrderCommentInput,
-) {
-  return apiFetch<CreateOrderCommentResponse>(
-    buildUrl(`api/v1/orders/ref/${refCode}/comments`),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    },
-  );
-}

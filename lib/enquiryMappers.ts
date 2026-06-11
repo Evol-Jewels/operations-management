@@ -1,5 +1,10 @@
 import { normalizePerson } from "@/lib/people";
 import type {
+  ActivityLogType,
+  BackendActivityLog,
+  BackendComment,
+} from "@/types/activity-api";
+import type {
   ActivityEntry,
   EnquiryCustomProduct,
   EnquiryReference,
@@ -13,7 +18,6 @@ import type {
 } from "@/types";
 import type {
   BackendEnquiryDetails,
-  BackendEnquiryEventRow,
   BackendEnquiryItemRow,
   BackendEnquiryListItem,
   BackendEnquiryStatus,
@@ -120,25 +124,65 @@ function mapBackendItemToCustomProduct(
   };
 }
 
-export function mapBackendEventToActivityEntry(
-  event: BackendEnquiryEventRow,
-): ActivityEntry {
-  const type: ActivityEntry["type"] =
-    event.type === "ENQUIRY_CREATED"
-      ? "order_created"
-      : event.type === "ESTIMATION_ADDED" || event.type === "ESTIMATION_UPDATED"
-        ? "estimation_added"
-        : "note";
+const HIDDEN_ACTIVITY_LOG_TYPES: ActivityLogType[] = [
+  "COMMENT_ADDED",
+  "COMMENT_UPDATED",
+  "COMMENT_DELETED",
+];
 
+function mapActivityLogTypeToEntryType(
+  type: ActivityLogType,
+): ActivityEntry["type"] {
+  if (type === "ENQUIRY_CREATED" || type === "ORDER_CREATED") {
+    return "order_created";
+  }
+  if (type === "STATUS_CHANGED") return "stage_change";
+  if (type === "ESTIMATION_ADDED" || type === "ESTIMATION_UPDATED") {
+    return "estimation_added";
+  }
+  return "note";
+}
+
+export function mapBackendCommentToActivityEntry(
+  comment: BackendComment,
+): ActivityEntry {
   return {
-    id: event.id,
-    orderId: event.enquiryId,
-    postedBy: normalizePerson(event.createdBy),
+    id: comment.id,
+    orderId: String(comment.sourceCode),
+    postedBy: normalizePerson(comment.createdBy),
     actorRole: "sales",
-    timestamp: event.createdAt,
-    type,
-    note: event.message ?? undefined,
+    timestamp: comment.createdAt,
+    type: "note",
+    note: comment.content,
   };
+}
+
+export function mapBackendActivityLogToActivityEntry(
+  log: BackendActivityLog,
+): ActivityEntry {
+  return {
+    id: log.id,
+    orderId: String(log.sourceCode),
+    postedBy: normalizePerson(log.createdBy),
+    actorRole: "sales",
+    timestamp: log.createdAt,
+    type: mapActivityLogTypeToEntryType(log.type),
+    note: log.message || undefined,
+  };
+}
+
+export function mergeActivityFeed(
+  comments: BackendComment[] = [],
+  activityLogs: BackendActivityLog[] = [],
+): ActivityEntry[] {
+  const visibleLogs = activityLogs.filter(
+    (log) => !HIDDEN_ACTIVITY_LOG_TYPES.includes(log.type),
+  );
+
+  return [
+    ...comments.map(mapBackendCommentToActivityEntry),
+    ...visibleLogs.map(mapBackendActivityLogToActivityEntry),
+  ];
 }
 
 function baseOrderFromBackend(
@@ -180,6 +224,7 @@ export function mapBackendEnquiryListItemToOrder(
 
 export function mapBackendEnquiryDetailsToOrder(
   details: BackendEnquiryDetails,
+  comments: BackendComment[] = [],
 ): Order {
   const selectedProducts: EnquirySelectedProduct[] = [];
   const customProducts: EnquiryCustomProduct[] = [];
@@ -214,6 +259,6 @@ export function mapBackendEnquiryDetailsToOrder(
     selectedProducts,
     customProducts,
     estimations: productEstimations,
-    activityFeed: details.events.map(mapBackendEventToActivityEntry),
+    activityFeed: mergeActivityFeed(comments, details.activityLogs),
   };
 }
