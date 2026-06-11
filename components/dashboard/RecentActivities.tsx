@@ -4,6 +4,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useInfiniteActivityLogs } from "@/hooks/useSourceActivity";
+import { mapBackendActivityLogToActivityEntry } from "@/lib/enquiryMappers";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { cn, formatRelativeTime } from "@/lib/utils";
 import {
@@ -13,23 +16,56 @@ import {
   type ActorRole,
   type Order,
 } from "@/types";
+import type { ActivityLogType, BackendActivityLog } from "@/types/activity-api";
 
 interface EnrichedActivity extends ActivityEntry {
   customerName: string;
-  shareableToken: string;
+  href: string;
+  logType: ActivityLogType;
+  message?: string;
 }
 
-function getActionText(entry: ActivityEntry): ReactNode {
-  switch (entry.type) {
+function getActionText(activity: EnrichedActivity): ReactNode {
+  switch (activity.logType) {
+    case "COMMENT_ADDED":
+      return "added a comment";
+    case "COMMENT_UPDATED":
+      return "updated a comment";
+    case "COMMENT_DELETED":
+      return "deleted a comment";
+    case "ITEM_ADDED":
+      return "added an item";
+    case "ITEM_UPDATED":
+      return "updated an item";
+    case "ITEM_DELETED":
+      return "deleted an item";
+    case "ESTIMATION_ADDED":
+      return "added an estimation";
+    case "ESTIMATION_UPDATED":
+      return "updated an estimation";
+    case "ESTIMATION_DELETED":
+      return "deleted an estimation";
+    case "ORDER_MODIFIED":
+      return "modified this order";
+  }
+
+  switch (activity.type) {
     case "order_created":
-      return "created this order";
+      return activity.logType === "ENQUIRY_CREATED"
+        ? "created this enquiry"
+        : "created this order";
     case "stage_change":
-      return (
-        <>
-          moved to{" "}
-          <span className="font-medium text-foreground">{entry.newStage}</span>
-        </>
-      );
+      if (activity.newStage) {
+        return (
+          <>
+            moved to{" "}
+            <span className="font-medium text-foreground">
+              {activity.newStage}
+            </span>
+          </>
+        );
+      }
+      return activity.message || "changed status";
     case "note":
       return "added a note";
     case "file_upload":
@@ -70,7 +106,7 @@ function PersonAvatar({
 function ActivityItem({ activity }: { activity: EnrichedActivity }) {
   return (
     <Link
-      href={`/orders/${activity.shareableToken}`}
+      href={activity.href}
       className="group flex items-start gap-3 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
       <PersonAvatar person={activity.postedBy} role={activity.actorRole} />
@@ -113,6 +149,14 @@ function DateHeader({ label }: { label: string }) {
 }
 
 const ITEMS_PER_BATCH = 20;
+const LOADING_PLACEHOLDERS = [
+  "activity-loading-1",
+  "activity-loading-2",
+  "activity-loading-3",
+  "activity-loading-4",
+  "activity-loading-5",
+  "activity-loading-6",
+];
 
 interface RecentActivitiesProps {
   orders: Order[];
@@ -120,25 +164,53 @@ interface RecentActivitiesProps {
 }
 
 export function RecentActivities({ orders, className }: RecentActivitiesProps) {
-  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_BATCH);
   const [sentinelRef, setSentinelRef] = useState<HTMLDivElement | null>(null);
+  const activityLogsQuery = useInfiniteActivityLogs({
+    limit: ITEMS_PER_BATCH,
+  });
+
+  const recordsBySource = useMemo(() => {
+    const records = new Map<string, Order>();
+    for (const order of orders) {
+      const sourceType = order.type === "enquiry" ? "ENQUIRY" : "ORDER";
+      records.set(`${sourceType}:${order.refCode}`, order);
+    }
+    return records;
+  }, [orders]);
+
+  const allLogs = useMemo(
+    () => activityLogsQuery.data?.pages.flat() ?? [],
+    [activityLogsQuery.data],
+  );
 
   const allActivities = useMemo(() => {
-    const enriched: EnrichedActivity[] = [];
-    for (const order of orders) {
-      for (const entry of order.activityFeed) {
-        enriched.push({
-          ...entry,
-          customerName: order.customerName,
-          shareableToken: order.shareableToken,
-        });
-      }
-    }
+    const enriched = allLogs.map((log: BackendActivityLog) => {
+      const entry = mapBackendActivityLogToActivityEntry(log);
+      const record = recordsBySource.get(`${log.sourceType}:${log.sourceCode}`);
+      const fallbackName = `${log.sourceType === "ENQUIRY" ? "Enquiry" : "Order"} #${log.sourceCode}`;
+      const href =
+        log.sourceType === "ENQUIRY"
+          ? `/enquiries/${log.sourceCode}`
+          : `/orders/${log.sourceCode}`;
+
+      return {
+        ...entry,
+        customerName: record?.customerName ?? fallbackName,
+        href: record
+          ? record.type === "enquiry"
+            ? `/enquiries/${record.refCode}`
+            : `/orders/${record.refCode}`
+          : href,
+        logType: log.type,
+        message: log.message || undefined,
+      };
+    });
+
     return enriched.sort(
       (a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
-  }, [orders]);
+  }, [allLogs, recordsBySource]);
 
   const { items: groupedItems, groups } = useMemo(() => {
     const now = new Date();
@@ -155,34 +227,105 @@ export function RecentActivities({ orders, className }: RecentActivitiesProps) {
       { label: "Older", filter: (d) => d < weekAgo },
     ];
 
-    const filtered = allActivities.slice(0, visibleCount);
     const result: { label: string; items: EnrichedActivity[] }[] = [];
 
     for (const group of groups) {
-      const items = filtered.filter((a) => group.filter(new Date(a.timestamp)));
+      const items = allActivities.filter((a) =>
+        group.filter(new Date(a.timestamp)),
+      );
       if (items.length > 0) {
         result.push({ label: group.label, items });
       }
     }
 
     return { items: result, groups: result.map((r) => r.label) };
-  }, [allActivities, visibleCount]);
+  }, [allActivities]);
 
   useEffect(() => {
     if (!sentinelRef) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && visibleCount < allActivities.length) {
-          setVisibleCount((c) => c + ITEMS_PER_BATCH);
+        const [entry] = entries;
+        if (
+          entry.isIntersecting &&
+          activityLogsQuery.hasNextPage &&
+          !activityLogsQuery.isFetchingNextPage
+        ) {
+          activityLogsQuery.fetchNextPage();
         }
       },
-      { rootMargin: "100px" },
+      { rootMargin: "160px" },
     );
 
     observer.observe(sentinelRef);
     return () => observer.disconnect();
-  }, [sentinelRef, visibleCount, allActivities.length]);
+  }, [
+    sentinelRef,
+    activityLogsQuery.fetchNextPage,
+    activityLogsQuery.hasNextPage,
+    activityLogsQuery.isFetchingNextPage,
+  ]);
+
+  if (activityLogsQuery.isPending) {
+    return (
+      <section
+        className={cn(
+          "flex h-full min-h-[360px] flex-col rounded-lg border border-border/70 bg-card",
+          className,
+        )}
+      >
+        <div className="border-b border-border/70 px-4 py-3">
+          <h2 className="text-sm font-semibold text-foreground">
+            Recent activity
+          </h2>
+        </div>
+        <div className="space-y-3 p-4">
+          {LOADING_PLACEHOLDERS.map((placeholder) => (
+            <div key={placeholder} className="flex items-start gap-3">
+              <div className="h-6 w-6 rounded-full bg-muted" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="h-3 w-24 rounded bg-muted" />
+                <div className="h-3 w-40 rounded bg-muted" />
+              </div>
+              <div className="h-3 w-10 rounded bg-muted" />
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (activityLogsQuery.isError) {
+    return (
+      <section
+        className={cn(
+          "flex h-full min-h-[360px] flex-col rounded-lg border border-border/70 bg-card",
+          className,
+        )}
+      >
+        <div className="border-b border-border/70 px-4 py-3">
+          <h2 className="text-sm font-semibold text-foreground">
+            Recent activity
+          </h2>
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            Could not load recent activity.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => activityLogsQuery.refetch()}
+          >
+            Retry
+          </Button>
+        </div>
+      </section>
+    );
+  }
 
   if (allActivities.length === 0) {
     return (
@@ -228,7 +371,7 @@ export function RecentActivities({ orders, className }: RecentActivitiesProps) {
 
         <div ref={setSentinelRef} className="h-4" />
 
-        {visibleCount < allActivities.length && (
+        {activityLogsQuery.isFetchingNextPage && (
           <div className="py-2 text-center">
             <span className="text-xs text-muted-foreground">
               Loading more...
@@ -239,8 +382,8 @@ export function RecentActivities({ orders, className }: RecentActivitiesProps) {
 
       <div className="border-t border-border/70 px-4 py-2">
         <p className="text-xs text-muted-foreground">
-          Showing {Math.min(visibleCount, allActivities.length)} of{" "}
-          {allActivities.length} activities
+          Showing {allActivities.length}{" "}
+          {allActivities.length === 1 ? "activity" : "activities"}
         </p>
       </div>
     </section>

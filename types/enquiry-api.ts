@@ -14,15 +14,7 @@ export type BackendEnquiryItemStatus =
 
 export type BackendEnquiryItemType = "EXISTING" | "CUSTOM";
 
-export type BackendEnquiryEventType =
-  | "ENQUIRY_CREATED"
-  | "STATUS_CHANGED"
-  | "ITEM_ADDED"
-  | "ITEM_UPDATED"
-  | "ESTIMATION_ADDED"
-  | "ESTIMATION_UPDATED"
-  | "MESSAGE_ADDED"
-  | "ITEM_DELETED";
+import type { BackendActivityLog } from "@/types/activity-api";
 
 export interface BackendEnquiryStone {
   stoneType: string;
@@ -98,21 +90,10 @@ export interface BackendEnquiryItemRow {
   estimations?: BackendEstimationRow[];
 }
 
-export interface BackendEnquiryEventRow {
-  id: string;
-  enquiryId: string;
-  type: BackendEnquiryEventType;
-  message: string | null;
-  enquiryItemId: string | null;
-  estimationId: string | null;
-  createdBy: BackendCreatedBy;
-  createdAt: string;
-}
-
 export interface BackendEnquiryDetails {
   enquiry: BackendEnquiryRow;
   items: BackendEnquiryItemRow[];
-  events: BackendEnquiryEventRow[];
+  activityLogs: BackendActivityLog[];
 }
 
 export interface ListEnquiriesQuery {
@@ -176,10 +157,4 @@ export interface UpdateEstimationInput {
   media?: BackendEnquiryMedia[];
   notes?: string | null;
   makingCost?: string | null;
-}
-
-export interface CreateEventInput {
-  message: string;
-  enquiryItemId?: string;
-  estimationId?: string;
 }

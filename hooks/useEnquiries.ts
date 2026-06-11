@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createEnquiry,
   createEstimation,
-  createEvent,
   fetchEnquiries,
   fetchEnquiryDetails,
   fetchEnquiryDetailsByRefCode,
@@ -14,7 +13,6 @@ import {
 import type {
   CreateEnquiryInput,
   CreateEstimationInput,
-  CreateEventInput,
   ListEnquiriesQuery,
   UpdateEnquiryInput,
   UpdateEstimationInput,
@@ -72,7 +70,7 @@ export function useUpdateEnquiry(id: string) {
     mutationFn: (input: UpdateEnquiryInput) => updateEnquiry(id, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: enquiryKeys.lists() });
-      void queryClient.invalidateQueries({ queryKey: enquiryKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: enquiryKeys.details() });
     },
   });
 }
@@ -91,7 +89,7 @@ export function useCreateEstimation(enquiryId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: enquiryKeys.lists() });
       void queryClient.invalidateQueries({
-        queryKey: enquiryKeys.detail(enquiryId),
+        queryKey: enquiryKeys.details(),
       });
     },
   });
@@ -111,20 +109,7 @@ export function useUpdateEstimation(enquiryId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: enquiryKeys.lists() });
       void queryClient.invalidateQueries({
-        queryKey: enquiryKeys.detail(enquiryId),
-      });
-    },
-  });
-}
-
-export function useCreateEnquiryEvent(enquiryId: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (input: CreateEventInput) => createEvent(enquiryId, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: enquiryKeys.detail(enquiryId),
+        queryKey: enquiryKeys.details(),
       });
     },
   });

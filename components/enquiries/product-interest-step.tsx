@@ -44,6 +44,8 @@ import { StepNumber } from "./typeform-controls";
 
 interface ProductInterestStepProps {
   stepNumber: number;
+  totalSteps: number;
+  subtitle?: string;
   selectedProducts: Product[];
   newProducts: NewProduct[];
   productAddMode: ProductAddMode;
@@ -78,6 +80,8 @@ interface ProductInterestStepProps {
 
 export function ProductInterestStep({
   stepNumber,
+  totalSteps,
+  subtitle,
   selectedProducts,
   newProducts,
   productAddMode,
@@ -113,11 +117,12 @@ export function ProductInterestStep({
     <div className="mx-auto w-full max-w-2xl space-y-6 pt-8">
       <div className="text-center">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          <StepNumber n={stepNumber} />
+          <StepNumber n={stepNumber} total={totalSteps} />
           What are they interested in?
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Add products from the catalogue or describe a custom requirement
+          {subtitle ??
+            "Add products from the catalogue or describe a custom requirement"}
         </p>
       </div>
 
@@ -520,6 +525,38 @@ function CustomProductForm({
               setDraft((prev) => ({ ...prev, metalPurity }))
             }
           />
+          <FormField label="Net weight" required>
+            <Input
+              type="number"
+              min="0"
+              step="0.001"
+              placeholder="0.000"
+              value={draft.metalNetWeight}
+              onChange={(event) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  metalNetWeight: event.target.value,
+                }))
+              }
+              className="h-9 w-full"
+            />
+          </FormField>
+          <FormField label="Gross weight" optional>
+            <Input
+              type="number"
+              min="0"
+              step="0.001"
+              placeholder="0.000"
+              value={draft.metalGrossWeight}
+              onChange={(event) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  metalGrossWeight: event.target.value,
+                }))
+              }
+              className="h-9 w-full"
+            />
+          </FormField>
           <SelectField
             label="Polish / finish"
             value={draft.polish}
@@ -713,7 +750,9 @@ function CustomProductForm({
           type="button"
           size="sm"
           onClick={addNewProduct}
-          disabled={!draft.metalType}
+          disabled={
+            !draft.category || !draft.metalType || !draft.metalNetWeight
+          }
           className="gap-2 px-5"
         >
           <Plus className="h-3.5 w-3.5" />

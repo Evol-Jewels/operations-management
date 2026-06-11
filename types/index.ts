@@ -3,12 +3,15 @@
 export const STAGES = [
   "Enquiry",
   "Estimation",
+  "New",
   "CAD Design",
   "Order Confirmed",
-  "Building",
+  "Manufacturing",
   "Certification",
-  "Shipped to Store",
-  "Customer Pickup",
+  "At Store",
+  "In Transit",
+  "Delivered",
+  "Closed",
 ] as const;
 
 export type Stage = (typeof STAGES)[number];
@@ -38,12 +41,14 @@ export type RiskSignal = "stale" | "stuck" | null;
 export const STAGE_EXPECTED_DAYS: Partial<Record<Stage, number>> = {
   Enquiry: 2,
   Estimation: 3,
+  New: 2,
   "CAD Design": 5,
   "Order Confirmed": 2,
-  Building: 10,
+  Manufacturing: 10,
   Certification: 5,
-  "Shipped to Store": 3,
-  // "Customer Pickup" is terminal — no expected duration
+  "At Store": 3,
+  "In Transit": 3,
+  // Delivered and Closed are terminal.
 };
 
 // ─── Actor Roles ─────────────────────────────────────────────────────────────
@@ -328,7 +333,6 @@ export interface Order {
   type: RecordType;
   orderNumber?: string;
   refCode?: number;
-  shareableToken: string;
 
   // Customer
   customerName: string;
@@ -353,6 +357,7 @@ export interface Order {
   metalType: MetalType;
   metalPurity: MetalPurity;
   metalWeight?: number;
+  grossWeight?: number;
   polish?: string;
 
   // Stones

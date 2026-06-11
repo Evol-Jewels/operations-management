@@ -1,11 +1,9 @@
 import type {
   BackendEnquiryDetails,
-  BackendEnquiryEventRow,
   BackendEnquiryListItem,
   BackendEstimationRow,
   CreateEnquiryInput,
   CreateEstimationInput,
-  CreateEventInput,
   ListEnquiriesQuery,
   UpdateEnquiryInput,
   UpdateEstimationInput,
@@ -125,22 +123,5 @@ export function deleteEstimation(estimationId: string) {
   return apiFetch<{ deleted: true; id: string }>(
     buildUrl(`api/v1/estimation/${estimationId}`),
     { method: "DELETE" },
-  );
-}
-
-export function fetchEvents(enquiryId: string) {
-  return apiFetch<BackendEnquiryEventRow[]>(
-    buildUrl(`api/v1/events/${enquiryId}`),
-  );
-}
-
-export function createEvent(enquiryId: string, input: CreateEventInput) {
-  return apiFetch<BackendEnquiryEventRow>(
-    buildUrl(`api/v1/events/${enquiryId}`),
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    },
   );
 }

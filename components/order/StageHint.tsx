@@ -13,15 +13,11 @@ import {
 import { cn } from "@/lib/utils";
 import type { Stage } from "@/types";
 
-// ─── Per-stage hint definitions ───────────────────────────────────────────────
-
 interface StageHintDef {
   icon: React.ElementType;
   title: string;
   body: string;
-  /** Who this hint is primarily directed at */
   actor: "vendor" | "sales" | "both";
-  /** Visual tone */
   tone: "neutral" | "action" | "info";
 }
 
@@ -40,10 +36,17 @@ const STAGE_HINTS: Partial<Record<Stage, StageHintDef>> = {
     actor: "both",
     tone: "action",
   },
+  New: {
+    icon: ArrowRight,
+    title: "Order received",
+    body: "Confirm production specs, vendor assignment, and delivery timeline before production begins.",
+    actor: "both",
+    tone: "action",
+  },
   "CAD Design": {
     icon: ImageIcon,
     title: "CAD design in progress",
-    body: "Vendor: share CAD renders as soon as ready. A customer sign-off on the design is required before casting begins.",
+    body: "Vendor: share CAD renders as soon as ready. A customer sign-off on the design is required before manufacturing begins.",
     actor: "vendor",
     tone: "action",
   },
@@ -54,37 +57,49 @@ const STAGE_HINTS: Partial<Record<Stage, StageHintDef>> = {
     actor: "vendor",
     tone: "action",
   },
-  Building: {
+  Manufacturing: {
     icon: Package,
-    title: "In production",
-    body: "Vendor: post progress photos at key milestones — casting, stone setting, polishing. Move to Certification once the piece is complete.",
+    title: "Manufacturing",
+    body: "Vendor: post progress updates at key milestones. Move to Certification once the piece is complete.",
     actor: "vendor",
     tone: "info",
   },
   Certification: {
     icon: FileCheck,
     title: "Awaiting certification",
-    body: "Vendor: attach the certification PDF (GIA / IGI / SGL / hallmark) once received and move to Shipped to Store.",
+    body: "Vendor: attach the certification PDF once received and move to At Store or In Transit.",
     actor: "vendor",
     tone: "action",
   },
-  "Shipped to Store": {
-    icon: Truck,
-    title: "In transit to store",
-    body: "Piece is on its way. Sales: confirm receipt and notify the customer that their order is ready for pickup.",
+  "At Store": {
+    icon: Package,
+    title: "At store",
+    body: "Sales: confirm receipt and notify the customer that their order is ready.",
     actor: "sales",
     tone: "info",
   },
-  "Customer Pickup": {
+  "In Transit": {
+    icon: Truck,
+    title: "In transit",
+    body: "Order is in transit. Confirm receipt and update the customer once it arrives.",
+    actor: "sales",
+    tone: "info",
+  },
+  Delivered: {
     icon: CheckCircle2,
-    title: "Order complete",
-    body: "Customer has collected the piece. Remember to collect the balance payment and request a review.",
+    title: "Delivered",
+    body: "Order has been delivered. Confirm any balance payment and post final notes.",
+    actor: "sales",
+    tone: "neutral",
+  },
+  Closed: {
+    icon: CheckCircle2,
+    title: "Closed",
+    body: "Order is closed. Activity remains available for reference.",
     actor: "sales",
     tone: "neutral",
   },
 };
-
-// ─── Tone styles ──────────────────────────────────────────────────────────────
 
 const TONE_STYLES = {
   neutral:
@@ -100,8 +115,6 @@ const TONE_ICON_STYLES = {
   info: "text-muted-foreground",
 };
 
-// ─── Actor badge ──────────────────────────────────────────────────────────────
-
 function ActorBadge({ actor }: { actor: StageHintDef["actor"] }) {
   if (actor === "both") {
     return (
@@ -115,27 +128,22 @@ function ActorBadge({ actor }: { actor: StageHintDef["actor"] }) {
       </div>
     );
   }
-  if (actor === "vendor") {
-    return (
-      <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
-        Vendor
-      </span>
-    );
-  }
+
   return (
-    <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
-      Sales
+    <span
+      className={cn(
+        "rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+        actor === "vendor"
+          ? "bg-amber-500/10 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"
+          : "bg-blue-500/10 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
+      )}
+    >
+      {actor === "vendor" ? "Vendor" : "Sales"}
     </span>
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
-interface StageHintProps {
-  currentStage: Stage;
-}
-
-export function StageHint({ currentStage }: StageHintProps) {
+export function StageHint({ currentStage }: { currentStage: Stage }) {
   const hint = STAGE_HINTS[currentStage];
   if (!hint) return null;
 
@@ -148,15 +156,12 @@ export function StageHint({ currentStage }: StageHintProps) {
         TONE_STYLES[hint.tone],
       )}
     >
-      {/* Icon */}
       <Icon
         className={cn(
           "mt-0.5 h-4 w-4 flex-shrink-0",
           TONE_ICON_STYLES[hint.tone],
         )}
       />
-
-      {/* Text */}
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold">{hint.title}</span>

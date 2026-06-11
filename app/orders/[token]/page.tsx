@@ -15,7 +15,9 @@ import { ProductionSpecCard } from "@/components/order/ProductionSpecCard";
 import { StageBar } from "@/components/order/StageBar";
 import { StageHint } from "@/components/order/StageHint";
 import { Button } from "@/components/ui/button";
-import { useOrdersStore } from "@/lib/stores/orders-store";
+import { orderKeys, useOrderDetails } from "@/hooks/useOrders";
+import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
+import { mapBackendOrderDetailsToOrder } from "@/lib/orderMappers";
 import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
 import type { ActorRole, Order } from "@/types";
 
@@ -95,7 +97,7 @@ function ActorsBar({ order }: { order: Order }) {
               roleColors[role],
             )}
           >
-            {name.slice(0, 2).toUpperCase()}
+            {name?.slice(0, 2).toUpperCase()}
           </div>
           <span className="text-xs text-muted-foreground">{label}:</span>
           <span className="text-xs font-medium text-foreground">{name}</span>
@@ -109,15 +111,19 @@ function ActorsBar({ order }: { order: Order }) {
 
 export default function OrderPage() {
   const params = useParams();
-  const token = params.token as string;
-  const hasHydrated = useOrdersStore((state) => state.hasHydrated);
-  const order = useOrdersStore((state) =>
-    state.records.find((record) => record.shareableToken === token),
-  );
-  const updateRecord = useOrdersStore((state) => state.updateRecord);
+  const refCode = params.token as string;
+  const numericRefCode = Number(refCode);
+  const orderQuery = useOrderDetails(refCode);
+  const commentsQuery = useComments("ORDER", numericRefCode);
+  const createCommentMutation = useCreateComment("ORDER", numericRefCode, {
+    invalidateQueryKeys: [orderKeys.detail(refCode)],
+  });
+  const order = orderQuery.data
+    ? mapBackendOrderDetailsToOrder(orderQuery.data, commentsQuery.data ?? [])
+    : null;
 
-  if (!order && hasHydrated) notFound();
-  if (!order) {
+  if (orderQuery.isError) notFound();
+  if (orderQuery.isLoading || !order) {
     return (
       <div className="mx-auto max-w-3xl py-20 text-center text-sm text-muted-foreground">
         Loading record...
@@ -128,31 +134,12 @@ export default function OrderPage() {
   const urgency = getUrgencyLevel(order.deliveryDate);
   const daysLabel = formatDaysRemaining(order.deliveryDate);
 
-  function handlePostUpdate({ message }: { message: string }) {
-    if (!order) return;
-
-    const timestamp = new Date().toISOString();
+  async function handlePostUpdate({ message }: { message: string }) {
     const note = message.trim();
     if (!note) return;
 
-    updateRecord(order.id, (prev) => ({
-      ...prev,
-      lastUpdatedAt: timestamp,
-      activityFeed: [
-        ...prev.activityFeed,
-        {
-          id: `act-${Date.now()}-note`,
-          orderId: order.id,
-          postedBy: "Internal user",
-          actorRole: "sales",
-          timestamp,
-          type: "note",
-          note,
-        },
-      ],
-    }));
+    await createCommentMutation.mutateAsync(note);
 
-    // Scroll to bottom of timeline after a tick
     setTimeout(() => {
       document
         .getElementById("timeline-end")
@@ -170,7 +157,7 @@ export default function OrderPage() {
           asChild
           className="-ml-2 gap-1.5 text-muted-foreground"
         >
-          <Link href="/">
+          <Link href="/orders-and-enquiries">
             <ArrowLeft className="h-3.5 w-3.5" />
             All orders
           </Link>

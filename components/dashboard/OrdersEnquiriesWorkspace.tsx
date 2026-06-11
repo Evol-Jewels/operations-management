@@ -1,9 +1,16 @@
 "use client";
 
-import { Filter, LayoutGrid, List, Search } from "lucide-react";
+import {
+  Filter,
+  LayoutGrid,
+  List,
+  PackagePlus,
+  Plus,
+  Search,
+} from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,9 +37,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useEnquiries } from "@/hooks/useEnquiries";
+import { useOrders } from "@/hooks/useOrders";
+import { getSessionRole } from "@/lib/auth";
+import { authClient } from "@/lib/auth-client";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
+import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
-import { useOrdersStore } from "@/lib/stores/orders-store";
 import { cn, formatDate } from "@/lib/utils";
 import {
   type EnquiryItemStatus,
@@ -89,7 +99,7 @@ function getKanbanStatus(record: Order): string {
 }
 
 function statusBadgeClass(status: string) {
-  if (status === "CLOSED" || status === "Customer Pickup") {
+  if (status === "CLOSED" || status === "Closed" || status === "Delivered") {
     return "border-muted-foreground/20 bg-muted text-foreground dark:border-muted-foreground/20 dark:bg-muted/50";
   }
   if (status === "CONVERTED" || status === "Order Confirmed") {
@@ -101,14 +111,14 @@ function statusBadgeClass(status: string) {
   if (status === "PENDING" || status === "Enquiry") {
     return "border-red-500/20 bg-red-500/10 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400";
   }
-  if (status === "Building" || status === "Certification") {
+  if (status === "Manufacturing" || status === "Certification") {
     return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400";
   }
   return "border-border bg-muted text-muted-foreground";
 }
 
 function FilterSelect({
-  label,
+  label: _label,
   value,
   onValueChange,
   disabled,
@@ -121,28 +131,12 @@ function FilterSelect({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid gap-1.5">
-      <span className="text-[11px] font-medium text-muted-foreground">
-        {label}
-      </span>
-      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-        <SelectTrigger className="h-10 w-full bg-background disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-36">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>{children}</SelectContent>
-      </Select>
-    </div>
-  );
-}
-
-function OrdersNotAvailable() {
-  return (
-    <div className="rounded-xl border border-dashed border-border bg-card py-20 text-center">
-      <p className="text-base font-medium text-foreground">
-        Orders are not available yet!
-      </p>
-      <p className="mt-1 text-sm text-muted-foreground">Coming soon!</p>
-    </div>
+    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+      <SelectTrigger className="h-10 w-full bg-background disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-36">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>{children}</SelectContent>
+    </Select>
   );
 }
 
@@ -208,7 +202,7 @@ function RecordsTable({
               const href =
                 record.type === "enquiry"
                   ? `/enquiries/${record.refCode}`
-                  : `/orders/${record.shareableToken}`;
+                  : `/orders/${record.refCode}`;
 
               return (
                 <TableRow
@@ -224,7 +218,7 @@ function RecordsTable({
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {record.type === "enquiry"
                           ? `#${record.refCode}`
-                          : (record.orderNumber ?? record.shareableToken)}
+                          : (record.orderNumber ?? `#${record.refCode}`)}
                       </p>
                     </div>
                   </TableCell>
@@ -318,7 +312,7 @@ function RecordsMobileList({
                 <p className="mt-1 truncate text-xs text-muted-foreground">
                   {record.type === "enquiry"
                     ? `#${record.refCode}`
-                    : (record.orderNumber ?? record.shareableToken)}
+                    : (record.orderNumber ?? `#${record.refCode}`)}
                 </p>
               </div>
               <Badge
@@ -371,15 +365,30 @@ function RecordsMobileList({
 
 export function OrdersEnquiriesWorkspace() {
   const router = useRouter();
-  const storeRecords = useOrdersStore((state) => state.records);
+  const searchParams = useSearchParams();
+  const { data: session } = authClient.useSession();
   const enquiriesQuery = useEnquiries();
-  const [typeTab, setTypeTab] = useState<TypeTab>("all");
+  const ordersQuery = useOrders({ limit: 100 });
+  const [typeTab, setTypeTab] = useState<TypeTab>(
+    searchParams.get("type") === "order"
+      ? "order"
+      : searchParams.get("type") === "enquiry"
+        ? "enquiry"
+        : "all",
+  );
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const isKanbanMode = viewMode === "kanban";
+  const sessionRole = session ? getSessionRole(session) : "";
+  const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
+
+  useEffect(() => {
+    const type = searchParams.get("type");
+    if (type === "order" || type === "enquiry") setTypeTab(type);
+  }, [searchParams]);
 
   const apiEnquiries = useMemo(
     () =>
@@ -388,12 +397,16 @@ export function OrdersEnquiriesWorkspace() {
       ),
     [enquiriesQuery.data],
   );
+  const apiOrders = useMemo(
+    () =>
+      (ordersQuery.data ?? []).map((order) =>
+        mapBackendOrderListItemToOrder(order),
+      ),
+    [ordersQuery.data],
+  );
   const records = useMemo(
-    () => [
-      ...storeRecords.filter((record) => record.type === "order"),
-      ...apiEnquiries,
-    ],
-    [apiEnquiries, storeRecords],
+    () => [...apiOrders, ...apiEnquiries],
+    [apiEnquiries, apiOrders],
   );
 
   const tabCounts = useMemo(
@@ -423,7 +436,7 @@ export function OrdersEnquiriesWorkspace() {
         const haystack = [
           record.customerName,
           record.orderNumber ?? "",
-          record.shareableToken,
+          record.refCode ? String(record.refCode) : "",
           record.createdBy?.name ?? "",
           record.salespersonName,
           record.vendorName ?? "",
@@ -505,18 +518,44 @@ export function OrdersEnquiriesWorkspace() {
             <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
               Orders and enquiries
             </h1>
-            <Button asChild size="sm" className="shrink-0 sm:hidden">
-              <Link href="/enquiries/new">+ New enquiry</Link>
-            </Button>
+            <div className="flex shrink-0 items-center gap-2 sm:hidden">
+              <Button asChild size="sm">
+                <Link href="/enquiries/new">
+                  <Plus className="h-4 w-4" />
+                  New enquiry
+                </Link>
+              </Button>
+              {canCreateOrder ? (
+                <Button asChild size="sm" variant="secondary">
+                  <Link href="/orders/new">
+                    <PackagePlus className="h-4 w-4" />
+                    New order
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
           </div>
           <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
             Filter, review, and move production records without crowding the
             dashboard.
           </p>
         </div>
-        <Button asChild className="hidden sm:inline-flex">
-          <Link href="/enquiries/new">+ New enquiry</Link>
-        </Button>
+        <div className="hidden items-center gap-2 sm:flex">
+          <Button asChild>
+            <Link href="/enquiries/new">
+              <Plus className="h-4 w-4" />
+              New enquiry
+            </Link>
+          </Button>
+          {canCreateOrder ? (
+            <Button asChild variant="secondary">
+              <Link href="/orders/new">
+                <PackagePlus className="h-4 w-4" />
+                New order
+              </Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -604,20 +643,15 @@ export function OrdersEnquiriesWorkspace() {
       </div>
 
       <div className="hidden gap-3 lg:grid lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end">
-        <div className="grid gap-1.5">
-          <span className="text-[11px] font-medium text-muted-foreground">
-            Search
-          </span>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search customer or ID"
-              className="pl-9"
-              disabled={isFilterDisabled}
-            />
-          </div>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search customer or ID"
+            className="pl-9"
+            disabled={isFilterDisabled}
+          />
         </div>
 
         <FilterSelect
@@ -667,53 +701,43 @@ export function OrdersEnquiriesWorkspace() {
             <SheetTitle>Filters</SheetTitle>
           </SheetHeader>
           <div className="space-y-4 px-4 py-4">
-            <div className="grid gap-1.5">
-              <span className="text-[11px] font-medium text-muted-foreground">
-                Search
-              </span>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search customer or ID"
-                  className="pl-9"
-                  disabled={isFilterDisabled}
-                />
-              </div>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search customer or ID"
+                className="pl-9"
+                disabled={isFilterDisabled}
+              />
             </div>
-            <div className="grid gap-1.5">
-              <span className="text-[11px] font-medium text-muted-foreground">
-                View
-              </span>
-              <div className="flex w-full items-center gap-1 rounded-lg border border-border bg-background p-1">
-                <button
-                  type="button"
-                  onClick={() => setViewMode("table")}
-                  className={cn(
-                    "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-                    viewMode === "table"
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <List className="h-4 w-4" />
-                  Table
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("kanban")}
-                  className={cn(
-                    "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-                    viewMode === "kanban"
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                  Kanban
-                </button>
-              </div>
+            <div className="flex w-full items-center gap-1 rounded-lg border border-border bg-background p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                className={cn(
+                  "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
+                  viewMode === "table"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <List className="h-4 w-4" />
+                Table
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("kanban")}
+                className={cn(
+                  "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
+                  viewMode === "kanban"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Kanban
+              </button>
             </div>
             <FilterSelect
               label="Status"
@@ -773,13 +797,11 @@ export function OrdersEnquiriesWorkspace() {
         ))}
       </FilterSelect> */}
 
-      {enquiriesQuery.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading enquiries...</p>
+      {enquiriesQuery.isLoading || ordersQuery.isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading records...</p>
       ) : null}
 
-      {typeTab === "order" ? (
-        <OrdersNotAvailable />
-      ) : viewMode === "table" ? (
+      {viewMode === "table" ? (
         <>
           <div className="sm:hidden">
             <RecordsMobileList
@@ -789,7 +811,7 @@ export function OrdersEnquiriesWorkspace() {
                 router.push(
                   record.type === "enquiry"
                     ? `/enquiries/${record.refCode}`
-                    : `/orders/${record.shareableToken}`,
+                    : `/orders/${record.refCode}`,
                 )
               }
             />
@@ -802,7 +824,7 @@ export function OrdersEnquiriesWorkspace() {
                 router.push(
                   record.type === "enquiry"
                     ? `/enquiries/${record.refCode}`
-                    : `/orders/${record.shareableToken}`,
+                    : `/orders/${record.refCode}`,
                 )
               }
             />
@@ -819,7 +841,7 @@ export function OrdersEnquiriesWorkspace() {
               router.push(
                 order.type === "enquiry"
                   ? `/enquiries/${order.refCode}`
-                  : `/orders/${order.shareableToken}`,
+                  : `/orders/${order.refCode}`,
               )
             }
           />

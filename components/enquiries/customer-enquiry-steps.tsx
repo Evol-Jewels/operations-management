@@ -1,65 +1,44 @@
-import { CalendarDays, Clock3 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { CustomerCategory } from "@/types";
 import type { CustomerDetails, EnquiryMode } from "./enquiry-form-types";
-import {
-  STORE_VISIT_LOCATIONS,
-  VISIT_HOURS,
-  VISIT_MINUTES,
-  VISIT_PERIODS,
-} from "./enquiry-form-types";
-import {
-  buildVisitDateTime,
-  formatVisitDateTime,
-  parseVisitDateTime,
-} from "./enquiry-form-utils";
-import { OkButton, OptionTile, StepNumber } from "./typeform-controls";
+import { OkButton, StepNumber } from "./typeform-controls";
 
 interface StepProps {
   customer: CustomerDetails;
   errors: Record<string, string>;
   stepNumber: number;
+  totalSteps: number;
   updateCustomer: (patch: Partial<CustomerDetails>) => void;
   goNext: () => void;
   selectEnquiryMode?: (mode: EnquiryMode) => void;
   selectCategory?: (category: CustomerCategory) => void;
   setIsPhoneValid: (isValid: boolean) => void;
   maxSelectableDate?: string;
+  phoneSubtitle?: string;
+  nameSubtitle?: string;
 }
 
 export function PhoneStep({
   customer,
   errors,
   stepNumber,
+  totalSteps,
   updateCustomer,
   goNext,
   setIsPhoneValid,
+  phoneSubtitle,
 }: StepProps) {
   return (
     <div className="w-full max-w-lg space-y-5">
       <div>
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          <StepNumber n={stepNumber} />
+          <StepNumber n={stepNumber} total={totalSteps} />
           What is the customer&apos;s phone number?
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Need to contact them for the enquiry
+          {phoneSubtitle ?? "Need to contact them for the enquiry"}
         </p>
       </div>
       <div className="max-w-xs space-y-1">
@@ -85,8 +64,10 @@ export function NameStep({
   customer,
   errors,
   stepNumber,
+  totalSteps,
   updateCustomer,
   goNext,
+  nameSubtitle,
 }: StepProps) {
   return (
     <div className="w-full max-w-md space-y-5">
@@ -99,11 +80,11 @@ export function NameStep({
           </div>
         )}
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          <StepNumber n={stepNumber} />
+          <StepNumber n={stepNumber} total={totalSteps} />
           What is the customer&apos;s name?
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Full name as they&apos;d like to be addressed
+          {nameSubtitle ?? "Full name as they'd like to be addressed"}
         </p>
       </div>
       <div className="max-w-xs space-y-1">
@@ -133,6 +114,7 @@ export function NameStep({
 export function NotesStep({
   customer,
   stepNumber,
+  totalSteps,
   updateCustomer,
   goNext,
 }: StepProps) {
@@ -142,7 +124,7 @@ export function NotesStep({
     <div className="w-full max-w-md space-y-5">
       <div>
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          <StepNumber n={stepNumber} />
+          <StepNumber n={stepNumber} total={totalSteps} />
           Any notes?{" "}
           <span className="text-sm text-muted-foreground/60">(optional)</span>
         </h1>

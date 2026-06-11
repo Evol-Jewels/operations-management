@@ -2,7 +2,7 @@
 
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { STAGES, type Stage } from "@/types";
+import type { Stage } from "@/types";
 
 interface StageBarProps {
   currentStage: Stage;
@@ -10,11 +10,30 @@ interface StageBarProps {
 }
 
 export function StageBar({ currentStage, cadDesignRequired }: StageBarProps) {
+  const orderStages: Stage[] = [
+    "New",
+    "CAD Design",
+    "Manufacturing",
+    "Certification",
+    "At Store",
+    "In Transit",
+    "Delivered",
+    "Closed",
+  ];
+  const enquiryStages: Stage[] = [
+    "Enquiry",
+    "Estimation",
+    "CAD Design",
+    "Order Confirmed",
+  ];
+  const baseStages = orderStages.includes(currentStage)
+    ? orderStages
+    : enquiryStages;
   const visibleStages = cadDesignRequired
-    ? STAGES
-    : STAGES.filter((s) => s !== "CAD Design");
+    ? baseStages
+    : baseStages.filter((s) => s !== "CAD Design");
 
-  const currentIndex = visibleStages.findIndex((s) => s === currentStage);
+  const currentIndex = visibleStages.indexOf(currentStage);
 
   return (
     <div className="w-full">

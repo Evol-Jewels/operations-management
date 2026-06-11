@@ -131,6 +131,10 @@ export interface NewProduct {
   category: string;
   metalType: string;
   metalPurity: string;
+  metalNetWeight: string;
+  metalGrossWeight: string;
+  metalColor: string;
+  size: string;
   polish: string;
   stoneDescription: string;
   stoneCut: string;
@@ -182,6 +186,10 @@ export function createEmptyNewProduct(): NewProduct {
     category: "",
     metalType: "",
     metalPurity: "",
+    metalNetWeight: "",
+    metalGrossWeight: "",
+    metalColor: "",
+    size: "",
     polish: "",
     stoneDescription: "",
     stoneCut: "",
