@@ -53,7 +53,11 @@ export interface ListSourceQuery {
   offset?: number;
 }
 
-export interface ListActivityLogsQuery extends ListSourceQuery {
+export interface ListActivityLogsQuery {
+  sourceType?: SourceType;
+  sourceCode?: number;
+  limit?: number;
+  offset?: number;
   type?: ActivityLogType;
   itemId?: string;
   createdBy?: string;

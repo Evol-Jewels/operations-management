@@ -1,16 +1,19 @@
 "use client";
 
 import {
+  type QueryKey,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
-  type QueryKey,
 } from "@tanstack/react-query";
 import { fetchActivityLogs } from "@/lib/activityLogsApi";
 import { createComment, fetchComments } from "@/lib/commentsApi";
 import type { SourceType } from "@/types/activity-api";
 
 export const sourceActivityKeys = {
+  recentActivityLogs: (query: Record<string, unknown>) =>
+    ["activity-logs", "recent", query] as const,
   comments: (sourceType: SourceType, sourceCode: number) =>
     ["comments", sourceType, sourceCode] as const,
   activityLogs: (sourceType: SourceType, sourceCode: number) =>
@@ -30,6 +33,27 @@ export function useActivityLogs(sourceType: SourceType, sourceCode: number) {
     queryKey: sourceActivityKeys.activityLogs(sourceType, sourceCode),
     queryFn: () => fetchActivityLogs({ sourceType, sourceCode }),
     enabled: Boolean(sourceCode),
+  });
+}
+
+export function useInfiniteActivityLogs(
+  query: Parameters<typeof fetchActivityLogs>[0] = {},
+) {
+  const { limit = 20, ...filters } = query;
+
+  return useInfiniteQuery({
+    queryKey: sourceActivityKeys.recentActivityLogs({ ...filters, limit }),
+    queryFn: ({ pageParam }) =>
+      fetchActivityLogs({
+        ...filters,
+        limit,
+        offset: pageParam as number,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < limit) return undefined;
+      return allPages.reduce((sum, page) => sum + page.length, 0);
+    },
   });
 }
 
