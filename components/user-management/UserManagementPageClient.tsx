@@ -24,16 +24,17 @@ import {
 } from "@/components/ui/select";
 import { InvitesTable } from "@/components/user-management/InvitesTable";
 import { SendInviteDialog } from "@/components/user-management/SendInviteDialog";
+import { UpdateInviteDialog } from "@/components/user-management/UpdateInviteDialog";
 import { UsersTable } from "@/components/user-management/UsersTable";
 import { authClient } from "@/lib/auth-client";
 import {
   blockInternalUser,
   createInternalInvite,
-  expireInternalInvite,
   fetchInternalInvites,
   fetchInternalUsers,
   resetInternalUserPassword,
   unblockInternalUser,
+  updateInternalInvite,
 } from "@/lib/internalUserManagementApi";
 import type {
   CreateInternalInviteInput,
@@ -80,7 +81,7 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-type ConfirmDialogType = "block" | "unblock" | "expire" | null;
+type ConfirmDialogType = "block" | "unblock" | null;
 
 interface ConfirmDialogData {
   type: ConfirmDialogType;
@@ -124,6 +125,10 @@ export function UserManagementPageClient() {
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [resetPasswordSubmitting, setResetPasswordSubmitting] = useState(false);
+
+  const [updateInviteDialog, setUpdateInviteDialog] =
+    useState<InternalInviteRow | null>(null);
+  const [updateInviteSubmitting, setUpdateInviteSubmitting] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -229,8 +234,8 @@ export function UserManagementPageClient() {
     setConfirmDialog({ type: "unblock", user });
   }
 
-  async function handleExpireInvite(invite: InternalInviteRow) {
-    setConfirmDialog({ type: "expire", invite });
+  async function handleUpdateInvite(invite: InternalInviteRow) {
+    setUpdateInviteDialog(invite);
   }
 
   async function handleResetPassword(
@@ -284,22 +289,25 @@ export function UserManagementPageClient() {
     }
   }
 
-  async function executeExpireInvite() {
-    const invite = confirmDialog.invite;
+  async function executeUpdateInvite(data: {
+    status?: "PENDING" | "EXPIRED" | "CANCELLED";
+    expiration?: string;
+  }) {
+    const invite = updateInviteDialog;
     if (!invite) return;
 
-    setActionLoading(invite.id);
+    setUpdateInviteSubmitting(true);
     try {
-      await expireInternalInvite(invite.id);
-      toast.success("Invite has been cancelled");
-      setConfirmDialog({ type: null });
+      await updateInternalInvite(invite.id, data);
+      toast.success("Invite updated");
+      setUpdateInviteDialog(null);
       await loadInvites();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to cancel invite",
+        error instanceof Error ? error.message : "Failed to update invite",
       );
     } finally {
-      setActionLoading(null);
+      setUpdateInviteSubmitting(false);
     }
   }
 
@@ -501,7 +509,7 @@ export function UserManagementPageClient() {
             <InvitesTable
               invites={invites}
               isLoading={invitesLoading}
-              onExpireInvite={handleExpireInvite}
+              onUpdateInvite={handleUpdateInvite}
               onResetPassword={(invite) => handleResetPassword(invite, true)}
               actionLoading={actionLoading}
             />
@@ -628,37 +636,13 @@ export function UserManagementPageClient() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={confirmDialog.type === "expire"}
-        onOpenChange={(open) => !open && setConfirmDialog({ type: null })}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancel this invite?</DialogTitle>
-            <DialogDescription>
-              The invite sent to {confirmDialog.invite?.email} will be cancelled
-              and cannot be used.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setConfirmDialog({ type: null })}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={executeExpireInvite}
-              disabled={actionLoading !== null}
-            >
-              Cancel Invite
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <UpdateInviteDialog
+        invite={updateInviteDialog}
+        open={updateInviteDialog !== null}
+        onOpenChange={(open) => !open && setUpdateInviteDialog(null)}
+        onSubmit={executeUpdateInvite}
+        isSubmitting={updateInviteSubmitting}
+      />
 
       <Dialog
         open={resetPasswordDialog !== null}

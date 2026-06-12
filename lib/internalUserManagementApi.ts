@@ -127,3 +127,17 @@ export function resetInternalUserPassword(
     body: JSON.stringify({ username, newPassword }),
   });
 }
+
+export function updateInternalInvite(
+  inviteId: string,
+  data: { status?: "PENDING" | "EXPIRED" | "CANCELLED"; expiration?: string },
+) {
+  return apiFetch<InternalInviteRow>(
+    buildUrl(`api/v1/internal-invites/${inviteId}`),
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+  );
+}
