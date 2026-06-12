@@ -23,7 +23,7 @@ import type { InternalInviteRow } from "@/types/user-management";
 interface InvitesTableProps {
   invites: InternalInviteRow[];
   isLoading: boolean;
-  onExpireInvite: (invite: InternalInviteRow) => void;
+  onUpdateInvite: (invite: InternalInviteRow) => void;
   onResetPassword: (invite: InternalInviteRow) => void;
   actionLoading?: string;
 }
@@ -52,20 +52,20 @@ function formatDate(value: string | null) {
 
 function InviteActions({
   invite,
-  onExpireInvite,
+  onUpdateInvite,
   onResetPassword,
   isLoading,
 }: {
   invite: InternalInviteRow;
-  onExpireInvite: () => void;
+  onUpdateInvite: () => void;
   onResetPassword: () => void;
   isLoading: boolean;
 }) {
-  const canExpire = invite.status === "PENDING";
+  const canUpdate = invite.status !== "ACCEPTED";
   const canResetPassword =
     invite.status === "ACCEPTED" && Boolean(invite.username);
 
-  if (!canExpire && !canResetPassword) {
+  if (!canUpdate && !canResetPassword) {
     return null;
   }
 
@@ -84,18 +84,17 @@ function InviteActions({
       </PopoverTrigger>
       <PopoverContent align="end" className="w-40 p-1">
         <div className="flex flex-col">
-          {canExpire && (
+          {canUpdate && (
             <button
               type="button"
               className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
               onClick={(e) => {
                 e.stopPropagation();
-                onExpireInvite();
+                onUpdateInvite();
               }}
               disabled={isLoading}
             >
-              <X className="size-4" />
-              Cancel Invite
+              Update Invite
             </button>
           )}
           {canResetPassword && (
@@ -121,7 +120,7 @@ function InviteActions({
 export function InvitesTable({
   invites,
   isLoading,
-  onExpireInvite,
+  onUpdateInvite,
   onResetPassword,
   actionLoading,
 }: InvitesTableProps) {
@@ -186,7 +185,7 @@ export function InvitesTable({
             <div className="absolute right-4 top-4">
               <InviteActions
                 invite={invite}
-                onExpireInvite={() => onExpireInvite(invite)}
+                onUpdateInvite={() => onUpdateInvite(invite)}
                 onResetPassword={() => onResetPassword(invite)}
                 isLoading={actionLoading === invite.id}
               />
@@ -243,7 +242,7 @@ export function InvitesTable({
                 >
                   <InviteActions
                     invite={invite}
-                    onExpireInvite={() => onExpireInvite(invite)}
+                    onUpdateInvite={() => onUpdateInvite(invite)}
                     onResetPassword={() => onResetPassword(invite)}
                     isLoading={actionLoading === invite.id}
                   />

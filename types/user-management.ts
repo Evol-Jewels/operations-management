@@ -72,6 +72,11 @@ export interface CreateInternalInviteInput {
   expiration?: string;
 }
 
+export interface UpdateInternalInviteInput {
+  status?: "PENDING" | "EXPIRED" | "CANCELLED";
+  expiration?: string;
+}
+
 export interface CreateInternalInviteResponse {
   id: string;
   email: string;
