@@ -10,7 +10,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import type {
   CalculatorFormState,
   CalculatorPricingBreakdown,
-  CatalogueEstimateResult,
+  ProductEstimateResult,
 } from "@/types";
 
 interface SharedSummaryData {
@@ -46,7 +46,7 @@ interface EstimationSummaryCardProps {
       }
     | {
         kind: "estimate";
-        result: CatalogueEstimateResult;
+        result: ProductEstimateResult;
       };
 }
 

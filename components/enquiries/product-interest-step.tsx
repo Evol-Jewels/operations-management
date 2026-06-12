@@ -1,7 +1,6 @@
 import {
   ArrowLeft,
   Link2,
-  Loader2,
   Pencil,
   Plus,
   ScanLine,
@@ -11,6 +10,7 @@ import {
   Video,
   X,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
@@ -68,7 +68,7 @@ interface ProductInterestStepProps {
   errors: Record<string, string>;
   submitError: string;
   addProduct: (product: Product) => void;
-  lookupCatalogueProduct: (code: string) => void;
+  searchInventoryProducts: (code: string) => void;
   removeSelectedProduct: (productId: string) => void;
   addNewProduct: () => void;
   cancelNewProduct: () => void;
@@ -104,7 +104,7 @@ export function ProductInterestStep({
   errors,
   submitError,
   addProduct,
-  lookupCatalogueProduct,
+  searchInventoryProducts,
   removeSelectedProduct,
   addNewProduct,
   cancelNewProduct,
@@ -122,13 +122,13 @@ export function ProductInterestStep({
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {subtitle ??
-            "Add products from the catalogue or describe a custom requirement"}
+            "Add products from inventory or describe a custom requirement"}
         </p>
       </div>
 
       {productAddMode === "choose" && (
         <div className="grid gap-3 lg:grid-cols-2">
-          <CatalogueQuickEntry
+          <InventoryQuickEntry
             productSearch={productSearch}
             setProductSearch={setProductSearch}
             searchResults={searchResults}
@@ -139,7 +139,7 @@ export function ProductInterestStep({
             notFoundCode={notFoundCode}
             isScannerOpen={isScannerOpen}
             setIsScannerOpen={setIsScannerOpen}
-            lookupCatalogueProduct={lookupCatalogueProduct}
+            searchInventoryProducts={searchInventoryProducts}
             addProduct={addProduct}
           />
           <ProductModeButton
@@ -224,7 +224,7 @@ function AddedProducts({
               </p>
             </div>
             <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              Catalogue
+              Inventory
             </span>
             <Button
               type="button"
@@ -311,7 +311,7 @@ function ProductModeButton({
   );
 }
 
-function CatalogueQuickEntry({
+function InventoryQuickEntry({
   productSearch,
   setProductSearch,
   searchResults,
@@ -322,7 +322,7 @@ function CatalogueQuickEntry({
   notFoundCode,
   isScannerOpen,
   setIsScannerOpen,
-  lookupCatalogueProduct,
+  searchInventoryProducts,
   addProduct,
 }: {
   productSearch: string;
@@ -335,16 +335,33 @@ function CatalogueQuickEntry({
   notFoundCode: string;
   isScannerOpen: boolean;
   setIsScannerOpen: (open: boolean) => void;
-  lookupCatalogueProduct: (code: string) => void;
+  searchInventoryProducts: (code: string) => void;
   addProduct: (product: Product) => void;
 }) {
+  const searchInventoryProductsRef = useRef(searchInventoryProducts);
+
+  useEffect(() => {
+    searchInventoryProductsRef.current = searchInventoryProducts;
+  }, [searchInventoryProducts]);
+
+  useEffect(() => {
+    const code = productSearch.trim();
+    if (!code) return;
+
+    const timeoutId = window.setTimeout(() => {
+      searchInventoryProductsRef.current(code);
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [productSearch]);
+
   return (
     <div className="space-y-4 rounded-xl border-2 border-border w-full bg-card flex flex-col justify-center items-center text-center px-4 py-5">
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
         <Search className="h-4 w-4 text-primary" />
       </div>
       <div>
-        <p className="text-sm font-medium text-foreground">Find in catalogue</p>
+        <p className="text-sm font-medium text-foreground">Find in inventory</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Search by code or scan a barcode
         </p>
@@ -360,46 +377,30 @@ function CatalogueQuickEntry({
           <ScanLine className="h-4 w-4" />
           Scan
         </Button>
-        <div className="flex min-w-0 flex-1 gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              ref={searchInputRef}
-              placeholder="Search catalogue..."
-              value={productSearch}
-              onChange={(event) =>
-                setProductSearch(event.target.value.toUpperCase())
-              }
-              onKeyDown={(event) => {
-                if (event.key === "Enter")
-                  lookupCatalogueProduct(productSearch);
-              }}
-              className="h-10 pl-10 uppercase"
-            />
-          </div>
-          <Button
-            type="button"
-            onClick={() => lookupCatalogueProduct(productSearch)}
-            disabled={!productSearch.trim() || isLoading}
-            className="h-10 w-10 px-0"
-            aria-label="Search catalogue"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-          </Button>
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            ref={searchInputRef}
+            placeholder="Search inventory..."
+            value={productSearch}
+            onChange={(event) =>
+              setProductSearch(event.target.value.toUpperCase())
+            }
+            onKeyDown={(event) => {
+              if (event.key === "Enter") searchInventoryProducts(productSearch);
+            }}
+            className="h-10 pl-10 uppercase"
+          />
         </div>
       </div>
       <BarcodeScanDialog
         open={isScannerOpen}
         onOpenChange={setIsScannerOpen}
-        onDecoded={(code) => lookupCatalogueProduct(code)}
+        onDecoded={(code) => searchInventoryProducts(code)}
       />
       {isLoading && (
         <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          Searching catalogue...
+          Searching inventory...
         </p>
       )}
       {error && (
@@ -409,7 +410,7 @@ function CatalogueQuickEntry({
       )}
       {notFoundCode && !error && (
         <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          No catalogue product found for{" "}
+          No inventory product found for{" "}
           <span className="font-medium text-foreground">{notFoundCode}</span>.
         </p>
       )}
@@ -457,7 +458,7 @@ function CatalogueQuickEntry({
       {productSearch.trim() &&
         !isLoading &&
         !error &&
-        !notFoundCode &&
+        notFoundCode &&
         searchResults.length === 0 && (
           <p className="py-6 text-center text-sm text-muted-foreground">
             No products found for &quot;{productSearch}&quot;

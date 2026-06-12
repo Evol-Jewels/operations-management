@@ -405,99 +405,9 @@ export interface Order {
   estimations?: ProductEstimation[];
 }
 
-// ─── Catalogue Product Types ────────────────────────────────────────────────────
+// ─── Product Lookup Types ────────────────────────────────────────────────────
 
-export interface CatalogueSearchItem {
-  id: number;
-  title: string;
-  product_code: string;
-  slug: string;
-  cdn_images: string[];
-  location: string;
-  price: string;
-  product_gross_weight: number;
-  product_Net_weight: number;
-  total_stone_weight: number;
-  total_diamond_weight: number;
-  currency: string;
-  category?: {
-    title: string;
-    description: string;
-  };
-  attribute?: {
-    stock_code: string;
-    quantity: number;
-    varient_name: string;
-    colour: string;
-  };
-}
-
-export interface CatalogueSearchResponse {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: CatalogueSearchItem[];
-}
-
-export interface CatalogueProductDetailStone {
-  id: number;
-  bom_varient_name: string;
-  stone_pieces: number;
-  stone_weight: number;
-  stone_amount: number;
-  stone_rate: number;
-  diamond: boolean;
-  slug: string;
-}
-
-export interface CatalogueProductDetailResponse {
-  id: number;
-  title: string;
-  description: string;
-  product_code: string;
-  slug: string;
-  location: string;
-  cdn_images: string[];
-  department: string;
-  ageing: number;
-  price: string;
-  currency: string;
-  custom_duty_charges: number;
-  sales_tax: number;
-  category?: {
-    title: string;
-    description: string;
-  };
-  metal_data: {
-    gross_weight: number;
-    net_weight: number;
-    making_rate: number;
-    metal_cost: number;
-    purity_data: {
-      metal_rate: number;
-      title: string;
-      description: string;
-      purity: string;
-      colour: string;
-    };
-  };
-  attribute: {
-    total_style_value: string;
-    total_diamond_wt: number;
-    stock_code: string;
-    varient_name: string;
-    quantity: number;
-    making_amount: number;
-    wastage: number;
-    stone_total: number | null;
-    diamond_total: number | null;
-    colour: string;
-    currency_type: string;
-  };
-  stone_diamond: CatalogueProductDetailStone[];
-}
-
-export interface CatalogueLookupStoneLine {
+export interface ProductLookupStoneLine {
   id: string;
   code: string;
   quantity: number;
@@ -509,7 +419,7 @@ export interface CatalogueLookupStoneLine {
   slabCode: string;
 }
 
-export interface CatalogueLookupProduct {
+export interface ProductLookupProduct {
   lookupKey: string;
   slug: string;
   productCode: string;
@@ -526,17 +436,17 @@ export interface CatalogueLookupProduct {
   sourceMetalCost: number;
   sourceMakingAmount: number;
   sourceStoneAmount: number;
-  stones: CatalogueLookupStoneLine[];
+  stones: ProductLookupStoneLine[];
 }
 
-export interface CatalogueMappingIssue {
+export interface ProductMappingIssue {
   code: string;
   reason: string;
 }
 
-export interface CatalogueEstimateResult {
-  product: CatalogueLookupProduct;
+export interface ProductEstimateResult {
+  product: ProductLookupProduct;
   stones: CalculatorStoneInput[];
   pricing: CalculatorPricingBreakdown;
-  issues: CatalogueMappingIssue[];
+  issues: ProductMappingIssue[];
 }

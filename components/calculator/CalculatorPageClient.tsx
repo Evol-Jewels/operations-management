@@ -47,10 +47,10 @@ import {
   resolveAutoSlab,
 } from "@/lib/calculator/pricing";
 import {
-  fetchCatalogueProductDetails,
-  searchCatalogueProductByCode,
-} from "@/lib/catalogApi";
-import { normalizeCatalogueProduct } from "@/lib/catalogMapping";
+  fetchInventoryProductByCode,
+  fetchInventoryProducts,
+} from "@/lib/inventoryApi";
+import { normalizeInventoryProductEstimate } from "@/lib/inventoryProductMapping";
 import {
   createRecentProductEstimate,
   fetchRecentProductEstimates,
@@ -60,10 +60,11 @@ import type {
   CalculatorFormState,
   CalculatorSettings,
   CalculatorStoneInput,
-  CatalogueEstimateResult,
   MetalPurity,
+  ProductEstimateResult,
   RecentProductEstimate,
 } from "@/types";
+import type { InventoryProduct } from "@/types/inventory-api";
 
 type CalculatorTab = "search" | "calculate";
 
@@ -374,7 +375,7 @@ function ProductImageInput({
   );
 }
 
-function BlockedLookupCard({ result }: { result: CatalogueEstimateResult }) {
+function BlockedLookupCard({ result }: { result: ProductEstimateResult }) {
   return (
     <div className="rounded-lg border border-border bg-background p-3">
       <div className="flex items-start justify-between gap-4">
@@ -601,9 +602,9 @@ function RecentEstimateSummaryDialog({
   onOpenChange: (open: boolean) => void;
   estimate: RecentProductEstimate | null;
   settings: CalculatorSettings;
-  onLoadProduct: (result: CatalogueEstimateResult) => void;
+  onLoadProduct: (result: ProductEstimateResult) => void;
 }) {
-  const [result, setResult] = useState<CatalogueEstimateResult | null>(null);
+  const [result, setResult] = useState<ProductEstimateResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -618,16 +619,13 @@ function RecentEstimateSummaryDialog({
       setResult(null);
 
       try {
-        const searchItem = await searchCatalogueProductByCode(
-          estimate.productCode,
-        );
-        if (!searchItem) {
+        const product = await fetchInventoryProductByCode(estimate.productCode);
+        if (!product) {
           setError(`Product details unavailable for ${estimate.productCode}.`);
           return;
         }
 
-        const details = await fetchCatalogueProductDetails(searchItem.slug);
-        setResult(normalizeCatalogueProduct(details, settings));
+        setResult(normalizeInventoryProductEstimate(product, settings));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load summary");
       } finally {
@@ -719,93 +717,133 @@ function SearchPanel({
   onLoadProduct,
 }: {
   settings: CalculatorSettings;
-  onLoadProduct: (result: CatalogueEstimateResult) => void;
+  onLoadProduct: (result: ProductEstimateResult) => void;
 }) {
   const [searchInput, setSearchInput] = useState("");
-  const [submittedCode, setSubmittedCode] = useState("");
+  const [searchedCode, setSearchedCode] = useState("");
+  const [searchResults, setSearchResults] = useState<InventoryProduct[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [blockedResult, setBlockedResult] =
-    useState<CatalogueEstimateResult | null>(null);
+    useState<ProductEstimateResult | null>(null);
   const [notFoundCode, setNotFoundCode] = useState("");
   const [recentRefreshKey, setRecentRefreshKey] = useState(0);
   const [selectedRecent, setSelectedRecent] =
     useState<RecentProductEstimate | null>(null);
+  const searchRequestRef = useRef(0);
+  const skipNextDebouncedSearchRef = useRef(false);
+  const searchInventoryProductsRef = useRef<
+    (rawCode: string, autoLoadExact?: boolean) => Promise<void>
+  >(async () => {});
 
-  async function submitLookupCode(rawCode: string) {
+  function loadInventoryProduct(product: InventoryProduct) {
+    const normalized = normalizeInventoryProductEstimate(product, settings);
+
+    if (normalized.issues.length > 0) {
+      setBlockedResult(normalized);
+      return;
+    }
+
+    createRecentProductEstimate({
+      productCode: normalized.product.productCode,
+      imageUrl: normalized.product.imageUrl ?? undefined,
+    })
+      .then(() => {
+        setRecentRefreshKey((current) => current + 1);
+      })
+      .catch(() => {
+        // Recording recents should not block a successful calculator load.
+      });
+
+    onLoadProduct(normalized);
+  }
+
+  async function searchInventoryProducts(
+    rawCode: string,
+    autoLoadExact = false,
+  ) {
     const code = normalizeDecodedId(rawCode);
     if (!code) return;
 
-    setSearchInput(code);
-    setSubmittedCode(code);
+    const requestId = searchRequestRef.current + 1;
+    searchRequestRef.current = requestId;
+    setSearchedCode(code);
     setError(null);
     setNotFoundCode("");
     setBlockedResult(null);
+    setSearchResults([]);
     setIsLoading(true);
 
     try {
-      const searchItem = await searchCatalogueProductByCode(code);
-      if (!searchItem) {
+      const products = await fetchInventoryProducts({ code, limit: 5 });
+      if (requestId !== searchRequestRef.current) return;
+
+      if (products.data.length === 0) {
         setNotFoundCode(code);
         return;
       }
 
-      const details = await fetchCatalogueProductDetails(searchItem.slug);
-      const normalized = normalizeCatalogueProduct(details, settings);
+      const exactMatch = products.data.find(
+        (product) => product.productCode.toUpperCase() === code.toUpperCase(),
+      );
 
-      if (normalized.issues.length > 0) {
-        setBlockedResult(normalized);
+      if (autoLoadExact && (products.data.length === 1 || exactMatch)) {
+        loadInventoryProduct(exactMatch ?? products.data[0]);
         return;
       }
 
-      createRecentProductEstimate({
-        productCode: normalized.product.productCode,
-        imageUrl: normalized.product.imageUrl ?? undefined,
-      })
-        .then(() => {
-          setRecentRefreshKey((current) => current + 1);
-        })
-        .catch(() => {
-          // Recording recents should not block a successful calculator load.
-        });
-
-      onLoadProduct(normalized);
+      setSearchResults(products.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
     } finally {
-      setIsLoading(false);
+      if (requestId === searchRequestRef.current) setIsLoading(false);
     }
   }
+
+  searchInventoryProductsRef.current = searchInventoryProducts;
+
+  useEffect(() => {
+    if (skipNextDebouncedSearchRef.current) {
+      skipNextDebouncedSearchRef.current = false;
+      return;
+    }
+
+    const code = searchInput.trim();
+    if (!code) {
+      searchRequestRef.current += 1;
+      setSearchedCode("");
+      setSearchResults([]);
+      setNotFoundCode("");
+      setError(null);
+      setBlockedResult(null);
+      setIsLoading(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      searchInventoryProductsRef.current(code);
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchInput]);
 
   return (
     <div className="space-y-4 py-4">
       <div className="grid gap-4 sm:grid-cols-[minmax(180px,2fr)_1fr]">
-        <div className="flex min-w-0 gap-3">
+        <div className="relative min-w-0">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={searchInput}
             onChange={(event) =>
               setSearchInput(event.target.value.toUpperCase())
             }
             onKeyDown={(event) => {
-              if (event.key === "Enter") submitLookupCode(searchInput);
+              if (event.key === "Enter") searchInventoryProducts(searchInput);
             }}
-            placeholder="Enter barcode"
-            className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm uppercase outline-none transition-shadow focus:ring-2 focus:ring-ring/20"
+            placeholder="Search product code"
+            className="h-9 w-full min-w-0 rounded-lg border border-border bg-background px-3 pl-10 text-sm uppercase outline-none transition-shadow focus:ring-2 focus:ring-ring/20"
           />
-          <Button
-            type="button"
-            onClick={() => submitLookupCode(searchInput)}
-            disabled={!searchInput.trim() || isLoading}
-            className="h-9 w-9 shrink-0 rounded-lg px-0"
-            aria-label="Search"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-          </Button>
         </div>
         <Button
           type="button"
@@ -822,9 +860,18 @@ function SearchPanel({
         open={isScannerOpen}
         onOpenChange={setIsScannerOpen}
         onDecoded={(code) => {
-          submitLookupCode(code);
+          const normalizedCode = normalizeDecodedId(code);
+          skipNextDebouncedSearchRef.current = true;
+          setSearchInput(normalizedCode);
+          searchInventoryProducts(normalizedCode, true);
         }}
       />
+
+      {isLoading ? (
+        <div className="rounded-md border border-border bg-muted/25 px-3 py-2 text-sm text-muted-foreground">
+          Searching inventory...
+        </div>
+      ) : null}
 
       {error ? (
         <div className="rounded-md border border-destructive/35 px-3 py-2 text-sm text-destructive">
@@ -841,13 +888,52 @@ function SearchPanel({
 
       {blockedResult ? <BlockedLookupCard result={blockedResult} /> : null}
 
-      {!blockedResult &&
-      !error &&
-      !notFoundCode &&
-      submittedCode &&
-      !isLoading ? (
+      {!blockedResult && searchResults.length > 0 ? (
+        <div className="max-h-80 overflow-y-auto rounded-lg border border-border bg-background">
+          {searchResults.map((product) => {
+            const imageUrl =
+              product.media.find((item) => item.isPrimary)?.storageKey ??
+              product.media[0]?.storageKey;
+
+            return (
+              <button
+                key={product.id}
+                type="button"
+                onClick={() => loadInventoryProduct(product)}
+                className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                  {imageUrl ? (
+                    <Image
+                      src={imageUrl}
+                      alt={product.productCode}
+                      width={40}
+                      height={40}
+                      className="h-full w-full object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">
+                    {product.name || product.productCode}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {product.productCode} - {product.color} {product.purity}K
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {product.location.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : searchedCode && !isLoading && !error && !notFoundCode ? (
         <div className="rounded-md border border-border bg-muted/25 px-3 py-2 text-sm text-muted-foreground">
-          Search completed. Valid products open in the calculate tab.
+          Select a product from the suggestions to load the calculator.
         </div>
       ) : null}
 
@@ -1160,7 +1246,7 @@ export function CalculatorPageClient() {
     updateForm("productImageUrl", URL.createObjectURL(file));
   }
 
-  function loadCatalogueProduct(result: CatalogueEstimateResult) {
+  function loadInventoryProduct(result: ProductEstimateResult) {
     const purityMap: Record<string, MetalPurity> = {
       "24": "24K",
       "22": "22K",
@@ -1210,7 +1296,7 @@ export function CalculatorPageClient() {
           <div className="">
             <SearchPanel
               settings={settings}
-              onLoadProduct={loadCatalogueProduct}
+              onLoadProduct={loadInventoryProduct}
             />
           </div>
         ) : (

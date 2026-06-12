@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Loader2,
   Pencil,
   Plus,
   ScanLine,
@@ -17,7 +16,6 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
-import { mapCatalogueDetailsToEnquiryProduct } from "@/components/enquiries/catalogue-product-mapping";
 import {
   CATEGORIES,
   createEmptyNewProduct,
@@ -57,10 +55,8 @@ import { enquiryKeys, useEnquiryDetails } from "@/hooks/useEnquiries";
 import { useCreateOrders } from "@/hooks/useOrders";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
-import {
-  fetchCatalogueProductDetails,
-  searchCatalogueProductByCode,
-} from "@/lib/catalogApi";
+import { fetchInventoryProducts } from "@/lib/inventoryApi";
+import { mapInventoryProductToEnquiryProduct } from "@/lib/inventoryProductMapping";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { CreateOrdersInput } from "@/types/order-api";
 import { addDaysDateString, customProductDetails } from "./order-form-utils";
@@ -303,7 +299,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     }));
   }
 
-  function addCatalogueProduct(product: Product) {
+  function addInventoryProduct(product: Product) {
     const newItem = createOrderItemFromNewProduct(
       product,
       createdAtRef.current,
@@ -318,7 +314,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     setNotFoundCode("");
   }
 
-  async function lookupCatalogueProduct(rawCode: string) {
+  async function searchInventoryProducts(rawCode: string) {
     const code = normalizeDecodedId(rawCode);
     if (!code) return;
 
@@ -329,17 +325,16 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     setProductLookupLoading(true);
 
     try {
-      const searchItem = await searchCatalogueProductByCode(code);
-      if (!searchItem) {
+      const products = await fetchInventoryProducts({ code, limit: 5 });
+      if (products.data.length === 0) {
         setNotFoundCode(code);
         return;
       }
 
-      const details = await fetchCatalogueProductDetails(searchItem.slug);
-      setSearchResults([mapCatalogueDetailsToEnquiryProduct(details)]);
+      setSearchResults(products.data.map(mapInventoryProductToEnquiryProduct));
     } catch (error) {
       setProductLookupError(
-        error instanceof Error ? error.message : "Catalogue search failed",
+        error instanceof Error ? error.message : "Inventory search failed",
       );
     } finally {
       setProductLookupLoading(false);
@@ -708,8 +703,8 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
             updateItem={updateItem}
             updateItemCadApproval={updateItemCadApproval}
             removeItem={removeItem}
-            addCatalogueProduct={addCatalogueProduct}
-            lookupCatalogueProduct={lookupCatalogueProduct}
+            addInventoryProduct={addInventoryProduct}
+            searchInventoryProducts={searchInventoryProducts}
             addNewCustomProduct={addNewCustomProduct}
             cancelNewCustomProduct={cancelNewCustomProduct}
             addReferenceLink={addReferenceLink}
@@ -794,8 +789,8 @@ function ProductsStep({
   updateItem,
   updateItemCadApproval,
   removeItem,
-  addCatalogueProduct,
-  lookupCatalogueProduct,
+  addInventoryProduct,
+  searchInventoryProducts,
   addNewCustomProduct,
   cancelNewCustomProduct,
   addReferenceLink,
@@ -830,8 +825,8 @@ function ProductsStep({
   ) => void;
   updateItemCadApproval: (itemId: string, cadApprovalRequired: boolean) => void;
   removeItem: (itemId: string) => void;
-  addCatalogueProduct: (product: Product) => void;
-  lookupCatalogueProduct: (code: string) => void;
+  addInventoryProduct: (product: Product) => void;
+  searchInventoryProducts: (code: string) => void;
   addNewCustomProduct: () => void;
   cancelNewCustomProduct: () => void;
   addReferenceLink: () => void;
@@ -875,7 +870,7 @@ function ProductsStep({
             Add products
           </p>
           <div className="grid gap-3 lg:grid-cols-2">
-            <CatalogueQuickEntry
+            <InventoryQuickEntry
               productSearch={productSearch}
               setProductSearch={setProductSearch}
               searchResults={searchResults}
@@ -885,8 +880,8 @@ function ProductsStep({
               notFoundCode={notFoundCode}
               isScannerOpen={isScannerOpen}
               setIsScannerOpen={setIsScannerOpen}
-              lookupCatalogueProduct={lookupCatalogueProduct}
-              addProduct={addCatalogueProduct}
+              searchInventoryProducts={searchInventoryProducts}
+              addProduct={addInventoryProduct}
             />
             <ProductModeButton
               icon={<Pencil className="h-4 w-4 text-primary" />}
@@ -940,7 +935,7 @@ function OrderItemCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           {item.imageUrl ? (
-            // biome-ignore lint/performance/noImgElement: local object URLs and remote catalogue images
+            // biome-ignore lint/performance/noImgElement: local object URLs and remote inventory images
             <img
               src={item.imageUrl}
               alt={item.name}
@@ -1122,7 +1117,7 @@ function ProductModeButton({
   );
 }
 
-function CatalogueQuickEntry({
+function InventoryQuickEntry({
   productSearch,
   setProductSearch,
   searchResults,
@@ -1132,7 +1127,7 @@ function CatalogueQuickEntry({
   notFoundCode,
   isScannerOpen,
   setIsScannerOpen,
-  lookupCatalogueProduct,
+  searchInventoryProducts,
   addProduct,
 }: {
   productSearch: string;
@@ -1144,16 +1139,33 @@ function CatalogueQuickEntry({
   notFoundCode: string;
   isScannerOpen: boolean;
   setIsScannerOpen: (open: boolean) => void;
-  lookupCatalogueProduct: (code: string) => void;
+  searchInventoryProducts: (code: string) => void;
   addProduct: (product: Product) => void;
 }) {
+  const searchInventoryProductsRef = useRef(searchInventoryProducts);
+
+  useEffect(() => {
+    searchInventoryProductsRef.current = searchInventoryProducts;
+  }, [searchInventoryProducts]);
+
+  useEffect(() => {
+    const code = productSearch.trim();
+    if (!code) return;
+
+    const timeoutId = window.setTimeout(() => {
+      searchInventoryProductsRef.current(code);
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [productSearch]);
+
   return (
     <div className="space-y-4 rounded-xl border-2 border-border w-full bg-card flex flex-col justify-center items-center text-center px-4 py-5">
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
         <Search className="h-4 w-4 text-primary" />
       </div>
       <div>
-        <p className="text-sm font-medium text-foreground">Find in catalogue</p>
+        <p className="text-sm font-medium text-foreground">Find in inventory</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Search by code or scan a barcode
         </p>
@@ -1169,42 +1181,28 @@ function CatalogueQuickEntry({
           <ScanLine className="h-4 w-4" />
           Scan
         </Button>
-        <div className="flex min-w-0 flex-1 gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              ref={searchInputRef}
-              placeholder="Search catalogue..."
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value.toUpperCase())}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") lookupCatalogueProduct(productSearch);
-              }}
-              className="h-10 pl-10 uppercase"
-            />
-          </div>
-          <Button
-            type="button"
-            onClick={() => lookupCatalogueProduct(productSearch)}
-            disabled={!productSearch.trim() || isLoading}
-            className="h-10 w-10 px-0"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-          </Button>
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            ref={searchInputRef}
+            placeholder="Search inventory..."
+            value={productSearch}
+            onChange={(e) => setProductSearch(e.target.value.toUpperCase())}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") searchInventoryProducts(productSearch);
+            }}
+            className="h-10 pl-10 uppercase"
+          />
         </div>
       </div>
       <BarcodeScanDialog
         open={isScannerOpen}
         onOpenChange={setIsScannerOpen}
-        onDecoded={(code) => lookupCatalogueProduct(code)}
+        onDecoded={(code) => searchInventoryProducts(code)}
       />
       {isLoading && (
         <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          Searching catalogue...
+          Searching inventory...
         </p>
       )}
       {error && (
@@ -1214,7 +1212,7 @@ function CatalogueQuickEntry({
       )}
       {notFoundCode && !error && (
         <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          No catalogue product found for{" "}
+          No inventory product found for{" "}
           <span className="font-medium text-foreground">{notFoundCode}</span>.
         </p>
       )}

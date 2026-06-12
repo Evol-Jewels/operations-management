@@ -3,7 +3,6 @@
 import { CheckCircle2, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { mapCatalogueDetailsToEnquiryProduct } from "@/components/enquiries/catalogue-product-mapping";
 import {
   NameStep,
   PhoneStep,
@@ -37,10 +36,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCreateOrders } from "@/hooks/useOrders";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
-import {
-  fetchCatalogueProductDetails,
-  searchCatalogueProductByCode,
-} from "@/lib/catalogApi";
+import { fetchInventoryProducts } from "@/lib/inventoryApi";
+import { mapInventoryProductToEnquiryProduct } from "@/lib/inventoryProductMapping";
 import { cn } from "@/lib/utils";
 import type { CreateOrdersInput } from "@/types/order-api";
 import { addDaysDateString, customProductDetails } from "./order-form-utils";
@@ -188,7 +185,7 @@ export function CreateOrderForm() {
       targetStep === "products" &&
       form.selectedProducts.some((product) => !product.productCode.trim())
     ) {
-      nextErrors.products = "Every catalogue product needs a product code";
+      nextErrors.products = "Every inventory product needs a product code";
     }
 
     if (
@@ -285,7 +282,7 @@ export function CreateOrderForm() {
     setNotFoundCode("");
   }
 
-  async function lookupCatalogueProduct(rawCode: string) {
+  async function searchInventoryProducts(rawCode: string) {
     const code = normalizeDecodedId(rawCode);
     if (!code) return;
 
@@ -296,17 +293,16 @@ export function CreateOrderForm() {
     setProductLookupLoading(true);
 
     try {
-      const searchItem = await searchCatalogueProductByCode(code);
-      if (!searchItem) {
+      const products = await fetchInventoryProducts({ code, limit: 5 });
+      if (products.data.length === 0) {
         setNotFoundCode(code);
         return;
       }
 
-      const details = await fetchCatalogueProductDetails(searchItem.slug);
-      setSearchResults([mapCatalogueDetailsToEnquiryProduct(details)]);
+      setSearchResults(products.data.map(mapInventoryProductToEnquiryProduct));
     } catch (error) {
       setProductLookupError(
-        error instanceof Error ? error.message : "Catalogue search failed",
+        error instanceof Error ? error.message : "Inventory search failed",
       );
     } finally {
       setProductLookupLoading(false);
@@ -615,7 +611,7 @@ export function CreateOrderForm() {
             errors={errors}
             submitError={submitError}
             addProduct={addProduct}
-            lookupCatalogueProduct={lookupCatalogueProduct}
+            searchInventoryProducts={searchInventoryProducts}
             removeSelectedProduct={removeSelectedProduct}
             addNewProduct={addNewProduct}
             cancelNewProduct={cancelNewProduct}

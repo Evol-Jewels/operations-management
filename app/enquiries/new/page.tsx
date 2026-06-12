@@ -4,7 +4,6 @@ import { CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
-import { mapCatalogueDetailsToEnquiryProduct } from "@/components/enquiries/catalogue-product-mapping";
 import {
   NameStep,
   NotesStep,
@@ -34,10 +33,8 @@ import { validatePhone } from "@/components/ui/phone-input";
 import { useCreateEnquiry } from "@/hooks/useEnquiries";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
-import {
-  fetchCatalogueProductDetails,
-  searchCatalogueProductByCode,
-} from "@/lib/catalogApi";
+import { fetchInventoryProducts } from "@/lib/inventoryApi";
+import { mapInventoryProductToEnquiryProduct } from "@/lib/inventoryProductMapping";
 import { cn } from "@/lib/utils";
 import type {
   BackendEnquiryMedia,
@@ -306,7 +303,7 @@ function EnquiryForm() {
     setNotFoundCode("");
   }
 
-  async function lookupCatalogueProduct(rawCode: string) {
+  async function searchInventoryProducts(rawCode: string) {
     const code = normalizeDecodedId(rawCode);
     if (!code) return;
 
@@ -317,17 +314,16 @@ function EnquiryForm() {
     setProductLookupLoading(true);
 
     try {
-      const searchItem = await searchCatalogueProductByCode(code);
-      if (!searchItem) {
+      const products = await fetchInventoryProducts({ code, limit: 5 });
+      if (products.data.length === 0) {
         setNotFoundCode(code);
         return;
       }
 
-      const details = await fetchCatalogueProductDetails(searchItem.slug);
-      setSearchResults([mapCatalogueDetailsToEnquiryProduct(details)]);
+      setSearchResults(products.data.map(mapInventoryProductToEnquiryProduct));
     } catch (error) {
       setProductLookupError(
-        error instanceof Error ? error.message : "Catalogue search failed",
+        error instanceof Error ? error.message : "Inventory search failed",
       );
     } finally {
       setProductLookupLoading(false);
@@ -528,7 +524,7 @@ function EnquiryForm() {
             errors={errors}
             submitError={submitError}
             addProduct={addProduct}
-            lookupCatalogueProduct={lookupCatalogueProduct}
+            searchInventoryProducts={searchInventoryProducts}
             removeSelectedProduct={removeSelectedProduct}
             addNewProduct={addNewProduct}
             cancelNewProduct={cancelNewProduct}
