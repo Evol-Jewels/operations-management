@@ -38,6 +38,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
@@ -109,7 +110,7 @@ function NumericLineInput({
   step?: number;
 }) {
   return (
-    <div className="flex items-end gap-2 border-b border-border pb-2.5 focus-within:border-foreground">
+    <div className="flex h-9 items-end gap-2 border-b border-border pb-1.5 focus-within:border-foreground">
       <input
         type="number"
         inputMode="decimal"
@@ -118,7 +119,7 @@ function NumericLineInput({
         value={value || ""}
         onChange={(event) => onChange(Number(event.target.value) || 0)}
         placeholder={placeholder}
-        className="min-w-0 flex-1 bg-transparent px-0 text-base outline-none placeholder:text-muted-foreground/35"
+        className="min-w-0 flex-1 bg-transparent px-0 text-sm outline-none placeholder:text-muted-foreground/35"
       />
       {suffix ? (
         <span className="shrink-0 pb-0.5 text-sm text-muted-foreground">
@@ -154,34 +155,28 @@ function TabsSwitcher({
   onTabChange: (tab: CalculatorTab) => void;
 }) {
   return (
-    <div className="grid h-9 w-full grid-cols-2 rounded-lg border border-border bg-muted/50 p-0.5 sm:w-[300px]">
-      <button
-        type="button"
-        onClick={() => onTabChange("search")}
-        className={cn(
-          "flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-          activeTab === "search"
-            ? "bg-background text-foreground"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        <Search className="h-4 w-4" />
-        Search
-      </button>
-      <button
-        type="button"
-        onClick={() => onTabChange("calculate")}
-        className={cn(
-          "flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-          activeTab === "calculate"
-            ? "bg-background text-foreground"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        <CircleDollarSign className="h-4 w-4" />
-        Calculate
-      </button>
-    </div>
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => onTabChange(value as CalculatorTab)}
+      className="w-full sm:w-[300px]"
+    >
+      <TabsList className="grid h-11 w-full grid-cols-2 rounded-xl border border-border bg-muted/50 p-1">
+        <TabsTrigger
+          value="search"
+          className="h-9 rounded-lg data-[state=active]:bg-foreground data-[state=active]:text-background"
+        >
+          <Search className="h-4 w-4" />
+          Search
+        </TabsTrigger>
+        <TabsTrigger
+          value="calculate"
+          className="h-9 rounded-lg data-[state=active]:bg-foreground data-[state=active]:text-background"
+        >
+          <CircleDollarSign className="h-4 w-4" />
+          Calculate
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
   );
 }
 
@@ -216,7 +211,7 @@ function PurityCards({
             type="button"
             onClick={() => onChange(card.purity)}
             className={cn(
-              "flex min-h-10 flex-col items-center justify-center rounded-lg border px-2 py-2 text-center transition-colors",
+              "flex h-12 flex-col items-center justify-center rounded-lg border px-2 text-center transition-colors",
               selected
                 ? "border-foreground bg-muted text-foreground"
                 : "border-border bg-background hover:border-foreground/30",
@@ -262,7 +257,7 @@ function StoneRow({
   const hasUnmatchedWeight = stone.weight > 0 && !resolvedSlab;
 
   return (
-    <div className="space-y-3 border-b border-border pb-4 last:border-b-0 last:pb-0">
+    <div className="space-y-3 border-b border-border pb-3.5 last:border-b-0 last:pb-0">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -292,7 +287,7 @@ function StoneRow({
         value={stone.stoneTypeId}
         onValueChange={(stoneTypeId) => onChange({ stoneTypeId })}
       >
-        <SelectTrigger className="h-10 w-full border-0 border-b bg-transparent px-0 text-sm shadow-none focus:ring-0">
+        <SelectTrigger className="h-9 w-full border-0 border-b bg-transparent px-0 text-sm shadow-none focus:ring-0">
           <SelectValue placeholder="Select stone" />
         </SelectTrigger>
         <SelectContent>
@@ -311,7 +306,7 @@ function StoneRow({
         </SelectContent>
       </Select>
 
-      <div className="grid grid-cols-1 gap-5 min-[430px]:grid-cols-2 min-[430px]:gap-6">
+      <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 min-[430px]:gap-5">
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Weight
@@ -982,7 +977,7 @@ function CalculatorForm({
   onOpenSettings: () => void;
 }) {
   return (
-    <div className="min-w-0 space-y-5 rounded-lg border border-border bg-background p-4 sm:p-5">
+    <div className="min-w-0 space-y-4 rounded-lg border border-border bg-background p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Inputs</h2>
@@ -1016,7 +1011,7 @@ function CalculatorForm({
 
       <Separator />
 
-      <section className="space-y-4">
+      <section className="space-y-3.5">
         <SectionLabel title="Metal Details" />
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -1032,7 +1027,7 @@ function CalculatorForm({
           />
         </div>
 
-        <div className="space-y-3.5">
+        <div className="space-y-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Purity
           </p>
@@ -1046,7 +1041,7 @@ function CalculatorForm({
 
       <Separator />
 
-      <section className="space-y-4">
+      <section className="space-y-3.5">
         <SectionLabel
           title="Stone Details"
           action={
@@ -1062,7 +1057,7 @@ function CalculatorForm({
             </Button>
           }
         />
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           {form.stones.map((stone, index) => (
             <StoneRow
               key={stone.id}
@@ -1079,7 +1074,7 @@ function CalculatorForm({
 
       <Separator />
 
-      <section className="space-y-4">
+      <section className="space-y-3.5">
         <SectionLabel title="Product Details (Optional)" />
         <ProductImageInput
           imageUrl={form.productImageUrl}
@@ -1300,7 +1295,7 @@ export function CalculatorPageClient() {
             />
           </div>
         ) : (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(380px,520px)_minmax(420px,1fr)] xl:grid-cols-[minmax(420px,560px)_minmax(460px,1fr)]">
             <CalculatorForm
               settings={settings}
               form={form}
