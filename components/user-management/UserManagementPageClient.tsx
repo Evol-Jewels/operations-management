@@ -1,9 +1,8 @@
 "use client";
 
-import { Check, Copy, Eye, EyeOff, RefreshCw, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Check, Copy, Eye, EyeOff, RefreshCw, Search, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -81,7 +80,25 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-type ConfirmDialogType = "block" | "unblock" | null;
+function matchesUserSearch(user: InternalUserWithProfile, query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
+  return [user.email, user.username].some((value) =>
+    value?.toLowerCase().includes(normalizedQuery),
+  );
+}
+
+function matchesInviteSearch(invite: InternalInviteRow, query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
+  return [invite.email, invite.username].some((value) =>
+    value?.toLowerCase().includes(normalizedQuery),
+  );
+}
+
+type ConfirmDialogType = "block" | "unblock" | "expire" | null;
 
 interface ConfirmDialogData {
   type: ConfirmDialogType;
@@ -108,11 +125,11 @@ export function UserManagementPageClient() {
     useState<FilterValue<InternalUserStatus>>("ALL");
   const [userRole, setUserRole] =
     useState<FilterValue<InternalProfileRole>>("ALL");
+  const [userSearch, setUserSearch] = useState("");
 
   const [inviteStatus, setInviteStatus] =
     useState<FilterValue<InternalInviteStatus>>("ALL");
-  const [inviteUserId, setInviteUserId] = useState("");
-  const [inviteUserLabel, setInviteUserLabel] = useState("");
+  const [inviteSearch, setInviteSearch] = useState("");
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -156,7 +173,6 @@ export function UserManagementPageClient() {
     try {
       const data = await fetchInternalInvites({
         status: inviteStatus === "ALL" ? undefined : inviteStatus,
-        userId: inviteUserId || undefined,
       });
       setInvites(data);
     } catch (error) {
@@ -166,7 +182,7 @@ export function UserManagementPageClient() {
     } finally {
       setInvitesLoading(false);
     }
-  }, [inviteStatus, inviteUserId]);
+  }, [inviteStatus]);
 
   useEffect(() => {
     loadUsers();
@@ -208,6 +224,7 @@ export function UserManagementPageClient() {
       }
 
       await Promise.all([loadUsers(), loadInvites()]);
+      return response;
     } finally {
       setInviteSubmitting(false);
     }
@@ -345,6 +362,14 @@ export function UserManagementPageClient() {
   const pendingInvites = invites.filter(
     (invite) => invite.status === "PENDING",
   ).length;
+  const filteredUsers = useMemo(
+    () => users.filter((user) => matchesUserSearch(user, userSearch)),
+    [userSearch, users],
+  );
+  const filteredInvites = useMemo(
+    () => invites.filter((invite) => matchesInviteSearch(invite, inviteSearch)),
+    [inviteSearch, invites],
+  );
 
   return (
     <div className="flex min-h-[calc(100dvh-5.25rem)] flex-1 flex-col gap-5">
@@ -397,14 +422,34 @@ export function UserManagementPageClient() {
           <h2 className="text-base font-semibold text-foreground">
             Internal users
           </h2>
-          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto">
+          <div className="flex w-full gap-2 md:w-auto">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={userSearch}
+                onChange={(event) => setUserSearch(event.target.value)}
+                placeholder="Search email or username"
+                className="h-9 pl-9 pr-9 md:w-56"
+              />
+              {userSearch && (
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  onClick={() => setUserSearch("")}
+                  aria-label="Clear user search"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+
             <Select
               value={userStatus}
               onValueChange={(value) =>
                 setUserStatus(value as FilterValue<InternalUserStatus>)
               }
             >
-              <SelectTrigger className="w-full md:w-36">
+              <SelectTrigger className="h-9 w-full md:w-36">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -423,7 +468,7 @@ export function UserManagementPageClient() {
                 setUserRole(value as FilterValue<InternalProfileRole>)
               }
             >
-              <SelectTrigger className="w-full md:w-36">
+              <SelectTrigger className="h-9 w-full md:w-36">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
               <SelectContent>
@@ -442,17 +487,14 @@ export function UserManagementPageClient() {
             <ErrorBanner message={usersError} onRetry={loadUsers} />
           ) : (
             <UsersTable
-              users={users}
+              users={filteredUsers}
               isLoading={usersLoading}
-              currentUserEmail={session?.user.email}
-              onFilterInvitesByUser={(user) => {
-                setInviteUserId(user.id);
-                setInviteUserLabel(user.name || user.email);
-              }}
+              currentUserEmail={session?.user.email ?? undefined}
+              onSelectUserEmail={(email) => setInviteSearch(email)}
               onBlock={handleBlock}
               onUnblock={handleUnblock}
               onResetPassword={(user) => handleResetPassword(user)}
-              actionLoading={actionLoading}
+              actionLoading={actionLoading ?? undefined}
             />
           )}
         </div>
@@ -462,25 +504,25 @@ export function UserManagementPageClient() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <h2 className="text-base font-semibold text-foreground">Invites</h2>
           <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
-            {inviteUserId && (
-              <Badge
-                variant="outline"
-                className="h-9 max-w-full gap-2 rounded-md border-border px-3"
-              >
-                <span className="min-w-0 truncate">{inviteUserLabel}</span>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={inviteSearch}
+                onChange={(event) => setInviteSearch(event.target.value)}
+                placeholder="Search email or username"
+                className="h-9 pl-9 pr-9 sm:w-56"
+              />
+              {inviteSearch && (
                 <button
                   type="button"
-                  className="cursor-pointer rounded-sm text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    setInviteUserId("");
-                    setInviteUserLabel("");
-                  }}
-                  aria-label="Clear selected user invite filter"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  onClick={() => setInviteSearch("")}
+                  aria-label="Clear invite search"
                 >
-                  <X className="size-3" />
+                  <X className="size-3.5" />
                 </button>
-              </Badge>
-            )}
+              )}
+            </div>
 
             <Select
               value={inviteStatus}
@@ -488,7 +530,7 @@ export function UserManagementPageClient() {
                 setInviteStatus(value as FilterValue<InternalInviteStatus>)
               }
             >
-              <SelectTrigger className="w-full sm:w-40">
+              <SelectTrigger className="h-9 w-full sm:w-40">
                 <SelectValue placeholder="Invite status" />
               </SelectTrigger>
               <SelectContent>
@@ -507,11 +549,11 @@ export function UserManagementPageClient() {
             <ErrorBanner message={invitesError} onRetry={loadInvites} />
           ) : (
             <InvitesTable
-              invites={invites}
+              invites={filteredInvites}
               isLoading={invitesLoading}
               onUpdateInvite={handleUpdateInvite}
               onResetPassword={(invite) => handleResetPassword(invite, true)}
-              actionLoading={actionLoading}
+              actionLoading={actionLoading ?? undefined}
             />
           )}
         </div>

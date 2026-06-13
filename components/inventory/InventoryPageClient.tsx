@@ -46,13 +46,13 @@ import {
 import { useLocations } from "@/hooks/useManageProducts";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
+import {
+  buildInventoryCalculatorForm,
+  buildInventoryPricingSettings,
+  getInventoryPrimaryImage,
+} from "@/lib/inventoryProductMapping";
 import { cn, formatCurrency } from "@/lib/utils";
-import type {
-  CalculatorFormState,
-  CalculatorSettings,
-  CalculatorStoneInput,
-  MetalPurity,
-} from "@/types";
+import type { CalculatorSettings } from "@/types";
 import type {
   InventoryProduct,
   InventoryProductListQuery,
@@ -116,17 +116,8 @@ function formatWeight(value: string | number, unit: string) {
   return `${numeric.toFixed(2)} ${unit}`;
 }
 
-function parseNumber(value: string | number | null | undefined) {
-  const numeric = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(numeric) ? numeric : 0;
-}
-
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong";
-}
-
-function getPrimaryImage(product: InventoryProduct) {
-  return product.media.find((item) => item.isPrimary) ?? product.media[0];
 }
 
 function getMetalLabel(product: InventoryProduct) {
@@ -170,112 +161,6 @@ function getInventoryGridClass({
 }) {
   if (hasSelectedProduct) return "grid-cols-1";
   return columns === 3 ? "md:grid-cols-2 xl:grid-cols-3" : "md:grid-cols-2";
-}
-
-function getInventoryPurity(product: InventoryProduct): MetalPurity {
-  const purity = `${product.purity}K`;
-  return ["14K", "18K", "22K", "24K"].includes(purity)
-    ? (purity as MetalPurity)
-    : "Other";
-}
-
-function findStoneTypeIdBySlabCode(settings: CalculatorSettings, code: string) {
-  const normalizedCode = code.trim();
-
-  for (const stoneType of settings.stoneTypes) {
-    if (stoneType.slabs.some((slab) => slab.code === normalizedCode)) {
-      return stoneType.stoneId;
-    }
-  }
-
-  return null;
-}
-
-function buildInventoryCalculatorStones(
-  product: InventoryProduct,
-  settings: CalculatorSettings,
-): CalculatorStoneInput[] {
-  return (product.stones ?? []).flatMap((stone) => {
-    const stoneTypeId = findStoneTypeIdBySlabCode(
-      settings,
-      stone.stoneSlabCode,
-    );
-    const weight = parseNumber(stone.totalNetWeight);
-
-    if (!stoneTypeId || weight <= 0) return [];
-
-    return [
-      {
-        id: stone.id,
-        stoneTypeId,
-        weight,
-        quantity: Math.max(1, stone.totalPieces),
-      },
-    ];
-  });
-}
-
-function buildInventoryPricingSettings(
-  product: InventoryProduct,
-  settings: CalculatorSettings,
-): CalculatorSettings {
-  const stoneTypes = settings.stoneTypes.map((stoneType) => ({
-    ...stoneType,
-    slabs: [...stoneType.slabs],
-  }));
-
-  for (const stone of product.stones ?? []) {
-    if (
-      findStoneTypeIdBySlabCode(
-        { ...settings, stoneTypes },
-        stone.stoneSlabCode,
-      )
-    ) {
-      continue;
-    }
-
-    const stoneTypeId = stone.slab.stoneType.id;
-    const existingStoneType = stoneTypes.find(
-      (stoneType) => stoneType.stoneId === stoneTypeId,
-    );
-    const apiSlab = {
-      code: stone.stoneSlabCode,
-      fromWeight: parseNumber(stone.slab.rangeFrom),
-      toWeight: parseNumber(stone.slab.rangeTo),
-      pricePerCarat: parseNumber(stone.slab.pricePerCarat),
-    };
-
-    if (existingStoneType) {
-      existingStoneType.slabs = [...existingStoneType.slabs, apiSlab];
-      continue;
-    }
-
-    stoneTypes.push({
-      stoneId: stoneTypeId,
-      name: stone.slab.stoneType.name,
-      category:
-        stone.slab.stoneType.category === "Gemstone" ? "Gemstone" : "Diamond",
-      clarity: stone.slab.stoneType.clarity,
-      color: stone.slab.stoneType.color ?? undefined,
-      slabs: [apiSlab],
-    });
-  }
-
-  return { ...settings, stoneTypes };
-}
-
-function buildInventoryCalculatorForm(
-  product: InventoryProduct,
-  settings: CalculatorSettings,
-): CalculatorFormState {
-  return {
-    netGoldWeight: parseNumber(product.netWeight),
-    purity: getInventoryPurity(product),
-    stones: buildInventoryCalculatorStones(product, settings),
-    productName: product.name,
-    productNote: product.description ?? "",
-    productImageUrl: getPrimaryImage(product)?.storageKey,
-  };
 }
 
 function InventoryStat({
@@ -343,7 +228,7 @@ function ProductListItem({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const image = getPrimaryImage(product);
+  const image = getInventoryPrimaryImage(product);
   const stonePieces = getTotalStonePieces(product);
   const stoneCarat = getTotalStoneCarat(product);
   const hasStoneInfo = stonePieces > 0 || stoneCarat > 0;
@@ -432,7 +317,7 @@ function ProductDetail({
   settings: CalculatorSettings;
   estimationSectionRef: RefObject<HTMLElement | null>;
 }) {
-  const image = getPrimaryImage(product);
+  const image = getInventoryPrimaryImage(product);
   const pricingSettings = useMemo(
     () => buildInventoryPricingSettings(product, settings),
     [product, settings],

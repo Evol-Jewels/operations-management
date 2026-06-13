@@ -74,6 +74,19 @@ export const STONE_QUALITIES = [
   "Commercial",
 ];
 
+export const STONE_TYPES = [
+  "Natural Diamond",
+  "Lab Grown Diamond",
+  "Emerald",
+  "Ruby",
+  "Sapphire",
+  "Polki",
+  "Pearl",
+  "Onyx",
+  "Moissanite",
+  "Other",
+] as const;
+
 export const POLISH_OPTIONS = [
   "High polish",
   "Matte",
@@ -126,6 +139,13 @@ export interface ProductReference {
   file?: File;
 }
 
+export interface NewProductStone {
+  id: string;
+  stoneType: string;
+  pieces: string;
+  weight: string;
+}
+
 export interface NewProduct {
   id: string;
   category: string;
@@ -136,6 +156,7 @@ export interface NewProduct {
   metalColor: string;
   size: string;
   polish: string;
+  stones: NewProductStone[];
   stoneDescription: string;
   stoneCut: string;
   stoneQuality: string;
@@ -180,6 +201,22 @@ export const EMPTY_CUSTOMER: CustomerDetails = {
   budget: undefined,
 };
 
+export function createEmptyNewProductStone(): NewProductStone {
+  return {
+    id: crypto.randomUUID(),
+    stoneType: "",
+    pieces: "",
+    weight: "",
+  };
+}
+
+export function hasValidCustomProductRequirement(product: NewProduct) {
+  return (
+    product.metalType.trim().length > 0 &&
+    product.stones.some((stone) => stone.stoneType.trim().length > 0)
+  );
+}
+
 export function createEmptyNewProduct(): NewProduct {
   return {
     id: "",
@@ -191,6 +228,7 @@ export function createEmptyNewProduct(): NewProduct {
     metalColor: "",
     size: "",
     polish: "",
+    stones: [createEmptyNewProductStone()],
     stoneDescription: "",
     stoneCut: "",
     stoneQuality: "",

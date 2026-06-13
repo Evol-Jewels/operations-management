@@ -24,7 +24,7 @@ interface UsersTableProps {
   users: InternalUserWithProfile[];
   isLoading: boolean;
   currentUserEmail?: string;
-  onFilterInvitesByUser: (user: InternalUserWithProfile) => void;
+  onSelectUserEmail: (email: string) => void;
   onBlock: (user: InternalUserWithProfile) => void;
   onUnblock: (user: InternalUserWithProfile) => void;
   onResetPassword: (user: InternalUserWithProfile) => void;
@@ -153,7 +153,7 @@ export function UsersTable({
   users,
   isLoading,
   currentUserEmail,
-  onFilterInvitesByUser,
+  onSelectUserEmail,
   onBlock,
   onUnblock,
   onResetPassword,
@@ -181,7 +181,7 @@ export function UsersTable({
           >
             <button
               type="button"
-              onDoubleClick={() => onFilterInvitesByUser(user)}
+              onClick={() => onSelectUserEmail(user.email)}
               className="w-full text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               <div className="flex min-w-0 items-start gap-3">
@@ -255,7 +255,7 @@ export function UsersTable({
               <TableRow
                 key={user.id}
                 className="cursor-pointer"
-                onDoubleClick={() => onFilterInvitesByUser(user)}
+                onClick={() => onSelectUserEmail(user.email)}
               >
                 <TableCell className="py-3">
                   <div className="flex min-w-64 items-center gap-3">

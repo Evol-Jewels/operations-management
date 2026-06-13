@@ -1,10 +1,9 @@
 "use client";
 
 import { CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
-import { mapCatalogueDetailsToEnquiryProduct } from "@/components/enquiries/catalogue-product-mapping";
 import {
   NameStep,
   NotesStep,
@@ -15,6 +14,7 @@ import {
   createEmptyNewProduct,
   EMPTY_CUSTOMER,
   type EnquiryFormData,
+  hasValidCustomProductRequirement,
   type NewProduct,
   type Product,
   type ProductAddMode,
@@ -28,16 +28,22 @@ import {
   normalizeReferenceLink,
   revokeObjectUrls,
 } from "@/components/enquiries/enquiry-form-utils";
+import {
+  ENQUIRY_DRAFT_KEY,
+  readDraft,
+  removeDraft,
+  sanitizeEnquiryFormData,
+  sanitizeNewProduct,
+  writeDraft,
+} from "@/components/enquiries/form-draft-storage";
 import { ProductInterestStep } from "@/components/enquiries/product-interest-step";
 import { Button } from "@/components/ui/button";
 import { validatePhone } from "@/components/ui/phone-input";
 import { useCreateEnquiry } from "@/hooks/useEnquiries";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
-import {
-  fetchCatalogueProductDetails,
-  searchCatalogueProductByCode,
-} from "@/lib/catalogApi";
+import { fetchInventoryProducts } from "@/lib/inventoryApi";
+import { mapInventoryProductToEnquiryProduct } from "@/lib/inventoryProductMapping";
 import { cn } from "@/lib/utils";
 import type {
   BackendEnquiryMedia,
@@ -62,6 +68,8 @@ export default function NewEnquiryPage() {
 
 function EnquiryForm() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
   const createEnquiryMutation = useCreateEnquiry();
 
@@ -86,13 +94,17 @@ function EnquiryForm() {
   const [newProductDraft, setNewProductDraft] = useState<NewProduct>(
     createEmptyNewProduct,
   );
+  const [editingNewProductId, setEditingNewProductId] = useState<string | null>(
+    null,
+  );
   const [referenceLinkInput, setReferenceLinkInput] = useState("");
   const [referenceError, setReferenceError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const steps = getSteps();
+  const [draftHydrated, setDraftHydrated] = useState(false);
+  const steps = useMemo(() => getSteps(), []);
   const safeStep = Math.min(currentStep, steps.length - 1);
   const stepId = steps[safeStep];
   const progress = ((safeStep + 1) / steps.length) * 100;
@@ -100,6 +112,77 @@ function EnquiryForm() {
   const isLastStep = safeStep === steps.length - 1;
   const hasProducts =
     form.selectedProducts.length > 0 || form.newProducts.length > 0;
+
+  useEffect(() => {
+    if (draftHydrated) return;
+
+    const draft = readDraft<{
+      currentStep?: number;
+      form?: EnquiryFormData;
+      productAddMode?: ProductAddMode;
+      newProductDraft?: NewProduct;
+      referenceLinkInput?: string;
+      editingNewProductId?: string | null;
+    }>(ENQUIRY_DRAFT_KEY);
+
+    if (draft?.form) setForm(sanitizeEnquiryFormData(draft.form));
+    if (draft?.productAddMode) setProductAddMode(draft.productAddMode);
+    if (draft?.newProductDraft) {
+      setNewProductDraft(sanitizeNewProduct(draft.newProductDraft));
+    }
+    if (typeof draft?.referenceLinkInput === "string") {
+      setReferenceLinkInput(draft.referenceLinkInput);
+    }
+    if (typeof draft?.editingNewProductId !== "undefined") {
+      setEditingNewProductId(draft.editingNewProductId);
+    }
+
+    const queryStep = searchParams.get("step");
+    const queryStepIndex = queryStep ? steps.indexOf(queryStep as StepId) : -1;
+    const storedStep =
+      typeof draft?.currentStep === "number" ? draft.currentStep : 0;
+    setCurrentStep(
+      queryStepIndex >= 0
+        ? queryStepIndex
+        : Math.min(Math.max(storedStep, 0), steps.length - 1),
+    );
+
+    setDraftHydrated(true);
+  }, [draftHydrated, searchParams, steps]);
+
+  useEffect(() => {
+    if (!draftHydrated || submitted) return;
+
+    writeDraft(ENQUIRY_DRAFT_KEY, {
+      currentStep: safeStep,
+      form: sanitizeEnquiryFormData(form),
+      productAddMode,
+      newProductDraft: sanitizeNewProduct(newProductDraft),
+      referenceLinkInput,
+      editingNewProductId,
+    });
+  }, [
+    safeStep,
+    form,
+    productAddMode,
+    newProductDraft,
+    referenceLinkInput,
+    editingNewProductId,
+    submitted,
+    draftHydrated,
+  ]);
+
+  useEffect(() => {
+    if (!draftHydrated) return;
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    if (nextParams.get("step") === stepId) return;
+    nextParams.set("step", stepId);
+    const query = nextParams.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }, [draftHydrated, pathname, router, searchParams, stepId]);
 
   useEffect(() => {
     return () => {
@@ -238,34 +321,40 @@ function EnquiryForm() {
       );
 
       const customItems: CreateEnquiryItemInput[] = form.newProducts.map(
-        (product) => ({
-          type: "CUSTOM",
-          metalType: product.metalType,
-          metalPurity: product.metalPurity || undefined,
-          notes: [
-            product.category ? `Category: ${product.category}` : null,
-            product.polish ? `Polish: ${product.polish}` : null,
-            product.stoneCut ? `Stone cut: ${product.stoneCut}` : null,
-            product.stoneQuality
-              ? `Stone quality: ${product.stoneQuality}`
-              : null,
-            product.notes || null,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-          stones: product.stoneDescription
-            ? [
-                {
-                  stoneType: product.stoneDescription,
-                  weight: product.stoneCaratEstimate || undefined,
-                },
-              ]
-            : [],
-          media: product.references
-            .map(referenceToMedia)
-            .filter((item): item is BackendEnquiryMedia => Boolean(item)),
-          status: "PENDING",
-        }),
+        (product) => {
+          const stones = product.stones
+            .filter((stone) => stone.stoneType.trim())
+            .map((stone) => ({
+              stoneType: stone.stoneType.trim(),
+              weight: stone.weight.trim() || undefined,
+            }));
+
+          return {
+            type: "CUSTOM",
+            metalType: product.metalType,
+            metalPurity: product.metalPurity || undefined,
+            metalWeight: product.metalNetWeight || undefined,
+            notes: [
+              product.category ? `Category: ${product.category}` : null,
+              product.metalColor ? `Metal color: ${product.metalColor}` : null,
+              product.polish ? `Polish: ${product.polish}` : null,
+              ...product.stones
+                .filter((stone) => stone.stoneType.trim() && stone.pieces)
+                .map(
+                  (stone, index) =>
+                    `Stone ${index + 1} pieces: ${stone.pieces}`,
+                ),
+              product.notes || null,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+            stones,
+            media: product.references
+              .map(referenceToMedia)
+              .filter((item): item is BackendEnquiryMedia => Boolean(item)),
+            status: "PENDING",
+          };
+        },
       );
 
       const created = await createEnquiryMutation.mutateAsync({
@@ -277,6 +366,7 @@ function EnquiryForm() {
         items: [...selectedItems, ...customItems],
       });
 
+      removeDraft(ENQUIRY_DRAFT_KEY);
       setSubmitted(true);
       setTimeout(
         () => router.push(`/enquiries/${created.enquiry.refCode}`),
@@ -306,7 +396,7 @@ function EnquiryForm() {
     setNotFoundCode("");
   }
 
-  async function lookupCatalogueProduct(rawCode: string) {
+  async function searchInventoryProducts(rawCode: string) {
     const code = normalizeDecodedId(rawCode);
     if (!code) return;
 
@@ -317,17 +407,16 @@ function EnquiryForm() {
     setProductLookupLoading(true);
 
     try {
-      const searchItem = await searchCatalogueProductByCode(code);
-      if (!searchItem) {
+      const products = await fetchInventoryProducts({ code, limit: 5 });
+      if (products.data.length === 0) {
         setNotFoundCode(code);
         return;
       }
 
-      const details = await fetchCatalogueProductDetails(searchItem.slug);
-      setSearchResults([mapCatalogueDetailsToEnquiryProduct(details)]);
+      setSearchResults(products.data.map(mapInventoryProductToEnquiryProduct));
     } catch (error) {
       setProductLookupError(
-        error instanceof Error ? error.message : "Catalogue search failed",
+        error instanceof Error ? error.message : "Inventory search failed",
       );
     } finally {
       setProductLookupLoading(false);
@@ -344,24 +433,49 @@ function EnquiryForm() {
   }
 
   function addNewProduct() {
-    if (!newProductDraft.metalType) return;
+    if (!hasValidCustomProductRequirement(newProductDraft)) return;
+    const productId = editingNewProductId ?? generateId();
     setForm((prev) => ({
       ...prev,
-      newProducts: [
-        ...prev.newProducts,
-        { ...newProductDraft, id: generateId() },
-      ],
+      newProducts: [...prev.newProducts, { ...newProductDraft, id: productId }],
     }));
     setNewProductDraft(createEmptyNewProduct());
+    setEditingNewProductId(null);
     setReferenceLinkInput("");
     setReferenceError("");
   }
 
   function cancelNewProduct() {
-    revokeObjectUrls(newProductDraft.references);
+    if (editingNewProductId) {
+      setForm((prev) => ({
+        ...prev,
+        newProducts: [
+          ...prev.newProducts,
+          { ...newProductDraft, id: editingNewProductId },
+        ],
+      }));
+    } else {
+      revokeObjectUrls(newProductDraft.references);
+    }
     setNewProductDraft(createEmptyNewProduct());
+    setEditingNewProductId(null);
     setReferenceLinkInput("");
     setReferenceError("");
+  }
+
+  function editNewProduct(id: string) {
+    const product = form.newProducts.find((item) => item.id === id);
+    if (!product) return;
+
+    setForm((prev) => ({
+      ...prev,
+      newProducts: prev.newProducts.filter((item) => item.id !== id),
+    }));
+    setNewProductDraft(product);
+    setEditingNewProductId(id);
+    setReferenceLinkInput("");
+    setReferenceError("");
+    setProductAddMode("custom");
   }
 
   function removeNewProduct(id: string) {
@@ -378,10 +492,22 @@ function EnquiryForm() {
   }
 
   function addReferenceLink() {
-    const normalized = normalizeReferenceLink(referenceLinkInput);
-    if (!normalized) return;
-    if (!isValidReferenceLink(normalized)) {
-      setReferenceError("Enter a valid product or inspiration link");
+    const rawLinks = referenceLinkInput
+      .split(/[\n,]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (rawLinks.length === 0) return;
+
+    const normalizedLinks = rawLinks.map(normalizeReferenceLink);
+    const invalidLinks = normalizedLinks.filter(
+      (link) => !isValidReferenceLink(link),
+    );
+    if (invalidLinks.length > 0) {
+      setReferenceError(
+        invalidLinks.length === 1
+          ? "Enter a valid product or inspiration link"
+          : `${invalidLinks.length} links are invalid`,
+      );
       return;
     }
 
@@ -389,7 +515,12 @@ function EnquiryForm() {
       ...prev,
       references: [
         ...prev.references,
-        { id: generateId(), type: "link", url: normalized, name: normalized },
+        ...normalizedLinks.map((link) => ({
+          id: generateId(),
+          type: "link" as const,
+          url: link,
+          name: link,
+        })),
       ],
     }));
     setReferenceLinkInput("");
@@ -528,14 +659,18 @@ function EnquiryForm() {
             errors={errors}
             submitError={submitError}
             addProduct={addProduct}
-            lookupCatalogueProduct={lookupCatalogueProduct}
+            searchInventoryProducts={searchInventoryProducts}
             removeSelectedProduct={removeSelectedProduct}
             addNewProduct={addNewProduct}
             cancelNewProduct={cancelNewProduct}
+            editNewProduct={editNewProduct}
             removeNewProduct={removeNewProduct}
             addReferenceLink={addReferenceLink}
             addReferenceFiles={addReferenceFiles}
             removeDraftReference={removeDraftReference}
+            customProductSubmitLabel={
+              editingNewProductId ? "Update product" : "Add product"
+            }
           />
         )}
       </div>

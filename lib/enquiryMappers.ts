@@ -1,10 +1,5 @@
 import { normalizePerson } from "@/lib/people";
 import type {
-  ActivityLogType,
-  BackendActivityLog,
-  BackendComment,
-} from "@/types/activity-api";
-import type {
   ActivityEntry,
   EnquiryCustomProduct,
   EnquiryReference,
@@ -16,6 +11,11 @@ import type {
   ProductEstimation,
   Stage,
 } from "@/types";
+import type {
+  ActivityLogType,
+  BackendActivityLog,
+  BackendComment,
+} from "@/types/activity-api";
 import type {
   BackendEnquiryDetails,
   BackendEnquiryItemRow,
@@ -107,12 +107,19 @@ function mapBackendItemToSelectedProduct(
 function mapBackendItemToCustomProduct(
   item: BackendEnquiryItemRow,
 ): EnquiryCustomProduct {
+  const stones = item.stones.map((stone, index) => ({
+    id: `${item.id}-stone-${index}`,
+    stoneType: stone.stoneType,
+    weight: stone.weight ? Number(stone.weight) : undefined,
+  }));
+
   return {
     id: item.id,
     category: "Custom",
     metalType: item.metalType ?? "",
     metalPurity: item.metalPurity ?? "",
     polish: "",
+    stones,
     stoneDescription: item.stones.map((stone) => stone.stoneType).join(", "),
     stoneCut: "",
     stoneQuality: "",

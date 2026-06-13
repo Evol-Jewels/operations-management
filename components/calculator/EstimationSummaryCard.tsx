@@ -10,7 +10,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import type {
   CalculatorFormState,
   CalculatorPricingBreakdown,
-  CatalogueEstimateResult,
+  ProductEstimateResult,
 } from "@/types";
 
 interface SharedSummaryData {
@@ -46,7 +46,7 @@ interface EstimationSummaryCardProps {
       }
     | {
         kind: "estimate";
-        result: CatalogueEstimateResult;
+        result: ProductEstimateResult;
       };
 }
 
@@ -158,7 +158,7 @@ export function EstimationSummaryCard({
         <div>
           <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Shareable customer estimate
+            Estimation as per values, share with customers using the download button
           </p>
         </div>
         {showDownloadButton ? (
@@ -199,7 +199,7 @@ export function EstimationSummaryCard({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr]">
-          <div className="relative flex min-h-48 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0">
+          <div className="relative flex min-h-48 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-[4/3] sm:min-h-0">
             {summary.imageUrl ? (
               <Image
                 src={summary.imageUrl}

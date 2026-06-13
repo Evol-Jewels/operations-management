@@ -155,7 +155,7 @@ export function ProductThumbnail({
 
   if (product.imageUrl) {
     return (
-      // biome-ignore lint/performance/noImgElement: catalogue images are remote URLs from mock product data.
+      // biome-ignore lint/performance/noImgElement: inventory images can be remote URLs.
       <img
         src={product.imageUrl}
         alt={product.name}

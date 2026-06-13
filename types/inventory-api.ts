@@ -74,6 +74,7 @@ export type InventoryProduct = {
 
 export type InventoryProductListQuery = {
   q?: string;
+  code?: string;
   category?: string;
   color?: ProductColor;
   purity?: number;

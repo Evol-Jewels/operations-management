@@ -1,9 +1,8 @@
 "use client";
 
 import { CheckCircle2, ChevronDown, ChevronUp, Pencil } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { mapCatalogueDetailsToEnquiryProduct } from "@/components/enquiries/catalogue-product-mapping";
 import {
   NameStep,
   PhoneStep,
@@ -26,6 +25,14 @@ import {
   ProductThumbnail,
   revokeObjectUrls,
 } from "@/components/enquiries/enquiry-form-utils";
+import {
+  CREATE_ORDER_DRAFT_KEY,
+  readDraft,
+  removeDraft,
+  sanitizeEnquiryFormData,
+  sanitizeNewProduct,
+  writeDraft,
+} from "@/components/enquiries/form-draft-storage";
 import { ProductInterestStep } from "@/components/enquiries/product-interest-step";
 import { StepNumber } from "@/components/enquiries/typeform-controls";
 import { Button } from "@/components/ui/button";
@@ -37,10 +44,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCreateOrders } from "@/hooks/useOrders";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
-import {
-  fetchCatalogueProductDetails,
-  searchCatalogueProductByCode,
-} from "@/lib/catalogApi";
+import { fetchInventoryProducts } from "@/lib/inventoryApi";
+import { mapInventoryProductToEnquiryProduct } from "@/lib/inventoryProductMapping";
 import { cn } from "@/lib/utils";
 import type { CreateOrdersInput } from "@/types/order-api";
 import { addDaysDateString, customProductDetails } from "./order-form-utils";
@@ -80,6 +85,8 @@ function createDefaultMeta(createdAt: Date): OrderProductMeta {
 
 export function CreateOrderForm() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
   const createOrdersMutation = useCreateOrders();
   const createdAtRef = useRef(new Date());
@@ -107,10 +114,14 @@ export function CreateOrderForm() {
   const [newProductDraft, setNewProductDraft] = useState<NewProduct>(
     createEmptyNewProduct,
   );
+  const [editingNewProductId, setEditingNewProductId] = useState<string | null>(
+    null,
+  );
   const [referenceLinkInput, setReferenceLinkInput] = useState("");
   const [referenceError, setReferenceError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [draftHydrated, setDraftHydrated] = useState(false);
 
   const safeStep = Math.min(currentStep, ORDER_STEPS.length - 1);
   const stepId = ORDER_STEPS[safeStep];
@@ -121,6 +132,90 @@ export function CreateOrderForm() {
     stepId === "products" || stepId === "vendor-estimation";
   const hasProducts =
     form.selectedProducts.length > 0 || form.newProducts.length > 0;
+  const canSubmitCustomProduct = (draft: NewProduct) =>
+    Boolean(draft.category && draft.metalType && draft.metalNetWeight);
+
+  useEffect(() => {
+    if (draftHydrated) return;
+
+    const draft = readDraft<{
+      currentStep?: number;
+      form?: CreateOrderFormData;
+      productAddMode?: ProductAddMode;
+      newProductDraft?: NewProduct;
+      referenceLinkInput?: string;
+      editingNewProductId?: string | null;
+    }>(CREATE_ORDER_DRAFT_KEY);
+
+    if (draft?.form) {
+      setForm({
+        ...draft.form,
+        ...sanitizeEnquiryFormData(draft.form),
+        productMeta: draft.form.productMeta ?? {},
+      });
+    }
+    if (draft?.productAddMode) setProductAddMode(draft.productAddMode);
+    if (draft?.newProductDraft) {
+      setNewProductDraft(sanitizeNewProduct(draft.newProductDraft));
+    }
+    if (typeof draft?.referenceLinkInput === "string") {
+      setReferenceLinkInput(draft.referenceLinkInput);
+    }
+    if (typeof draft?.editingNewProductId !== "undefined") {
+      setEditingNewProductId(draft.editingNewProductId);
+    }
+
+    const queryStep = searchParams.get("step");
+    const queryStepIndex = queryStep
+      ? ORDER_STEPS.indexOf(queryStep as OrderStepId)
+      : -1;
+    const storedStep =
+      typeof draft?.currentStep === "number" ? draft.currentStep : 0;
+    setCurrentStep(
+      queryStepIndex >= 0
+        ? queryStepIndex
+        : Math.min(Math.max(storedStep, 0), ORDER_STEPS.length - 1),
+    );
+
+    setDraftHydrated(true);
+  }, [draftHydrated, searchParams]);
+
+  useEffect(() => {
+    if (!draftHydrated || submitted) return;
+
+    writeDraft(CREATE_ORDER_DRAFT_KEY, {
+      currentStep: safeStep,
+      form: {
+        ...sanitizeEnquiryFormData(form),
+        productMeta: form.productMeta,
+      },
+      productAddMode,
+      newProductDraft: sanitizeNewProduct(newProductDraft),
+      referenceLinkInput,
+      editingNewProductId,
+    });
+  }, [
+    safeStep,
+    form,
+    productAddMode,
+    newProductDraft,
+    referenceLinkInput,
+    editingNewProductId,
+    submitted,
+    draftHydrated,
+  ]);
+
+  useEffect(() => {
+    if (!draftHydrated) return;
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    if (nextParams.get("step") === stepId) return;
+    nextParams.set("step", stepId);
+    const query = nextParams.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }, [draftHydrated, pathname, router, searchParams, stepId]);
 
   useEffect(() => {
     return () => {
@@ -188,7 +283,7 @@ export function CreateOrderForm() {
       targetStep === "products" &&
       form.selectedProducts.some((product) => !product.productCode.trim())
     ) {
-      nextErrors.products = "Every catalogue product needs a product code";
+      nextErrors.products = "Every inventory product needs a product code";
     }
 
     if (
@@ -285,7 +380,7 @@ export function CreateOrderForm() {
     setNotFoundCode("");
   }
 
-  async function lookupCatalogueProduct(rawCode: string) {
+  async function searchInventoryProducts(rawCode: string) {
     const code = normalizeDecodedId(rawCode);
     if (!code) return;
 
@@ -296,17 +391,16 @@ export function CreateOrderForm() {
     setProductLookupLoading(true);
 
     try {
-      const searchItem = await searchCatalogueProductByCode(code);
-      if (!searchItem) {
+      const products = await fetchInventoryProducts({ code, limit: 5 });
+      if (products.data.length === 0) {
         setNotFoundCode(code);
         return;
       }
 
-      const details = await fetchCatalogueProductDetails(searchItem.slug);
-      setSearchResults([mapCatalogueDetailsToEnquiryProduct(details)]);
+      setSearchResults(products.data.map(mapInventoryProductToEnquiryProduct));
     } catch (error) {
       setProductLookupError(
-        error instanceof Error ? error.message : "Catalogue search failed",
+        error instanceof Error ? error.message : "Inventory search failed",
       );
     } finally {
       setProductLookupLoading(false);
@@ -334,25 +428,57 @@ export function CreateOrderForm() {
     ) {
       return;
     }
-    const product = { ...newProductDraft, id: generateId() };
+    const product = {
+      ...newProductDraft,
+      id: editingNewProductId ?? generateId(),
+    };
     setForm((prev) => ({
       ...prev,
       newProducts: [...prev.newProducts, product],
       productMeta: {
         ...prev.productMeta,
-        [product.id]: createDefaultMeta(createdAtRef.current),
+        [product.id]:
+          prev.productMeta[product.id] ??
+          createDefaultMeta(createdAtRef.current),
       },
     }));
     setNewProductDraft(createEmptyNewProduct());
+    setEditingNewProductId(null);
     setReferenceLinkInput("");
     setReferenceError("");
   }
 
   function cancelNewProduct() {
-    revokeObjectUrls(newProductDraft.references);
+    if (editingNewProductId) {
+      setForm((prev) => ({
+        ...prev,
+        newProducts: [
+          ...prev.newProducts,
+          { ...newProductDraft, id: editingNewProductId },
+        ],
+      }));
+    } else {
+      revokeObjectUrls(newProductDraft.references);
+    }
     setNewProductDraft(createEmptyNewProduct());
+    setEditingNewProductId(null);
     setReferenceLinkInput("");
     setReferenceError("");
+  }
+
+  function editNewProduct(id: string) {
+    const product = form.newProducts.find((item) => item.id === id);
+    if (!product) return;
+
+    setForm((prev) => ({
+      ...prev,
+      newProducts: prev.newProducts.filter((item) => item.id !== id),
+    }));
+    setNewProductDraft(product);
+    setEditingNewProductId(id);
+    setReferenceLinkInput("");
+    setReferenceError("");
+    setProductAddMode("custom");
   }
 
   function removeNewProduct(id: string) {
@@ -507,6 +633,7 @@ export function CreateOrderForm() {
 
     try {
       const response = await createOrdersMutation.mutateAsync(buildPayload());
+      removeDraft(CREATE_ORDER_DRAFT_KEY);
       setSubmitted(true);
       setTimeout(() => {
         const refCode = response.refCodes?.length === 1 && response.refCodes[0];
@@ -615,14 +742,19 @@ export function CreateOrderForm() {
             errors={errors}
             submitError={submitError}
             addProduct={addProduct}
-            lookupCatalogueProduct={lookupCatalogueProduct}
+            searchInventoryProducts={searchInventoryProducts}
             removeSelectedProduct={removeSelectedProduct}
             addNewProduct={addNewProduct}
             cancelNewProduct={cancelNewProduct}
+            editNewProduct={editNewProduct}
             removeNewProduct={removeNewProduct}
             addReferenceLink={addReferenceLink}
             addReferenceFiles={addReferenceFiles}
             removeDraftReference={removeDraftReference}
+            customProductSubmitLabel={
+              editingNewProductId ? "Update product" : "Add product"
+            }
+            canSubmitCustomProduct={canSubmitCustomProduct}
           />
         )}
         {stepId === "vendor-estimation" && (

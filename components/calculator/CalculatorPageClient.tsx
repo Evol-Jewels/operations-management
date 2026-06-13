@@ -38,6 +38,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
@@ -47,10 +48,10 @@ import {
   resolveAutoSlab,
 } from "@/lib/calculator/pricing";
 import {
-  fetchCatalogueProductDetails,
-  searchCatalogueProductByCode,
-} from "@/lib/catalogApi";
-import { normalizeCatalogueProduct } from "@/lib/catalogMapping";
+  fetchInventoryProductByCode,
+  fetchInventoryProducts,
+} from "@/lib/inventoryApi";
+import { normalizeInventoryProductEstimate } from "@/lib/inventoryProductMapping";
 import {
   createRecentProductEstimate,
   fetchRecentProductEstimates,
@@ -60,10 +61,11 @@ import type {
   CalculatorFormState,
   CalculatorSettings,
   CalculatorStoneInput,
-  CatalogueEstimateResult,
   MetalPurity,
+  ProductEstimateResult,
   RecentProductEstimate,
 } from "@/types";
+import type { InventoryProduct } from "@/types/inventory-api";
 
 type CalculatorTab = "search" | "calculate";
 
@@ -108,7 +110,7 @@ function NumericLineInput({
   step?: number;
 }) {
   return (
-    <div className="flex items-end gap-2 border-b border-border pb-2.5 focus-within:border-foreground">
+    <div className="flex h-9 items-end gap-2 border-b border-border pb-1.5 focus-within:border-foreground">
       <input
         type="number"
         inputMode="decimal"
@@ -117,7 +119,7 @@ function NumericLineInput({
         value={value || ""}
         onChange={(event) => onChange(Number(event.target.value) || 0)}
         placeholder={placeholder}
-        className="min-w-0 flex-1 bg-transparent px-0 text-base outline-none placeholder:text-muted-foreground/35"
+        className="min-w-0 flex-1 bg-transparent px-0 text-sm outline-none placeholder:text-muted-foreground/35"
       />
       {suffix ? (
         <span className="shrink-0 pb-0.5 text-sm text-muted-foreground">
@@ -153,34 +155,28 @@ function TabsSwitcher({
   onTabChange: (tab: CalculatorTab) => void;
 }) {
   return (
-    <div className="grid h-9 w-full grid-cols-2 rounded-lg border border-border bg-muted/50 p-0.5 sm:w-[300px]">
-      <button
-        type="button"
-        onClick={() => onTabChange("search")}
-        className={cn(
-          "flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-          activeTab === "search"
-            ? "bg-background text-foreground"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        <Search className="h-4 w-4" />
-        Search
-      </button>
-      <button
-        type="button"
-        onClick={() => onTabChange("calculate")}
-        className={cn(
-          "flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-          activeTab === "calculate"
-            ? "bg-background text-foreground"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        <CircleDollarSign className="h-4 w-4" />
-        Calculate
-      </button>
-    </div>
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => onTabChange(value as CalculatorTab)}
+      className="w-full sm:w-[300px]"
+    >
+      <TabsList className="grid h-11 w-full grid-cols-2 rounded-xl border border-border bg-muted/50 p-1">
+        <TabsTrigger
+          value="search"
+          className="h-9 rounded-lg data-[state=active]:bg-foreground data-[state=active]:text-background"
+        >
+          <Search className="h-4 w-4" />
+          Search
+        </TabsTrigger>
+        <TabsTrigger
+          value="calculate"
+          className="h-9 rounded-lg data-[state=active]:bg-foreground data-[state=active]:text-background"
+        >
+          <CircleDollarSign className="h-4 w-4" />
+          Calculate
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
   );
 }
 
@@ -215,7 +211,7 @@ function PurityCards({
             type="button"
             onClick={() => onChange(card.purity)}
             className={cn(
-              "flex min-h-10 flex-col items-center justify-center rounded-lg border px-2 py-2 text-center transition-colors",
+              "flex h-12 flex-col items-center justify-center rounded-lg border px-2 text-center transition-colors",
               selected
                 ? "border-foreground bg-muted text-foreground"
                 : "border-border bg-background hover:border-foreground/30",
@@ -261,7 +257,7 @@ function StoneRow({
   const hasUnmatchedWeight = stone.weight > 0 && !resolvedSlab;
 
   return (
-    <div className="space-y-3 border-b border-border pb-4 last:border-b-0 last:pb-0">
+    <div className="space-y-3 border-b border-border pb-3.5 last:border-b-0 last:pb-0">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -291,7 +287,7 @@ function StoneRow({
         value={stone.stoneTypeId}
         onValueChange={(stoneTypeId) => onChange({ stoneTypeId })}
       >
-        <SelectTrigger className="h-10 w-full border-0 border-b bg-transparent px-0 text-sm shadow-none focus:ring-0">
+        <SelectTrigger className="h-9 w-full border-0 border-b bg-transparent px-0 text-sm shadow-none focus:ring-0">
           <SelectValue placeholder="Select stone" />
         </SelectTrigger>
         <SelectContent>
@@ -310,7 +306,7 @@ function StoneRow({
         </SelectContent>
       </Select>
 
-      <div className="grid grid-cols-1 gap-5 min-[430px]:grid-cols-2 min-[430px]:gap-6">
+      <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 min-[430px]:gap-5">
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Weight
@@ -374,7 +370,7 @@ function ProductImageInput({
   );
 }
 
-function BlockedLookupCard({ result }: { result: CatalogueEstimateResult }) {
+function BlockedLookupCard({ result }: { result: ProductEstimateResult }) {
   return (
     <div className="rounded-lg border border-border bg-background p-3">
       <div className="flex items-start justify-between gap-4">
@@ -601,9 +597,9 @@ function RecentEstimateSummaryDialog({
   onOpenChange: (open: boolean) => void;
   estimate: RecentProductEstimate | null;
   settings: CalculatorSettings;
-  onLoadProduct: (result: CatalogueEstimateResult) => void;
+  onLoadProduct: (result: ProductEstimateResult) => void;
 }) {
-  const [result, setResult] = useState<CatalogueEstimateResult | null>(null);
+  const [result, setResult] = useState<ProductEstimateResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -618,16 +614,13 @@ function RecentEstimateSummaryDialog({
       setResult(null);
 
       try {
-        const searchItem = await searchCatalogueProductByCode(
-          estimate.productCode,
-        );
-        if (!searchItem) {
+        const product = await fetchInventoryProductByCode(estimate.productCode);
+        if (!product) {
           setError(`Product details unavailable for ${estimate.productCode}.`);
           return;
         }
 
-        const details = await fetchCatalogueProductDetails(searchItem.slug);
-        setResult(normalizeCatalogueProduct(details, settings));
+        setResult(normalizeInventoryProductEstimate(product, settings));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load summary");
       } finally {
@@ -719,93 +712,133 @@ function SearchPanel({
   onLoadProduct,
 }: {
   settings: CalculatorSettings;
-  onLoadProduct: (result: CatalogueEstimateResult) => void;
+  onLoadProduct: (result: ProductEstimateResult) => void;
 }) {
   const [searchInput, setSearchInput] = useState("");
-  const [submittedCode, setSubmittedCode] = useState("");
+  const [searchedCode, setSearchedCode] = useState("");
+  const [searchResults, setSearchResults] = useState<InventoryProduct[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [blockedResult, setBlockedResult] =
-    useState<CatalogueEstimateResult | null>(null);
+    useState<ProductEstimateResult | null>(null);
   const [notFoundCode, setNotFoundCode] = useState("");
   const [recentRefreshKey, setRecentRefreshKey] = useState(0);
   const [selectedRecent, setSelectedRecent] =
     useState<RecentProductEstimate | null>(null);
+  const searchRequestRef = useRef(0);
+  const skipNextDebouncedSearchRef = useRef(false);
+  const searchInventoryProductsRef = useRef<
+    (rawCode: string, autoLoadExact?: boolean) => Promise<void>
+  >(async () => {});
 
-  async function submitLookupCode(rawCode: string) {
+  function loadInventoryProduct(product: InventoryProduct) {
+    const normalized = normalizeInventoryProductEstimate(product, settings);
+
+    if (normalized.issues.length > 0) {
+      setBlockedResult(normalized);
+      return;
+    }
+
+    createRecentProductEstimate({
+      productCode: normalized.product.productCode,
+      imageUrl: normalized.product.imageUrl ?? undefined,
+    })
+      .then(() => {
+        setRecentRefreshKey((current) => current + 1);
+      })
+      .catch(() => {
+        // Recording recents should not block a successful calculator load.
+      });
+
+    onLoadProduct(normalized);
+  }
+
+  async function searchInventoryProducts(
+    rawCode: string,
+    autoLoadExact = false,
+  ) {
     const code = normalizeDecodedId(rawCode);
     if (!code) return;
 
-    setSearchInput(code);
-    setSubmittedCode(code);
+    const requestId = searchRequestRef.current + 1;
+    searchRequestRef.current = requestId;
+    setSearchedCode(code);
     setError(null);
     setNotFoundCode("");
     setBlockedResult(null);
+    setSearchResults([]);
     setIsLoading(true);
 
     try {
-      const searchItem = await searchCatalogueProductByCode(code);
-      if (!searchItem) {
+      const products = await fetchInventoryProducts({ code, limit: 5 });
+      if (requestId !== searchRequestRef.current) return;
+
+      if (products.data.length === 0) {
         setNotFoundCode(code);
         return;
       }
 
-      const details = await fetchCatalogueProductDetails(searchItem.slug);
-      const normalized = normalizeCatalogueProduct(details, settings);
+      const exactMatch = products.data.find(
+        (product) => product.productCode.toUpperCase() === code.toUpperCase(),
+      );
 
-      if (normalized.issues.length > 0) {
-        setBlockedResult(normalized);
+      if (autoLoadExact && (products.data.length === 1 || exactMatch)) {
+        loadInventoryProduct(exactMatch ?? products.data[0]);
         return;
       }
 
-      createRecentProductEstimate({
-        productCode: normalized.product.productCode,
-        imageUrl: normalized.product.imageUrl ?? undefined,
-      })
-        .then(() => {
-          setRecentRefreshKey((current) => current + 1);
-        })
-        .catch(() => {
-          // Recording recents should not block a successful calculator load.
-        });
-
-      onLoadProduct(normalized);
+      setSearchResults(products.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
     } finally {
-      setIsLoading(false);
+      if (requestId === searchRequestRef.current) setIsLoading(false);
     }
   }
+
+  searchInventoryProductsRef.current = searchInventoryProducts;
+
+  useEffect(() => {
+    if (skipNextDebouncedSearchRef.current) {
+      skipNextDebouncedSearchRef.current = false;
+      return;
+    }
+
+    const code = searchInput.trim();
+    if (!code) {
+      searchRequestRef.current += 1;
+      setSearchedCode("");
+      setSearchResults([]);
+      setNotFoundCode("");
+      setError(null);
+      setBlockedResult(null);
+      setIsLoading(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      searchInventoryProductsRef.current(code);
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [searchInput]);
 
   return (
     <div className="space-y-4 py-4">
       <div className="grid gap-4 sm:grid-cols-[minmax(180px,2fr)_1fr]">
-        <div className="flex min-w-0 gap-3">
+        <div className="relative min-w-0">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={searchInput}
             onChange={(event) =>
               setSearchInput(event.target.value.toUpperCase())
             }
             onKeyDown={(event) => {
-              if (event.key === "Enter") submitLookupCode(searchInput);
+              if (event.key === "Enter") searchInventoryProducts(searchInput);
             }}
-            placeholder="Enter barcode"
-            className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm uppercase outline-none transition-shadow focus:ring-2 focus:ring-ring/20"
+            placeholder="Search product code"
+            className="h-9 w-full min-w-0 rounded-lg border border-border bg-background px-3 pl-10 text-sm uppercase outline-none transition-shadow focus:ring-2 focus:ring-ring/20"
           />
-          <Button
-            type="button"
-            onClick={() => submitLookupCode(searchInput)}
-            disabled={!searchInput.trim() || isLoading}
-            className="h-9 w-9 shrink-0 rounded-lg px-0"
-            aria-label="Search"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-          </Button>
         </div>
         <Button
           type="button"
@@ -822,9 +855,18 @@ function SearchPanel({
         open={isScannerOpen}
         onOpenChange={setIsScannerOpen}
         onDecoded={(code) => {
-          submitLookupCode(code);
+          const normalizedCode = normalizeDecodedId(code);
+          skipNextDebouncedSearchRef.current = true;
+          setSearchInput(normalizedCode);
+          searchInventoryProducts(normalizedCode, true);
         }}
       />
+
+      {isLoading ? (
+        <div className="rounded-md border border-border bg-muted/25 px-3 py-2 text-sm text-muted-foreground">
+          Searching inventory...
+        </div>
+      ) : null}
 
       {error ? (
         <div className="rounded-md border border-destructive/35 px-3 py-2 text-sm text-destructive">
@@ -841,13 +883,52 @@ function SearchPanel({
 
       {blockedResult ? <BlockedLookupCard result={blockedResult} /> : null}
 
-      {!blockedResult &&
-      !error &&
-      !notFoundCode &&
-      submittedCode &&
-      !isLoading ? (
+      {!blockedResult && searchResults.length > 0 ? (
+        <div className="max-h-80 overflow-y-auto rounded-lg border border-border bg-background">
+          {searchResults.map((product) => {
+            const imageUrl =
+              product.media.find((item) => item.isPrimary)?.storageKey ??
+              product.media[0]?.storageKey;
+
+            return (
+              <button
+                key={product.id}
+                type="button"
+                onClick={() => loadInventoryProduct(product)}
+                className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                  {imageUrl ? (
+                    <Image
+                      src={imageUrl}
+                      alt={product.productCode}
+                      width={40}
+                      height={40}
+                      className="h-full w-full object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">
+                    {product.name || product.productCode}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {product.productCode} - {product.color} {product.purity}K
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {product.location.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : searchedCode && !isLoading && !error && !notFoundCode ? (
         <div className="rounded-md border border-border bg-muted/25 px-3 py-2 text-sm text-muted-foreground">
-          Search completed. Valid products open in the calculate tab.
+          Select a product from the suggestions to load the calculator.
         </div>
       ) : null}
 
@@ -896,7 +977,7 @@ function CalculatorForm({
   onOpenSettings: () => void;
 }) {
   return (
-    <div className="min-w-0 space-y-5 rounded-lg border border-border bg-background p-4 sm:p-5">
+    <div className="min-w-0 space-y-4 rounded-lg border border-border bg-background p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Inputs</h2>
@@ -930,7 +1011,7 @@ function CalculatorForm({
 
       <Separator />
 
-      <section className="space-y-4">
+      <section className="space-y-3.5">
         <SectionLabel title="Metal Details" />
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -946,7 +1027,7 @@ function CalculatorForm({
           />
         </div>
 
-        <div className="space-y-3.5">
+        <div className="space-y-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Purity
           </p>
@@ -960,7 +1041,7 @@ function CalculatorForm({
 
       <Separator />
 
-      <section className="space-y-4">
+      <section className="space-y-3.5">
         <SectionLabel
           title="Stone Details"
           action={
@@ -976,7 +1057,7 @@ function CalculatorForm({
             </Button>
           }
         />
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           {form.stones.map((stone, index) => (
             <StoneRow
               key={stone.id}
@@ -993,7 +1074,7 @@ function CalculatorForm({
 
       <Separator />
 
-      <section className="space-y-4">
+      <section className="space-y-3.5">
         <SectionLabel title="Product Details (Optional)" />
         <ProductImageInput
           imageUrl={form.productImageUrl}
@@ -1160,7 +1241,7 @@ export function CalculatorPageClient() {
     updateForm("productImageUrl", URL.createObjectURL(file));
   }
 
-  function loadCatalogueProduct(result: CatalogueEstimateResult) {
+  function loadInventoryProduct(result: ProductEstimateResult) {
     const purityMap: Record<string, MetalPurity> = {
       "24": "24K",
       "22": "22K",
@@ -1210,11 +1291,11 @@ export function CalculatorPageClient() {
           <div className="">
             <SearchPanel
               settings={settings}
-              onLoadProduct={loadCatalogueProduct}
+              onLoadProduct={loadInventoryProduct}
             />
           </div>
         ) : (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(380px,520px)_minmax(420px,1fr)] xl:grid-cols-[minmax(420px,560px)_minmax(460px,1fr)]">
             <CalculatorForm
               settings={settings}
               form={form}

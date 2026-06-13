@@ -87,6 +87,33 @@ function getDefaultPurity(value: string): MetalPurity {
     : "22K";
 }
 
+function getCustomProductStones(product: EnquiryCustomProduct) {
+  if (product.stones.length > 0) return product.stones;
+  if (!product.stoneDescription) return [];
+
+  return [
+    {
+      id: `${product.id}-legacy-stone`,
+      stoneType: product.stoneDescription,
+      weight: product.stoneCaratEstimate,
+    },
+  ];
+}
+
+function formatCustomStoneSummary(product: EnquiryCustomProduct) {
+  return getCustomProductStones(product)
+    .map((stone) => {
+      const meta = [
+        stone.pieces ? `${stone.pieces} pcs` : null,
+        stone.weight ? `~${stone.weight} ct` : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      return meta ? `${stone.stoneType} (${meta})` : stone.stoneType;
+    })
+    .join(" · ");
+}
+
 function StatusBadge({ status }: { status: EnquiryItemStatus }) {
   return (
     <span
@@ -268,21 +295,24 @@ function ProductCard({
                 <DetailRow label="Category" value={customProduct.category} />
                 <DetailRow
                   label="Metal"
-                  value={`${customProduct.metalType} ${customProduct.metalPurity}`}
+                  value={[customProduct.metalType, customProduct.metalPurity]
+                    .filter(Boolean)
+                    .join(" ")}
                 />
                 <DetailRow label="Polish" value={customProduct.polish} />
-                <DetailRow
-                  label="Stone"
-                  value={customProduct.stoneDescription}
-                />
-                <DetailRow label="Cut" value={customProduct.stoneCut} />
-                <DetailRow label="Quality" value={customProduct.stoneQuality} />
-                {customProduct.stoneCaratEstimate ? (
+                {getCustomProductStones(customProduct).map((stone, index) => (
                   <DetailRow
-                    label="Carat"
-                    value={`~${customProduct.stoneCaratEstimate} ct`}
+                    key={stone.id}
+                    label={index === 0 ? "Stone" : `Stone ${index + 1}`}
+                    value={[
+                      stone.stoneType,
+                      stone.pieces ? `${stone.pieces} pcs` : null,
+                      stone.weight ? `~${stone.weight} ct` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   />
-                ) : null}
+                ))}
               </>
             ) : null}
           </dl>
@@ -437,7 +467,7 @@ export function EnquiryProductList({
         .filter(Boolean)
         .join(" · ");
       const subtitle =
-        [product.polish, product.stoneDescription, product.stoneCut]
+        [product.polish, formatCustomStoneSummary(product)]
           .filter(Boolean)
           .join(" · ") || "Custom design";
 
