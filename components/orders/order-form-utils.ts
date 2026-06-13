@@ -34,6 +34,14 @@ export function referenceToOrderMedia(
 export function customProductStones(
   product: NewProduct,
 ): BackendEnquiryStone[] {
+  const stones = product.stones
+    .filter((stone) => stone.stoneType.trim())
+    .map((stone) => ({
+      stoneType: stone.stoneType.trim(),
+      weight: stone.weight || undefined,
+    }));
+
+  if (stones.length > 0) return stones;
   if (!product.stoneDescription.trim()) return [];
 
   return [
@@ -79,10 +87,19 @@ export function customProductDetails(
     | "metalGrossWeight"
     | "metalColor"
     | "size"
+    | "stones"
     | "stoneDescription"
     | "stoneCaratEstimate"
   >,
 ): BackendCustomProductDetails {
+  const stones = product.stones
+    .filter((stone) => stone.stoneType.trim())
+    .map((stone) => ({
+      stoneType: stone.stoneType.trim(),
+      approxPieces: stone.pieces ? Number(stone.pieces) : 1,
+      netWeight: stone.weight || undefined,
+    }));
+
   return {
     category: mapCategoryToBackend(product.category),
     metalType: product.metalType,
@@ -91,14 +108,17 @@ export function customProductDetails(
     size: product.size ? Number(product.size) : undefined,
     metalNetWeight: product.metalNetWeight,
     metalGrossWeight: product.metalGrossWeight || undefined,
-    stones: product.stoneDescription.trim()
-      ? [
-          {
-            stoneType: product.stoneDescription.trim(),
-            approxPieces: 1,
-            netWeight: product.stoneCaratEstimate || undefined,
-          },
-        ]
-      : [],
+    stones:
+      stones.length > 0
+        ? stones
+        : product.stoneDescription.trim()
+          ? [
+              {
+                stoneType: product.stoneDescription.trim(),
+                approxPieces: 1,
+                netWeight: product.stoneCaratEstimate || undefined,
+              },
+            ]
+          : [],
   };
 }

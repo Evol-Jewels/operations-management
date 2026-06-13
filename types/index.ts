@@ -200,12 +200,20 @@ export interface EnquirySelectedProduct {
   status?: EnquiryItemStatus;
 }
 
+export interface EnquiryCustomStone {
+  id: string;
+  stoneType: string;
+  pieces?: number;
+  weight?: number;
+}
+
 export interface EnquiryCustomProduct {
   id: string;
   category: string;
   metalType: string;
   metalPurity: string;
   polish: string;
+  stones: EnquiryCustomStone[];
   stoneDescription: string;
   stoneCut: string;
   stoneQuality: string;
