@@ -1124,7 +1124,7 @@ export function CalculatorPageClient({
 }: {
   initialTab?: CalculatorTab;
 }) {
-  const { settings, lastSynced, isSyncingStones, syncError, syncStones } =
+  const { settings, lastSynced, isSyncingSettings, syncError, syncSettings } =
     useCalculatorSettings();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const summaryCardRef = useRef<HTMLDivElement | null>(null);
@@ -1378,8 +1378,8 @@ export function CalculatorPageClient({
             <SettingsView
               settings={settings}
               lastSynced={lastSynced}
-              onSyncStones={syncStones}
-              isSyncingStones={isSyncingStones}
+              onSyncSettings={syncSettings}
+              isSyncingSettings={isSyncingSettings}
               syncError={syncError}
             />
           </div>

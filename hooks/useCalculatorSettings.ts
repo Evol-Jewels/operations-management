@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { useStoneSlabs, useStoneTypes } from "@/hooks/useManageProducts";
-import { useSystemConfigs } from "@/hooks/useSystemConfigs";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_CALCULATOR_SETTINGS } from "@/lib/calculator/constants";
+import {
+  fetchStoneSlabs,
+  fetchStoneTypes,
+  type ListStoneSlabsQuery,
+  type ListStoneTypesQuery,
+} from "@/lib/manageProductsApi";
+import { fetchGoldRate, fetchSystemConfigs } from "@/lib/systemConfigApi";
 import type {
   CalculatorSettings,
   CalculatorStoneSlab,
@@ -16,9 +22,17 @@ import type {
   StoneTypeResponse,
 } from "@/types/manage-products-api";
 
-const LAST_STONES_SYNCED_STORAGE_KEY = "diamond-calc-stones-last-synced";
-const CALCULATOR_QUERY_STALE_TIME = 10 * 60 * 1000;
-const LIST_QUERY = { limit: 1000, offset: 0 };
+const SYSTEM_CONFIGS_STORAGE_KEY = "diamond-calc-system-configs-v1";
+const STONE_TYPES_STORAGE_KEY = "diamond-calc-stone-types-v1";
+const STONE_SLABS_STORAGE_KEY = "diamond-calc-stone-slabs-v1";
+const LAST_SETTINGS_SYNCED_STORAGE_KEY = "diamond-calc-settings-last-synced-v1";
+const LIST_QUERY = { limit: 1000, offset: 0 } satisfies ListStoneTypesQuery &
+  ListStoneSlabsQuery;
+
+interface ListCache<T> {
+  data: T[];
+  total: number;
+}
 
 function toNumber(value: unknown, fallback: number) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -52,6 +66,69 @@ function writeStorageValue(key: string, value: string) {
   }
 }
 
+function parseStoredJson<T>(
+  key: string,
+  validate: (value: unknown) => value is T,
+) {
+  const storedValue = readStorageValue(key);
+  if (!storedValue) return null;
+
+  try {
+    const parsed = JSON.parse(storedValue) as unknown;
+    return validate(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function isSystemConfigList(value: unknown): value is SystemConfig[] {
+  return Array.isArray(value);
+}
+
+function isListCache<T>(value: unknown): value is ListCache<T> {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return Array.isArray(record.data) && typeof record.total === "number";
+}
+
+function readCachedSystemConfigs() {
+  if (typeof window === "undefined") return null;
+  return parseStoredJson<SystemConfig[]>(
+    SYSTEM_CONFIGS_STORAGE_KEY,
+    isSystemConfigList,
+  );
+}
+
+function readCachedStoneTypes() {
+  if (typeof window === "undefined") return null;
+  return parseStoredJson<ListCache<StoneTypeResponse>>(
+    STONE_TYPES_STORAGE_KEY,
+    isListCache,
+  );
+}
+
+function readCachedStoneSlabs() {
+  if (typeof window === "undefined") return null;
+  return parseStoredJson<ListCache<StoneSlabResponse>>(
+    STONE_SLABS_STORAGE_KEY,
+    isListCache,
+  );
+}
+
+function persistCalculatorCaches({
+  systemConfigs,
+  stoneTypes,
+  stoneSlabs,
+}: {
+  systemConfigs: SystemConfig[];
+  stoneTypes: ListCache<StoneTypeResponse>;
+  stoneSlabs: ListCache<StoneSlabResponse>;
+}) {
+  writeStorageValue(SYSTEM_CONFIGS_STORAGE_KEY, JSON.stringify(systemConfigs));
+  writeStorageValue(STONE_TYPES_STORAGE_KEY, JSON.stringify(stoneTypes));
+  writeStorageValue(STONE_SLABS_STORAGE_KEY, JSON.stringify(stoneSlabs));
+}
+
 function getConfigValue(configs: SystemConfig[], key: string) {
   return configs.find((config) => config.key === key)?.value;
 }
@@ -60,10 +137,6 @@ function mapSystemConfigs(configs: SystemConfig[]) {
   const defaults = DEFAULT_CALCULATOR_SETTINGS;
 
   return {
-    goldRate24k: toNumber(
-      getConfigValue(configs, "goldRate24k"),
-      defaults.goldRate24k,
-    ),
     makingChargeFlat: toNumber(
       getConfigValue(configs, "makingChargeFlat"),
       defaults.makingChargeFlat,
@@ -132,78 +205,158 @@ function mapStoneTypes(
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Could not sync stones";
+  return error instanceof Error ? error.message : "Could not sync settings";
 }
 
 export function useCalculatorSettings() {
-  const systemConfigsQuery = useSystemConfigs(true, {
-    staleTime: CALCULATOR_QUERY_STALE_TIME,
-  });
-  const stoneTypesQuery = useStoneTypes(LIST_QUERY, true, {
-    staleTime: CALCULATOR_QUERY_STALE_TIME,
-  });
-  const stoneSlabsQuery = useStoneSlabs(LIST_QUERY, true, {
-    staleTime: CALCULATOR_QUERY_STALE_TIME,
-  });
+  const [systemConfigs, setSystemConfigs] = useState<SystemConfig[] | null>(
+    readCachedSystemConfigs,
+  );
+  const [stoneTypes, setStoneTypes] =
+    useState<ListCache<StoneTypeResponse> | null>(readCachedStoneTypes);
+  const [stoneSlabs, setStoneSlabs] =
+    useState<ListCache<StoneSlabResponse> | null>(readCachedStoneSlabs);
   const [lastSynced, setLastSynced] = useState<string | null>(() =>
     typeof window === "undefined"
       ? null
-      : readStorageValue(LAST_STONES_SYNCED_STORAGE_KEY),
+      : readStorageValue(LAST_SETTINGS_SYNCED_STORAGE_KEY),
   );
+  const [isLoadingCachedSettings, setIsLoadingCachedSettings] = useState(false);
+  const [isSyncingSettings, setIsSyncingSettings] = useState(false);
+  const [cacheError, setCacheError] = useState<Error | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const missingCacheLoadRef = useRef(false);
+
+  const goldRateQuery = useQuery({
+    queryKey: ["gold-rate"],
+    queryFn: fetchGoldRate,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    const missingSystemConfigs = systemConfigs === null;
+    const missingStoneTypes = stoneTypes === null;
+    const missingStoneSlabs = stoneSlabs === null;
+
+    if (
+      missingCacheLoadRef.current ||
+      (!missingSystemConfigs && !missingStoneTypes && !missingStoneSlabs)
+    ) {
+      return;
+    }
+
+    missingCacheLoadRef.current = true;
+    setIsLoadingCachedSettings(true);
+    setCacheError(null);
+
+    async function loadMissingCachedSettings() {
+      try {
+        const systemConfigsPromise = missingSystemConfigs
+          ? fetchSystemConfigs()
+          : Promise.resolve(systemConfigs);
+        const stoneTypesPromise = missingStoneTypes
+          ? fetchStoneTypes(LIST_QUERY)
+          : Promise.resolve(stoneTypes);
+        const stoneSlabsPromise = missingStoneSlabs
+          ? fetchStoneSlabs(LIST_QUERY)
+          : Promise.resolve(stoneSlabs);
+
+        const [systemConfigsResult, stoneTypesResult, stoneSlabsResult] =
+          await Promise.all([
+            systemConfigsPromise,
+            stoneTypesPromise,
+            stoneSlabsPromise,
+          ]);
+
+        if (!systemConfigsResult || !stoneTypesResult || !stoneSlabsResult) {
+          throw new Error("Could not load calculator settings");
+        }
+
+        setSystemConfigs(systemConfigsResult);
+        setStoneTypes(stoneTypesResult);
+        setStoneSlabs(stoneSlabsResult);
+        persistCalculatorCaches({
+          systemConfigs: systemConfigsResult,
+          stoneTypes: stoneTypesResult,
+          stoneSlabs: stoneSlabsResult,
+        });
+      } catch (error) {
+        setCacheError(
+          error instanceof Error ? error : new Error(getErrorMessage(error)),
+        );
+      } finally {
+        setIsLoadingCachedSettings(false);
+      }
+    }
+
+    void loadMissingCachedSettings();
+  }, [stoneSlabs, stoneTypes, systemConfigs]);
 
   const settings = useMemo<CalculatorSettings>(() => {
-    const configSettings = mapSystemConfigs(systemConfigsQuery.data ?? []);
-    const stoneTypes = mapStoneTypes(
-      stoneTypesQuery.data?.data ?? [],
-      stoneSlabsQuery.data?.data ?? [],
+    const configSettings = mapSystemConfigs(systemConfigs ?? []);
+    const mappedStoneTypes = mapStoneTypes(
+      stoneTypes?.data ?? [],
+      stoneSlabs?.data ?? [],
+    );
+    const goldRate24k = toNumber(
+      goldRateQuery.data?.goldRate24k,
+      DEFAULT_CALCULATOR_SETTINGS.goldRate24k,
     );
 
     return {
       ...configSettings,
-      stoneTypes,
+      goldRate24k,
+      stoneTypes: mappedStoneTypes,
     };
-  }, [systemConfigsQuery.data, stoneSlabsQuery.data, stoneTypesQuery.data]);
+  }, [goldRateQuery.data, stoneSlabs, stoneTypes, systemConfigs]);
 
-  const syncStones = useCallback(async () => {
+  const syncSettings = useCallback(async () => {
     setSyncError(null);
+    setIsSyncingSettings(true);
 
-    const [stoneTypesResult, stoneSlabsResult] = await Promise.all([
-      stoneTypesQuery.refetch(),
-      stoneSlabsQuery.refetch(),
-    ]);
+    try {
+      const [nextSystemConfigs, nextStoneTypes, nextStoneSlabs] =
+        await Promise.all([
+          fetchSystemConfigs(),
+          fetchStoneTypes(LIST_QUERY),
+          fetchStoneSlabs(LIST_QUERY),
+        ]);
 
-    const error = stoneTypesResult.error ?? stoneSlabsResult.error;
-    if (error) {
+      persistCalculatorCaches({
+        systemConfigs: nextSystemConfigs,
+        stoneTypes: nextStoneTypes,
+        stoneSlabs: nextStoneSlabs,
+      });
+
+      setSystemConfigs(nextSystemConfigs);
+      setStoneTypes(nextStoneTypes);
+      setStoneSlabs(nextStoneSlabs);
+
+      const syncedAt = new Date().toISOString();
+      setLastSynced(syncedAt);
+      writeStorageValue(LAST_SETTINGS_SYNCED_STORAGE_KEY, syncedAt);
+      return { success: true, error: null };
+    } catch (error) {
       const message = getErrorMessage(error);
       setSyncError(message);
       return { success: false, error: message };
+    } finally {
+      setIsSyncingSettings(false);
     }
+  }, []);
 
-    const syncedAt = new Date().toISOString();
-    setLastSynced(syncedAt);
-    writeStorageValue(LAST_STONES_SYNCED_STORAGE_KEY, syncedAt);
-    return { success: true, error: null };
-  }, [stoneSlabsQuery, stoneTypesQuery]);
-
-  const queryError =
-    systemConfigsQuery.error ?? stoneTypesQuery.error ?? stoneSlabsQuery.error;
+  const queryError = goldRateQuery.error ?? cacheError;
 
   return {
     settings,
     lastSynced,
-    isLoading:
-      systemConfigsQuery.isLoading ||
-      stoneTypesQuery.isLoading ||
-      stoneSlabsQuery.isLoading,
-    isFetching:
-      systemConfigsQuery.isFetching ||
-      stoneTypesQuery.isFetching ||
-      stoneSlabsQuery.isFetching,
+    isLoading: goldRateQuery.isLoading || isLoadingCachedSettings,
+    isFetching: goldRateQuery.isFetching || isLoadingCachedSettings,
     error: queryError,
-    isSyncingStones:
-      stoneTypesQuery.isRefetching || stoneSlabsQuery.isRefetching,
+    isSyncingSettings,
     syncError,
-    syncStones,
+    syncSettings,
   };
 }

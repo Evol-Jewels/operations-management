@@ -23,8 +23,8 @@ import type { CalculatorSettings, MetalPurity } from "@/types";
 interface SettingsViewProps {
   settings: CalculatorSettings;
   lastSynced: string | null;
-  onSyncStones: () => Promise<{ success: boolean; error: string | null }>;
-  isSyncingStones: boolean;
+  onSyncSettings: () => Promise<{ success: boolean; error: string | null }>;
+  isSyncingSettings: boolean;
   syncError: string | null;
 }
 
@@ -48,20 +48,20 @@ function formatWeight(value: number) {
 }
 
 function getLastSyncedLabel(lastSynced: string | null) {
-  if (!lastSynced) return "Stones never synced";
+  if (!lastSynced) return "Settings never synced";
 
   const diff = Math.floor((Date.now() - new Date(lastSynced).getTime()) / 1000);
-  if (diff < 60) return "Stones synced just now";
-  if (diff < 3600) return `Stones synced ${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `Stones synced ${Math.floor(diff / 3600)}h ago`;
-  return `Stones synced ${Math.floor(diff / 86400)}d ago`;
+  if (diff < 60) return "Settings synced just now";
+  if (diff < 3600) return `Settings synced ${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `Settings synced ${Math.floor(diff / 3600)}h ago`;
+  return `Settings synced ${Math.floor(diff / 86400)}d ago`;
 }
 
 export function SettingsView({
   settings,
   lastSynced,
-  onSyncStones,
-  isSyncingStones,
+  onSyncSettings,
+  isSyncingSettings,
   syncError,
 }: SettingsViewProps) {
   const [goldExpanded, setGoldExpanded] = useState(true);
@@ -101,14 +101,14 @@ export function SettingsView({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => void onSyncStones()}
-          disabled={isSyncingStones}
+          onClick={() => void onSyncSettings()}
+          disabled={isSyncingSettings}
           className="h-9 shrink-0 gap-1.5 border-border text-xs"
         >
           <RefreshCw
-            className={`h-3 w-3 ${isSyncingStones ? "animate-spin" : ""}`}
+            className={`h-3 w-3 ${isSyncingSettings ? "animate-spin" : ""}`}
           />
-          {isSyncingStones ? "Syncing stones..." : "Sync stones"}
+          {isSyncingSettings ? "Syncing settings..." : "Sync settings"}
         </Button>
       </div>
 
