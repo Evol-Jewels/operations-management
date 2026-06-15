@@ -1,5 +1,9 @@
 import type { SystemConfig, UpdateSystemConfigInput } from "@/types";
 
+interface GoldRateResponse {
+  goldRate24k: number;
+}
+
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
 
 function ensureApiConfig() {
@@ -46,6 +50,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function fetchSystemConfigs() {
   return apiFetch<SystemConfig[]>(buildUrl("api/v1/system-configs"));
+}
+
+export function fetchGoldRate() {
+  return apiFetch<GoldRateResponse>(buildUrl("api/v1/gold-rate"));
 }
 
 export function updateSystemConfig(

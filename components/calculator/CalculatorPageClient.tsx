@@ -16,7 +16,8 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import { EstimationSummaryCard } from "@/components/calculator/EstimationSummaryCard";
@@ -48,6 +49,10 @@ import {
   resolveAutoSlab,
 } from "@/lib/calculator/pricing";
 import {
+  type CalculatorTab,
+  writeCalculatorTabCookie,
+} from "@/lib/calculatorTab";
+import {
   fetchInventoryProductByCode,
   fetchInventoryProducts,
 } from "@/lib/inventoryApi";
@@ -67,8 +72,6 @@ import type {
 } from "@/types";
 import type { InventoryProduct } from "@/types/inventory-api";
 
-type CalculatorTab = "search" | "calculate";
-
 const PURITY_OPTIONS: MetalPurity[] = ["24K", "22K", "18K", "14K"];
 const RECENT_ESTIMATE_SKELETON_IDS = [
   "recent-skeleton-1",
@@ -79,6 +82,12 @@ const RECENT_ESTIMATE_SKELETON_IDS = [
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
+}
+
+function normalizeMetalPurity(value: string): MetalPurity {
+  return ["14K", "18K", "22K", "24K", "Other"].includes(value)
+    ? (value as MetalPurity)
+    : "Other";
 }
 
 function createStone(settings: CalculatorSettings): CalculatorStoneInput {
@@ -856,6 +865,7 @@ function SearchPanel({
         onOpenChange={setIsScannerOpen}
         onDecoded={(code) => {
           const normalizedCode = normalizeDecodedId(code);
+          if (!normalizedCode) return;
           skipNextDebouncedSearchRef.current = true;
           setSearchInput(normalizedCode);
           searchInventoryProducts(normalizedCode, true);
@@ -1109,19 +1119,26 @@ function CalculatorForm({
   );
 }
 
-export function CalculatorPageClient() {
+export function CalculatorPageClient({
+  initialTab = "search",
+}: {
+  initialTab?: CalculatorTab;
+}) {
   const {
     settings,
     lastSynced,
-    isSyncing,
+    isSyncingSettings,
     syncError,
-    setSettings,
-    syncFromSheet,
+    syncSettings,
+    setLocalSettings,
   } = useCalculatorSettings();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const summaryCardRef = useRef<HTMLDivElement | null>(null);
   const shouldScrollToSummaryRef = useRef(false);
-  const [activeTab, setActiveTab] = useState<CalculatorTab>("calculate");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTabState] = useState<CalculatorTab>(initialTab);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [form, setForm] = useState<CalculatorFormState>({
     netGoldWeight: 0,
@@ -1160,6 +1177,23 @@ export function CalculatorPageClient() {
       }
     };
   }, [form.productImageUrl]);
+
+  const setActiveTab = useCallback(
+    (tab: CalculatorTab) => {
+      setActiveTabState((current) => {
+        if (current === tab) return current;
+        writeCalculatorTabCookie(tab);
+        const next = new URLSearchParams(searchParams?.toString() ?? "");
+        next.set("tab", tab);
+        const query = next.toString();
+        router.replace(query ? `${pathname}?${query}` : pathname, {
+          scroll: false,
+        });
+        return tab;
+      });
+    },
+    [pathname, router, searchParams],
+  );
 
   useEffect(() => {
     if (activeTab !== "calculate" || !shouldScrollToSummaryRef.current) {
@@ -1242,20 +1276,13 @@ export function CalculatorPageClient() {
   }
 
   function loadInventoryProduct(result: ProductEstimateResult) {
-    const purityMap: Record<string, MetalPurity> = {
-      "24": "24K",
-      "22": "22K",
-      "18": "18K",
-      "14": "14K",
-    };
-
     if (form.productImageUrl?.startsWith("blob:")) {
       URL.revokeObjectURL(form.productImageUrl);
     }
 
     setForm({
       netGoldWeight: result.product.netGoldWeight,
-      purity: purityMap[result.product.purity] || "22K",
+      purity: normalizeMetalPurity(result.product.purity),
       stones:
         result.stones.length > 0
           ? result.stones.map((stone) => ({
@@ -1349,17 +1376,17 @@ export function CalculatorPageClient() {
               </button>
             </div>
             <SheetDescription className="mt-1 max-w-sm text-left text-xs text-muted-foreground">
-              Adjust gold rates, making charges, tax, and stone pricing
+              Gold rate is live. Other edits are local until settings sync.
             </SheetDescription>
           </SheetHeader>
 
           <div className="px-4 py-4 sm:px-5">
             <SettingsView
               settings={settings}
-              onChange={setSettings}
+              onChange={setLocalSettings}
               lastSynced={lastSynced}
-              onSync={syncFromSheet}
-              isSyncing={isSyncing}
+              onSyncSettings={syncSettings}
+              isSyncingSettings={isSyncingSettings}
               syncError={syncError}
             />
           </div>

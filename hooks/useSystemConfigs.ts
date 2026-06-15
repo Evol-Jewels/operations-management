@@ -9,11 +9,15 @@ export const systemConfigKeys = {
   list: () => [...systemConfigKeys.all, "list"] as const,
 };
 
-export function useSystemConfigs(enabled = true) {
+export function useSystemConfigs(
+  enabled = true,
+  options: { staleTime?: number } = {},
+) {
   return useQuery({
     queryKey: systemConfigKeys.list(),
     queryFn: fetchSystemConfigs,
     enabled,
+    staleTime: options.staleTime ?? 5 * 60 * 1000,
   });
 }
 
