@@ -123,7 +123,7 @@ export function EstimationSummaryCard({
   const displayCode = summary.code.trim();
   const displaySubtotal = Math.round(summary.subTotal);
   const displayGst = Math.round(summary.gst);
-  const displayTotal = Math.round(summary.total);
+  const displayTotal = displaySubtotal + displayGst;
 
   async function downloadSummary() {
     if (!cardRef.current) return;

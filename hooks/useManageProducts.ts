@@ -50,11 +50,16 @@ export const manageProductsKeys = {
     [...manageProductsKeys.metals(), query] as const,
 };
 
-export function useStoneTypes(query: ListStoneTypesQuery = {}, enabled = true) {
+export function useStoneTypes(
+  query: ListStoneTypesQuery = {},
+  enabled = true,
+  options: { staleTime?: number } = {},
+) {
   return useQuery({
     queryKey: manageProductsKeys.stoneTypesList(query),
     queryFn: () => fetchStoneTypes(query),
     enabled,
+    staleTime: options.staleTime,
   });
 }
 
@@ -101,11 +106,16 @@ export function useDeleteStoneType() {
   });
 }
 
-export function useStoneSlabs(query: ListStoneSlabsQuery = {}, enabled = true) {
+export function useStoneSlabs(
+  query: ListStoneSlabsQuery = {},
+  enabled = true,
+  options: { staleTime?: number } = {},
+) {
   return useQuery({
     queryKey: manageProductsKeys.stoneSlabsList(query),
     queryFn: () => fetchStoneSlabs(query),
     enabled,
+    staleTime: options.staleTime,
   });
 }
 

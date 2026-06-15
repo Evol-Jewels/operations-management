@@ -1,30 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useStoneSlabs, useStoneTypes } from "@/hooks/useManageProducts";
+import { useSystemConfigs } from "@/hooks/useSystemConfigs";
 import { DEFAULT_CALCULATOR_SETTINGS } from "@/lib/calculator/constants";
 import type {
   CalculatorSettings,
   CalculatorStoneSlab,
   CalculatorStoneType,
   MetalPurity,
+  SystemConfig,
 } from "@/types";
+import type {
+  StoneSlabResponse,
+  StoneTypeResponse,
+} from "@/types/manage-products-api";
 
-const SETTINGS_STORAGE_KEY = "diamond-calc-settings";
-const LAST_SYNCED_STORAGE_KEY = "diamond-calc-last-synced";
-const SYSTEM_SETTINGS_ENDPOINT = "/api/v1/system-settings";
-
-function getApiBaseUrl() {
-  return process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-}
-
-type SystemSettingsResponse = Partial<CalculatorSettings> & {
-  purityPercentages?: Partial<Record<MetalPurity, number | null>>;
-  stoneTypes?: Array<
-    Partial<Omit<CalculatorStoneType, "slabs">> & {
-      slabs?: Array<Partial<CalculatorStoneSlab> | null> | null;
-    }
-  >;
-};
+const LAST_STONES_SYNCED_STORAGE_KEY = "diamond-calc-stones-last-synced";
+const CALCULATOR_QUERY_STALE_TIME = 10 * 60 * 1000;
+const LIST_QUERY = { limit: 1000, offset: 0 };
 
 function toNumber(value: unknown, fallback: number) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -35,112 +29,9 @@ function toNumber(value: unknown, fallback: number) {
   return fallback;
 }
 
-function normalizePurityPercentages(
-  value: unknown,
-): CalculatorSettings["purityPercentages"] {
-  const fallback = DEFAULT_CALCULATOR_SETTINGS.purityPercentages;
-  if (!value || typeof value !== "object") return fallback;
-
-  const partial = value as Partial<Record<MetalPurity, number | null>>;
-  return {
-    "14K": toNumber(partial["14K"], fallback["14K"]),
-    "18K": toNumber(partial["18K"], fallback["18K"]),
-    "22K": toNumber(partial["22K"], fallback["22K"]),
-    "24K": toNumber(partial["24K"], fallback["24K"]),
-    Other: toNumber(partial.Other, fallback.Other),
-  };
-}
-
-function normalizeStoneTypes(value: unknown): CalculatorSettings["stoneTypes"] {
-  if (!Array.isArray(value) || value.length === 0) {
-    return DEFAULT_CALCULATOR_SETTINGS.stoneTypes;
-  }
-
-  const normalized = value
-    .map((stone) => {
-      if (!stone || typeof stone !== "object") return null;
-      const candidate = stone as NonNullable<
-        SystemSettingsResponse["stoneTypes"]
-      >[number];
-      const stoneId = candidate.stoneId?.trim();
-      if (!stoneId) return null;
-
-      const slabs = Array.isArray(candidate.slabs)
-        ? candidate.slabs
-            .filter((slab): slab is Partial<CalculatorStoneSlab> =>
-              Boolean(slab),
-            )
-            .map((slab) => ({
-              code: slab.code?.trim() ?? "",
-              fromWeight: toNumber(slab.fromWeight, 0),
-              toWeight: toNumber(slab.toWeight, 0),
-              pricePerCarat: toNumber(slab.pricePerCarat, 0),
-            }))
-            .filter((slab) => slab.code.length > 0)
-        : [];
-
-      return {
-        stoneId,
-        name: candidate.name?.trim() || stoneId,
-        category: candidate.category === "Gemstone" ? "Gemstone" : "Diamond",
-        clarity: candidate.clarity?.trim() || undefined,
-        color: candidate.color?.trim() || undefined,
-        slabs,
-      } satisfies CalculatorStoneType;
-    })
-    .filter((stone): stone is CalculatorStoneType => Boolean(stone));
-
-  return normalized.length > 0
-    ? normalized
-    : DEFAULT_CALCULATOR_SETTINGS.stoneTypes;
-}
-
-function normalizeSystemSettings(
-  raw: unknown,
-  currentSettings: CalculatorSettings,
-): CalculatorSettings {
-  if (!raw || typeof raw !== "object") {
-    throw new Error("Invalid system settings response");
-  }
-
-  const response = raw as SystemSettingsResponse;
-  return {
-    goldRate24k: toNumber(
-      response.goldRate24k,
-      currentSettings.goldRate24k ?? DEFAULT_CALCULATOR_SETTINGS.goldRate24k,
-    ),
-    makingChargeFlat: toNumber(
-      response.makingChargeFlat,
-      currentSettings.makingChargeFlat ??
-        DEFAULT_CALCULATOR_SETTINGS.makingChargeFlat,
-    ),
-    makingChargePerGram: toNumber(
-      response.makingChargePerGram,
-      currentSettings.makingChargePerGram ??
-        DEFAULT_CALCULATOR_SETTINGS.makingChargePerGram,
-    ),
-    gstRate: toNumber(
-      response.gstRate,
-      currentSettings.gstRate ?? DEFAULT_CALCULATOR_SETTINGS.gstRate,
-    ),
-    purityPercentages: normalizePurityPercentages(
-      response.purityPercentages ?? currentSettings.purityPercentages,
-    ),
-    stoneTypes: normalizeStoneTypes(response.stoneTypes),
-  };
-}
-
-function isValidSettings(value: unknown): value is CalculatorSettings {
-  if (!value || typeof value !== "object") return false;
-  const settings = value as CalculatorSettings;
-  return (
-    typeof settings.goldRate24k === "number" &&
-    typeof settings.makingChargeFlat === "number" &&
-    typeof settings.makingChargePerGram === "number" &&
-    typeof settings.gstRate === "number" &&
-    typeof settings.purityPercentages === "object" &&
-    Array.isArray(settings.stoneTypes)
-  );
+function normalizeGstRate(value: unknown, fallback: number) {
+  const numericValue = toNumber(value, fallback);
+  return numericValue > 1 ? numericValue / 100 : numericValue;
 }
 
 function readStorageValue(key: string) {
@@ -154,120 +45,165 @@ function readStorageValue(key: string) {
 function writeStorageValue(key: string, value: string) {
   try {
     localStorage.setItem(key, value);
-    return true;
   } catch (error) {
     if (process.env.NODE_ENV === "development") {
       console.warn(`Could not persist ${key} to localStorage`, error);
     }
-    return false;
   }
 }
 
-function readStoredSettings() {
-  try {
-    const stored = readStorageValue(SETTINGS_STORAGE_KEY);
-    if (!stored) return DEFAULT_CALCULATOR_SETTINGS;
-    const parsed = JSON.parse(stored);
-    return isValidSettings(parsed) ? parsed : DEFAULT_CALCULATOR_SETTINGS;
-  } catch {
-    return DEFAULT_CALCULATOR_SETTINGS;
-  }
+function getConfigValue(configs: SystemConfig[], key: string) {
+  return configs.find((config) => config.key === key)?.value;
 }
 
-function assembleSettings(
-  currentSettings: CalculatorSettings,
-  nextSettings: CalculatorSettings,
-): CalculatorSettings {
+function mapSystemConfigs(configs: SystemConfig[]) {
+  const defaults = DEFAULT_CALCULATOR_SETTINGS;
+
   return {
-    ...currentSettings,
-    ...nextSettings,
-    purityPercentages:
-      nextSettings.purityPercentages ?? currentSettings.purityPercentages,
-    stoneTypes: nextSettings.stoneTypes.length
-      ? nextSettings.stoneTypes
-      : currentSettings.stoneTypes,
+    goldRate24k: toNumber(
+      getConfigValue(configs, "goldRate24k"),
+      defaults.goldRate24k,
+    ),
+    makingChargeFlat: toNumber(
+      getConfigValue(configs, "makingChargeFlat"),
+      defaults.makingChargeFlat,
+    ),
+    makingChargePerGram: toNumber(
+      getConfigValue(configs, "makingChargePerGram"),
+      defaults.makingChargePerGram,
+    ),
+    gstRate: normalizeGstRate(
+      getConfigValue(configs, "gstRate"),
+      defaults.gstRate,
+    ),
+    purityPercentages: {
+      ...defaults.purityPercentages,
+      "24K": toNumber(
+        getConfigValue(configs, "purity24K"),
+        defaults.purityPercentages["24K"],
+      ),
+      "22K": toNumber(
+        getConfigValue(configs, "purity22K"),
+        defaults.purityPercentages["22K"],
+      ),
+      "18K": toNumber(
+        getConfigValue(configs, "purity18K"),
+        defaults.purityPercentages["18K"],
+      ),
+      "14K": toNumber(
+        getConfigValue(configs, "purity14K"),
+        defaults.purityPercentages["14K"],
+      ),
+      Other: toNumber(
+        getConfigValue(configs, "purityOther"),
+        defaults.purityPercentages.Other,
+      ),
+    } satisfies Record<MetalPurity, number>,
   };
 }
 
+function mapStoneSlab(slab: StoneSlabResponse): CalculatorStoneSlab {
+  return {
+    code: slab.code,
+    fromWeight: toNumber(slab.rangeFrom, 0),
+    toWeight: toNumber(slab.rangeTo, 0),
+    pricePerCarat: toNumber(slab.pricePerCarat, 0),
+  };
+}
+
+function mapStoneTypes(
+  stoneTypes: StoneTypeResponse[],
+  slabs: StoneSlabResponse[],
+): CalculatorStoneType[] {
+  const activeStoneTypes = stoneTypes.filter((stone) => !stone.isDeleted);
+  if (activeStoneTypes.length === 0)
+    return DEFAULT_CALCULATOR_SETTINGS.stoneTypes;
+
+  const activeSlabs = slabs.filter((slab) => !slab.isDeleted);
+
+  return activeStoneTypes.map((stone) => ({
+    stoneId: stone.id,
+    name: stone.name,
+    category: "Diamond",
+    slabs: activeSlabs
+      .filter((slab) => slab.stoneTypeId === stone.id)
+      .map(mapStoneSlab),
+  }));
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Could not sync stones";
+}
+
 export function useCalculatorSettings() {
-  const [settings, setSettings] = useState<CalculatorSettings>(
-    DEFAULT_CALCULATOR_SETTINGS,
+  const systemConfigsQuery = useSystemConfigs(true, {
+    staleTime: CALCULATOR_QUERY_STALE_TIME,
+  });
+  const stoneTypesQuery = useStoneTypes(LIST_QUERY, true, {
+    staleTime: CALCULATOR_QUERY_STALE_TIME,
+  });
+  const stoneSlabsQuery = useStoneSlabs(LIST_QUERY, true, {
+    staleTime: CALCULATOR_QUERY_STALE_TIME,
+  });
+  const [lastSynced, setLastSynced] = useState<string | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : readStorageValue(LAST_STONES_SYNCED_STORAGE_KEY),
   );
-  const [lastSynced, setLastSynced] = useState<string | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [hasLoadedStoredSettings, setHasLoadedStoredSettings] = useState(false);
 
-  useEffect(() => {
-    setSettings(readStoredSettings());
-    setLastSynced(readStorageValue(LAST_SYNCED_STORAGE_KEY));
-    setHasLoadedStoredSettings(true);
-  }, []);
+  const settings = useMemo<CalculatorSettings>(() => {
+    const configSettings = mapSystemConfigs(systemConfigsQuery.data ?? []);
+    const stoneTypes = mapStoneTypes(
+      stoneTypesQuery.data?.data ?? [],
+      stoneSlabsQuery.data?.data ?? [],
+    );
 
-  useEffect(() => {
-    if (!hasLoadedStoredSettings) return;
-    writeStorageValue(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  }, [hasLoadedStoredSettings, settings]);
+    return {
+      ...configSettings,
+      stoneTypes,
+    };
+  }, [systemConfigsQuery.data, stoneSlabsQuery.data, stoneTypesQuery.data]);
 
-  const syncFromSheet = useCallback(async () => {
-    setIsSyncing(true);
+  const syncStones = useCallback(async () => {
     setSyncError(null);
 
-    try {
-      const apiBaseUrl = getApiBaseUrl();
-      if (!apiBaseUrl) {
-        throw new Error("Missing NEXT_PUBLIC_API_BASE_URL in .env");
-      }
+    const [stoneTypesResult, stoneSlabsResult] = await Promise.all([
+      stoneTypesQuery.refetch(),
+      stoneSlabsQuery.refetch(),
+    ]);
 
-      const response = await fetch(
-        new URL(SYSTEM_SETTINGS_ENDPOINT, `${apiBaseUrl}/`),
-        {
-          headers: { Accept: "application/json" },
-          credentials: "include",
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch system settings (HTTP ${response.status})`,
-        );
-      }
-
-      const payload = (await response.json()) as unknown;
-
-      const syncedAt = new Date().toISOString();
-      setSettings((current) =>
-        assembleSettings(current, normalizeSystemSettings(payload, current)),
-      );
-      setLastSynced(syncedAt);
-      writeStorageValue(LAST_SYNCED_STORAGE_KEY, syncedAt);
-      return { success: true, error: null };
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Could not sync settings";
+    const error = stoneTypesResult.error ?? stoneSlabsResult.error;
+    if (error) {
+      const message = getErrorMessage(error);
       setSyncError(message);
       return { success: false, error: message };
-    } finally {
-      setIsSyncing(false);
     }
-  }, []);
 
-  const applySync = useCallback(
-    (newSettings: CalculatorSettings, syncedAt: string) => {
-      setSettings(newSettings);
-      setLastSynced(syncedAt);
-      writeStorageValue(LAST_SYNCED_STORAGE_KEY, syncedAt);
-    },
-    [],
-  );
+    const syncedAt = new Date().toISOString();
+    setLastSynced(syncedAt);
+    writeStorageValue(LAST_STONES_SYNCED_STORAGE_KEY, syncedAt);
+    return { success: true, error: null };
+  }, [stoneSlabsQuery, stoneTypesQuery]);
+
+  const queryError =
+    systemConfigsQuery.error ?? stoneTypesQuery.error ?? stoneSlabsQuery.error;
 
   return {
     settings,
     lastSynced,
-    isSyncing,
+    isLoading:
+      systemConfigsQuery.isLoading ||
+      stoneTypesQuery.isLoading ||
+      stoneSlabsQuery.isLoading,
+    isFetching:
+      systemConfigsQuery.isFetching ||
+      stoneTypesQuery.isFetching ||
+      stoneSlabsQuery.isFetching,
+    error: queryError,
+    isSyncingStones:
+      stoneTypesQuery.isRefetching || stoneSlabsQuery.isRefetching,
     syncError,
-    setSettings,
-    syncFromSheet,
-    applySync,
+    syncStones,
   };
 }
