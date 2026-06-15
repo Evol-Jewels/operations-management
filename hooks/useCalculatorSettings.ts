@@ -34,6 +34,10 @@ interface ListCache<T> {
   total: number;
 }
 
+type SettingsUpdater =
+  | CalculatorSettings
+  | ((current: CalculatorSettings) => CalculatorSettings);
+
 function toNumber(value: unknown, fallback: number) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -133,16 +137,53 @@ function getConfigValue(configs: SystemConfig[], key: string) {
   return configs.find((config) => config.key === key)?.value;
 }
 
+function getFirstConfigValue(configs: SystemConfig[], keys: string[]) {
+  for (const key of keys) {
+    const value = getConfigValue(configs, key);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+function upsertConfig(
+  configs: SystemConfig[],
+  key: string,
+  value: string,
+  now: string,
+) {
+  const existing = configs.find((config) => config.key === key);
+  if (existing) {
+    return configs.map((config) =>
+      config.key === key ? { ...config, value, updatedAt: now } : config,
+    );
+  }
+
+  return [
+    ...configs,
+    {
+      id: `local-${key}`,
+      key,
+      value,
+      description: null,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+}
+
 function mapSystemConfigs(configs: SystemConfig[]) {
   const defaults = DEFAULT_CALCULATOR_SETTINGS;
 
   return {
     makingChargeFlat: toNumber(
-      getConfigValue(configs, "makingChargeFlat"),
+      getFirstConfigValue(configs, ["making_cost_flat", "makingChargeFlat"]),
       defaults.makingChargeFlat,
     ),
     makingChargePerGram: toNumber(
-      getConfigValue(configs, "makingChargePerGram"),
+      getFirstConfigValue(configs, [
+        "making_cost_per_gram",
+        "makingChargePerGram",
+      ]),
       defaults.makingChargePerGram,
     ),
     gstRate: normalizeGstRate(
@@ -202,6 +243,120 @@ function mapStoneTypes(
       .filter((slab) => slab.stoneTypeId === stone.id)
       .map(mapStoneSlab),
   }));
+}
+
+function systemConfigsFromSettings(
+  settings: CalculatorSettings,
+  currentConfigs: SystemConfig[] | null,
+) {
+  const now = new Date().toISOString();
+  let configs = currentConfigs ?? [];
+
+  configs = upsertConfig(
+    configs,
+    "making_cost_flat",
+    String(settings.makingChargeFlat),
+    now,
+  );
+  configs = upsertConfig(
+    configs,
+    "making_cost_per_gram",
+    String(settings.makingChargePerGram),
+    now,
+  );
+  configs = upsertConfig(
+    configs,
+    "gstRate",
+    String(settings.gstRate * 100),
+    now,
+  );
+  configs = upsertConfig(
+    configs,
+    "purity24K",
+    String(settings.purityPercentages["24K"]),
+    now,
+  );
+  configs = upsertConfig(
+    configs,
+    "purity22K",
+    String(settings.purityPercentages["22K"]),
+    now,
+  );
+  configs = upsertConfig(
+    configs,
+    "purity18K",
+    String(settings.purityPercentages["18K"]),
+    now,
+  );
+  configs = upsertConfig(
+    configs,
+    "purity14K",
+    String(settings.purityPercentages["14K"]),
+    now,
+  );
+  configs = upsertConfig(
+    configs,
+    "purityOther",
+    String(settings.purityPercentages.Other),
+    now,
+  );
+
+  return configs;
+}
+
+function stoneTypesFromSettings(
+  settings: CalculatorSettings,
+  currentStoneTypes: ListCache<StoneTypeResponse> | null,
+) {
+  const now = new Date().toISOString();
+  const previous = currentStoneTypes?.data ?? [];
+  const data = settings.stoneTypes.map((stone) => {
+    const existing = previous.find((item) => item.id === stone.stoneId);
+
+    return {
+      id: stone.stoneId,
+      name: stone.name,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      isDeleted: false,
+    };
+  });
+
+  return { data, total: data.length };
+}
+
+function stoneSlabsFromSettings(
+  settings: CalculatorSettings,
+  currentStoneSlabs: ListCache<StoneSlabResponse> | null,
+) {
+  const now = new Date().toISOString();
+  const previous = currentStoneSlabs?.data ?? [];
+  const data = settings.stoneTypes.flatMap((stone) =>
+    stone.slabs.map((slab, index) => {
+      const id = `${stone.stoneId}-${slab.code || index}`;
+      const existing = previous.find(
+        (item) =>
+          item.id === id ||
+          (item.stoneTypeId === stone.stoneId && item.code === slab.code),
+      );
+
+      return {
+        id: existing?.id ?? id,
+        stoneTypeId: stone.stoneId,
+        stoneType: { id: stone.stoneId, name: stone.name },
+        code: slab.code,
+        pricePerCarat: String(slab.pricePerCarat),
+        rangeFrom: String(slab.fromWeight),
+        rangeTo: String(slab.toWeight),
+        notes: existing?.notes ?? null,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+        isDeleted: false,
+      };
+    }),
+  );
+
+  return { data, total: data.length };
 }
 
 function getErrorMessage(error: unknown) {
@@ -347,6 +502,30 @@ export function useCalculatorSettings() {
     }
   }, []);
 
+  const setLocalSettings = useCallback(
+    (updater: SettingsUpdater) => {
+      const nextSettings =
+        typeof updater === "function" ? updater(settings) : updater;
+
+      const nextSystemConfigs = systemConfigsFromSettings(
+        nextSettings,
+        systemConfigs,
+      );
+      const nextStoneTypes = stoneTypesFromSettings(nextSettings, stoneTypes);
+      const nextStoneSlabs = stoneSlabsFromSettings(nextSettings, stoneSlabs);
+
+      setSystemConfigs(nextSystemConfigs);
+      setStoneTypes(nextStoneTypes);
+      setStoneSlabs(nextStoneSlabs);
+      persistCalculatorCaches({
+        systemConfigs: nextSystemConfigs,
+        stoneTypes: nextStoneTypes,
+        stoneSlabs: nextStoneSlabs,
+      });
+    },
+    [settings, stoneSlabs, stoneTypes, systemConfigs],
+  );
+
   const queryError = goldRateQuery.error ?? cacheError;
 
   return {
@@ -358,5 +537,6 @@ export function useCalculatorSettings() {
     isSyncingSettings,
     syncError,
     syncSettings,
+    setLocalSettings,
   };
 }

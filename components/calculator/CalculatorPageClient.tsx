@@ -1124,8 +1124,14 @@ export function CalculatorPageClient({
 }: {
   initialTab?: CalculatorTab;
 }) {
-  const { settings, lastSynced, isSyncingSettings, syncError, syncSettings } =
-    useCalculatorSettings();
+  const {
+    settings,
+    lastSynced,
+    isSyncingSettings,
+    syncError,
+    syncSettings,
+    setLocalSettings,
+  } = useCalculatorSettings();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const summaryCardRef = useRef<HTMLDivElement | null>(null);
   const shouldScrollToSummaryRef = useRef(false);
@@ -1370,13 +1376,14 @@ export function CalculatorPageClient({
               </button>
             </div>
             <SheetDescription className="mt-1 max-w-sm text-left text-xs text-muted-foreground">
-              Adjust gold rates, making charges, tax, and stone pricing
+              Gold rate is live. Other edits are local until settings sync.
             </SheetDescription>
           </SheetHeader>
 
           <div className="px-4 py-4 sm:px-5">
             <SettingsView
               settings={settings}
+              onChange={setLocalSettings}
               lastSynced={lastSynced}
               onSyncSettings={syncSettings}
               isSyncingSettings={isSyncingSettings}
