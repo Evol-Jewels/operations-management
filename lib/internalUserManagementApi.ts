@@ -1,10 +1,14 @@
 import type {
+  ChangeInternalPasswordInput,
+  ChangeInternalPasswordResponse,
   CreateInternalInviteInput,
   CreateInternalInviteResponse,
   InternalInviteRow,
   InternalInvitesQuery,
+  InternalUserProfileMeResponse,
   InternalUsersQuery,
   InternalUserWithProfile,
+  UpdateMyInternalProfileInput,
 } from "@/types/user-management";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
@@ -64,6 +68,34 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 export function fetchInternalUsers(query: InternalUsersQuery = {}) {
   return apiFetch<InternalUserWithProfile[]>(
     buildUrl("api/v1/internal-users", { ...query }),
+  );
+}
+
+export function fetchMyInternalProfile() {
+  return apiFetch<InternalUserProfileMeResponse>(
+    buildUrl("api/v1/internal-users/profile/me"),
+  );
+}
+
+export function updateMyInternalProfile(input: UpdateMyInternalProfileInput) {
+  return apiFetch<InternalUserProfileMeResponse>(
+    buildUrl("api/v1/internal-users/profile/me"),
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function changeInternalUserPassword(input: ChangeInternalPasswordInput) {
+  return apiFetch<ChangeInternalPasswordResponse>(
+    buildUrl("api/v1/internal-users/change-password"),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
   );
 }
 
