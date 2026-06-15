@@ -96,6 +96,8 @@ export interface CreateInternalInviteInput {
   username?: string;
   onlyUsernameLogin?: boolean;
   expiration?: string;
+  password?: string;
+  locationId?: string;
 }
 
 export interface UpdateInternalInviteInput {
