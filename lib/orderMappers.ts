@@ -97,9 +97,7 @@ function normalizeCategory(
   return category ? map[category] : "Other";
 }
 
-function baseOrderFromBackend(
-  order: BackendOrderRow,
-): Order {
+function baseOrderFromBackend(order: BackendOrderRow): Order {
   const isExisting = order.productType === "EXISTING";
   const productDetails = isExisting ? order.productDetails : undefined;
   const custom = isExisting ? undefined : order.customProduct;

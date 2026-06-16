@@ -97,4 +97,3 @@ export function updateOrder(refCode: string | number, input: UpdateOrderInput) {
     },
   );
 }
-

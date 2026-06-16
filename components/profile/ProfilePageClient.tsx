@@ -8,8 +8,9 @@ import {
   EyeOff,
   KeyRound,
   LoaderCircle,
-  MapPin,
   MapPinned,
+  Save,
+  User,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -167,8 +168,11 @@ export function ProfilePageClient() {
     ? "Loading..."
     : (profile?.username ??
       user?.username ??
-      profile?.email?.split("@")[0] ??
+      name ??
       deriveUsername(user));
+  const hasUsername = Boolean(profile?.username ?? user?.username);
+  const identityLabel = hasUsername ? "Username" : "Name";
+  const identityInputId = hasUsername ? "profile-username" : "profile-name";
   const initialLocationId = profile?.profile?.locationId ?? "";
 
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -304,22 +308,24 @@ export function ProfilePageClient() {
             value="profile"
             className="h-11 flex-none rounded-none border-transparent border-b-2 bg-transparent px-0 shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
-            <MapPin className="size-4" />
+            <User className="size-4" />
             Profile
           </TabsTrigger>
-          <TabsTrigger
-            value="password"
-            className="h-11 flex-none rounded-none border-transparent border-b-2 bg-transparent px-0 shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-          >
-            <KeyRound className="size-4" />
-            Password
-          </TabsTrigger>
+          {hasUsername ? (
+            <TabsTrigger
+              value="password"
+              className="h-11 flex-none rounded-none border-transparent border-b-2 bg-transparent px-0 shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              <KeyRound className="size-4" />
+              Password
+            </TabsTrigger>
+          ) : null}
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
           <section className="flex flex-col gap-5 sm:flex-row sm:items-center">
             <div className="relative w-fit">
-              <Avatar className="size-24 border border-border">
+              <Avatar className="size-20 border border-border">
                 <AvatarImage
                   src={avatarPreview ?? user?.image ?? undefined}
                   alt={name}
@@ -374,7 +380,7 @@ export function ProfilePageClient() {
             </div>
           ) : null}
 
-          <Card className="max-w-5xl rounded-lg">
+          <Card className="max-w-2xl rounded-lg">
             <CardHeader>
               <CardTitle className="text-xl">Account details</CardTitle>
               <CardDescription className="text-base">
@@ -385,12 +391,11 @@ export function ProfilePageClient() {
             <CardContent className="space-y-6">
               <div className="grid gap-5 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="profile-username">Username</Label>
+                  <Label htmlFor={identityInputId}>{identityLabel}</Label>
                   <Input
-                    id="profile-username"
+                    id={identityInputId}
                     value={username}
-                    readOnly
-                    disabled={profileLoading}
+                    disabled
                     className="h-11 text-base"
                   />
                 </div>
@@ -400,8 +405,7 @@ export function ProfilePageClient() {
                   <Input
                     id="profile-email"
                     value={emailValue}
-                    readOnly
-                    disabled={profileLoading}
+                    disabled
                     className="h-11 text-base"
                   />
                 </div>
@@ -411,8 +415,7 @@ export function ProfilePageClient() {
                   <Input
                     id="profile-role"
                     value={role}
-                    readOnly
-                    disabled={profileLoading}
+                    disabled
                     className="h-11 text-base capitalize"
                   />
                 </div>
@@ -455,7 +458,7 @@ export function ProfilePageClient() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="justify-end">
+            <CardFooter className="mt-2">
               <Button
                 type="button"
                 className="w-full sm:w-auto"
@@ -465,123 +468,124 @@ export function ProfilePageClient() {
                 {updateProfile.isPending ? (
                   <LoaderCircle className="size-4 animate-spin" />
                 ) : (
-                  <Check className="size-4" />
+                  <Save className="size-4" />
                 )}
-                {updateProfile.isPending ? "Saving..." : "Save changes"}
+                {updateProfile.isPending ? "Saving..." : "Update Profile"}
               </Button>
             </CardFooter>
           </Card>
         </TabsContent>
 
-        <TabsContent value="password">
-          <Card className="max-w-5xl rounded-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">Reset Password</CardTitle>
-              <CardDescription className="text-base">
-                Change the password used with your internal username login.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handlePasswordReset}>
-              <CardContent className="space-y-6">
-                <PasswordInput
-                  id="current-password"
-                  label="Current password"
-                  value={currentPassword}
-                  onChange={setCurrentPassword}
-                  visible={visiblePasswords.current}
-                  onToggleVisible={() =>
-                    setVisiblePasswords((current) => ({
-                      ...current,
-                      current: !current.current,
-                    }))
-                  }
-                  autoComplete="current-password"
-                  placeholder="Enter your current password"
-                  disabled={changePassword.isPending}
-                />
-
-                <div className="grid gap-5 md:grid-cols-2">
+        {hasUsername ? (
+          <TabsContent value="password">
+            <Card className="max-w-2xl rounded-lg">
+              <CardHeader>
+                <CardTitle className="text-xl">Reset Password</CardTitle>
+                <CardDescription className="text-base">
+                  Change the password used with your internal username login.
+                </CardDescription>
+              </CardHeader>
+              <form onSubmit={handlePasswordReset}>
+                <CardContent className="space-y-6">
                   <PasswordInput
-                    id="new-password"
-                    label="New password"
-                    value={newPassword}
-                    onChange={setNewPassword}
-                    visible={visiblePasswords.next}
+                    id="current-password"
+                    label="Current password"
+                    value={currentPassword}
+                    onChange={setCurrentPassword}
+                    visible={visiblePasswords.current}
                     onToggleVisible={() =>
                       setVisiblePasswords((current) => ({
                         ...current,
-                        next: !current.next,
+                        current: !current.current,
                       }))
                     }
-                    autoComplete="new-password"
-                    placeholder="Enter a new password"
-                    error={
-                      passwordReused
-                        ? "New password must be different from current password."
-                        : undefined
-                    }
+                    autoComplete="current-password"
+                    placeholder="Enter your current password"
                     disabled={changePassword.isPending}
                   />
-                  <PasswordInput
-                    id="confirm-password"
-                    label="Confirm new password"
-                    value={confirmPassword}
-                    onChange={setConfirmPassword}
-                    visible={visiblePasswords.confirm}
-                    onToggleVisible={() =>
-                      setVisiblePasswords((current) => ({
-                        ...current,
-                        confirm: !current.confirm,
-                      }))
-                    }
-                    autoComplete="new-password"
-                    placeholder="Re-enter the new password"
-                    error={
-                      passwordMismatch ? "Passwords do not match." : undefined
-                    }
-                    disabled={changePassword.isPending}
-                  />
-                </div>
 
-                <div className="rounded-lg border border-border bg-card p-4">
-                  <p className="mb-3 text-sm font-medium text-foreground">
-                    Password requirements
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <Requirement
-                      met={passwordRequirements.length}
-                      label="At least 8 characters"
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <PasswordInput
+                      id="new-password"
+                      label="New password"
+                      value={newPassword}
+                      onChange={setNewPassword}
+                      visible={visiblePasswords.next}
+                      onToggleVisible={() =>
+                        setVisiblePasswords((current) => ({
+                          ...current,
+                          next: !current.next,
+                        }))
+                      }
+                      autoComplete="new-password"
+                      placeholder="Enter a new password"
+                      error={
+                        passwordReused
+                          ? "New password must be different from current password."
+                          : undefined
+                      }
+                      disabled={changePassword.isPending}
                     />
-                    <Requirement
-                      met={passwordRequirements.number}
-                      label="Includes a number"
-                    />
-                    <Requirement
-                      met={passwordRequirements.letter}
-                      label="Includes a letter"
+                    <PasswordInput
+                      id="confirm-password"
+                      label="Confirm new password"
+                      value={confirmPassword}
+                      onChange={setConfirmPassword}
+                      visible={visiblePasswords.confirm}
+                      onToggleVisible={() =>
+                        setVisiblePasswords((current) => ({
+                          ...current,
+                          confirm: !current.confirm,
+                        }))
+                      }
+                      autoComplete="new-password"
+                      placeholder="Re-enter the new password"
+                      error={
+                        passwordMismatch ? "Passwords do not match." : undefined
+                      }
+                      disabled={changePassword.isPending}
                     />
                   </div>
-                </div>
-              </CardContent>
 
-              <CardFooter className="mt-6 flex flex-col gap-4 border-border border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted-foreground">
-                  After reset, use the new password the next time you sign in.
-                </p>
-                <Button
-                  type="submit"
-                  className="w-full sm:w-auto"
-                  disabled={!canResetPassword}
-                >
-                  {changePassword.isPending ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : null}
-                  {changePassword.isPending ? "Updating..." : "Reset password"}
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        </TabsContent>
+                  <div className="rounded-lg py-1">
+                    <p className="mb-3 text-sm font-medium text-foreground">
+                      Password requirements
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <Requirement
+                        met={passwordRequirements.length}
+                        label="At least 8 characters"
+                      />
+                      <Requirement
+                        met={passwordRequirements.number}
+                        label="Includes a number"
+                      />
+                      <Requirement
+                        met={passwordRequirements.letter}
+                        label="Includes a letter"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+
+                <CardFooter className="flex flex-col gap-4 pt-8 sm:flex-row sm:items-center sm:justify-end">
+                  <Button
+                    type="submit"
+                    className="w-full sm:w-auto"
+                    disabled={!canResetPassword}
+                  >
+                    {changePassword.isPending ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : null}
+                    {changePassword.isPending
+                      ? "Updating..."
+                      : "Reset password"}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   );

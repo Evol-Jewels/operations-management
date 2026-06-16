@@ -172,7 +172,7 @@ export function SendInviteDialog({
 
           {!isAdmin(role) && (
             <>
-              <div className="space-y-2">
+              <div className="space-y-2 mb-2">
                 <Label htmlFor="invite-username">Username</Label>
                 <Input
                   id="invite-username"
@@ -204,13 +204,13 @@ export function SendInviteDialog({
           <Collapsible
             open={showMoreDetails}
             onOpenChange={setShowMoreDetails}
-            className="space-y-3"
+            className="space-y-3 my-6"
           >
             <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-between"
+              <div
+                // type="button"
+                // variant="ghost"
+                className={`flex gap-1 w-full items-center cursor-pointer text-sm hover:bg-transparent ${showMoreDetails ? "text-accent-foreground/50" : ""}`}
                 aria-expanded={showMoreDetails}
               >
                 More details
@@ -219,35 +219,31 @@ export function SendInviteDialog({
                     showMoreDetails ? "rotate-180" : ""
                   }`}
                 />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-4 rounded-md border bg-muted/20 p-3">
-              <div className="space-y-2">
-                <Label htmlFor="invite-password">Password</Label>
-                <Input
-                  id="invite-password"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Optional password"
-                  autoComplete="new-password"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Leave blank to let the backend generate one.
-                </p>
               </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-4">
+              {!isAdmin(role) && (
+                <div className="space-y-2">
+                  <Label htmlFor="invite-password">Password (optional)</Label>
+                  <Input
+                    id="invite-password"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Password (leave blank for random)"
+                    autoComplete="new-password"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
-                <Label htmlFor="invite-expiration">Expiration</Label>
+                <Label htmlFor="invite-expiration">Invite Expiration</Label>
                 <Input
                   id="invite-expiration"
                   type="datetime-local"
                   value={expiration}
                   onChange={(event) => setExpiration(event.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Leave blank to use the backend default.
-                </p>
               </div>
 
               <div className="space-y-2">
