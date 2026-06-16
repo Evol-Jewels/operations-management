@@ -1322,7 +1322,7 @@ export function CalculatorPageClient({
             />
           </div>
         ) : (
-          <div className="grid items-start gap-5 lg:grid-cols-[minmax(380px,520px)_minmax(420px,1fr)] xl:grid-cols-[minmax(420px,560px)_minmax(460px,1fr)]">
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(380px,520px)_minmax(420px,760px)] xl:grid-cols-[minmax(420px,560px)_minmax(460px,760px)]">
             <CalculatorForm
               settings={settings}
               form={form}
@@ -1335,7 +1335,7 @@ export function CalculatorPageClient({
               onImageChange={handleImageChange}
               onOpenSettings={() => setSettingsOpen(true)}
             />
-            <div ref={summaryCardRef} className="min-w-0">
+            <div ref={summaryCardRef} className="min-w-0 w-full max-w-[760px]">
               <EstimationSummaryCard
                 data={{
                   kind: "calculator",

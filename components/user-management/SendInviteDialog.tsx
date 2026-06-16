@@ -208,8 +208,6 @@ export function SendInviteDialog({
           >
             <CollapsibleTrigger asChild>
               <div
-                // type="button"
-                // variant="ghost"
                 className={`flex gap-1 w-full items-center cursor-pointer text-sm hover:bg-transparent ${showMoreDetails ? "text-accent-foreground/50" : ""}`}
                 aria-expanded={showMoreDetails}
               >
