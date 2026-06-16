@@ -534,7 +534,7 @@ function RecentEstimatesList({
 
   return (
     <section className="my-5 space-y-2">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <h2 className="text-base font-semibold">Recent Estimates</h2>
         <Button
           type="button"

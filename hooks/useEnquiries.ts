@@ -29,10 +29,14 @@ export const enquiryKeys = {
     [...enquiryKeys.all, "detail", "ref", refCode] as const,
 };
 
-export function useEnquiries(query: ListEnquiriesQuery = {}) {
+export function useEnquiries(
+  query: ListEnquiriesQuery = {},
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: enquiryKeys.list(query),
     queryFn: () => fetchEnquiries(query),
+    enabled: options.enabled,
   });
 }
 
@@ -75,7 +79,7 @@ export function useUpdateEnquiry(id: string) {
   });
 }
 
-export function useCreateEstimation(enquiryId: string) {
+export function useCreateEstimation(_enquiryId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -95,7 +99,7 @@ export function useCreateEstimation(enquiryId: string) {
   });
 }
 
-export function useUpdateEstimation(enquiryId: string) {
+export function useUpdateEstimation(_enquiryId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({

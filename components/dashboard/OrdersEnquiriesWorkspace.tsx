@@ -44,19 +44,19 @@ import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
 import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { cn, formatDate } from "@/lib/utils";
-import {
-  type EnquiryItemStatus,
-  type Order,
-  type PersonSummary,
-  type RecordType,
-  STAGES,
+import type {
+  EnquiryItemStatus,
+  Order,
+  PersonSummary,
+  RecordType,
 } from "@/types";
 import { KanbanBoard, type KanbanColumnConfig } from "./KanbanBoard";
 
-type TypeTab = "all" | RecordType;
+type TypeTab = RecordType;
 type ViewMode = "table" | "kanban";
 type DateFilter = "all" | "7d" | "30d" | "90d";
 
+const TAB_STORAGE_KEY = "evol:orders-enquiries:tab";
 const ENQUIRY_STATUS_OPTIONS = [
   "all",
   "PENDING",
@@ -64,13 +64,60 @@ const ENQUIRY_STATUS_OPTIONS = [
   "CONVERTED",
   "CLOSED",
 ] as const;
-const ORDER_STATUS_OPTIONS = ["all", ...STAGES] as const;
+const ORDER_STAGES = [
+  "New",
+  "CAD Design",
+  "Manufacturing",
+  "Certification",
+  "At Store",
+  "In Transit",
+  "Delivered",
+  "Closed",
+] as const;
+const ORDER_STATUS_OPTIONS = ["all", ...ORDER_STAGES] as const;
+const ORDER_KANBAN_COLUMNS: KanbanColumnConfig[] = ORDER_STAGES.map(
+  (stage) => ({
+    id: stage,
+    label: stage,
+  }),
+);
 const ENQUIRY_KANBAN_COLUMNS: KanbanColumnConfig[] = [
   { id: "Enquiry", label: "Enquiry" },
   { id: "Estimation", label: "Estimation" },
   { id: "Order Confirmed", label: "Converted", shortLabel: "Converted" },
   { id: "Closed", label: "Closed" },
 ];
+
+function isTypeTab(value: unknown): value is RecordType {
+  return value === "order" || value === "enquiry";
+}
+
+function getTypeTabFromSearchParams(searchParams: URLSearchParams) {
+  const type = searchParams.get("type");
+  if (type === "enquiries") return "enquiry";
+  return isTypeTab(type) ? type : null;
+}
+
+function readStoredTypeTab(): RecordType | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const value = window.localStorage.getItem(TAB_STORAGE_KEY);
+    return isTypeTab(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredTypeTab(tab: RecordType) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(TAB_STORAGE_KEY, tab);
+  } catch {
+    // Storage can fail in private mode or when quota is exceeded.
+  }
+}
 
 function isWithinDateFilter(date: string, filter: DateFilter) {
   if (filter === "all") return true;
@@ -367,14 +414,14 @@ export function OrdersEnquiriesWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
-  const enquiriesQuery = useEnquiries();
-  const ordersQuery = useOrders({ limit: 100 });
-  const [typeTab, setTypeTab] = useState<TypeTab>(
-    searchParams.get("type") === "order"
-      ? "order"
-      : searchParams.get("type") === "enquiry"
-        ? "enquiry"
-        : "all",
+  const [typeTab, setTypeTab] = useState<TypeTab>(() => {
+    const queryTab = getTypeTabFromSearchParams(searchParams);
+    return queryTab ?? readStoredTypeTab() ?? "order";
+  });
+  const enquiriesQuery = useEnquiries({}, { enabled: typeTab === "enquiry" });
+  const ordersQuery = useOrders(
+    { limit: 100 },
+    { enabled: typeTab === "order" },
   );
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
@@ -386,9 +433,13 @@ export function OrdersEnquiriesWorkspace() {
   const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
 
   useEffect(() => {
-    const type = searchParams.get("type");
-    if (type === "order" || type === "enquiry") setTypeTab(type);
+    const queryTab = getTypeTabFromSearchParams(searchParams);
+    if (queryTab) setTypeTab(queryTab);
   }, [searchParams]);
+
+  useEffect(() => {
+    writeStoredTypeTab(typeTab);
+  }, [typeTab]);
 
   const apiEnquiries = useMemo(
     () =>
@@ -405,24 +456,23 @@ export function OrdersEnquiriesWorkspace() {
     [ordersQuery.data],
   );
   const records = useMemo(
-    () => [...apiOrders, ...apiEnquiries],
-    [apiEnquiries, apiOrders],
+    () => (typeTab === "order" ? apiOrders : apiEnquiries),
+    [apiEnquiries, apiOrders, typeTab],
   );
 
   const tabCounts = useMemo(
     () => ({
-      all: records.length,
-      order: records.filter((record) => record.type === "order").length,
-      enquiry: records.filter((record) => record.type === "enquiry").length,
+      order: typeTab === "order" ? records.length : undefined,
+      enquiry: typeTab === "enquiry" ? records.length : undefined,
     }),
-    [records],
+    [records.length, typeTab],
   );
 
   const filteredRecords = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return records.filter((record) => {
-      if (typeTab !== "all" && record.type !== typeTab) return false;
+      if (record.type !== typeTab) return false;
       if (!isWithinDateFilter(record.createdAt, dateFilter)) return false;
 
       if (statusFilter !== "all") {
@@ -453,29 +503,18 @@ export function OrdersEnquiriesWorkspace() {
   }, [dateFilter, records, search, statusFilter, typeTab]);
 
   const kanbanRecords = useMemo(
-    () => records.filter((record) => record.type === "enquiry"),
-    [records],
+    () => records.filter((record) => record.type === typeTab),
+    [records, typeTab],
   );
-  const enquiryKanbanColumns = useMemo(() => {
-    const presentStatuses = new Set(kanbanRecords.map(getKanbanStatus));
-    const visibleColumns = ENQUIRY_KANBAN_COLUMNS.filter((column) =>
-      presentStatuses.has(column.id),
-    );
-
-    return visibleColumns.length > 0 ? visibleColumns : ENQUIRY_KANBAN_COLUMNS;
-  }, [kanbanRecords]);
+  const kanbanColumns =
+    typeTab === "order" ? ORDER_KANBAN_COLUMNS : ENQUIRY_KANBAN_COLUMNS;
   const shownRecordCount = isKanbanMode
     ? kanbanRecords.length
     : filteredRecords.length;
-  const totalRecordCount = isKanbanMode ? tabCounts.enquiry : records.length;
+  const totalRecordCount = tabCounts[typeTab] ?? 0;
   const isFilterDisabled = isKanbanMode;
 
-  const sectionHeading =
-    typeTab === "all"
-      ? "All records"
-      : typeTab === "order"
-        ? "Orders"
-        : "Enquiries";
+  const sectionHeading = typeTab === "order" ? "Orders" : "Enquiries";
   const activeFilterCount =
     (search.trim() ? 1 : 0) +
     (statusFilter !== "all" ? 1 : 0) +
@@ -484,6 +523,10 @@ export function OrdersEnquiriesWorkspace() {
     setSearch("");
     setStatusFilter("all");
     setDateFilter("all");
+  };
+  const handleTypeTabChange = (tab: TypeTab) => {
+    setTypeTab(tab);
+    setStatusFilter("all");
   };
   const recordCountLabel = (
     <>
@@ -561,7 +604,6 @@ export function OrdersEnquiriesWorkspace() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pr-8 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
           {[
-            { key: "all" as const, label: "All", count: tabCounts.all },
             { key: "order" as const, label: "Orders", count: tabCounts.order },
             {
               key: "enquiry" as const,
@@ -572,7 +614,7 @@ export function OrdersEnquiriesWorkspace() {
             <button
               key={tab.key}
               type="button"
-              onClick={() => setTypeTab(tab.key)}
+              onClick={() => handleTypeTabChange(tab.key)}
               className={cn(
                 "flex min-h-8 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
                 typeTab === tab.key
@@ -581,16 +623,18 @@ export function OrdersEnquiriesWorkspace() {
               )}
             >
               {tab.label}
-              <span
-                className={cn(
-                  "rounded-full px-1.5 py-0.5 text-[10px]",
-                  typeTab === tab.key
-                    ? "bg-background/20 text-background"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                {tab.count}
-              </span>
+              {tab.count !== undefined ? (
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 py-0.5 text-[10px]",
+                    typeTab === tab.key
+                      ? "bg-background/20 text-background"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {tab.count}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -797,7 +841,11 @@ export function OrdersEnquiriesWorkspace() {
         ))}
       </FilterSelect> */}
 
-      {enquiriesQuery.isLoading || ordersQuery.isLoading ? (
+      {(
+        typeTab === "order"
+          ? ordersQuery.isLoading
+          : enquiriesQuery.isLoading
+      ) ? (
         <p className="text-sm text-muted-foreground">Loading records...</p>
       ) : null}
 
@@ -806,7 +854,7 @@ export function OrdersEnquiriesWorkspace() {
           <div className="sm:hidden">
             <RecordsMobileList
               records={filteredRecords}
-              showTypeColumn={typeTab !== "enquiry"}
+              showTypeColumn={false}
               onRowClick={(record) =>
                 router.push(
                   record.type === "enquiry"
@@ -819,7 +867,7 @@ export function OrdersEnquiriesWorkspace() {
           <div className="hidden sm:block">
             <RecordsTable
               records={filteredRecords}
-              showTypeColumn={typeTab !== "enquiry"}
+              showTypeColumn={false}
               onRowClick={(record) =>
                 router.push(
                   record.type === "enquiry"
@@ -834,9 +882,9 @@ export function OrdersEnquiriesWorkspace() {
         <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <KanbanBoard
             orders={kanbanRecords}
-            columns={enquiryKanbanColumns}
+            columns={kanbanColumns}
             getColumnId={getKanbanStatus}
-            emptyLabel="No enquiries"
+            emptyLabel={typeTab === "order" ? "No orders" : "No enquiries"}
             onCardClick={(order) =>
               router.push(
                 order.type === "enquiry"

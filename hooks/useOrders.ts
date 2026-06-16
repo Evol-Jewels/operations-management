@@ -23,10 +23,14 @@ export const orderKeys = {
     [...orderKeys.details(), String(refCode)] as const,
 };
 
-export function useOrders(query: ListOrdersQuery = {}) {
+export function useOrders(
+  query: ListOrdersQuery = {},
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: orderKeys.list(query),
     queryFn: () => fetchOrders(query),
+    enabled: options.enabled,
   });
 }
 
