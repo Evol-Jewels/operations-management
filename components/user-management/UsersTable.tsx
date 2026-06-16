@@ -78,7 +78,6 @@ function UserActions({
   }
 
   const hasUsername = Boolean(user.username?.trim());
-  const canBlock = user.status !== "ACTIVE";
   const canUnblock = user.status === "BLOCKED";
   const canResetPassword = hasUsername && user.status !== "BLOCKED";
 
@@ -97,21 +96,7 @@ function UserActions({
       </PopoverTrigger>
       <PopoverContent align="end" className="w-fit p-1">
         <div className="flex flex-col">
-          {canBlock && (
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
-              onClick={(e) => {
-                e.stopPropagation();
-                onBlock();
-              }}
-              disabled={isLoading}
-            >
-              <Ban className="size-4" />
-              Block User
-            </button>
-          )}
-          {canUnblock && (
+          {canUnblock ? (
             <button
               type="button"
               className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
@@ -123,6 +108,19 @@ function UserActions({
             >
               <ShieldMinus className="size-4" />
               Unblock User
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                onBlock();
+              }}
+              disabled={isLoading}
+            >
+              <Ban className="size-4" />
+              Block User
             </button>
           )}
           {canResetPassword && (
