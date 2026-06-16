@@ -17,11 +17,37 @@ export type InternalUserStatus = (typeof INTERNAL_USER_STATUSES)[number];
 export type InternalProfileRole = (typeof INTERNAL_PROFILE_ROLES)[number];
 export type InternalInviteStatus = (typeof INTERNAL_INVITE_STATUSES)[number];
 
+export interface InternalUserProfileLocation {
+  id: string;
+  name: string;
+  city: string;
+  type: "WAREHOUSE" | "STORE";
+  notes: string | null;
+}
+
 export interface InternalUserProfile {
   gender: "MALE" | "FEMALE" | "OTHERS" | null;
   role: InternalProfileRole | null;
   department: string | null;
   locationId: string | null;
+  location?: InternalUserProfileLocation | null;
+}
+
+export interface InternalUserProfileMeResponse {
+  id: string;
+  email: string | null;
+  username: string | null;
+  onlyUsernameLogin: boolean;
+  name: string;
+  role: "internal";
+  status: InternalUserStatus;
+  emailVerifiedAt: string | null;
+  phoneVerifiedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  profile:
+    | (InternalUserProfile & { location: InternalUserProfileLocation | null })
+    | null;
 }
 
 export interface InternalUserWithProfile {
@@ -70,6 +96,8 @@ export interface CreateInternalInviteInput {
   username?: string;
   onlyUsernameLogin?: boolean;
   expiration?: string;
+  password?: string;
+  locationId?: string;
 }
 
 export interface UpdateInternalInviteInput {
@@ -121,5 +149,18 @@ export interface UnblockUserResponse {
 export interface ResetPasswordResponse {
   id: string;
   username: string;
+  passwordUpdated: boolean;
+}
+
+export interface UpdateMyInternalProfileInput {
+  locationId?: string | null;
+}
+
+export interface ChangeInternalPasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface ChangeInternalPasswordResponse {
   passwordUpdated: boolean;
 }

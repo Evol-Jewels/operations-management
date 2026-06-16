@@ -1,9 +1,15 @@
 "use client";
 
-import { Send } from "lucide-react";
+import { ChevronDown, Send } from "lucide-react";
+import type { FormEvent } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLocations } from "@/hooks/useManageProducts";
 import type {
   CreateInternalInviteInput,
   CreateInternalInviteResponse,
@@ -32,6 +39,8 @@ import { INTERNAL_PROFILE_ROLES } from "@/types/user-management";
 function isAdmin(role: InternalProfileRole) {
   return role === "ADMIN";
 }
+
+const NO_LOCATION = "NONE";
 
 interface SendInviteDialogProps {
   isSubmitting: boolean;
@@ -62,12 +71,18 @@ export function SendInviteDialog({
   const [expiration, setExpiration] = useState(defaultExpirationValue);
   const [username, setUsername] = useState("");
   const [allowLoginWithUsername, setAllowLoginWithUsername] = useState(false);
+  const [showMoreDetails, setShowMoreDetails] = useState(false);
+  const [password, setPassword] = useState("");
+  const [locationId, setLocationId] = useState(NO_LOCATION);
   const [error, setError] = useState("");
+  const locationsQuery = useLocations({ limit: 100 }, open);
+  const locations = locationsQuery.data?.data ?? [];
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
     if (!trimmedEmail) {
       setError("Email is required.");
       return;
@@ -86,12 +101,17 @@ export function SendInviteDialog({
               onlyUsernameLogin: allowLoginWithUsername,
             }),
         expiration: toIsoDateTime(expiration),
+        password: trimmedPassword || undefined,
+        locationId: locationId === NO_LOCATION ? undefined : locationId,
       });
       setEmail("");
       setRole("SALES");
       setExpiration(defaultExpirationValue());
       setUsername("");
       setAllowLoginWithUsername(false);
+      setShowMoreDetails(false);
+      setPassword("");
+      setLocationId(NO_LOCATION);
       setOpen(false);
     } catch (submitError) {
       setError(
@@ -152,7 +172,7 @@ export function SendInviteDialog({
 
           {!isAdmin(role) && (
             <>
-              <div className="space-y-2">
+              <div className="space-y-2 mb-2">
                 <Label htmlFor="invite-username">Username</Label>
                 <Input
                   id="invite-username"
@@ -181,18 +201,90 @@ export function SendInviteDialog({
             </>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="invite-expiration">Expiration</Label>
-            <Input
-              id="invite-expiration"
-              type="datetime-local"
-              value={expiration}
-              onChange={(event) => setExpiration(event.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Leave blank to use the backend default.
-            </p>
-          </div>
+          <Collapsible
+            open={showMoreDetails}
+            onOpenChange={setShowMoreDetails}
+            className="space-y-3 my-6"
+          >
+            <CollapsibleTrigger asChild>
+              <div
+                // type="button"
+                // variant="ghost"
+                className={`flex gap-1 w-full items-center cursor-pointer text-sm hover:bg-transparent ${showMoreDetails ? "text-accent-foreground/50" : ""}`}
+                aria-expanded={showMoreDetails}
+              >
+                More details
+                <ChevronDown
+                  className={`size-4 transition-transform ${
+                    showMoreDetails ? "rotate-180" : ""
+                  }`}
+                />
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-4">
+              {!isAdmin(role) && (
+                <div className="space-y-2">
+                  <Label htmlFor="invite-password">Password (optional)</Label>
+                  <Input
+                    id="invite-password"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Password (leave blank for random)"
+                    autoComplete="new-password"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="invite-expiration">Invite Expiration</Label>
+                <Input
+                  id="invite-expiration"
+                  type="datetime-local"
+                  value={expiration}
+                  onChange={(event) => setExpiration(event.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="invite-location">Location</Label>
+                <Select
+                  value={locationId}
+                  onValueChange={setLocationId}
+                  disabled={locationsQuery.isLoading}
+                >
+                  <SelectTrigger id="invite-location" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_LOCATION}>No location</SelectItem>
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id}>
+                        {location.name} - {location.city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {locationsQuery.isLoading ? (
+                  <p className="text-xs text-muted-foreground">
+                    Loading locations...
+                  </p>
+                ) : null}
+                {locationsQuery.isError ? (
+                  <p className="text-xs text-destructive">
+                    Could not load locations.
+                  </p>
+                ) : null}
+                {!locationsQuery.isLoading &&
+                !locationsQuery.isError &&
+                locations.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No locations configured.
+                  </p>
+                ) : null}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           {error && (
             <div className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">

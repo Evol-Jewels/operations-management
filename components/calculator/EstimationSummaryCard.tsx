@@ -158,7 +158,8 @@ export function EstimationSummaryCard({
         <div>
           <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Estimation as per values, share with customers using the download button
+            Estimation as per values, share with customers using the download
+            button
           </p>
         </div>
         {showDownloadButton ? (
