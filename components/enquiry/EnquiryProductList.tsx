@@ -27,9 +27,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
+import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type {
   CalculatorSettings,
+  CalculatorStoneInput,
   EnquiryCustomProduct,
   EnquiryItemStatus,
   EnquirySelectedProduct,
@@ -38,15 +40,14 @@ import type {
 } from "@/types";
 
 type ItemKind = "existing" | "custom";
-type StatusFilter = "ALL" | EnquiryItemStatus;
+type VisibleStatus = Extract<EnquiryItemStatus, "PENDING" | "ESTIMATED">;
+type StatusFilter = "ALL" | VisibleStatus;
 type ViewMode = "grid" | "table";
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "ALL", label: "All statuses" },
   { value: "PENDING", label: "Pending" },
   { value: "ESTIMATED", label: "Estimated" },
-  { value: "CONVERTED", label: "Converted" },
-  { value: "CLOSED", label: "Closed" },
 ];
 
 const STATUS_LABELS: Record<EnquiryItemStatus, string> = {
@@ -76,8 +77,10 @@ function DetailRow({
 function getItemStatus(
   explicitStatus: EnquiryItemStatus | undefined,
   estimation: ProductEstimation | undefined,
-): EnquiryItemStatus {
-  if (explicitStatus) return explicitStatus;
+): VisibleStatus {
+  if (explicitStatus === "PENDING" || explicitStatus === "ESTIMATED") {
+    return explicitStatus;
+  }
   return estimation ? "ESTIMATED" : "PENDING";
 }
 
@@ -114,7 +117,50 @@ function formatCustomStoneSummary(product: EnquiryCustomProduct) {
     .join(" · ");
 }
 
-function StatusBadge({ status }: { status: EnquiryItemStatus }) {
+function getStoneTypeIdByName(settings: CalculatorSettings, name: string) {
+  const normalizedName = name.trim().toLowerCase();
+  return (
+    settings.stoneTypes.find(
+      (stone) => stone.name.trim().toLowerCase() === normalizedName,
+    )?.stoneId ??
+    settings.stoneTypes[0]?.stoneId ??
+    ""
+  );
+}
+
+function estimationToCalculatorStones(
+  estimation: ProductEstimation,
+  settings: CalculatorSettings,
+): CalculatorStoneInput[] {
+  return estimation.stoneDetails.map((stone) => ({
+    id: stone.id,
+    stoneTypeId: getStoneTypeIdByName(settings, stone.type),
+    weight: stone.netWeight,
+    quantity: stone.pieces,
+  }));
+}
+
+function recomputeEstimationTotal(
+  estimation: ProductEstimation | undefined,
+  settings: CalculatorSettings,
+): ProductEstimation | undefined {
+  if (!estimation) return undefined;
+
+  const breakdown = computeEstimateFromInputs(
+    settings,
+    estimation.metalWeight,
+    estimation.purity,
+    estimationToCalculatorStones(estimation, settings),
+    { makingCostOverride: estimation.makingCost ?? 0 },
+  );
+
+  return {
+    ...estimation,
+    finalAmount: Math.round(breakdown.total),
+  };
+}
+
+function StatusBadge({ status }: { status: VisibleStatus }) {
   return (
     <span
       className={cn(
@@ -122,9 +168,6 @@ function StatusBadge({ status }: { status: EnquiryItemStatus }) {
         status === "ESTIMATED" && "border-border bg-muted text-foreground",
         status === "PENDING" &&
           "border-border bg-background text-muted-foreground",
-        status === "CONVERTED" && "border-border bg-foreground text-background",
-        status === "CLOSED" &&
-          "border-border bg-muted/60 text-muted-foreground",
       )}
     >
       {STATUS_LABELS[status]}
@@ -181,6 +224,12 @@ function EstimationSummary({ estimation }: { estimation: ProductEstimation }) {
           <p>{formatDate(estimation.createdAt)}</p>
         </div>
       </div>
+      {estimation.vendorName || estimation.notes ? (
+        <dl className="mt-2 grid gap-1 border-t border-border pt-2">
+          <DetailRow label="Vendor" value={estimation.vendorName} />
+          <DetailRow label="Notes" value={estimation.notes} />
+        </dl>
+      ) : null}
     </div>
   );
 }
@@ -191,7 +240,7 @@ interface NormalizedItem {
   title: string;
   subtitle: string;
   imageUrl?: string;
-  status: EnquiryItemStatus;
+  status: VisibleStatus;
   estimation?: ProductEstimation;
   defaultPurity: MetalPurity;
   product: EnquirySelectedProduct | EnquiryCustomProduct;
@@ -201,12 +250,14 @@ function ProductCard({
   item,
   settings,
   isClosed,
+  canManageEstimations,
   isSavingEstimation,
   onSaveEstimation,
 }: {
   item: NormalizedItem;
   settings: CalculatorSettings;
   isClosed: boolean;
+  canManageEstimations: boolean;
   isSavingEstimation?: boolean;
   onSaveEstimation: (estimation: ProductEstimation) => void;
 }) {
@@ -318,7 +369,7 @@ function ProductCard({
           </dl>
         ) : null}
 
-        {!isClosed ? (
+        {!isClosed && canManageEstimations ? (
           <div className="mt-auto pt-4">
             <EnquiryEstimationDialog
               productId={item.id}
@@ -340,15 +391,19 @@ function ProductTable({
   items,
   settings,
   isClosed,
+  canManageEstimations,
   isSavingEstimation,
   onSaveEstimation,
 }: {
   items: NormalizedItem[];
   settings: CalculatorSettings;
   isClosed: boolean;
+  canManageEstimations: boolean;
   isSavingEstimation?: boolean;
   onSaveEstimation: (estimation: ProductEstimation) => void;
 }) {
+  const showActions = !isClosed && canManageEstimations;
+
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card">
       <Table>
@@ -358,7 +413,7 @@ function ProductTable({
             <TableHead>Type</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Estimate</TableHead>
-            {!isClosed ? (
+            {showActions ? (
               <TableHead className="pr-5 text-right">Action</TableHead>
             ) : null}
           </TableRow>
@@ -391,7 +446,7 @@ function ProductTable({
                   <span className="text-muted-foreground">-</span>
                 )}
               </TableCell>
-              {!isClosed ? (
+              {showActions ? (
                 <TableCell className="pr-5 text-right">
                   <EnquiryEstimationDialog
                     productId={item.id}
@@ -417,6 +472,7 @@ interface EnquiryProductListProps {
   customProducts: EnquiryCustomProduct[];
   estimations: ProductEstimation[];
   isClosed: boolean;
+  canManageEstimations: boolean;
   isSavingEstimation?: boolean;
   onSaveEstimation: (estimation: ProductEstimation) => void;
 }
@@ -426,6 +482,7 @@ export function EnquiryProductList({
   customProducts,
   estimations,
   isClosed,
+  canManageEstimations,
   isSavingEstimation,
   onSaveEstimation,
 }: EnquiryProductListProps) {
@@ -435,8 +492,9 @@ export function EnquiryProductList({
 
   const items = useMemo<NormalizedItem[]>(() => {
     const selectedItems = selectedProducts.map((product) => {
-      const estimation = estimations.find(
-        (item) => item.productId === product.id,
+      const estimation = recomputeEstimationTotal(
+        estimations.find((item) => item.productId === product.id),
+        settings,
       );
       const metalLabel = `${product.metalType === "Gold" ? "Yellow Gold" : product.metalType} ${product.metalPurity}`;
 
@@ -456,8 +514,9 @@ export function EnquiryProductList({
     });
 
     const customItems = customProducts.map((product) => {
-      const estimation = estimations.find(
-        (item) => item.productId === product.id,
+      const estimation = recomputeEstimationTotal(
+        estimations.find((item) => item.productId === product.id),
+        settings,
       );
       const title = [
         product.category || "Custom",
@@ -484,7 +543,7 @@ export function EnquiryProductList({
     });
 
     return [...selectedItems, ...customItems];
-  }, [customProducts, estimations, selectedProducts]);
+  }, [customProducts, estimations, selectedProducts, settings]);
 
   const filteredItems =
     statusFilter === "ALL"
@@ -564,6 +623,7 @@ export function EnquiryProductList({
           items={filteredItems}
           settings={settings}
           isClosed={isClosed}
+          canManageEstimations={canManageEstimations}
           isSavingEstimation={isSavingEstimation}
           onSaveEstimation={onSaveEstimation}
         />
@@ -575,6 +635,7 @@ export function EnquiryProductList({
               item={item}
               settings={settings}
               isClosed={isClosed}
+              canManageEstimations={canManageEstimations}
               isSavingEstimation={isSavingEstimation}
               onSaveEstimation={onSaveEstimation}
             />

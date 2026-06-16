@@ -244,7 +244,10 @@ export interface ProductEstimation {
   purity: MetalPurity;
   stoneDetails: EstimationStoneDetail[];
   finalAmount: number;
+  makingCost?: number;
   createdAt: string;
+  vendorName?: string;
+  notes?: string;
 }
 
 export interface RecentProductEstimate {

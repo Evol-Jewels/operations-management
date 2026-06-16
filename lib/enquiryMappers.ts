@@ -81,8 +81,11 @@ export function mapBackendEstimationToProductEstimation(
       netWeight: Number(stone.weight ?? 0),
       pieces: 1,
     })),
-    finalAmount: Number(estimation.makingCost ?? 0),
+    finalAmount: 0,
+    makingCost: Number(estimation.makingCost ?? 0),
     createdAt: estimation.createdAt,
+    vendorName: estimation.vendorName ?? undefined,
+    notes: estimation.notes ?? undefined,
   };
 }
 
@@ -157,7 +160,6 @@ export function mapBackendCommentToActivityEntry(
     id: comment.id,
     orderId: String(comment.sourceCode),
     postedBy: normalizePerson(comment.createdBy),
-    actorRole: "sales",
     timestamp: comment.createdAt,
     type: "note",
     note: comment.content,
@@ -171,7 +173,6 @@ export function mapBackendActivityLogToActivityEntry(
     id: log.id,
     orderId: String(log.sourceCode),
     postedBy: normalizePerson(log.createdBy),
-    actorRole: "sales",
     timestamp: log.createdAt,
     type: mapActivityLogTypeToEntryType(log.type),
     note: log.message || undefined,

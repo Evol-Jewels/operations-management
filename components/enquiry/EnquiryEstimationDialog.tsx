@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   calculateGoldRate,
   computeEstimateFromInputs,
@@ -52,6 +53,17 @@ function createStone(settings: CalculatorSettings): CalculatorStoneInput {
   };
 }
 
+function getStoneTypeIdByName(settings: CalculatorSettings, name: string) {
+  const normalizedName = name.trim().toLowerCase();
+  return (
+    settings.stoneTypes.find(
+      (stone) => stone.name.trim().toLowerCase() === normalizedName,
+    )?.stoneId ??
+    settings.stoneTypes[0]?.stoneId ??
+    ""
+  );
+}
+
 function formatWeight(value: number) {
   return value.toFixed(3).replace(/\.?0+$/, "");
 }
@@ -69,7 +81,7 @@ function buildInitialForm(
       existingEstimation && existingEstimation.stoneDetails.length > 0
         ? existingEstimation.stoneDetails.map((stone) => ({
             id: stone.id || generateId(),
-            stoneTypeId: settings.stoneTypes[0]?.stoneId ?? "",
+            stoneTypeId: getStoneTypeIdByName(settings, stone.type),
             weight: stone.netWeight,
             quantity: stone.pieces,
           }))
@@ -102,6 +114,14 @@ export function EnquiryEstimationDialog({
   const [form, setForm] = useState<CalculatorFormState>(() =>
     buildInitialForm(settings, productName, defaultPurity, existingEstimation),
   );
+  const [vendorName, setVendorName] = useState(
+    existingEstimation?.vendorName ?? "",
+  );
+  const [notes, setNotes] = useState(existingEstimation?.notes ?? "");
+  const [makingCost, setMakingCost] = useState(
+    existingEstimation?.makingCost ?? 0,
+  );
+  const [isMakingCostEdited, setIsMakingCostEdited] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -113,7 +133,27 @@ export function EnquiryEstimationDialog({
         existingEstimation,
       ),
     );
+    setVendorName(existingEstimation?.vendorName ?? "");
+    setNotes(existingEstimation?.notes ?? "");
+    setMakingCost(existingEstimation?.makingCost ?? 0);
+    setIsMakingCostEdited(false);
   }, [defaultPurity, existingEstimation, open, productName, settings]);
+
+  const calculatedMakingCost = useMemo(
+    () =>
+      computeEstimateFromInputs(
+        settings,
+        form.netGoldWeight,
+        form.purity,
+        form.stones,
+      ).makingCost,
+    [form.netGoldWeight, form.purity, form.stones, settings],
+  );
+
+  useEffect(() => {
+    if (!open || existingEstimation || isMakingCostEdited) return;
+    setMakingCost(calculatedMakingCost);
+  }, [calculatedMakingCost, existingEstimation, isMakingCostEdited, open]);
 
   const breakdown = useMemo(
     () =>
@@ -122,8 +162,9 @@ export function EnquiryEstimationDialog({
         form.netGoldWeight,
         form.purity,
         form.stones,
+        { makingCostOverride: makingCost },
       ),
-    [form.netGoldWeight, form.purity, form.stones, settings],
+    [form.netGoldWeight, form.purity, form.stones, makingCost, settings],
   );
 
   const canSave =
@@ -177,9 +218,12 @@ export function EnquiryEstimationDialog({
           type: stone.stoneType?.name ?? "Stone",
           netWeight: stone.weight,
           pieces: stone.quantity,
-        })),
+      })),
       finalAmount: Math.round(breakdown.total),
+      makingCost,
       createdAt: existingEstimation?.createdAt ?? new Date().toISOString(),
+      vendorName: vendorName.trim() || undefined,
+      notes: notes.trim() || undefined,
     });
     setOpen(false);
   }
@@ -307,7 +351,8 @@ export function EnquiryEstimationDialog({
                         {resolvedSlab ? (
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {formatWeight(resolvedSlab.fromWeight)}-
-                            {formatWeight(resolvedSlab.toWeight)} ct slab
+                            {formatWeight(resolvedSlab.toWeight)} ct slab ·{" "}
+                            {formatCurrency(resolvedSlab.pricePerCarat)}/ct
                           </p>
                         ) : null}
                       </div>
@@ -384,6 +429,27 @@ export function EnquiryEstimationDialog({
             </div>
           </section>
 
+          <section className="grid gap-3">
+            <div className="grid gap-2 sm:max-w-48">
+              <Label htmlFor={`making-cost-${productId}`} className="text-[0.6875rem] pb-2 font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                Making Charge
+              </Label>
+              <Input
+                id={`making-cost-${productId}`}
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step={0.01}
+                value={makingCost || ""}
+                onChange={(event) => {
+                  setIsMakingCostEdited(true);
+                  setMakingCost(Math.max(0, Number(event.target.value) || 0));
+                }}
+                placeholder="0.00"
+              />
+            </div>
+          </section>
+
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <span className="text-sm font-medium text-muted-foreground">
@@ -401,6 +467,14 @@ export function EnquiryEstimationDialog({
                 {formatCurrency(breakdown.totalStoneCost)}
               </span>
             </div>
+            <div className="flex items-center justify-between border-b border-border py-3">
+              <span className="text-sm font-medium text-muted-foreground">
+                GST ({(settings.gstRate * 100).toFixed(1)}%)
+              </span>
+              <span className="font-medium tabular-nums">
+                {formatCurrency(breakdown.gst)}
+              </span>
+            </div>
             <div className="flex items-center justify-between pt-3">
               <span className="text-base font-semibold">Total</span>
               <span className="text-2xl font-semibold tabular-nums">
@@ -408,6 +482,33 @@ export function EnquiryEstimationDialog({
               </span>
             </div>
           </div>
+
+          <section className="grid gap-3">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Other Details (optional)
+            </p>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] sm:items-start">
+              <div className="grid gap-2">
+                <Label htmlFor={`vendor-name-${productId}`}>Vendor Name</Label>
+                <Input
+                  id={`vendor-name-${productId}`}
+                  value={vendorName}
+                  onChange={(event) => setVendorName(event.target.value)}
+                  placeholder="Enter vendor name"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor={`estimation-notes-${productId}`}>Notes</Label>
+                <Textarea
+                  id={`estimation-notes-${productId}`}
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  placeholder="Add estimation notes"
+                  className="min-h-10 resize-none"
+                />
+              </div>
+            </div>
+          </section>
         </div>
 
         <DialogFooter>

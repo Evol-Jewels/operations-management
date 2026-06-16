@@ -28,7 +28,7 @@ export function calculateMakingCharge(
   perGramRate: number,
 ): number {
   if (netGoldWeight <= 0) return 0;
-  if (netGoldWeight < 2) return flatRate;
+  if (netGoldWeight <= 2) return flatRate;
   return netGoldWeight * perGramRate;
 }
 
@@ -67,6 +67,7 @@ export function computeEstimateFromInputs(
   netGoldWeight: number,
   purity: MetalPurity,
   stones: CalculatorStoneInput[],
+  options: { makingCostOverride?: number } = {},
 ): CalculatorPricingBreakdown {
   const normalizedNetGoldWeight = normalizeWeight(netGoldWeight);
   const goldRateValue = calculateGoldRate(
@@ -81,11 +82,13 @@ export function computeEstimateFromInputs(
   const totalStoneWeightInGrams = totalStoneWeightInCarats * CARAT_TO_GRAM;
   const grossWeight = normalizedNetGoldWeight + totalStoneWeightInGrams;
   const goldCost = normalizedNetGoldWeight * goldRateValue;
-  const makingCost = calculateMakingCharge(
-    normalizedNetGoldWeight,
-    settings.makingChargeFlat,
-    settings.makingChargePerGram,
-  );
+  const makingCost =
+    options.makingCostOverride ??
+    calculateMakingCharge(
+      normalizedNetGoldWeight,
+      settings.makingChargeFlat,
+      settings.makingChargePerGram,
+    );
 
   const stoneDetails: CalculatorPricedStoneDetail[] = stones.map((stone) => {
     const stoneType = getStoneType(settings, stone.stoneTypeId);

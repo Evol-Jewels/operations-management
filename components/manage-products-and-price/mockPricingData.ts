@@ -3,7 +3,7 @@ import type { CalculatorSettings } from "@/types";
 export const MOCK_PRICING_SETTINGS: CalculatorSettings = {
   goldRate24k: 10000,
   makingChargeFlat: 4000,
-  makingChargePerGram: 1800,
+  makingChargePerGram: 2200,
   gstRate: 0.03,
   purityPercentages: {
     "24K": 100,

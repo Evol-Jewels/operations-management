@@ -27,7 +27,9 @@ function estimationToApiInput(estimation: ProductEstimation) {
       stoneType: stone.type,
       weight: toDecimal(stone.netWeight, 3),
     })),
-    makingCost: toDecimal(estimation.finalAmount),
+    makingCost: toDecimal(estimation.makingCost ?? 0),
+    vendorName: estimation.vendorName?.trim() || undefined,
+    notes: estimation.notes?.trim() || undefined,
   };
 }
 

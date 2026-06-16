@@ -17,7 +17,15 @@ import {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function roleColors(role?: ActorRole) {
-  return role ? ACTOR_ROLE_COLORS[role] : ACTOR_ROLE_COLORS.sales;
+  return role
+    ? ACTOR_ROLE_COLORS[role]
+    : {
+        bg: "bg-muted",
+        text: "text-muted-foreground",
+        badge: "border-border bg-muted text-muted-foreground",
+        dot: "border-border bg-muted",
+        dotSolid: "bg-muted-foreground",
+      };
 }
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
@@ -102,6 +110,17 @@ function SystemEvent({
   isLast: boolean;
 }) {
   const isCreated = entry.type === "order_created";
+  const actorName = getFirstName(entry.postedBy);
+  const eventLabel =
+    entry.type === "estimation_added"
+      ? "updated an estimation"
+      : entry.type === "enquiry_closed"
+        ? "closed the enquiry"
+        : entry.type === "file_upload"
+          ? "uploaded a file"
+          : isCreated
+            ? "created this enquiry"
+            : "posted an update";
 
   return (
     <div className="relative flex items-start gap-3">
@@ -138,11 +157,29 @@ function SystemEvent({
           <div className="min-w-0 pt-0.5">
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
               <span className="text-sm font-medium text-foreground">
-                {getFirstName(entry.postedBy)}
+                {actorName}
               </span>
-              <RoleBadge role={entry.actorRole} />
               <span className="text-sm text-muted-foreground">
-                {entry.type === "order_created" ? "created this order" : ""}
+                {eventLabel}
+              </span>
+            </div>
+            <span className="mt-0.5 block text-xs text-muted-foreground/60 tabular-nums">
+              {formatDateTime(entry.timestamp)}
+            </span>
+          </div>
+        ) : entry.type === "stage_change" && entry.newStage ? (
+          /* Stage change — inline pill */
+          <div className="min-w-0 pt-0.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+              <span className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {actorName}
+                </span>
+                {" moved to "}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-foreground/20 bg-foreground/5 px-2 py-0.5 text-xs font-medium text-foreground">
+                <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
+                {entry.newStage}
               </span>
             </div>
             <span className="mt-0.5 block text-xs text-muted-foreground/60 tabular-nums">
@@ -150,18 +187,13 @@ function SystemEvent({
             </span>
           </div>
         ) : (
-          /* Stage change — inline pill */
           <div className="min-w-0 pt-0.5">
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-              <span className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">
-                  {getFirstName(entry.postedBy)}
-                </span>
-                {" moved to "}
+              <span className="text-sm font-medium text-foreground">
+                {actorName}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-foreground/20 bg-foreground/5 px-2 py-0.5 text-xs font-medium text-foreground">
-                <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                {entry.newStage}
+              <span className="text-sm text-muted-foreground">
+                {eventLabel}
               </span>
             </div>
             <span className="mt-0.5 block text-xs text-muted-foreground/60 tabular-nums">
@@ -275,8 +307,7 @@ export function ActivityTimeline({ entries }: ActivityTimelineProps) {
     <div>
       {sorted.map((entry, i) => {
         const isLast = i === sorted.length - 1;
-        const isSystemEvent =
-          entry.type === "order_created" || entry.type === "stage_change";
+        const isSystemEvent = entry.type !== "note";
 
         if (isSystemEvent) {
           return <SystemEvent key={entry.id} entry={entry} isLast={isLast} />;

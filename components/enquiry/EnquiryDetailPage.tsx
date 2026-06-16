@@ -272,6 +272,7 @@ export function EnquiryDetailPage({
   const { data: session } = authClient.useSession();
   const sessionRole = session ? getSessionRole(session) : "";
   const canConvertToOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
+  const canManageEstimations = ["ADMIN", "OPERATIONS"].includes(sessionRole);
 
   function handleSaveEstimation(estimation: ProductEstimation) {
     onSaveEstimation(estimation.productId, estimation);
@@ -423,6 +424,7 @@ export function EnquiryDetailPage({
               customProducts={customProducts}
               estimations={estimations}
               isClosed={isClosed}
+              canManageEstimations={canManageEstimations}
               onSaveEstimation={handleSaveEstimation}
               isSavingEstimation={isSavingEstimation}
             />
