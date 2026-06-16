@@ -200,7 +200,7 @@ export function AppSidebar() {
                   asChild
                   isActive={pathname === "/enquiries/new"}
                   tooltip="Create New Enquiry"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground data-[active=true]:bg-primary/90 data-[active=true]:text-primary-foreground data-[active=true]:shadow-none my-1"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground data-[active=true]:bg-primary/90 data-[active=true]:text-primary-foreground data-[active=true]:shadow-none mt-3"
                 >
                   <Link
                     href="/enquiries/new"
