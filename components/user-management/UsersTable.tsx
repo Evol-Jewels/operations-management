@@ -78,13 +78,9 @@ function UserActions({
   }
 
   const hasUsername = Boolean(user.username?.trim());
-  const canBlock = user.status === "ACTIVE";
+  const canBlock = user.status !== "ACTIVE";
   const canUnblock = user.status === "BLOCKED";
   const canResetPassword = hasUsername && user.status !== "BLOCKED";
-
-  if (!canBlock && !canUnblock && !canResetPassword) {
-    return null;
-  }
 
   return (
     <Popover>
@@ -212,7 +208,7 @@ export function UsersTable({
                     <div className="flex justify-between gap-3">
                       <span>Role</span>
                       <span className="font-medium text-foreground">
-                        {user.profile?.role ?? "No role"}
+                        {user.profile?.role ?? "-"}
                       </span>
                     </div>
                     <div className="flex justify-between gap-3">
@@ -282,7 +278,7 @@ export function UsersTable({
                 </TableCell>
                 <TableCell className="py-3">
                   <p className="text-sm text-foreground">
-                    {user.profile?.role ?? "No role"}
+                    {user.profile?.role ?? "-"}
                   </p>
                 </TableCell>
                 <TableCell className="py-3 text-muted-foreground">
