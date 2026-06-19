@@ -1,8 +1,4 @@
-export type BackendEnquiryStatus =
-  | "NEW"
-  | "ESTIMATED"
-  | "CONVERTED"
-  | "CLOSED";
+export type BackendEnquiryStatus = "NEW" | "ESTIMATED" | "CONVERTED" | "CLOSED";
 
 export type BackendEnquiryItemStatus =
   | "PENDING"

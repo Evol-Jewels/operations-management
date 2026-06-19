@@ -2,64 +2,107 @@ import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-const TOKEN_PATTERN = /@([A-Za-z0-9_-]+)|(order|enquiry)\s*#(\d+)/gi;
+const CODE_PATTERN = /@([A-Za-z0-9_-]+)/g;
+const REF_PATTERN = /#(\d+)/g;
+const KIND_TRIGGER = /\b(orders?|enquir(?:y|ies))\b(?![^\s,])/gi;
+
+type Match =
+  | { kind: "code"; index: number; length: number; code: string }
+  | {
+      kind: "ref";
+      index: number;
+      length: number;
+      ref: string;
+      path: "orders" | "enquiries" | null;
+    };
 
 export function renderMessageWithLinks(
   text: string,
   className?: string,
 ): ReactNode[] {
+  const matches: Match[] = [];
+
+  for (const m of text.matchAll(CODE_PATTERN)) {
+    matches.push({
+      kind: "code",
+      index: m.index,
+      length: m[0].length,
+      code: m[1],
+    });
+  }
+
+  for (const m of text.matchAll(REF_PATTERN)) {
+    matches.push({
+      kind: "ref",
+      index: m.index,
+      length: m[0].length,
+      ref: m[1],
+      path: resolveRefPath(text, m.index),
+    });
+  }
+
+  matches.sort((a, b) => a.index - b.index);
+
   const nodes: ReactNode[] = [];
-  let lastIndex = 0;
+  let cursor = 0;
   let key = 0;
+  const linkClass = cn(
+    "font-semibold underline underline-offset-2 hover:text-primary",
+    className,
+  );
 
-  for (const match of text.matchAll(TOKEN_PATTERN)) {
-    const full = match[0];
-    const start = match.index;
-
-    if (start > lastIndex) {
+  for (const m of matches) {
+    if (m.index > cursor) {
       nodes.push(
-        <Fragment key={key++}>{text.slice(lastIndex, start)}</Fragment>,
+        <Fragment key={key++}>{text.slice(cursor, m.index)}</Fragment>,
       );
     }
 
-    if (match[1] !== undefined) {
-      const code = match[1];
+    if (m.kind === "code") {
       nodes.push(
         <Link
           key={key++}
-          href={`/inventory?productCode=${encodeURIComponent(code)}`}
-          className={cn(
-            "font-semibold underline underline-offset-2 hover:text-primary",
-            className,
-          )}
+          href={`/inventory?productCode=${encodeURIComponent(m.code)}`}
+          className={linkClass}
         >
-          {full}
+          {text.slice(m.index, m.index + m.length)}
+        </Link>,
+      );
+    } else if (m.path) {
+      nodes.push(
+        <Link key={key++} href={`/${m.path}/${m.ref}`} className={linkClass}>
+          {text.slice(m.index, m.index + m.length)}
         </Link>,
       );
     } else {
-      const kind = match[2].toLowerCase();
-      const ref = match[3];
-      const path = kind === "order" ? "orders" : "enquiries";
       nodes.push(
-        <Link
-          key={key++}
-          href={`/${path}/${ref}`}
-          className={cn(
-            "font-semibold underline underline-offset-2 hover:text-primary",
-            className,
-          )}
-        >
-          {full}
-        </Link>,
+        <Fragment key={key++}>
+          {text.slice(m.index, m.index + m.length)}
+        </Fragment>,
       );
     }
 
-    lastIndex = start + full.length;
+    cursor = m.index + m.length;
   }
 
-  if (lastIndex < text.length) {
-    nodes.push(<Fragment key={key++}>{text.slice(lastIndex)}</Fragment>);
+  if (cursor < text.length) {
+    nodes.push(<Fragment key={key++}>{text.slice(cursor)}</Fragment>);
   }
 
   return nodes;
+}
+
+function resolveRefPath(
+  text: string,
+  refIndex: number,
+): "orders" | "enquiries" | null {
+  KIND_TRIGGER.lastIndex = 0;
+  const before = text.slice(0, refIndex);
+  const triggers = [...before.matchAll(KIND_TRIGGER)];
+  const last = triggers[triggers.length - 1];
+  if (!last) return null;
+  if (last.index + last[0].length > refIndex) return null;
+  const word = last[1].toLowerCase();
+  if (word === "order" || word === "orders") return "orders";
+  return "enquiries";
 }

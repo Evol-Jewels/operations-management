@@ -1,11 +1,7 @@
 import type { Order } from "@/types";
 import type { BackendEnquiryStatus } from "@/types/enquiry-api";
 
-export type EnquiryUiStatus =
-  | "New"
-  | "Estimated"
-  | "Converted"
-  | "Closed";
+export type EnquiryUiStatus = "New" | "Estimated" | "Converted" | "Closed";
 
 export const ENQUIRY_STATUS_LABELS: Record<
   BackendEnquiryStatus,
