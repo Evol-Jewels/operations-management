@@ -54,9 +54,9 @@ export function ActivityFeed({ entries }: ActivityFeedProps) {
     );
   }
 
-  // Show newest first
+  // Show oldest first so the latest entry appears at the bottom
   const sorted = [...entries].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
   );
 
   return (
@@ -90,11 +90,11 @@ export function ActivityFeed({ entries }: ActivityFeedProps) {
                   </span>
                 </>
               )}
-              {entry.type === "note" && (
+              {/*{entry.type === "note" && (
                 <span className="text-xs text-muted-foreground">
                   added a note
                 </span>
-              )}
+              )}*/}
               {entry.type === "file_upload" && (
                 <span className="text-xs text-muted-foreground">
                   uploaded a file

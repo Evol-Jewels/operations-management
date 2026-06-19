@@ -9,7 +9,6 @@ import type {
   MetalType,
   Order,
   ProductEstimation,
-  Stage,
 } from "@/types";
 import type {
   ActivityLogType,
@@ -20,7 +19,6 @@ import type {
   BackendEnquiryDetails,
   BackendEnquiryItemRow,
   BackendEnquiryListItem,
-  BackendEnquiryStatus,
   BackendEstimationRow,
 } from "@/types/enquiry-api";
 
@@ -42,14 +40,6 @@ function normalizeMetalPurity(value?: string | null): MetalPurity {
     return normalized as MetalPurity;
   }
   return "Other";
-}
-
-function backendStatusToStage(status: BackendEnquiryStatus): Stage {
-  if (status === "ESTIMATE_SENT" || status === "QUOTE_SENT") {
-    return "Estimation";
-  }
-  if (status === "ORDER_PLACED") return "Order Confirmed";
-  return "Enquiry";
 }
 
 function firstImage(media: BackendEnquiryItemRow["media"]) {
@@ -81,8 +71,11 @@ export function mapBackendEstimationToProductEstimation(
       netWeight: Number(stone.weight ?? 0),
       pieces: 1,
     })),
-    finalAmount: Number(estimation.makingCost ?? 0),
+    finalAmount: 0,
+    makingCost: Number(estimation.makingCost ?? 0),
     createdAt: estimation.createdAt,
+    vendorName: estimation.vendorName ?? undefined,
+    notes: estimation.notes ?? undefined,
   };
 }
 
@@ -144,10 +137,11 @@ function mapActivityLogTypeToEntryType(
     return "order_created";
   }
   if (type === "STATUS_CHANGED") return "stage_change";
+  if (type === "ITEM_ADDED") return "item_added";
   if (type === "ESTIMATION_ADDED" || type === "ESTIMATION_UPDATED") {
     return "estimation_added";
   }
-  return "note";
+  return "system_note";
 }
 
 export function mapBackendCommentToActivityEntry(
@@ -157,9 +151,8 @@ export function mapBackendCommentToActivityEntry(
     id: comment.id,
     orderId: String(comment.sourceCode),
     postedBy: normalizePerson(comment.createdBy),
-    actorRole: "sales",
     timestamp: comment.createdAt,
-    type: "note",
+    type: "comment",
     note: comment.content,
   };
 }
@@ -171,7 +164,6 @@ export function mapBackendActivityLogToActivityEntry(
     id: log.id,
     orderId: String(log.sourceCode),
     postedBy: normalizePerson(log.createdBy),
-    actorRole: "sales",
     timestamp: log.createdAt,
     type: mapActivityLogTypeToEntryType(log.type),
     note: log.message || undefined,
@@ -186,10 +178,14 @@ export function mergeActivityFeed(
     (log) => !HIDDEN_ACTIVITY_LOG_TYPES.includes(log.type),
   );
 
-  return [
+  const merged = [
     ...comments.map(mapBackendCommentToActivityEntry),
     ...visibleLogs.map(mapBackendActivityLogToActivityEntry),
   ];
+
+  return merged.sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+  );
 }
 
 function baseOrderFromBackend(
@@ -215,11 +211,11 @@ function baseOrderFromBackend(
     metalPurity: "Other",
     certification: "None",
     cadDesignRequired: false,
-    currentStage: backendStatusToStage(enquiry.status),
+    currentStage: "Enquiry",
     createdAt: enquiry.createdAt,
     lastUpdatedAt: enquiry.updatedAt,
     activityFeed: [],
-    status: enquiry.status === "CLOSED" ? "closed" : "open",
+    enquiryStatus: enquiry.status,
   };
 }
 
@@ -241,17 +237,9 @@ export function mapBackendEnquiryDetailsToOrder(
     const latestEstimation = item.estimations?.[0];
 
     if (item.type === "EXISTING") {
-      const product = mapBackendItemToSelectedProduct(item);
-      if (latestEstimation && product.status === "PENDING") {
-        product.status = "ESTIMATED";
-      }
-      selectedProducts.push(product);
+      selectedProducts.push(mapBackendItemToSelectedProduct(item));
     } else {
-      const product = mapBackendItemToCustomProduct(item);
-      if (latestEstimation && product.status === "PENDING") {
-        product.status = "ESTIMATED";
-      }
-      customProducts.push(product);
+      customProducts.push(mapBackendItemToCustomProduct(item));
     }
 
     if (latestEstimation) {

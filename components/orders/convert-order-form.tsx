@@ -3,6 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  ArrowRight,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -11,29 +12,22 @@ import {
   ScanLine,
   Search,
   Trash2,
-  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
+import { CustomProductForm } from "@/components/enquiries/custom-product-form";
 import {
-  CATEGORIES,
   createEmptyNewProduct,
-  METAL_PURITIES,
-  METAL_TYPES,
+  hasValidCustomProductRequirement,
   type NewProduct,
-  POLISH_OPTIONS,
   type Product,
   type ProductAddMode,
   type ProductReference,
-  STONE_CUTS,
-  STONE_QUALITIES,
 } from "@/components/enquiries/enquiry-form-types";
 import {
-  formatFileSize,
   formatMetalTypeLabel,
   generateId,
-  getReferenceIcon,
   isValidReferenceLink,
   normalizeReferenceLink,
   ProductThumbnail,
@@ -43,13 +37,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { enquiryKeys, useEnquiryDetails } from "@/hooks/useEnquiries";
 import { useCreateOrders } from "@/hooks/useOrders";
@@ -84,11 +71,6 @@ interface OrderItem {
   imageUrl?: string;
   basePrice?: number;
   // Custom product fields
-  polish?: string;
-  stoneDescription?: string;
-  stoneCut?: string;
-  stoneQuality?: string;
-  stoneCaratEstimate?: string;
   references?: ProductReference[];
   notes?: string;
   // Order fields
@@ -143,11 +125,6 @@ function createOrderItemFromNewCustom(
     metalGrossWeight: product.metalGrossWeight,
     metalColor: product.metalColor,
     size: product.size,
-    polish: product.polish,
-    stoneDescription: product.stoneDescription,
-    stoneCut: product.stoneCut,
-    stoneQuality: product.stoneQuality,
-    stoneCaratEstimate: product.stoneCaratEstimate,
     references: product.references,
     notes: product.notes,
     vendor: "",
@@ -245,7 +222,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
           metalType: item.metalType || undefined,
           metalPurity: item.metalPurity || undefined,
           metalNetWeight: item.metalWeight || undefined,
-          stoneDescription: stoneDesc,
+          notes: stoneDesc || undefined,
           vendor: "",
           cadApprovalRequired: false,
           estimatedDelivery: defaultEstimatedDelivery,
@@ -342,13 +319,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
   }
 
   function addNewCustomProduct() {
-    if (
-      !newProductDraft.category ||
-      !newProductDraft.metalType ||
-      !newProductDraft.metalNetWeight
-    ) {
-      return;
-    }
+    if (!hasValidCustomProductRequirement(newProductDraft)) return;
     const product = { ...newProductDraft, id: generateId() };
     const newItem = createOrderItemFromNewCustom(product, createdAtRef.current);
     setForm((prev) => ({
@@ -450,19 +421,6 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
       ) {
         nextErrors.items = "Every existing product needs a product code";
       }
-      if (
-        form.items.some(
-          (item) =>
-            (item.source === "enquiry-custom" ||
-              item.source === "new-custom") &&
-            (!item.category?.trim() ||
-              !item.metalType?.trim() ||
-              !item.metalNetWeight?.trim()),
-        )
-      ) {
-        nextErrors.items =
-          "Custom products need category, metal type, and net weight";
-      }
       if (form.items.some((item) => !item.estimatedDelivery)) {
         nextErrors.estimatedDelivery =
           "Estimated delivery date is required for every product";
@@ -530,8 +488,6 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
         metalGrossWeight: item.metalGrossWeight ?? "",
         metalColor: item.metalColor ?? "",
         size: item.size ?? "",
-        stoneDescription: item.stoneDescription ?? "",
-        stoneCaratEstimate: item.stoneCaratEstimate ?? "",
       }),
       notes: item.notes,
       vendor: item.vendor.trim() || undefined,
@@ -746,6 +702,18 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
               <ChevronDown className="h-4 w-4" />
             </Button>
           </div>
+          {!isLastStep && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={goNext}
+              disabled={isSubmitting || !hasItems}
+              className="pointer-events-auto ml-auto gap-2 px-5 shadow-md"
+            >
+              Save & Next
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          )}
           {isLastStep && (
             <Button
               type="button"
@@ -833,6 +801,26 @@ function ProductsStep({
   addReferenceFiles: (files: FileList | null) => void;
   removeDraftReference: (id: string) => void;
 }) {
+  if (productAddMode === "custom") {
+    return (
+      <div className="mx-auto w-full max-w-2xl space-y-6">
+        <CustomProductForm
+          draft={newProductDraft}
+          setDraft={setNewProductDraft}
+          referenceLinkInput={referenceLinkInput}
+          setReferenceLinkInput={setReferenceLinkInput}
+          referenceError={referenceError}
+          setReferenceError={setReferenceError}
+          addReferenceLink={addReferenceLink}
+          addReferenceFiles={addReferenceFiles}
+          removeDraftReference={removeDraftReference}
+          addNewProduct={addNewCustomProduct}
+          onCancel={cancelNewCustomProduct}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full space-y-6">
       {/* Existing products */}
@@ -864,50 +852,32 @@ function ProductsStep({
       {submitError && <p className="text-sm text-destructive">{submitError}</p>}
 
       {/* Add new products */}
-      {productAddMode === "choose" && (
-        <div className="space-y-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/80">
-            Add products
-          </p>
-          <div className="grid gap-3 lg:grid-cols-2">
-            <InventoryQuickEntry
-              productSearch={productSearch}
-              setProductSearch={setProductSearch}
-              searchResults={searchResults}
-              searchInputRef={searchInputRef}
-              isLoading={productLookupLoading}
-              error={productLookupError}
-              notFoundCode={notFoundCode}
-              isScannerOpen={isScannerOpen}
-              setIsScannerOpen={setIsScannerOpen}
-              searchInventoryProducts={searchInventoryProducts}
-              addProduct={addInventoryProduct}
-            />
-            <ProductModeButton
-              icon={<Pencil className="h-4 w-4 text-primary" />}
-              title="Add custom product"
-              description="Describe the product requirement"
-              onClick={() => setProductAddMode("custom")}
-            />
-          </div>
+      <div className="space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground/80">
+          Add Other Products
+        </p>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <InventoryQuickEntry
+            productSearch={productSearch}
+            setProductSearch={setProductSearch}
+            searchResults={searchResults}
+            searchInputRef={searchInputRef}
+            isLoading={productLookupLoading}
+            error={productLookupError}
+            notFoundCode={notFoundCode}
+            isScannerOpen={isScannerOpen}
+            setIsScannerOpen={setIsScannerOpen}
+            searchInventoryProducts={searchInventoryProducts}
+            addProduct={addInventoryProduct}
+          />
+          <ProductModeButton
+            icon={<Pencil className="h-4 w-4 text-primary" />}
+            title="Add custom product"
+            description="Describe the product requirement"
+            onClick={() => setProductAddMode("custom")}
+          />
         </div>
-      )}
-
-      {productAddMode === "custom" && (
-        <CustomProductForm
-          draft={newProductDraft}
-          setDraft={setNewProductDraft}
-          referenceLinkInput={referenceLinkInput}
-          setReferenceLinkInput={setReferenceLinkInput}
-          referenceError={referenceError}
-          setReferenceError={setReferenceError}
-          addReferenceLink={addReferenceLink}
-          addReferenceFiles={addReferenceFiles}
-          removeDraftReference={removeDraftReference}
-          addNewProduct={addNewCustomProduct}
-          onCancel={cancelNewCustomProduct}
-        />
-      )}
+      </div>
     </div>
   );
 }
@@ -1245,333 +1215,5 @@ function InventoryQuickEntry({
         </div>
       )}
     </div>
-  );
-}
-
-function CustomProductForm({
-  draft,
-  setDraft,
-  referenceLinkInput,
-  setReferenceLinkInput,
-  referenceError,
-  setReferenceError,
-  addReferenceLink,
-  addReferenceFiles,
-  removeDraftReference,
-  addNewProduct,
-  onCancel,
-}: {
-  draft: NewProduct;
-  setDraft: React.Dispatch<React.SetStateAction<NewProduct>>;
-  referenceLinkInput: string;
-  setReferenceLinkInput: (value: string) => void;
-  referenceError: string;
-  setReferenceError: (value: string) => void;
-  addReferenceLink: () => void;
-  addReferenceFiles: (files: FileList | null) => void;
-  removeDraftReference: (id: string) => void;
-  addNewProduct: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-        </button>
-        <p className="text-xs font-medium text-muted-foreground">
-          Describe a custom product
-        </p>
-      </div>
-      <div className="space-y-4 rounded-xl border border-border bg-card p-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <SelectField
-            label="Category"
-            value={draft.category}
-            options={CATEGORIES}
-            optional
-            placeholder="Select category"
-            onChange={(category) => setDraft((prev) => ({ ...prev, category }))}
-          />
-          <SelectField
-            label="Metal type"
-            value={draft.metalType}
-            options={METAL_TYPES}
-            required
-            placeholder="Select metal"
-            onChange={(metalType) =>
-              setDraft((prev) => ({ ...prev, metalType }))
-            }
-          />
-          <SelectField
-            label="Metal purity"
-            value={draft.metalPurity}
-            options={METAL_PURITIES}
-            optional
-            placeholder="Select purity"
-            onChange={(metalPurity) =>
-              setDraft((prev) => ({ ...prev, metalPurity }))
-            }
-          />
-          <FormField label="Net weight" required>
-            <Input
-              type="number"
-              min="0"
-              step="0.001"
-              placeholder="0.000"
-              value={draft.metalNetWeight}
-              onChange={(e) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  metalNetWeight: e.target.value,
-                }))
-              }
-              className="h-9 w-full"
-            />
-          </FormField>
-          <FormField label="Gross weight" optional>
-            <Input
-              type="number"
-              min="0"
-              step="0.001"
-              placeholder="0.000"
-              value={draft.metalGrossWeight}
-              onChange={(e) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  metalGrossWeight: e.target.value,
-                }))
-              }
-              className="h-9 w-full"
-            />
-          </FormField>
-          <SelectField
-            label="Polish / finish"
-            value={draft.polish}
-            options={POLISH_OPTIONS}
-            optional
-            placeholder="Select polish"
-            onChange={(polish) => setDraft((prev) => ({ ...prev, polish }))}
-          />
-        </div>
-
-        <FormField
-          label="Stone description"
-          htmlFor="stoneDescription"
-          optional
-        >
-          <Input
-            id="stoneDescription"
-            placeholder="e.g. Natural Diamonds, Blue Sapphire"
-            value={draft.stoneDescription}
-            onChange={(e) =>
-              setDraft((prev) => ({
-                ...prev,
-                stoneDescription: e.target.value,
-              }))
-            }
-            className="h-9 w-full"
-          />
-        </FormField>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <SelectField
-            label="Stone cut"
-            value={draft.stoneCut}
-            options={STONE_CUTS}
-            optional
-            placeholder="Select cut"
-            onChange={(stoneCut) => setDraft((prev) => ({ ...prev, stoneCut }))}
-          />
-          <SelectField
-            label="Stone quality"
-            value={draft.stoneQuality}
-            options={STONE_QUALITIES}
-            optional
-            placeholder="Select quality"
-            onChange={(stoneQuality) =>
-              setDraft((prev) => ({ ...prev, stoneQuality }))
-            }
-          />
-          <FormField label="Carat estimate" optional>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0.50"
-              value={draft.stoneCaratEstimate}
-              onChange={(e) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  stoneCaratEstimate: e.target.value,
-                }))
-              }
-              className="h-9 w-full"
-            />
-          </FormField>
-        </div>
-
-        <FormField label="References" optional>
-          <div className="space-y-3 rounded-lg border border-dashed border-border/70 bg-muted/20 p-3">
-            <div className="flex flex-wrap gap-2">
-              <Input
-                placeholder="Paste a link"
-                value={referenceLinkInput}
-                onChange={(e) => {
-                  setReferenceLinkInput(e.target.value);
-                  if (referenceError) setReferenceError("");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addReferenceLink();
-                  }
-                }}
-                className="h-9 min-w-[180px] flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addReferenceLink}
-              >
-                Add
-              </Button>
-              <label className="flex cursor-pointer items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-primary/40">
-                <span className="text-muted-foreground">Upload</span>
-                <input
-                  type="file"
-                  accept="image/*,video/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    addReferenceFiles(e.target.files);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            </div>
-
-            {draft.references.length > 0 && (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {draft.references.map((ref) => (
-                  <div
-                    key={ref.id}
-                    className="flex min-w-0 items-center gap-2 rounded-lg border bg-background px-3 py-2"
-                  >
-                    {ref.type === "image" ? (
-                      // biome-ignore lint/performance/noImgElement: local object URLs cannot be optimized
-                      <img
-                        src={ref.url}
-                        alt={ref.name}
-                        className="h-8 w-8 shrink-0 rounded object-cover"
-                      />
-                    ) : ref.type === "video" ? (
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-muted">
-                        <span className="text-xs">Video</span>
-                      </div>
-                    ) : null}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex min-w-0 items-center gap-1.5 text-xs font-medium">
-                        {getReferenceIcon(ref.type)}
-                        <span className="truncate">
-                          {ref.type === "link" ? ref.url : ref.name}
-                        </span>
-                      </div>
-                      {ref.size && (
-                        <p className="text-[10px] text-muted-foreground">
-                          {formatFileSize(ref.size)}
-                        </p>
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => removeDraftReference(ref.id)}
-                      className="shrink-0 text-muted-foreground/60 hover:text-destructive"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {referenceError && (
-              <p className="text-[11px] text-destructive">{referenceError}</p>
-            )}
-          </div>
-        </FormField>
-
-        <FormField label="Notes" optional>
-          <Textarea
-            placeholder="Design preferences, special requests..."
-            value={draft.notes}
-            onChange={(e) =>
-              setDraft((prev) => ({ ...prev, notes: e.target.value }))
-            }
-            className="min-h-[72px] w-full resize-none"
-          />
-        </FormField>
-      </div>
-
-      <div className="flex gap-2 pt-1">
-        <Button
-          type="button"
-          size="sm"
-          onClick={addNewProduct}
-          disabled={
-            !draft.category || !draft.metalType || !draft.metalNetWeight
-          }
-          className="gap-2 px-5"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add product
-        </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  options,
-  placeholder,
-  onChange,
-  optional,
-  required,
-}: {
-  label: string;
-  value: string;
-  options: readonly string[];
-  placeholder: string;
-  onChange: (value: string) => void;
-  optional?: boolean;
-  required?: boolean;
-}) {
-  return (
-    <FormField label={label} optional={optional} required={required}>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-9 w-full text-sm">
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option} value={option}>
-              {option}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </FormField>
   );
 }

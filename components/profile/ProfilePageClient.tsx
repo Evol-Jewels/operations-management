@@ -166,10 +166,7 @@ export function ProfilePageClient() {
   ).toLowerCase();
   const username = profileLoading
     ? "Loading..."
-    : (profile?.username ??
-      user?.username ??
-      name ??
-      deriveUsername(user));
+    : (profile?.username ?? user?.username ?? name ?? deriveUsername(user));
   const hasUsername = Boolean(profile?.username ?? user?.username);
   const identityLabel = hasUsername ? "Username" : "Name";
   const identityInputId = hasUsername ? "profile-username" : "profile-name";

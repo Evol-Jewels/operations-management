@@ -15,6 +15,7 @@ import { useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getOrderEnquiryUiStatus, isEnquiryClosed } from "@/lib/enquiryStatus";
 import { getInitials } from "@/lib/people";
 import {
   cn,
@@ -441,14 +442,12 @@ function EnquiryCard({ order }: { order: Order }) {
         <span className="text-sm text-muted-foreground">#{order.refCode}</span>
         <span className="text-foreground">{order.customerName}</span>
 
-        {order.status && (
-          <Badge
-            variant={order.status === "open" ? "default" : "secondary"}
-            className="text-[10px] capitalize"
-          >
-            {order.status}
-          </Badge>
-        )}
+        <Badge
+          variant={isEnquiryClosed(order) ? "secondary" : "default"}
+          className="text-[10px]"
+        >
+          {getOrderEnquiryUiStatus(order)}
+        </Badge>
       </div>
       <div className="flex shrink-0 items-center gap-2 text-right">
         <span className="whitespace-nowrap text-sm mx-2 text-muted-foreground">
@@ -487,12 +486,8 @@ function EmptyRows({
 function getAdminAnalytics(orders: Order[]) {
   const allOrders = orders.filter((order) => order.type === "order");
   const allEnquiries = orders.filter((order) => order.type === "enquiry");
-  const openEnquiries = allEnquiries.filter(
-    (order) => order.status !== "closed",
-  );
-  const closedEnquiries = allEnquiries.filter(
-    (order) => order.status === "closed",
-  );
+  const openEnquiries = allEnquiries.filter((order) => !isEnquiryClosed(order));
+  const closedEnquiries = allEnquiries.filter(isEnquiryClosed);
   const revenue = allOrders.reduce(
     (sum, order) => sum + (order.totalEstimate ?? 0),
     0,
@@ -525,7 +520,7 @@ function getOpsAnalytics(orders: Order[]) {
       order.currentStage !== "Closed",
   );
   const openEnquiries = orders.filter(
-    (order) => order.type === "enquiry" && order.status !== "closed",
+    (order) => order.type === "enquiry" && !isEnquiryClosed(order),
   );
   const activeRecords = [...activeOrders, ...openEnquiries];
   const urgency: Record<UrgencyLevel, number> = {
@@ -893,7 +888,7 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
           new Date(a.lastUpdatedAt).getTime(),
       );
     const openEnquiries = orders
-      .filter((o) => o.type === "enquiry" && o.status !== "closed")
+      .filter((o) => o.type === "enquiry" && !isEnquiryClosed(o))
       .sort(
         (a, b) =>
           new Date(b.lastUpdatedAt).getTime() -

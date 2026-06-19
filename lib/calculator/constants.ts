@@ -383,7 +383,7 @@ const fancyStoneSlabs = [
 export const DEFAULT_CALCULATOR_SETTINGS: CalculatorSettings = {
   goldRate24k: 15000,
   makingChargeFlat: 4000,
-  makingChargePerGram: 1800,
+  makingChargePerGram: 2200,
   gstRate: 0.03,
   purityPercentages: {
     "14K": 60,
