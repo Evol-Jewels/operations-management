@@ -1,10 +1,17 @@
 import {
   ArrowRight,
+  Ban,
   FileText,
   Image as ImageIcon,
+  type LucideIcon,
+  MessageSquare,
+  Package,
   PackagePlus,
+  Paperclip,
+  ReceiptText,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { renderMessageWithLinks } from "@/lib/message-links";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { cn, formatDateTime } from "@/lib/utils";
 import {
@@ -100,6 +107,49 @@ function FileAttachment({
   );
 }
 
+// ─── Event Icon ───────────────────────────────────────────────────────────────
+
+function getEventIcon(type: ActivityEntry["type"]): {
+  Icon: LucideIcon;
+  filled: boolean;
+} {
+  switch (type) {
+    case "order_created":
+      return { Icon: PackagePlus, filled: true };
+    case "stage_change":
+      return { Icon: ArrowRight, filled: true };
+    case "enquiry_closed":
+      return { Icon: Ban, filled: false };
+    case "estimation_added":
+      return { Icon: ReceiptText, filled: false };
+    case "file_upload":
+      return { Icon: Paperclip, filled: false };
+    case "item_added":
+      return { Icon: Package, filled: false };
+    default:
+      return { Icon: MessageSquare, filled: false };
+  }
+}
+
+function getDefaultMessage(entry: ActivityEntry): string {
+  switch (entry.type) {
+    case "order_created":
+      return "created this enquiry";
+    case "item_added":
+      return "added an item";
+    case "enquiry_closed":
+      return "closed the enquiry";
+    case "estimation_added":
+      return "updated an estimation";
+    case "file_upload":
+      return "uploaded a file";
+    case "stage_change":
+      return entry.newStage ? `moved to ${entry.newStage}` : "posted an update";
+    default:
+      return "posted an update";
+  }
+}
+
 // ─── System / Stage Event — compact horizontal banner ────────────────────────
 
 function SystemEvent({
@@ -109,18 +159,8 @@ function SystemEvent({
   entry: ActivityEntry;
   isLast: boolean;
 }) {
-  const isCreated = entry.type === "order_created";
-  const actorName = getFirstName(entry.postedBy);
-  const eventLabel =
-    entry.type === "estimation_added"
-      ? "updated an estimation"
-      : entry.type === "enquiry_closed"
-        ? "closed the enquiry"
-        : entry.type === "file_upload"
-          ? "uploaded a file"
-          : isCreated
-            ? "created this enquiry"
-            : "posted an update";
+  const { Icon, filled } = getEventIcon(entry.type);
+  const message = entry.note ?? getDefaultMessage(entry);
 
   return (
     <div className="relative flex items-start gap-3">
@@ -130,16 +170,12 @@ function SystemEvent({
         <div
           className={cn(
             "relative z-10 flex h-5 w-5 items-center justify-center rounded-full",
-            isCreated
+            filled
               ? "bg-foreground text-background"
-              : "border-2 border-border bg-background",
+              : "border-2 border-border bg-background text-muted-foreground",
           )}
         >
-          {isCreated ? (
-            <PackagePlus className="h-3 w-3" strokeWidth={2} />
-          ) : (
-            <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
-          )}
+          <Icon className="h-3 w-3" strokeWidth={2} />
         </div>
         {/* Connector going down */}
         {!isLast && (
@@ -150,62 +186,15 @@ function SystemEvent({
         )}
       </div>
 
-      {/* Content */}
+      {/* Content — message + timestamp only */}
       <div className="min-w-0 flex-1 pb-5">
-        {isCreated ? (
-          /* Order Created — slightly more prominent */
-          <div className="min-w-0 pt-0.5">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-              <span className="text-sm font-medium text-foreground">
-                {actorName}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {eventLabel}
-              </span>
-            </div>
-            <span className="mt-0.5 block text-xs text-muted-foreground/60 tabular-nums">
-              {formatDateTime(entry.timestamp)}
-            </span>
-          </div>
-        ) : entry.type === "stage_change" && entry.newStage ? (
-          /* Stage change — inline pill */
-          <div className="min-w-0 pt-0.5">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-              <span className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{actorName}</span>
-                {" moved to "}
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-foreground/20 bg-foreground/5 px-2 py-0.5 text-xs font-medium text-foreground">
-                <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                {entry.newStage}
-              </span>
-            </div>
-            <span className="mt-0.5 block text-xs text-muted-foreground/60 tabular-nums">
-              {formatDateTime(entry.timestamp)}
-            </span>
-          </div>
-        ) : (
-          <div className="min-w-0 pt-0.5">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-              <span className="text-sm font-medium text-foreground">
-                {actorName}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {eventLabel}
-              </span>
-            </div>
-            <span className="mt-0.5 block text-xs text-muted-foreground/60 tabular-nums">
-              {formatDateTime(entry.timestamp)}
-            </span>
-          </div>
-        )}
-
-        {/* Optional note on system events */}
-        {entry.note && (
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            {entry.note}
-          </p>
-        )}
+        <p className="text-sm leading-relaxed text-foreground">
+          {renderMessageWithLinks(message)}
+        </p>
+        <span className="mt-0.5 block text-xs text-muted-foreground/60 tabular-nums">
+          {formatDateTime(entry.timestamp)}
+        </span>
+        {entry.file && <FileAttachment file={entry.file} />}
       </div>
     </div>
   );
@@ -270,7 +259,7 @@ function HumanMessage({
           >
             {entry.note && (
               <p className="break-words text-sm leading-relaxed text-foreground">
-                {entry.note}
+                {renderMessageWithLinks(entry.note)}
               </p>
             )}
             {entry.file && <FileAttachment file={entry.file} />}
@@ -305,13 +294,13 @@ export function ActivityTimeline({ entries }: ActivityTimelineProps) {
     <div>
       {sorted.map((entry, i) => {
         const isLast = i === sorted.length - 1;
-        const isSystemEvent = entry.type !== "note";
+        const isComment = entry.type === "comment";
 
-        if (isSystemEvent) {
-          return <SystemEvent key={entry.id} entry={entry} isLast={isLast} />;
+        if (isComment) {
+          return <HumanMessage key={entry.id} entry={entry} isLast={isLast} />;
         }
 
-        return <HumanMessage key={entry.id} entry={entry} isLast={isLast} />;
+        return <SystemEvent key={entry.id} entry={entry} isLast={isLast} />;
       })}
     </div>
   );

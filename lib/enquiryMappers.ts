@@ -137,10 +137,11 @@ function mapActivityLogTypeToEntryType(
     return "order_created";
   }
   if (type === "STATUS_CHANGED") return "stage_change";
+  if (type === "ITEM_ADDED") return "item_added";
   if (type === "ESTIMATION_ADDED" || type === "ESTIMATION_UPDATED") {
     return "estimation_added";
   }
-  return "note";
+  return "system_note";
 }
 
 export function mapBackendCommentToActivityEntry(
@@ -151,7 +152,7 @@ export function mapBackendCommentToActivityEntry(
     orderId: String(comment.sourceCode),
     postedBy: normalizePerson(comment.createdBy),
     timestamp: comment.createdAt,
-    type: "note",
+    type: "comment",
     note: comment.content,
   };
 }

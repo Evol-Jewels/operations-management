@@ -240,30 +240,9 @@ function ClosedBanner({ order }: { order: Order }) {
   if (!isEnquiryClosed(order)) return null;
 
   return (
-    <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-4 text-amber-950 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200">
-          <AlertTriangle className="size-4" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">Enquiry closed</p>
-          {order.closeReason ? (
-            <p className="mt-1 text-sm text-amber-900/80 dark:text-amber-100/80">
-              {order.closeReason}
-            </p>
-          ) : null}
-          {order.closeNotes ? (
-            <p className="mt-1 text-sm text-amber-900/80 dark:text-amber-100/80">
-              {order.closeNotes}
-            </p>
-          ) : null}
-          {order.closedAt ? (
-            <p className="mt-1 text-xs text-amber-900/70 dark:text-amber-100/70">
-              Closed on {formatDateTime(order.closedAt)}
-            </p>
-          ) : null}
-        </div>
-      </div>
+    <div className="flex items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-4 text-amber-950 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+      <AlertTriangle className="size-4" />
+      <p className="text-sm font-semibold">Enquiry closed</p>
     </div>
   );
 }

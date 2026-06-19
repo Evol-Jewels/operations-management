@@ -147,10 +147,12 @@ export type CloseReason =
 export type ActivityEntryType =
   | "order_created" // auto-generated system event at creation
   | "stage_change" // moved to a new stage
-  | "note" // human message / update
+  | "comment" // user-posted message (rendered as a boxed bubble)
   | "file_upload" // file or photo attached
   | "enquiry_closed"
-  | "estimation_added";
+  | "item_added"
+  | "estimation_added"
+  | "system_note"; // any other backend activity log — rendered as a simple line using log.message
 
 export interface PersonSummary {
   id: string;
