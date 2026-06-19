@@ -172,9 +172,7 @@ function SystemEvent({
           <div className="min-w-0 pt-0.5">
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
               <span className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">
-                  {actorName}
-                </span>
+                <span className="font-medium text-foreground">{actorName}</span>
                 {" moved to "}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-foreground/20 bg-foreground/5 px-2 py-0.5 text-xs font-medium text-foreground">

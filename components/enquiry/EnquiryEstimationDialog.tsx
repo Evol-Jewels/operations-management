@@ -218,7 +218,7 @@ export function EnquiryEstimationDialog({
           type: stone.stoneType?.name ?? "Stone",
           netWeight: stone.weight,
           pieces: stone.quantity,
-      })),
+        })),
       finalAmount: Math.round(breakdown.total),
       makingCost,
       createdAt: existingEstimation?.createdAt ?? new Date().toISOString(),
@@ -431,7 +431,10 @@ export function EnquiryEstimationDialog({
 
           <section className="grid gap-3">
             <div className="grid gap-2 sm:max-w-48">
-              <Label htmlFor={`making-cost-${productId}`} className="text-[0.6875rem] pb-2 font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              <Label
+                htmlFor={`making-cost-${productId}`}
+                className="text-[0.6875rem] pb-2 font-semibold uppercase tracking-[0.22em] text-muted-foreground"
+              >
                 Making Charge
               </Label>
               <Input

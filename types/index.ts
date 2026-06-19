@@ -1,5 +1,7 @@
 // ─── Pipeline Stages ────────────────────────────────────────────────────────
 
+import type { BackendEnquiryStatus } from "@/types/enquiry-api";
+
 export const STAGES = [
   "Enquiry",
   "Estimation",
@@ -403,6 +405,7 @@ export interface Order {
   occasion?: string;
   timelineNotes?: string;
   sourceEnquiryId?: string;
+  enquiryStatus?: BackendEnquiryStatus;
   selectedProducts?: EnquirySelectedProduct[];
   customProducts?: EnquiryCustomProduct[];
 

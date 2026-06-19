@@ -277,12 +277,17 @@
     width: 100%;
   }
 
+  .dark .iti {
+    color-scheme: dark;
+  }
+
   .iti__tel-input {
     width: 100%;
     height: 3rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--input);
     background-color: var(--background);
+    color: var(--foreground);
     padding: 0.5rem 0.75rem 0.5rem 3.5rem;
     font-size: 1rem !important;
     font-weight: 400 !important;
@@ -291,6 +296,10 @@
     transition:
       border-color 0.15s ease,
       box-shadow 0.15s ease;
+  }
+
+  .iti__tel-input::placeholder {
+    color: var(--muted-foreground);
   }
 
   .iti__tel-input:focus-visible {
@@ -312,8 +321,28 @@
     font-weight: 400 !important;
   }
 
-  .iti__country-list {
+  .iti__selected-flag {
+    background-color: transparent !important;
+  }
+
+  .iti__selected-flag:hover {
+    background-color: var(--muted) !important;
+  }
+
+  .iti__arrow {
+    border-top-color: var(--muted-foreground) !important;
+  }
+
+  /* Flag sprite is light-bg optimized; lift slightly in dark mode */
+  .iti__flag {
     background-color: var(--background);
+    box-shadow: 0 0 0 1px var(--border);
+    border-radius: 2px;
+  }
+
+  .iti__country-list {
+    background-color: var(--popover);
+    color: var(--foreground);
     border: 1px solid var(--border);
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
     border-radius: var(--radius-md);
@@ -325,6 +354,10 @@
     font-size: 0.875rem !important;
   }
 
+  .iti__country-name {
+    color: var(--foreground);
+  }
+
   .iti__country:hover,
   .iti__highlight {
     background-color: var(--muted);
@@ -332,6 +365,48 @@
 
   .iti__dial-code {
     color: var(--muted-foreground);
+  }
+
+  .iti__divider {
+    border-bottom-color: var(--border);
+  }
+
+  .iti__search-input {
+    background-color: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--input);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.75rem;
+  }
+
+  .iti__search-input::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  .iti__search-input:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px var(--ring);
+  }
+
+  /* Replace library's PNG close icon with foreground-colored mask */
+  .iti__close-icon {
+    background: none !important;
+    background-color: var(--muted-foreground) !important;
+    width: 12px !important;
+    height: 12px !important;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+
+  .iti__close-icon:hover {
+    background-color: var(--foreground) !important;
   }
 
   .iti-error .iti__tel-input {

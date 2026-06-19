@@ -41,15 +41,17 @@ import { useOrders } from "@/hooks/useOrders";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
+import {
+  ENQUIRY_STATUS_LABELS,
+  type EnquiryUiStatus,
+  getOrderEnquiryUiStatus,
+  getRecordStatus,
+} from "@/lib/enquiryStatus";
 import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { cn, formatDate } from "@/lib/utils";
-import type {
-  EnquiryItemStatus,
-  Order,
-  PersonSummary,
-  RecordType,
-} from "@/types";
+import type { Order, PersonSummary, RecordType } from "@/types";
+import type { BackendEnquiryStatus } from "@/types/enquiry-api";
 import { KanbanBoard, type KanbanColumnConfig } from "./KanbanBoard";
 
 type TypeTab = RecordType;
@@ -57,12 +59,15 @@ type ViewMode = "table" | "kanban";
 type DateFilter = "all" | "7d" | "30d" | "90d";
 
 const TAB_STORAGE_KEY = "evol:orders-enquiries:tab";
-const ENQUIRY_STATUS_OPTIONS = [
-  "all",
-  "PENDING",
+const ENQUIRY_STATUSES: BackendEnquiryStatus[] = [
+  "NEW",
   "ESTIMATED",
   "CONVERTED",
   "CLOSED",
+];
+const ENQUIRY_STATUS_OPTIONS = [
+  "all",
+  ...ENQUIRY_STATUSES.map((status) => ENQUIRY_STATUS_LABELS[status]),
 ] as const;
 const ORDER_STAGES = [
   "New",
@@ -82,10 +87,10 @@ const ORDER_KANBAN_COLUMNS: KanbanColumnConfig[] = ORDER_STAGES.map(
   }),
 );
 const ENQUIRY_KANBAN_COLUMNS: KanbanColumnConfig[] = [
-  { id: "Enquiry", label: "Enquiry" },
-  { id: "Estimation", label: "Estimation" },
-  { id: "Order Confirmed", label: "Converted", shortLabel: "Converted" },
-  { id: "Closed", label: "Closed" },
+  ...ENQUIRY_STATUSES.map((status) => ({
+    id: ENQUIRY_STATUS_LABELS[status],
+    label: ENQUIRY_STATUS_LABELS[status],
+  })),
 ];
 
 function isTypeTab(value: unknown): value is RecordType {
@@ -128,35 +133,25 @@ function isWithinDateFilter(date: string, filter: DateFilter) {
   return created >= cutoff;
 }
 
-function getEnquiryStatus(order: Order): EnquiryItemStatus {
-  if (order.status === "closed") return "CLOSED";
-  if (order.currentStage === "Order Confirmed") return "CONVERTED";
-  if (order.currentStage === "Estimation") return "ESTIMATED";
-  return "PENDING";
-}
-
-function getRecordStatus(order: Order) {
-  if (order.type === "enquiry") return getEnquiryStatus(order);
-  return order.currentStage;
-}
-
-function getKanbanStatus(record: Order): string {
-  if (record.status === "closed") return "Closed";
-  return record.currentStage;
+function getKanbanStatus(record: Order): EnquiryUiStatus {
+  return getOrderEnquiryUiStatus(record);
 }
 
 function statusBadgeClass(status: string) {
-  if (status === "CLOSED" || status === "Closed" || status === "Delivered") {
+  if (status === "Closed" || status === "Delivered") {
     return "border-muted-foreground/20 bg-muted text-foreground dark:border-muted-foreground/20 dark:bg-muted/50";
   }
-  if (status === "CONVERTED" || status === "Order Confirmed") {
+  if (status === "Converted" || status === "Order Confirmed") {
     return "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400";
   }
-  if (status === "ESTIMATED" || status === "Estimation") {
+  if (status === "Estimated") {
     return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400";
   }
-  if (status === "PENDING" || status === "Enquiry") {
+  if (status === "New") {
     return "border-red-500/20 bg-red-500/10 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400";
+  }
+  if (status === "In Progress") {
+    return "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-400";
   }
   if (status === "Manufacturing" || status === "Certification") {
     return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400";
@@ -289,7 +284,7 @@ function RecordsTable({
                         statusBadgeClass(status),
                       )}
                     >
-                      {status.toLowerCase()}
+                      {status}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
@@ -369,7 +364,7 @@ function RecordsMobileList({
                   statusBadgeClass(status),
                 )}
               >
-                {status.toLowerCase()}
+                {status}
               </Badge>
             </div>
             <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
@@ -477,7 +472,7 @@ export function OrdersEnquiriesWorkspace() {
 
       if (statusFilter !== "all") {
         const status = getRecordStatus(record);
-        if (status !== statusFilter && record.currentStage !== statusFilter) {
+        if (status !== statusFilter) {
           return false;
         }
       }
@@ -709,7 +704,7 @@ export function OrdersEnquiriesWorkspace() {
             : ORDER_STATUS_OPTIONS
           ).map((status) => (
             <SelectItem key={status} value={status}>
-              {status === "all" ? "All statuses" : status.toLowerCase()}
+              {status === "all" ? "All statuses" : status}
             </SelectItem>
           ))}
         </FilterSelect>
@@ -794,7 +789,7 @@ export function OrdersEnquiriesWorkspace() {
                 : ORDER_STATUS_OPTIONS
               ).map((status) => (
                 <SelectItem key={status} value={status}>
-                  {status === "all" ? "All statuses" : status.toLowerCase()}
+                  {status === "all" ? "All statuses" : status}
                 </SelectItem>
               ))}
             </FilterSelect>

@@ -29,12 +29,12 @@ export const CATEGORIES: JewelleryCategory[] = [
   "Other",
 ];
 
-export const METAL_TYPES: MetalType[] = [
+export const METAL_TYPES: readonly string[] = [
   "Gold",
   "White Gold",
   "Rose Gold",
   "Silver",
-  "Platinum",
+  "Others",
 ];
 
 export const METAL_PURITIES: MetalPurity[] = [
@@ -73,19 +73,6 @@ export const STONE_QUALITIES = [
   "Good",
   "Commercial",
 ];
-
-export const STONE_TYPES = [
-  "Natural Diamond",
-  "Lab Grown Diamond",
-  "Emerald",
-  "Ruby",
-  "Sapphire",
-  "Polki",
-  "Pearl",
-  "Onyx",
-  "Moissanite",
-  "Other",
-] as const;
 
 export const POLISH_OPTIONS = [
   "High polish",

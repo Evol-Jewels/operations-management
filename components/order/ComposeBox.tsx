@@ -39,7 +39,7 @@ export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
         onChange={(event) => setMessage(event.target.value)}
         rows={3}
         disabled={isSubmitting || submitted}
-        className="min-h-24 resize-none rounded-none border-0 text-sm shadow-none focus-visible:ring-0"
+        className="bg-transparent! min-h-24 resize-none rounded-none border-0 text-sm shadow-none focus-visible:ring-0"
       />
       <div className="flex items-end justify-end gap-3 border-border p-2">
         <Button

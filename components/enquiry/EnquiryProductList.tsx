@@ -40,7 +40,7 @@ import type {
 } from "@/types";
 
 type ItemKind = "existing" | "custom";
-type VisibleStatus = Extract<EnquiryItemStatus, "PENDING" | "ESTIMATED">;
+type VisibleStatus = EnquiryItemStatus;
 type StatusFilter = "ALL" | VisibleStatus;
 type ViewMode = "grid" | "table";
 
@@ -48,6 +48,8 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "ALL", label: "All statuses" },
   { value: "PENDING", label: "Pending" },
   { value: "ESTIMATED", label: "Estimated" },
+  { value: "CONVERTED", label: "Converted" },
+  { value: "CLOSED", label: "Closed" },
 ];
 
 const STATUS_LABELS: Record<EnquiryItemStatus, string> = {
@@ -76,12 +78,8 @@ function DetailRow({
 
 function getItemStatus(
   explicitStatus: EnquiryItemStatus | undefined,
-  estimation: ProductEstimation | undefined,
 ): VisibleStatus {
-  if (explicitStatus === "PENDING" || explicitStatus === "ESTIMATED") {
-    return explicitStatus;
-  }
-  return estimation ? "ESTIMATED" : "PENDING";
+  return explicitStatus ?? "PENDING";
 }
 
 function getDefaultPurity(value: string): MetalPurity {
@@ -166,6 +164,10 @@ function StatusBadge({ status }: { status: VisibleStatus }) {
       className={cn(
         "rounded-full border px-2 py-0.5 text-xs font-medium",
         status === "ESTIMATED" && "border-border bg-muted text-foreground",
+        status === "CONVERTED" &&
+          "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+        status === "CLOSED" &&
+          "border-muted-foreground/20 bg-muted text-foreground",
         status === "PENDING" &&
           "border-border bg-background text-muted-foreground",
       )}
@@ -506,7 +508,7 @@ export function EnquiryProductList({
           .filter(Boolean)
           .join(" · "),
         imageUrl: product.imageUrl,
-        status: getItemStatus(product.status, estimation),
+        status: getItemStatus(product.status),
         estimation,
         defaultPurity: product.metalPurity,
         product,
@@ -535,7 +537,7 @@ export function EnquiryProductList({
         kind: "custom" as const,
         title,
         subtitle,
-        status: getItemStatus(product.status, estimation),
+        status: getItemStatus(product.status),
         estimation,
         defaultPurity: getDefaultPurity(product.metalPurity),
         product,

@@ -336,7 +336,6 @@ function EnquiryForm() {
             metalWeight: product.metalNetWeight || undefined,
             notes: [
               product.category ? `Category: ${product.category}` : null,
-              product.metalColor ? `Metal color: ${product.metalColor}` : null,
               product.polish ? `Polish: ${product.polish}` : null,
               ...product.stones
                 .filter((stone) => stone.stoneType.trim() && stone.pieces)

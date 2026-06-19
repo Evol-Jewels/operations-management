@@ -2,15 +2,15 @@
 
 import { AlertTriangle, ArrowLeft, Calendar, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { EnquiryProductList } from "@/components/enquiry/EnquiryProductList";
 import {
   type EnquiryStage,
   EnquiryStageBar,
 } from "@/components/enquiry/EnquiryStageBar";
 import { ActivityTimeline } from "@/components/order/ActivityTimeline";
-import { RelativeTime } from "@/components/RelativeTime";
 import { ComposeBox } from "@/components/order/ComposeBox";
+import { RelativeTime } from "@/components/RelativeTime";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,15 +32,46 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
+import {
+  type EnquiryUiStatus,
+  getOrderEnquiryUiStatus,
+  isEnquiryClosed,
+} from "@/lib/enquiryStatus";
 import { getInitials } from "@/lib/people";
 import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
 import type { Order, ProductEstimation } from "@/types";
 
-function deriveEnquiryStage(order: Order): EnquiryStage {
-  if (order.status === "closed") return "Closed / Converted";
-  if (order.currentStage === "Estimation" || order.estimations?.length) {
-    return "Estimation Submitted";
+function enquiryStatusBadgeClass(status: EnquiryUiStatus): string {
+  switch (status) {
+    case "Closed":
+      return "border border-muted-foreground/20 bg-muted text-foreground dark:border-muted-foreground/20 dark:bg-muted/50";
+    case "Converted":
+      return "border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300";
+    case "Estimated":
+      return "border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300";
+    default:
+      return "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300";
   }
+}
+
+function enquiryStatusDotClass(status: EnquiryUiStatus): string {
+  switch (status) {
+    case "Closed":
+      return "bg-muted-foreground";
+    case "Converted":
+      return "bg-emerald-500";
+    case "Estimated":
+      return "bg-amber-500";
+    default:
+      return "bg-emerald-500";
+  }
+}
+
+function deriveEnquiryStage(order: Order): EnquiryStage {
+  const status = getOrderEnquiryUiStatus(order);
+  if (status === "Closed" || status === "Converted")
+    return "Closed / Converted";
+  if (status === "Estimated") return "Estimation Submitted";
   return "Enquiry Created";
 }
 
@@ -192,13 +223,7 @@ function PersonCard({
   );
 }
 
-function DetailMetric({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | number | null;
-}) {
+function DetailMetric({ label, value }: { label: string; value?: ReactNode }) {
   if (value === null || value === undefined || value === "") return null;
 
   return (
@@ -212,7 +237,7 @@ function DetailMetric({
 }
 
 function ClosedBanner({ order }: { order: Order }) {
-  if (order.status !== "closed") return null;
+  if (!isEnquiryClosed(order)) return null;
 
   return (
     <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-4 text-amber-950 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
@@ -262,7 +287,8 @@ export function EnquiryDetailPage({
   isPostingUpdate,
   isClosingEnquiry,
 }: EnquiryDetailPageProps) {
-  const isClosed = order.status === "closed";
+  const isClosed = isEnquiryClosed(order);
+  const enquiryStatus = getOrderEnquiryUiStatus(order);
   const stage = deriveEnquiryStage(order);
   const selectedProducts = order.selectedProducts ?? [];
   const customProducts = order.customProducts ?? [];
@@ -328,18 +354,16 @@ export function EnquiryDetailPage({
               <span
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium",
-                  isClosed
-                    ? "border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300"
-                    : "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
+                  enquiryStatusBadgeClass(enquiryStatus),
                 )}
               >
                 <span
                   className={cn(
                     "size-2 rounded-full",
-                    isClosed ? "bg-amber-500" : "bg-emerald-500",
+                    enquiryStatusDotClass(enquiryStatus),
                   )}
                 />
-                {isClosed ? "Closed" : "Open"}
+                {enquiryStatus}
               </span>
               <span>
                 {order.salespersonName} opened this enquiry{" "}
