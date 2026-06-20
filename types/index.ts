@@ -299,6 +299,8 @@ export interface CalculatorStoneInput {
   stoneTypeId: string;
   weight: number;
   quantity: number;
+  fixedRatePerCarat?: number;
+  sourceStoneName?: string;
 }
 
 export interface CalculatorFormState {

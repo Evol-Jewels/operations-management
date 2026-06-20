@@ -45,11 +45,9 @@ import {
 } from "@/hooks/useInventoryProducts";
 import { useLocations } from "@/hooks/useManageProducts";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
-import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
 import {
-  buildInventoryCalculatorForm,
-  buildInventoryPricingSettings,
   getInventoryPrimaryImage,
+  normalizeInventoryProductEstimate,
 } from "@/lib/inventoryProductMapping";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { CalculatorSettings } from "@/types";
@@ -135,7 +133,7 @@ function getMetalLabel(product: InventoryProduct) {
 
 function getTotalStonePieces(product: InventoryProduct) {
   return (product.stones ?? []).reduce(
-    (sum, stone) => sum + stone.totalPieces,
+    (sum, stone) => sum + stone.pieces,
     0,
   );
 }
@@ -147,7 +145,7 @@ function getTotalStoneCarat(product: InventoryProduct) {
   }
 
   return (product.stones ?? []).reduce(
-    (sum, stone) => sum + (Number(stone.totalNetWeight) || 0),
+    (sum, stone) => sum + (Number(stone.netWeight) || 0),
     0,
   );
 }
@@ -318,23 +316,9 @@ function ProductDetail({
   estimationSectionRef: RefObject<HTMLElement | null>;
 }) {
   const image = getInventoryPrimaryImage(product);
-  const pricingSettings = useMemo(
-    () => buildInventoryPricingSettings(product, settings),
+  const estimateResult = useMemo(
+    () => normalizeInventoryProductEstimate(product, settings),
     [product, settings],
-  );
-  const form = useMemo(
-    () => buildInventoryCalculatorForm(product, pricingSettings),
-    [product, pricingSettings],
-  );
-  const breakdown = useMemo(
-    () =>
-      computeEstimateFromInputs(
-        pricingSettings,
-        form.netGoldWeight,
-        form.purity,
-        form.stones,
-      ),
-    [form.netGoldWeight, form.purity, form.stones, pricingSettings],
   );
 
   function scrollToEstimation() {
@@ -414,7 +398,7 @@ function ProductDetail({
               <InventoryStat label="Location" value={product.location.city} />
               <InventoryStat
                 label="Price"
-                value={formatCurrency(Math.round(breakdown.total))}
+                value={formatCurrency(Math.round(estimateResult.pricing.total))}
                 emphasis
                 onClick={scrollToEstimation}
               />
@@ -435,35 +419,16 @@ function ProductEstimationSection({
   settings: CalculatorSettings;
   estimationSectionRef: RefObject<HTMLElement | null>;
 }) {
-  const pricingSettings = useMemo(
-    () => buildInventoryPricingSettings(product, settings),
+  const estimateResult = useMemo(
+    () => normalizeInventoryProductEstimate(product, settings),
     [product, settings],
-  );
-  const form = useMemo(
-    () => buildInventoryCalculatorForm(product, pricingSettings),
-    [product, pricingSettings],
-  );
-  const breakdown = useMemo(
-    () =>
-      computeEstimateFromInputs(
-        pricingSettings,
-        form.netGoldWeight,
-        form.purity,
-        form.stones,
-      ),
-    [form.netGoldWeight, form.purity, form.stones, pricingSettings],
   );
 
   return (
     <section ref={estimationSectionRef} className="scroll-mt-4">
       <EstimationSummaryCard
         title="Product estimation"
-        data={{
-          kind: "calculator",
-          form,
-          breakdown,
-          gstRate: settings.gstRate,
-        }}
+        data={{ kind: "estimate", result: estimateResult }}
       />
     </section>
   );
@@ -564,19 +529,20 @@ function ProductSpecification({ product }: { product: InventoryProduct }) {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-medium text-foreground">
-                        {stone.slab.stoneType.name}
+                        {stone.stoneName ?? stone.slabName}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {stone.stoneSlabCode} · {stone.slab.rangeFrom} -{" "}
-                        {stone.slab.rangeTo} ct
+                        {stone.slabName} · {formatCurrency(stone.ratePerCarat)}
+                        /ct
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-foreground">
-                        {formatWeight(stone.totalNetWeight, "ct")}
+                        {formatCurrency(stone.amount)}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {stone.totalPieces.toLocaleString("en-IN")} pcs
+                        {formatWeight(stone.netWeight, "ct")} ·{" "}
+                        {stone.pieces.toLocaleString("en-IN")} pcs
                       </p>
                     </div>
                   </div>

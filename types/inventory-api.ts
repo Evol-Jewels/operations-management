@@ -9,24 +9,41 @@ export type InventoryMedia = {
 
 export type InventoryStone = {
   id: string;
-  stoneSlabCode: string;
-  totalNetWeight: string;
-  totalPieces: number;
-  slab: {
-    id: string;
-    code: string;
-    pricePerCarat: string;
-    rangeFrom: string;
-    rangeTo: string;
-    notes: string | null;
-    stoneType: {
-      id: string;
-      name: string;
-      category: string;
-      clarity: string;
-      color: string | null;
-    };
-  };
+  stoneName: string | null;
+  slabName: string;
+  ratePerCarat: number;
+  netWeight: number;
+  pieces: number;
+  amount: number;
+  isMapped: boolean;
+};
+
+export type InventoryStonesMappingStatus =
+  | "fully_mapped"
+  | "partially_mapped"
+  | "fully_unmapped"
+  | "no_stones";
+
+export type InventoryEstimationIssue = {
+  severity: "info" | "warning";
+  code:
+    | "STONE_MAPPING_PARTIAL"
+    | "STONE_MAPPING_FULLY_MAPPED"
+    | "STONE_MAPPING_NONE"
+    | "NO_STONES";
+  message: string;
+};
+
+export type InventoryProductEstimation = {
+  pricingStatus: "complete" | "fallback_used" | "partial" | "unpriced";
+  goldRateValue: number;
+  goldCost: number;
+  makingCost: number;
+  totalStoneCost: number;
+  subTotal: number;
+  gst: number;
+  total: number;
+  issues: InventoryEstimationIssue[];
 };
 
 export type ProductColor = "YELLOW" | "ROSE" | "WHITE" | "OTHERS";
@@ -67,6 +84,8 @@ export type InventoryProduct = {
   notes: string | null;
   media: InventoryMedia[];
   stones: InventoryStone[];
+  stonesMappingStatus?: InventoryStonesMappingStatus;
+  estimation?: InventoryProductEstimation;
   createdAt: string;
   updatedAt: string;
   isDeleted: boolean;

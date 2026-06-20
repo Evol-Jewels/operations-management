@@ -92,12 +92,16 @@ export function computeEstimateFromInputs(
 
   const stoneDetails: CalculatorPricedStoneDetail[] = stones.map((stone) => {
     const stoneType = getStoneType(settings, stone.stoneTypeId);
-    const slabInfo = resolveAutoSlab(
-      getStoneSlabs(settings, stone.stoneTypeId),
-      stone.weight,
-      stone.quantity,
-    );
-    const totalCost = (slabInfo?.pricePerCarat ?? 0) * stone.weight;
+    const slabInfo =
+      stone.fixedRatePerCarat === undefined
+        ? resolveAutoSlab(
+            getStoneSlabs(settings, stone.stoneTypeId),
+            stone.weight,
+            stone.quantity,
+          )
+        : null;
+    const ratePerCarat = stone.fixedRatePerCarat ?? slabInfo?.pricePerCarat ?? 0;
+    const totalCost = ratePerCarat * stone.weight;
 
     return {
       ...stone,

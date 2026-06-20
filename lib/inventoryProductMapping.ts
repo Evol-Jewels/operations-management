@@ -1,11 +1,7 @@
 import type { Product } from "@/components/enquiries/enquiry-form-types";
-import {
-  computeEstimateFromInputs,
-  getStoneSlabs,
-  resolveAutoSlab,
-} from "@/lib/calculator/pricing";
 import type {
   CalculatorFormState,
+  CalculatorPricingBreakdown,
   CalculatorSettings,
   CalculatorStoneInput,
   JewelleryCategory,
@@ -34,22 +30,6 @@ const CATEGORY_MAP: Record<string, JewelleryCategory> = {
   brooch: "Brooch",
   brooches: "Brooch",
 };
-
-function findStoneTypeBySlabCode(
-  settings: CalculatorSettings,
-  slabCode: string,
-) {
-  const normalizedCode = slabCode.trim();
-
-  for (const stoneType of settings.stoneTypes) {
-    const slab = stoneType.slabs.find(
-      (candidate) => candidate.code === normalizedCode,
-    );
-    if (slab) return { stoneType, slab };
-  }
-
-  return null;
-}
 
 export function parseInventoryNumber(
   value: string | number | null | undefined,
@@ -94,71 +74,35 @@ export function getInventoryCategory(
   return "Other";
 }
 
-export function buildInventoryPricingSettings(
-  product: InventoryProduct,
+function findStoneTypeIdByName(
   settings: CalculatorSettings,
-): CalculatorSettings {
-  const stoneTypes = settings.stoneTypes.map((stoneType) => ({
-    ...stoneType,
-    slabs: [...stoneType.slabs],
-  }));
-
-  for (const stone of product.stones ?? []) {
-    if (
-      findStoneTypeBySlabCode({ ...settings, stoneTypes }, stone.stoneSlabCode)
-    ) {
-      continue;
-    }
-
-    const stoneTypeId = stone.slab.stoneType.id;
-    const existingStoneType = stoneTypes.find(
-      (stoneType) => stoneType.stoneId === stoneTypeId,
-    );
-    const apiSlab = {
-      code: stone.stoneSlabCode,
-      fromWeight: parseInventoryNumber(stone.slab.rangeFrom),
-      toWeight: parseInventoryNumber(stone.slab.rangeTo),
-      pricePerCarat: parseInventoryNumber(stone.slab.pricePerCarat),
-    };
-
-    if (existingStoneType) {
-      existingStoneType.slabs = [...existingStoneType.slabs, apiSlab];
-      continue;
-    }
-
-    stoneTypes.push({
-      stoneId: stoneTypeId,
-      name: stone.slab.stoneType.name,
-      category:
-        stone.slab.stoneType.category === "Gemstone" ? "Gemstone" : "Diamond",
-      clarity: stone.slab.stoneType.clarity,
-      color: stone.slab.stoneType.color ?? undefined,
-      slabs: [apiSlab],
-    });
-  }
-
-  return { ...settings, stoneTypes };
+  stoneName: string | null,
+) {
+  if (!stoneName) return settings.stoneTypes[0]?.stoneId ?? "";
+  const normalizedName = stoneName.trim().toLowerCase();
+  return (
+    settings.stoneTypes.find(
+      (stoneType) => stoneType.name.trim().toLowerCase() === normalizedName,
+    )?.stoneId ??
+    settings.stoneTypes[0]?.stoneId ??
+    ""
+  );
 }
 
 export function buildInventoryCalculatorStones(
   product: InventoryProduct,
   settings: CalculatorSettings,
 ): CalculatorStoneInput[] {
-  return (product.stones ?? []).flatMap((stone) => {
-    const matched = findStoneTypeBySlabCode(settings, stone.stoneSlabCode);
-    const weight = parseInventoryNumber(stone.totalNetWeight);
-
-    if (!matched || weight <= 0) return [];
-
-    return [
-      {
-        id: stone.id,
-        stoneTypeId: matched.stoneType.stoneId,
-        weight,
-        quantity: Math.max(1, stone.totalPieces),
-      },
-    ];
-  });
+  return (product.stones ?? [])
+    .filter((stone) => stone.netWeight > 0)
+    .map((stone) => ({
+      id: stone.id,
+      stoneTypeId: findStoneTypeIdByName(settings, stone.stoneName),
+      weight: stone.netWeight,
+      quantity: Math.max(1, stone.pieces),
+      fixedRatePerCarat: stone.ratePerCarat,
+      sourceStoneName: stone.stoneName ?? stone.slabName,
+    }));
 }
 
 export function buildInventoryCalculatorForm(
@@ -175,58 +119,51 @@ export function buildInventoryCalculatorForm(
   };
 }
 
+function buildBackendPricingBreakdown(
+  product: InventoryProduct,
+): CalculatorPricingBreakdown {
+  const estimation = product.estimation;
+  const stoneDetails = (product.stones ?? []).map((stone) => ({
+    id: stone.id,
+    stoneTypeId: "",
+    weight: stone.netWeight,
+    quantity: Math.max(1, stone.pieces),
+    fixedRatePerCarat: stone.ratePerCarat,
+    sourceStoneName: stone.stoneName ?? stone.slabName,
+    totalCost: stone.amount,
+    slabInfo: null,
+  }));
+
+  return {
+    grossWeight: parseInventoryNumber(product.grossWeight),
+    goldRateValue: estimation?.goldRateValue ?? 0,
+    goldCost: estimation?.goldCost ?? 0,
+    makingCost: estimation?.makingCost ?? 0,
+    stoneDetails,
+    totalStoneCost: estimation?.totalStoneCost ?? 0,
+    subTotal: estimation?.subTotal ?? 0,
+    gst: estimation?.gst ?? 0,
+    total: estimation?.total ?? 0,
+  };
+}
+
 export function normalizeInventoryProductEstimate(
   product: InventoryProduct,
   settings: CalculatorSettings,
 ): ProductEstimateResult {
-  const pricingSettings = buildInventoryPricingSettings(product, settings);
-  const issues: { code: string; reason: string }[] = [];
-
-  const normalizedStones: ProductLookupStoneLine[] = (product.stones ?? []).map(
-    (stone) => {
-      const slabCode = stone.stoneSlabCode.trim();
-      const matched = findStoneTypeBySlabCode(pricingSettings, slabCode);
-      const weight = parseInventoryNumber(stone.totalNetWeight);
-      const quantity = Math.max(1, stone.totalPieces);
-      const sourceRate = parseInventoryNumber(stone.slab.pricePerCarat);
-
-      if (!matched) {
-        issues.push({
-          code: slabCode,
-          reason: "No local slab matched this code",
-        });
-      } else {
-        const resolved = resolveAutoSlab(
-          getStoneSlabs(pricingSettings, matched.stoneType.stoneId),
-          weight,
-          quantity,
-        );
-
-        if (!resolved || resolved.code !== slabCode) {
-          issues.push({
-            code: slabCode,
-            reason:
-              "Per-piece weight did not resolve back to the expected local slab",
-          });
-        }
-      }
-
-      return {
-        id: stone.id,
-        code: slabCode,
-        quantity,
-        weight,
-        sourceRate,
-        sourceAmount: sourceRate * weight,
-        stoneTypeId: matched?.stoneType.stoneId ?? "",
-        stoneName: matched?.stoneType.name ?? stone.slab.stoneType.name,
-        slabCode,
-      };
-    },
+  const stones: ProductLookupStoneLine[] = (product.stones ?? []).map(
+    (stone) => ({
+      id: stone.id,
+      code: stone.slabName,
+      quantity: Math.max(1, stone.pieces),
+      weight: stone.netWeight,
+      sourceRate: stone.ratePerCarat,
+      sourceAmount: stone.amount,
+      stoneTypeId: findStoneTypeIdByName(settings, stone.stoneName),
+      stoneName: stone.stoneName ?? stone.slabName,
+      slabCode: stone.slabName,
+    }),
   );
-
-  const stones = buildInventoryCalculatorStones(product, pricingSettings);
-  const purity = getInventoryPurity(product);
 
   return {
     product: {
@@ -236,29 +173,25 @@ export function normalizeInventoryProductEstimate(
       productName: product.name,
       description: product.description ?? product.notes ?? "",
       imageUrl: getInventoryPrimaryImage(product)?.storageKey ?? null,
-      purity,
+      purity: getInventoryPurity(product),
       netGoldWeight: parseInventoryNumber(product.netWeight),
       grossWeight: parseInventoryNumber(product.grossWeight),
       location: product.location.name,
       categoryLabel: product.category,
-      sourcePrice: null,
+      sourcePrice: product.estimation?.total ?? null,
       sourceCurrency: "INR",
-      sourceMetalCost: 0,
-      sourceMakingAmount: 0,
-      sourceStoneAmount: normalizedStones.reduce(
-        (sum, stone) => sum + stone.sourceAmount,
-        0,
-      ),
-      stones: normalizedStones,
-    },
-    stones,
-    pricing: computeEstimateFromInputs(
-      pricingSettings,
-      parseInventoryNumber(product.netWeight),
-      purity === "Other" ? "22K" : purity,
+      sourceMetalCost: product.estimation?.goldCost ?? 0,
+      sourceMakingAmount: product.estimation?.makingCost ?? 0,
+      sourceStoneAmount: product.estimation?.totalStoneCost ?? 0,
       stones,
-    ),
-    issues,
+    },
+    stones: buildInventoryCalculatorStones(product, settings),
+    pricing: buildBackendPricingBreakdown(product),
+    issues:
+      product.estimation?.issues.map((issue) => ({
+        code: issue.code,
+        reason: issue.message,
+      })) ?? [],
   };
 }
 
@@ -267,7 +200,7 @@ export function mapInventoryProductToEnquiryProduct(
 ): Product {
   const diamondWeight =
     parseInventoryNumber(product.totalDiamondWeight) ||
-    product.stones?.[0]?.totalNetWeight;
+    product.stones?.[0]?.netWeight;
   const descriptionParts = [
     product.description,
     product.location?.name ? `Location: ${product.location.name}` : null,

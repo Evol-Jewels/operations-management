@@ -263,7 +263,8 @@ function StoneRow({
     stone.weight,
     stone.quantity,
   );
-  const hasUnmatchedWeight = stone.weight > 0 && !resolvedSlab;
+  const hasFixedRate = stone.fixedRatePerCarat !== undefined;
+  const hasUnmatchedWeight = stone.weight > 0 && !resolvedSlab && !hasFixedRate;
 
   return (
     <div className="space-y-3 border-b border-border pb-3.5 last:border-b-0 last:pb-0">
@@ -276,6 +277,10 @@ function StoneRow({
             <span className="text-[11px] text-muted-foreground">
               {formatWeight(resolvedSlab.fromWeight)}-
               {formatWeight(resolvedSlab.toWeight)} ct
+            </span>
+          ) : hasFixedRate ? (
+            <span className="text-[11px] text-muted-foreground">
+              Source rate {formatCurrency(stone.fixedRatePerCarat ?? 0)}/ct
             </span>
           ) : null}
         </div>
@@ -294,7 +299,13 @@ function StoneRow({
 
       <Select
         value={stone.stoneTypeId}
-        onValueChange={(stoneTypeId) => onChange({ stoneTypeId })}
+        onValueChange={(stoneTypeId) =>
+          onChange({
+            stoneTypeId,
+            fixedRatePerCarat: undefined,
+            sourceStoneName: undefined,
+          })
+        }
       >
         <SelectTrigger className="h-9 w-full border-0 border-b bg-transparent px-0 text-sm shadow-none focus:ring-0">
           <SelectValue placeholder="Select stone" />
@@ -641,7 +652,7 @@ function RecentEstimateSummaryDialog({
   }, [estimate, open, settings]);
 
   function loadIntoCalculator() {
-    if (!result || result.issues.length > 0) return;
+    if (!result) return;
     onLoadProduct(result);
     onOpenChange(false);
   }
@@ -681,10 +692,6 @@ function RecentEstimateSummaryDialog({
         ) : error ? (
           <div className="px-5 py-10 text-center">
             <p className="text-sm text-destructive">{error}</p>
-          </div>
-        ) : result?.issues.length ? (
-          <div className="max-h-[75vh] overflow-y-auto p-5">
-            <BlockedLookupCard result={result} />
           </div>
         ) : result ? (
           <>
@@ -741,26 +748,40 @@ function SearchPanel({
     (rawCode: string, autoLoadExact?: boolean) => Promise<void>
   >(async () => {});
 
-  function loadInventoryProduct(product: InventoryProduct) {
-    const normalized = normalizeInventoryProductEstimate(product, settings);
+  async function loadInventoryProduct(product: InventoryProduct) {
+    setIsLoading(true);
+    setError(null);
+    setBlockedResult(null);
 
-    if (normalized.issues.length > 0) {
-      setBlockedResult(normalized);
-      return;
-    }
+    try {
+      const detailProduct =
+        product.estimation !== undefined
+          ? product
+          : await fetchInventoryProductByCode(product.productCode);
+      if (!detailProduct) {
+        setError(`Product details unavailable for ${product.productCode}.`);
+        return;
+      }
 
-    createRecentProductEstimate({
-      productCode: normalized.product.productCode,
-      imageUrl: normalized.product.imageUrl ?? undefined,
-    })
-      .then(() => {
-        setRecentRefreshKey((current) => current + 1);
+      const normalized = normalizeInventoryProductEstimate(detailProduct, settings);
+
+      createRecentProductEstimate({
+        productCode: normalized.product.productCode,
+        imageUrl: normalized.product.imageUrl ?? undefined,
       })
-      .catch(() => {
-        // Recording recents should not block a successful calculator load.
-      });
+        .then(() => {
+          setRecentRefreshKey((current) => current + 1);
+        })
+        .catch(() => {
+          // Recording recents should not block a successful calculator load.
+        });
 
-    onLoadProduct(normalized);
+      onLoadProduct(normalized);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load product");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   async function searchInventoryProducts(
