@@ -188,7 +188,7 @@ export function normalizeInventoryProductEstimate(
     stones: buildInventoryCalculatorStones(product, settings),
     pricing: buildBackendPricingBreakdown(product),
     issues:
-      product.estimation?.issues.map((issue) => ({
+      product.estimation?.issues?.map((issue) => ({
         code: issue.code,
         reason: issue.message,
       })) ?? [],

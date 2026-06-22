@@ -415,7 +415,7 @@ function BlockedLookupCard({ result }: { result: ProductEstimateResult }) {
       <div className="mt-4 rounded-xl border border-destructive/35 px-4 py-3 text-sm text-destructive">
         <p className="font-semibold">Estimate blocked</p>
         <div className="mt-1 space-y-1 text-xs">
-          {result.issues.map((issue) => (
+          {result.issues?.map((issue) => (
             <p key={`${issue.code}:${issue.reason}`}>
               {issue.code}: {issue.reason}
             </p>

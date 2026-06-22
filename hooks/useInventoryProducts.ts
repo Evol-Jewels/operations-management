@@ -1,10 +1,16 @@
 "use client";
 
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   fetchInventoryProductByCode,
   fetchInventoryProducts,
   INVENTORY_LIST_DEFAULT_LIMIT,
+  syncInventoryProducts,
 } from "@/lib/inventoryApi";
 import type { InventoryProduct } from "@/types/inventory-api";
 
@@ -57,6 +63,17 @@ export function useInventoryProductByCode(productCode: string | null) {
       if (!trimmed) return null;
 
       return fetchInventoryProductByCode(trimmed);
+    },
+  });
+}
+
+export function useSyncInventoryProducts() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: syncInventoryProducts,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: inventoryProductKeys.all });
     },
   });
 }
