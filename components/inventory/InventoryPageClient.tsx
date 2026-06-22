@@ -8,13 +8,23 @@ import {
   Diamond,
   MapPin,
   PackageSearch,
+  RefreshCw,
   ScanLine,
   Search,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { toast } from "sonner";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import { EstimationSummaryCard } from "@/components/calculator/EstimationSummaryCard";
 import { Badge } from "@/components/ui/badge";
@@ -39,17 +49,17 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
+import { useMyInternalProfile } from "@/hooks/useInternalProfile";
 import {
   useInfiniteInventoryProducts,
   useInventoryProductByCode,
+  useSyncInventoryProducts,
 } from "@/hooks/useInventoryProducts";
 import { useLocations } from "@/hooks/useManageProducts";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
-import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
 import {
-  buildInventoryCalculatorForm,
-  buildInventoryPricingSettings,
   getInventoryPrimaryImage,
+  normalizeInventoryProductEstimate,
 } from "@/lib/inventoryProductMapping";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { CalculatorSettings } from "@/types";
@@ -72,6 +82,11 @@ type SourceFilter = "ALL" | "CUSTOMER" | "STOCK";
 type ColorFilter = "ALL" | ProductColor;
 type PurityFilter = "ALL" | "14" | "18" | "24";
 type InventoryGridColumns = 2 | 3;
+type ActiveFilterChip = {
+  key: string;
+  label: string;
+  onRemove: () => void;
+};
 
 const CATEGORY_VALUES: readonly InventoryCategory[] = [
   "RING",
@@ -110,6 +125,20 @@ const PURITY_LABELS: Record<Exclude<PurityFilter, "ALL">, string> = {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
+const QUERY_PARAM_KEYS = {
+  search: "q",
+  category: "category",
+  color: "color",
+  purity: "purity",
+  source: "source",
+  location: "locationId",
+  netWeightFrom: "netWeightFrom",
+  netWeightTo: "netWeightTo",
+  sourceCreatedFrom: "sourceCreatedFrom",
+  sourceCreatedTo: "sourceCreatedTo",
+  columns: "columns",
+} as const;
+
 function formatWeight(value: string | number, unit: string) {
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return `- ${unit}`;
@@ -118,6 +147,44 @@ function formatWeight(value: string | number, unit: string) {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Something went wrong";
+}
+
+function formatProductCount(count: number | undefined) {
+  return typeof count === "number" ? count.toLocaleString("en-IN") : null;
+}
+
+function getQueryValue(params: URLSearchParams, key: string) {
+  return params.get(key) ?? "";
+}
+
+function getCategoryQueryValue(params: URLSearchParams) {
+  const value = params.get(QUERY_PARAM_KEYS.category);
+  return value && CATEGORY_VALUES.includes(value as InventoryCategory)
+    ? (value as InventoryCategory)
+    : "ALL";
+}
+
+function getColorQueryValue(params: URLSearchParams) {
+  const value = params.get(QUERY_PARAM_KEYS.color);
+  return value && Object.keys(COLOR_LABELS).includes(value)
+    ? (value as ColorFilter)
+    : "ALL";
+}
+
+function getPurityQueryValue(params: URLSearchParams) {
+  const value = params.get(QUERY_PARAM_KEYS.purity);
+  return value && Object.keys(PURITY_LABELS).includes(value)
+    ? (value as PurityFilter)
+    : "ALL";
+}
+
+function getSourceQueryValue(params: URLSearchParams) {
+  const value = params.get(QUERY_PARAM_KEYS.source);
+  return value === "CUSTOMER" || value === "STOCK" ? value : "ALL";
+}
+
+function getColumnsQueryValue(params: URLSearchParams): InventoryGridColumns {
+  return params.get(QUERY_PARAM_KEYS.columns) === "2" ? 2 : 3;
 }
 
 function getMetalLabel(product: InventoryProduct) {
@@ -134,10 +201,7 @@ function getMetalLabel(product: InventoryProduct) {
 }
 
 function getTotalStonePieces(product: InventoryProduct) {
-  return (product.stones ?? []).reduce(
-    (sum, stone) => sum + stone.totalPieces,
-    0,
-  );
+  return (product.stones ?? []).reduce((sum, stone) => sum + stone.pieces, 0);
 }
 
 function getTotalStoneCarat(product: InventoryProduct) {
@@ -147,7 +211,7 @@ function getTotalStoneCarat(product: InventoryProduct) {
   }
 
   return (product.stones ?? []).reduce(
-    (sum, stone) => sum + (Number(stone.totalNetWeight) || 0),
+    (sum, stone) => sum + (Number(stone.netWeight) || 0),
     0,
   );
 }
@@ -318,23 +382,9 @@ function ProductDetail({
   estimationSectionRef: RefObject<HTMLElement | null>;
 }) {
   const image = getInventoryPrimaryImage(product);
-  const pricingSettings = useMemo(
-    () => buildInventoryPricingSettings(product, settings),
+  const estimateResult = useMemo(
+    () => normalizeInventoryProductEstimate(product, settings),
     [product, settings],
-  );
-  const form = useMemo(
-    () => buildInventoryCalculatorForm(product, pricingSettings),
-    [product, pricingSettings],
-  );
-  const breakdown = useMemo(
-    () =>
-      computeEstimateFromInputs(
-        pricingSettings,
-        form.netGoldWeight,
-        form.purity,
-        form.stones,
-      ),
-    [form.netGoldWeight, form.purity, form.stones, pricingSettings],
   );
 
   function scrollToEstimation() {
@@ -414,7 +464,7 @@ function ProductDetail({
               <InventoryStat label="Location" value={product.location.city} />
               <InventoryStat
                 label="Price"
-                value={formatCurrency(Math.round(breakdown.total))}
+                value={formatCurrency(Math.round(estimateResult.pricing.total))}
                 emphasis
                 onClick={scrollToEstimation}
               />
@@ -435,35 +485,16 @@ function ProductEstimationSection({
   settings: CalculatorSettings;
   estimationSectionRef: RefObject<HTMLElement | null>;
 }) {
-  const pricingSettings = useMemo(
-    () => buildInventoryPricingSettings(product, settings),
+  const estimateResult = useMemo(
+    () => normalizeInventoryProductEstimate(product, settings),
     [product, settings],
-  );
-  const form = useMemo(
-    () => buildInventoryCalculatorForm(product, pricingSettings),
-    [product, pricingSettings],
-  );
-  const breakdown = useMemo(
-    () =>
-      computeEstimateFromInputs(
-        pricingSettings,
-        form.netGoldWeight,
-        form.purity,
-        form.stones,
-      ),
-    [form.netGoldWeight, form.purity, form.stones, pricingSettings],
   );
 
   return (
     <section ref={estimationSectionRef} className="scroll-mt-4">
       <EstimationSummaryCard
         title="Product estimation"
-        data={{
-          kind: "calculator",
-          form,
-          breakdown,
-          gstRate: settings.gstRate,
-        }}
+        data={{ kind: "estimate", result: estimateResult }}
       />
     </section>
   );
@@ -564,19 +595,20 @@ function ProductSpecification({ product }: { product: InventoryProduct }) {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-sm font-medium text-foreground">
-                        {stone.slab.stoneType.name}
+                        {stone.stoneName ?? stone.slabName}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {stone.stoneSlabCode} · {stone.slab.rangeFrom} -{" "}
-                        {stone.slab.rangeTo} ct
+                        {stone.slabName} · {formatCurrency(stone.ratePerCarat)}
+                        /ct
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-foreground">
-                        {formatWeight(stone.totalNetWeight, "ct")}
+                        {formatCurrency(stone.amount)}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {stone.totalPieces.toLocaleString("en-IN")} pcs
+                        {formatWeight(stone.netWeight, "ct")} ·{" "}
+                        {stone.pieces.toLocaleString("en-IN")} pcs
                       </p>
                     </div>
                   </div>
@@ -710,26 +742,48 @@ export function InventoryPageClient() {
   const searchParams = useSearchParams();
   const selectedProductCode = searchParams.get("productCode");
 
-  const [searchInput, setSearchInput] = useState("");
+  const [searchInput, setSearchInput] = useState(() =>
+    getQueryValue(searchParams, QUERY_PARAM_KEYS.search),
+  );
   const [categoryFilter, setCategoryFilter] = useState<
     InventoryCategory | "ALL"
-  >("ALL");
-  const [colorFilter, setColorFilter] = useState<ColorFilter>("ALL");
-  const [purityFilter, setPurityFilter] = useState<PurityFilter>("ALL");
-  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("ALL");
-  const [locationFilter, setLocationFilter] = useState<string>("ALL");
+  >(() => getCategoryQueryValue(searchParams));
+  const [colorFilter, setColorFilter] = useState<ColorFilter>(() =>
+    getColorQueryValue(searchParams),
+  );
+  const [purityFilter, setPurityFilter] = useState<PurityFilter>(() =>
+    getPurityQueryValue(searchParams),
+  );
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>(() =>
+    getSourceQueryValue(searchParams),
+  );
+  const [locationFilter, setLocationFilter] = useState<string>(
+    () => searchParams.get(QUERY_PARAM_KEYS.location) ?? "ALL",
+  );
 
-  const [netWeightFrom, setNetWeightFrom] = useState("");
-  const [netWeightTo, setNetWeightTo] = useState("");
-  const [sourceCreatedFrom, setSourceCreatedFrom] = useState("");
-  const [sourceCreatedTo, setSourceCreatedTo] = useState("");
+  const [netWeightFrom, setNetWeightFrom] = useState(() =>
+    getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightFrom),
+  );
+  const [netWeightTo, setNetWeightTo] = useState(() =>
+    getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightTo),
+  );
+  const [sourceCreatedFrom, setSourceCreatedFrom] = useState(() =>
+    getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedFrom),
+  );
+  const [sourceCreatedTo, setSourceCreatedTo] = useState(() =>
+    getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedTo),
+  );
 
   const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [gridColumns, setGridColumns] = useState<InventoryGridColumns>(2);
+  const [gridColumns, setGridColumns] = useState<InventoryGridColumns>(() =>
+    getColumnsQueryValue(searchParams),
+  );
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const estimationSectionRef = useRef<HTMLElement | null>(null);
   const { settings } = useCalculatorSettings();
+  const profileQuery = useMyInternalProfile();
+  const syncInventoryMutation = useSyncInventoryProducts();
 
   const debouncedSearch = useDebouncedValue(
     searchInput.trim(),
@@ -772,26 +826,84 @@ export function InventoryPageClient() {
   const locationsQuery = useLocations({ limit: 100 });
 
   const products = listQuery.data?.pages.flatMap((page) => page.data) ?? [];
+  const totalProducts = listQuery.data?.pages[0]?.total;
+  const formattedTotalProducts = formatProductCount(totalProducts);
   const hasSelectedProduct = Boolean(selectedProductCode);
   const selectedProduct = detailQuery.data ?? null;
+  const internalRole = profileQuery.data?.profile?.role;
+  const canSyncProducts =
+    internalRole === "ADMIN" || internalRole === "OPERATIONS";
 
-  function updateSearchParams(updater: (params: URLSearchParams) => void) {
-    const nextParams = new URLSearchParams(searchParams.toString());
-    updater(nextParams);
-    const query = nextParams.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
-  }
+  const updateSearchParams = useCallback(
+    (
+      updater: (params: URLSearchParams) => void,
+      method: "push" | "replace" = "replace",
+    ) => {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      updater(nextParams);
+      const query = nextParams.toString();
+      const href = query ? `${pathname}?${query}` : pathname;
+      if (method === "push") {
+        router.push(href);
+        return;
+      }
+      router.replace(href);
+    },
+    [pathname, router, searchParams],
+  );
+
+  const updateQueryParam = useCallback(
+    (key: string, value: string, fallbackValue = "ALL") => {
+      updateSearchParams((params) => {
+        if (!value || value === fallbackValue) {
+          params.delete(key);
+          return;
+        }
+        params.set(key, value);
+      });
+    },
+    [updateSearchParams],
+  );
+
+  const handleSyncProducts = useCallback(async () => {
+    try {
+      await syncInventoryMutation.mutateAsync();
+      toast.success("Product sync completed");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
+  }, [syncInventoryMutation]);
+
+  useEffect(() => {
+    setSearchInput(getQueryValue(searchParams, QUERY_PARAM_KEYS.search));
+    setCategoryFilter(getCategoryQueryValue(searchParams));
+    setColorFilter(getColorQueryValue(searchParams));
+    setPurityFilter(getPurityQueryValue(searchParams));
+    setSourceFilter(getSourceQueryValue(searchParams));
+    setLocationFilter(searchParams.get(QUERY_PARAM_KEYS.location) ?? "ALL");
+    setNetWeightFrom(
+      getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightFrom),
+    );
+    setNetWeightTo(getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightTo));
+    setSourceCreatedFrom(
+      getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedFrom),
+    );
+    setSourceCreatedTo(
+      getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedTo),
+    );
+    setGridColumns(getColumnsQueryValue(searchParams));
+  }, [searchParams]);
 
   function selectProduct(productCode: string) {
     updateSearchParams((params) => {
       params.set("productCode", productCode);
-    });
+    }, "push");
   }
 
   function closeProductDetails() {
     updateSearchParams((params) => {
       params.delete("productCode");
-    });
+    }, "push");
   }
 
   function resetDialogFilters() {
@@ -804,6 +916,17 @@ export function InventoryPageClient() {
     setNetWeightTo("");
     setSourceCreatedFrom("");
     setSourceCreatedTo("");
+    updateSearchParams((params) => {
+      params.delete(QUERY_PARAM_KEYS.category);
+      params.delete(QUERY_PARAM_KEYS.color);
+      params.delete(QUERY_PARAM_KEYS.purity);
+      params.delete(QUERY_PARAM_KEYS.source);
+      params.delete(QUERY_PARAM_KEYS.location);
+      params.delete(QUERY_PARAM_KEYS.netWeightFrom);
+      params.delete(QUERY_PARAM_KEYS.netWeightTo);
+      params.delete(QUERY_PARAM_KEYS.sourceCreatedFrom);
+      params.delete(QUERY_PARAM_KEYS.sourceCreatedTo);
+    });
   }
 
   function handleDecodedBarcode(rawCode: string) {
@@ -812,7 +935,10 @@ export function InventoryPageClient() {
 
     setSearchInput(code);
     setIsScannerOpen(false);
-    selectProduct(code);
+    updateSearchParams((params) => {
+      params.set(QUERY_PARAM_KEYS.search, code);
+      params.set("productCode", code);
+    }, "push");
   }
 
   useEffect(() => {
@@ -854,13 +980,148 @@ export function InventoryPageClient() {
 
   const hasActiveDialogFilters = activeDialogFilterCount > 0;
 
+  const clearQueryParam = useCallback(
+    (key: string) => {
+      updateSearchParams((params) => {
+        params.delete(key);
+      });
+    },
+    [updateSearchParams],
+  );
+
+  const locationLabel =
+    locationFilter === "ALL"
+      ? null
+      : (locationsQuery.data?.data.find(
+          (location) => location.id === locationFilter,
+        )?.name ?? "Selected location");
+
+  const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
+    const chips: ActiveFilterChip[] = [];
+
+    if (categoryFilter !== "ALL") {
+      chips.push({
+        key: QUERY_PARAM_KEYS.category,
+        label: `Category: ${CATEGORY_LABELS[categoryFilter]}`,
+        onRemove: () => {
+          setCategoryFilter("ALL");
+          clearQueryParam(QUERY_PARAM_KEYS.category);
+        },
+      });
+    }
+
+    if (colorFilter !== "ALL") {
+      chips.push({
+        key: QUERY_PARAM_KEYS.color,
+        label: `Color: ${COLOR_LABELS[colorFilter]}`,
+        onRemove: () => {
+          setColorFilter("ALL");
+          clearQueryParam(QUERY_PARAM_KEYS.color);
+        },
+      });
+    }
+
+    if (purityFilter !== "ALL") {
+      chips.push({
+        key: QUERY_PARAM_KEYS.purity,
+        label: `Purity: ${PURITY_LABELS[purityFilter]}`,
+        onRemove: () => {
+          setPurityFilter("ALL");
+          clearQueryParam(QUERY_PARAM_KEYS.purity);
+        },
+      });
+    }
+
+    if (sourceFilter !== "ALL") {
+      chips.push({
+        key: QUERY_PARAM_KEYS.source,
+        label:
+          sourceFilter === "CUSTOMER" ? "Customer product" : "Stock product",
+        onRemove: () => {
+          setSourceFilter("ALL");
+          clearQueryParam(QUERY_PARAM_KEYS.source);
+        },
+      });
+    }
+
+    if (locationFilter !== "ALL") {
+      chips.push({
+        key: QUERY_PARAM_KEYS.location,
+        label: `Location: ${locationLabel}`,
+        onRemove: () => {
+          setLocationFilter("ALL");
+          clearQueryParam(QUERY_PARAM_KEYS.location);
+        },
+      });
+    }
+
+    if (netWeightFrom) {
+      chips.push({
+        key: QUERY_PARAM_KEYS.netWeightFrom,
+        label: `Net wt from: ${netWeightFrom}g`,
+        onRemove: () => {
+          setNetWeightFrom("");
+          clearQueryParam(QUERY_PARAM_KEYS.netWeightFrom);
+        },
+      });
+    }
+
+    if (netWeightTo) {
+      chips.push({
+        key: QUERY_PARAM_KEYS.netWeightTo,
+        label: `Net wt to: ${netWeightTo}g`,
+        onRemove: () => {
+          setNetWeightTo("");
+          clearQueryParam(QUERY_PARAM_KEYS.netWeightTo);
+        },
+      });
+    }
+
+    if (sourceCreatedFrom) {
+      chips.push({
+        key: QUERY_PARAM_KEYS.sourceCreatedFrom,
+        label: `Created from: ${sourceCreatedFrom}`,
+        onRemove: () => {
+          setSourceCreatedFrom("");
+          clearQueryParam(QUERY_PARAM_KEYS.sourceCreatedFrom);
+        },
+      });
+    }
+
+    if (sourceCreatedTo) {
+      chips.push({
+        key: QUERY_PARAM_KEYS.sourceCreatedTo,
+        label: `Created to: ${sourceCreatedTo}`,
+        onRemove: () => {
+          setSourceCreatedTo("");
+          clearQueryParam(QUERY_PARAM_KEYS.sourceCreatedTo);
+        },
+      });
+    }
+
+    return chips;
+  }, [
+    categoryFilter,
+    clearQueryParam,
+    colorFilter,
+    locationFilter,
+    locationLabel,
+    netWeightFrom,
+    netWeightTo,
+    purityFilter,
+    sourceCreatedFrom,
+    sourceCreatedTo,
+    sourceFilter,
+  ]);
+
   const filterControls = (
     <>
       <Select
         value={categoryFilter}
-        onValueChange={(value) =>
-          setCategoryFilter(value as InventoryCategory | "ALL")
-        }
+        onValueChange={(value) => {
+          setCategoryFilter(value as InventoryCategory | "ALL");
+          updateQueryParam(QUERY_PARAM_KEYS.category, value);
+        }}
       >
         <SelectTrigger className="h-10 w-full">
           <SelectValue placeholder="Category" />
@@ -877,7 +1138,10 @@ export function InventoryPageClient() {
 
       <Select
         value={colorFilter}
-        onValueChange={(value) => setColorFilter(value as ColorFilter)}
+        onValueChange={(value) => {
+          setColorFilter(value as ColorFilter);
+          updateQueryParam(QUERY_PARAM_KEYS.color, value);
+        }}
       >
         <SelectTrigger className="h-10 w-full">
           <SelectValue placeholder="Color" />
@@ -894,7 +1158,10 @@ export function InventoryPageClient() {
 
       <Select
         value={purityFilter}
-        onValueChange={(value) => setPurityFilter(value as PurityFilter)}
+        onValueChange={(value) => {
+          setPurityFilter(value as PurityFilter);
+          updateQueryParam(QUERY_PARAM_KEYS.purity, value);
+        }}
       >
         <SelectTrigger className="h-10 w-full">
           <SelectValue placeholder="Purity" />
@@ -913,7 +1180,10 @@ export function InventoryPageClient() {
 
       <Select
         value={sourceFilter}
-        onValueChange={(value) => setSourceFilter(value as SourceFilter)}
+        onValueChange={(value) => {
+          setSourceFilter(value as SourceFilter);
+          updateQueryParam(QUERY_PARAM_KEYS.source, value);
+        }}
       >
         <SelectTrigger className="h-10 w-full">
           <SelectValue placeholder="Source" />
@@ -925,7 +1195,13 @@ export function InventoryPageClient() {
         </SelectContent>
       </Select>
 
-      <Select value={locationFilter} onValueChange={setLocationFilter}>
+      <Select
+        value={locationFilter}
+        onValueChange={(value) => {
+          setLocationFilter(value);
+          updateQueryParam(QUERY_PARAM_KEYS.location, value);
+        }}
+      >
         <SelectTrigger className="h-10 w-full">
           <SelectValue placeholder="Location" />
         </SelectTrigger>
@@ -944,80 +1220,147 @@ export function InventoryPageClient() {
   return (
     <div className="space-y-6">
       <div className={cn(hasSelectedProduct && "hidden lg:block")}>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Browse product inventory
-        </h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Search products, narrow by inventory attributes, and open any item for
-          a full detail view.
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              Product Inventory
+            </h1>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Search products, narrow by inventory attributes, and open any item
+              for a full detail view.
+            </p>
+          </div>
+          {canSyncProducts ? (
+            <Button
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={handleSyncProducts}
+              disabled={syncInventoryMutation.isPending}
+              className="w-fit shrink-0 gap-2"
+            >
+              <RefreshCw
+                className={cn(
+                  "h-4 w-4",
+                  syncInventoryMutation.isPending && "animate-spin",
+                )}
+              />
+              {syncInventoryMutation.isPending ? "Syncing..." : "Sync from Catalog"}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <section
         className={cn(
-          "grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center lg:flex lg:flex-wrap lg:gap-3",
-          hasSelectedProduct && "hidden lg:flex",
+          "grid gap-3 lg:grid-cols-[minmax(0,40%)_minmax(0,60%)] lg:items-center",
+          hasSelectedProduct && "hidden lg:grid",
         )}
       >
-        <div className="min-w-0 flex-1 lg:min-w-[320px]">
-          <div className="relative">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            All Products
+            {formattedTotalProducts ? ` (${formattedTotalProducts})` : null}
+          </h2>
+        </div>
+        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center">
+          <div className="relative min-w-0">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
+              onChange={(event) => {
+                const { value } = event.target;
+                setSearchInput(value);
+                updateQueryParam(QUERY_PARAM_KEYS.search, value.trim(), "");
+              }}
               placeholder="Search code, vendor, location, category"
               className="h-10 pl-9"
             />
           </div>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setIsScannerOpen(true)}
-          className="h-10 shrink-0 gap-2"
-        >
-          <ScanLine className="h-4 w-4" />
-          Scan Barcode
-        </Button>
-        <Button
-          type="button"
-          variant={hasActiveDialogFilters ? "default" : "outline"}
-          onClick={() => setIsAdvancedFiltersOpen(true)}
-          className="h-10 shrink-0 gap-2"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          More filters
-          {hasActiveDialogFilters ? (
-            <Badge variant="secondary" className="ml-0.5 px-1.5">
-              {activeDialogFilterCount}
-            </Badge>
-          ) : null}
-        </Button>
-        <div className="hidden h-10 shrink-0 items-center rounded-md border border-border bg-background p-1 lg:flex">
           <Button
             type="button"
-            variant={gridColumns === 2 ? "secondary" : "ghost"}
-            size="icon"
-            aria-label="Show 2 columns"
-            aria-pressed={gridColumns === 2}
-            onClick={() => setGridColumns(2)}
-            className="size-8"
+            variant="outline"
+            onClick={() => setIsScannerOpen(true)}
+            className="h-10 shrink-0 gap-2"
           >
-            <Columns2 className="size-4" />
+            <ScanLine className="h-4 w-4" />
+            Scan
           </Button>
           <Button
             type="button"
-            variant={gridColumns === 3 ? "secondary" : "ghost"}
-            size="icon"
-            aria-label="Show 3 columns"
-            aria-pressed={gridColumns === 3}
-            onClick={() => setGridColumns(3)}
-            className="size-8"
+            variant={hasActiveDialogFilters ? "default" : "outline"}
+            onClick={() => setIsAdvancedFiltersOpen(true)}
+            className="h-10 shrink-0 gap-2"
           >
-            <Columns3 className="size-4" />
+            <SlidersHorizontal className="h-4 w-4" />
+            Filters
+            {hasActiveDialogFilters ? (
+              <Badge variant="secondary" className="ml-0.5 px-1.5">
+                {activeDialogFilterCount}
+              </Badge>
+            ) : null}
           </Button>
+          <div className="hidden h-10 shrink-0 items-center rounded-md border border-border bg-background p-1 lg:flex">
+            <Button
+              type="button"
+              variant={gridColumns === 2 ? "secondary" : "ghost"}
+              size="icon"
+              aria-label="Show 2 columns"
+              aria-pressed={gridColumns === 2}
+              onClick={() => {
+                setGridColumns(2);
+                updateQueryParam(QUERY_PARAM_KEYS.columns, "2", "3");
+              }}
+              className="size-8"
+            >
+              <Columns2 className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant={gridColumns === 3 ? "secondary" : "ghost"}
+              size="icon"
+              aria-label="Show 3 columns"
+              aria-pressed={gridColumns === 3}
+              onClick={() => {
+                setGridColumns(3);
+                updateQueryParam(QUERY_PARAM_KEYS.columns, "3", "3");
+              }}
+              className="size-8"
+            >
+              <Columns3 className="size-4" />
+            </Button>
+          </div>
         </div>
       </section>
+
+      {activeFilterChips.length > 0 ? (
+        <ul
+          className={cn(
+            "flex flex-wrap items-center gap-2",
+            hasSelectedProduct && "hidden lg:flex",
+          )}
+          aria-label="Selected inventory filters"
+        >
+          {activeFilterChips.map((filter) => (
+            <li key={filter.key}>
+              <Badge
+                variant="secondary"
+                className="h-8 gap-1.5 rounded-md border border-border bg-muted/60 px-2.5 text-xs font-medium text-foreground"
+              >
+                <span>{filter.label}</span>
+                <button
+                  type="button"
+                  onClick={filter.onRemove}
+                  className="-mr-1 inline-flex size-5 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={`Remove ${filter.label} filter`}
+                >
+                  <X className="size-3.5" />
+                </button>
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       <Dialog
         open={isAdvancedFiltersOpen}
@@ -1026,7 +1369,7 @@ export function InventoryPageClient() {
         <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto p-0 sm:max-w-2xl">
           <DialogHeader>
             <div className="px-5 pt-5 sm:px-6 sm:pt-6">
-              <DialogTitle>More filters</DialogTitle>
+              <DialogTitle>Filters</DialogTitle>
               <DialogDescription className="mt-2">
                 Refine inventory results by product attributes, location,
                 weight, and source date.
@@ -1049,7 +1392,15 @@ export function InventoryPageClient() {
                     min={0}
                     step="0.01"
                     value={netWeightFrom}
-                    onChange={(event) => setNetWeightFrom(event.target.value)}
+                    onChange={(event) => {
+                      const { value } = event.target;
+                      setNetWeightFrom(value);
+                      updateQueryParam(
+                        QUERY_PARAM_KEYS.netWeightFrom,
+                        value,
+                        "",
+                      );
+                    }}
                     placeholder="From"
                   />
                   <Input
@@ -1058,7 +1409,11 @@ export function InventoryPageClient() {
                     min={0}
                     step="0.01"
                     value={netWeightTo}
-                    onChange={(event) => setNetWeightTo(event.target.value)}
+                    onChange={(event) => {
+                      const { value } = event.target;
+                      setNetWeightTo(value);
+                      updateQueryParam(QUERY_PARAM_KEYS.netWeightTo, value, "");
+                    }}
                     placeholder="To"
                   />
                 </div>
@@ -1070,14 +1425,28 @@ export function InventoryPageClient() {
                   <Input
                     type="date"
                     value={sourceCreatedFrom}
-                    onChange={(event) =>
-                      setSourceCreatedFrom(event.target.value)
-                    }
+                    onChange={(event) => {
+                      const { value } = event.target;
+                      setSourceCreatedFrom(value);
+                      updateQueryParam(
+                        QUERY_PARAM_KEYS.sourceCreatedFrom,
+                        value,
+                        "",
+                      );
+                    }}
                   />
                   <Input
                     type="date"
                     value={sourceCreatedTo}
-                    onChange={(event) => setSourceCreatedTo(event.target.value)}
+                    onChange={(event) => {
+                      const { value } = event.target;
+                      setSourceCreatedTo(value);
+                      updateQueryParam(
+                        QUERY_PARAM_KEYS.sourceCreatedTo,
+                        value,
+                        "",
+                      );
+                    }}
                   />
                 </div>
               </div>

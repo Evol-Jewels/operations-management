@@ -137,3 +137,9 @@ export function fetchInventoryProductByCode(productCode: string) {
     buildUrl(`api/v1/products/code/${encodeURIComponent(productCode)}`),
   ).then(normalizeProductDetail);
 }
+
+export function syncInventoryProducts() {
+  return apiFetch<unknown>(buildUrl("api/v1/products/sync/catalog"), {
+    method: "POST",
+  });
+}

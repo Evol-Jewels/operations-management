@@ -290,13 +290,17 @@ export function EstimationSummaryCard({
                     >
                       <div className="min-w-0">
                         <p className="text-sm font-medium">
-                          {stone.stoneType?.name || "Stone"}
+                          {stone.sourceStoneName ||
+                            stone.stoneType?.name ||
+                            "Stone"}
                         </p>
                         <p className="mt-1 text-[11px] text-muted-foreground">
                           {formatWeight(stone.weight, "ct")} - {stone.quantity}{" "}
                           pcs
-                          {stone.slabInfo
-                            ? ` @ ${formatCurrency(stone.slabInfo.pricePerCarat)}/ct`
+                          {stone.fixedRatePerCarat
+                            ? ` @ ${formatCurrency(stone.fixedRatePerCarat)}/ct`
+                            : stone.slabInfo
+                              ? ` @ ${formatCurrency(stone.slabInfo.pricePerCarat)}/ct`
                             : ""}
                         </p>
                       </div>
