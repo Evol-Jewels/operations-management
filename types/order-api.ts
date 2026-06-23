@@ -40,6 +40,8 @@ export interface BackendCustomProductDetails {
     | "PENDANT"
     | "BANGLE"
     | "ANKLET"
+    | "ACCESSORY"
+    | "CHAIN"
     | "OTHER";
   metalType: string;
   metalPurity?: string;
@@ -62,6 +64,8 @@ export interface BackendProductDetails {
   size: number | null;
   isCustomerProduct: boolean;
   locationId: string;
+  sourceCategoryCode?: string | null;
+  sourceCategoryTitle?: string | null;
   sourceCreatedAt: string;
   netWeight: string;
   grossWeight: string;

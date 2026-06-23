@@ -63,6 +63,10 @@ export function mapCategoryToBackend(
   if (normalized === "PENDANT") return "PENDANT";
   if (normalized === "BANGLE") return "BANGLE";
   if (normalized === "ANKLET") return "ANKLET";
+  if (normalized === "ACCESSORY" || normalized === "ACCESSORIES") {
+    return "ACCESSORY";
+  }
+  if (normalized === "CHAIN" || normalized === "CHAINS") return "CHAIN";
   return "OTHER";
 }
 

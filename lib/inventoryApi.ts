@@ -1,4 +1,5 @@
 import type {
+  InventoryAnalyticsResponse,
   InventoryProduct,
   InventoryProductListQuery,
   InventoryProductListResponse,
@@ -129,6 +130,12 @@ export const INVENTORY_LIST_DEFAULT_LIMIT = 24;
 export function fetchInventoryProducts(query: InventoryProductListQuery = {}) {
   return apiFetch<unknown>(buildUrl("api/v1/products", query)).then(
     normalizeProductList,
+  );
+}
+
+export function fetchInventoryAnalytics(query: InventoryProductListQuery = {}) {
+  return apiFetch<InventoryAnalyticsResponse>(
+    buildUrl("api/v1/products/analytics", query),
   );
 }
 

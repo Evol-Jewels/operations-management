@@ -4,6 +4,7 @@ import {
   BookA,
   Boxes,
   Calculator,
+  ChartColumn,
   House,
   LogOut,
   MoonStar,
@@ -66,6 +67,12 @@ const navItems = [
     href: "/inventory",
   },
   {
+    icon: ChartColumn,
+    label: "Product Analytics",
+    href: "/inventory/analytics",
+    roles: ["ADMIN", "OPERATIONS"],
+  },
+  {
     icon: Boxes,
     label: "Manage Config & Pricing",
     href: "/manage-products-and-price",
@@ -96,6 +103,7 @@ export function AppSidebar() {
   const sessionRole = session ? getSessionRole(session) : "";
   const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const isActive = (href: string) => {
+    if (href === "/inventory") return pathname === href;
     return pathname === href || pathname.startsWith(`${href}/`);
   };
   const visibleNavItems = navItems.filter(

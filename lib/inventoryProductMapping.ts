@@ -25,6 +25,8 @@ const CATEGORY_MAP: Record<string, JewelleryCategory> = {
   bangles: "Bangle",
   pendant: "Pendant",
   pendants: "Pendant",
+  accessory: "Accessory",
+  accessories: "Accessory",
   chain: "Chain",
   chains: "Chain",
   brooch: "Brooch",

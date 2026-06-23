@@ -7,6 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
+  fetchInventoryAnalytics,
   fetchInventoryProductByCode,
   fetchInventoryProducts,
   INVENTORY_LIST_DEFAULT_LIMIT,
@@ -18,6 +19,8 @@ export const inventoryProductKeys = {
   all: ["inventory-products"] as const,
   list: (query: Record<string, unknown>) =>
     [...inventoryProductKeys.all, "list", query] as const,
+  analytics: (query: Record<string, unknown>) =>
+    [...inventoryProductKeys.all, "analytics", query] as const,
   detailByCode: (code: string | null) =>
     [...inventoryProductKeys.all, "detail-by-code", code ?? ""] as const,
 };
@@ -64,6 +67,16 @@ export function useInventoryProductByCode(productCode: string | null) {
 
       return fetchInventoryProductByCode(trimmed);
     },
+  });
+}
+
+export function useInventoryAnalytics(query: Record<string, unknown> = {}) {
+  return useQuery({
+    queryKey: inventoryProductKeys.analytics(query),
+    queryFn: () =>
+      fetchInventoryAnalytics(
+        query as Parameters<typeof fetchInventoryAnalytics>[0],
+      ),
   });
 }
 

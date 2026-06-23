@@ -169,18 +169,12 @@ function TabsSwitcher({
       onValueChange={(value) => onTabChange(value as CalculatorTab)}
       className="w-full sm:w-[300px]"
     >
-      <TabsList className="grid h-11 w-full grid-cols-2 rounded-xl border border-border bg-muted/50 p-1">
-        <TabsTrigger
-          value="search"
-          className="h-9 rounded-lg data-[state=active]:bg-foreground data-[state=active]:text-background"
-        >
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="search">
           <Search className="h-4 w-4" />
           Search
         </TabsTrigger>
-        <TabsTrigger
-          value="calculate"
-          className="h-9 rounded-lg data-[state=active]:bg-foreground data-[state=active]:text-background"
-        >
+        <TabsTrigger value="calculate">
           <CircleDollarSign className="h-4 w-4" />
           Calculate
         </TabsTrigger>

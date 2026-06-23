@@ -119,6 +119,7 @@ export type JewelleryCategory =
   | "Bangle"
   | "Pendant"
   | "Chain"
+  | "Accessory"
   | "Brooch"
   | "Other";
 

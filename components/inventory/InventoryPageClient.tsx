@@ -77,6 +77,8 @@ type InventoryCategory =
   | "PENDANT"
   | "BANGLE"
   | "ANKLET"
+  | "ACCESSORY"
+  | "CHAIN"
   | "OTHER";
 type SourceFilter = "ALL" | "CUSTOMER" | "STOCK";
 type ColorFilter = "ALL" | ProductColor;
@@ -96,6 +98,8 @@ const CATEGORY_VALUES: readonly InventoryCategory[] = [
   "PENDANT",
   "BANGLE",
   "ANKLET",
+  "ACCESSORY",
+  "CHAIN",
   "OTHER",
 ] as const;
 
@@ -107,6 +111,8 @@ const CATEGORY_LABELS: Record<InventoryCategory, string> = {
   PENDANT: "Pendant",
   BANGLE: "Bangle",
   ANKLET: "Anklet",
+  ACCESSORY: "Accessory",
+  CHAIN: "Chain",
   OTHER: "Other",
 };
 
@@ -1245,7 +1251,9 @@ export function InventoryPageClient() {
                   syncInventoryMutation.isPending && "animate-spin",
                 )}
               />
-              {syncInventoryMutation.isPending ? "Syncing..." : "Sync from Catalog"}
+              {syncInventoryMutation.isPending
+                ? "Syncing..."
+                : "Sync from Catalog"}
             </Button>
           ) : null}
         </div>

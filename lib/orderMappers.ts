@@ -1,6 +1,5 @@
-import { normalizePerson } from "@/lib/people";
 import { mergeActivityFeed } from "@/lib/enquiryMappers";
-import type { BackendComment } from "@/types/activity-api";
+import { normalizePerson } from "@/lib/people";
 import type {
   JewelleryCategory,
   MetalPurity,
@@ -8,6 +7,7 @@ import type {
   Order,
   Stage,
 } from "@/types";
+import type { BackendComment } from "@/types/activity-api";
 import type {
   BackendCustomProductDetails,
   BackendOrderDetailsResponse,
@@ -72,6 +72,8 @@ function mapProductDetailsCategory(
     BRACELET: "Bracelet",
     PENDANT: "Pendant",
     BANGLE: "Bangle",
+    ACCESSORY: "Accessory",
+    CHAIN: "Chain",
     ANKLET: "Other",
     OTHER: "Other",
   };
@@ -91,6 +93,8 @@ function normalizeCategory(
     BRACELET: "Bracelet",
     PENDANT: "Pendant",
     BANGLE: "Bangle",
+    ACCESSORY: "Accessory",
+    CHAIN: "Chain",
     ANKLET: "Other",
     OTHER: "Other",
   };
