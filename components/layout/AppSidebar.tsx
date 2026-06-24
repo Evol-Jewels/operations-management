@@ -1,9 +1,12 @@
 "use client";
 
 import {
+  ArrowRight,
   BookA,
   Boxes,
   Calculator,
+  ChartColumn,
+  Coins,
   House,
   LogOut,
   MoonStar,
@@ -41,8 +44,10 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useGoldRate } from "@/hooks/useSystemConfigs";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
+import { cn, formatCurrency } from "@/lib/utils";
 
 const navItems = [
   {
@@ -66,6 +71,12 @@ const navItems = [
     href: "/inventory",
   },
   {
+    icon: ChartColumn,
+    label: "Product Analytics",
+    href: "/inventory/analytics",
+    roles: ["ADMIN", "OPERATIONS"],
+  },
+  {
     icon: Boxes,
     label: "Manage Config & Pricing",
     href: "/manage-products-and-price",
@@ -87,6 +98,57 @@ function initials(name: string): string {
     .join("");
 }
 
+function GoldRateSidebarItem({ canOpenConfig }: { canOpenConfig: boolean }) {
+  const goldRateQuery = useGoldRate(canOpenConfig);
+  const goldRate = goldRateQuery.data?.goldRate24k;
+  const value =
+    typeof goldRate === "number" && Number.isFinite(goldRate)
+      ? `${formatCurrency(goldRate)}/g`
+      : goldRateQuery.isLoading || goldRateQuery.isFetching
+        ? "Loading..."
+        : "Unavailable";
+
+  if (!canOpenConfig) return null;
+
+  const content = (
+    <>
+      <Coins className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-300" />
+      <span className="flex min-w-0 flex-1 flex-col items-start group-data-[collapsible=icon]:hidden">
+        <span className="text-sm font-medium text-sidebar-foreground/70">
+          Gold Rate (24k)
+        </span>
+        <span className="font-semibold tabular-nums text-sidebar-foreground">
+          {value}
+        </span>
+      </span>
+      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden" />
+    </>
+  );
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          asChild
+          tooltip={`Gold Rate (24k): ${value}`}
+          className={cn(
+            "h-auto bg-sidebar-accent/45 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground",
+            "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2",
+          )}
+        >
+          <Link
+            href="/manage-products-and-price?tab=system#system-config"
+            className="flex w-full min-w-0 items-center gap-2 overflow-hidden group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
+          >
+            {content}
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
 export function AppSidebar() {
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
@@ -95,7 +157,9 @@ export function AppSidebar() {
 
   const sessionRole = session ? getSessionRole(session) : "";
   const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
+  const canOpenSystemConfig = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const isActive = (href: string) => {
+    if (href === "/inventory") return pathname === href;
     return pathname === href || pathname.startsWith(`${href}/`);
   };
   const visibleNavItems = navItems.filter(
@@ -241,6 +305,8 @@ export function AppSidebar() {
       <SidebarSeparator className="mx-3" />
 
       <SidebarFooter>
+        <GoldRateSidebarItem canOpenConfig={canOpenSystemConfig} />
+
         <div className="group-data-[collapsible=icon]:px-0">
           <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/40 p-1 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:w-fit">
             <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">

@@ -133,6 +133,8 @@ function getCategoryColor(category: string): string {
       "bg-blue-500/10 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300",
     Chain:
       "bg-cyan-500/10 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300",
+    Accessory:
+      "bg-slate-500/10 text-slate-700 dark:bg-slate-500/10 dark:text-slate-300",
     Brooch:
       "bg-rose-500/10 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300",
   };

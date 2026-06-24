@@ -79,6 +79,8 @@ const RECENT_ESTIMATE_SKELETON_IDS = [
   "recent-skeleton-3",
   "recent-skeleton-4",
 ];
+const segmentTriggerClassName =
+  "h-9 rounded-lg text-foreground hover:text-foreground data-[state=active]:bg-zinc-950 data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950";
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
@@ -169,18 +171,12 @@ function TabsSwitcher({
       onValueChange={(value) => onTabChange(value as CalculatorTab)}
       className="w-full sm:w-[300px]"
     >
-      <TabsList className="grid h-11 w-full grid-cols-2 rounded-xl border border-border bg-muted/50 p-1">
-        <TabsTrigger
-          value="search"
-          className="h-9 rounded-lg data-[state=active]:bg-foreground data-[state=active]:text-background"
-        >
+      <TabsList className="grid h-11 w-full grid-cols-2 rounded-xl p-1">
+        <TabsTrigger value="search" className={segmentTriggerClassName}>
           <Search className="h-4 w-4" />
           Search
         </TabsTrigger>
-        <TabsTrigger
-          value="calculate"
-          className="h-9 rounded-lg data-[state=active]:bg-foreground data-[state=active]:text-background"
-        >
+        <TabsTrigger value="calculate" className={segmentTriggerClassName}>
           <CircleDollarSign className="h-4 w-4" />
           Calculate
         </TabsTrigger>
@@ -763,7 +759,10 @@ function SearchPanel({
         return;
       }
 
-      const normalized = normalizeInventoryProductEstimate(detailProduct, settings);
+      const normalized = normalizeInventoryProductEstimate(
+        detailProduct,
+        settings,
+      );
 
       createRecentProductEstimate({
         productCode: normalized.product.productCode,

@@ -76,6 +76,8 @@ export type InventoryProduct = {
     type: string;
     notes: string | null;
   };
+  sourceCategoryCode: string | null;
+  sourceCategoryTitle: string | null;
   sourceCreatedAt: string;
   netWeight: string;
   grossWeight: string;
@@ -96,6 +98,7 @@ export type InventoryProductListQuery = {
   code?: string;
   category?: string;
   color?: ProductColor;
+  status?: string;
   purity?: number;
   locationId?: string;
   isCustomerProduct?: boolean;
@@ -110,4 +113,58 @@ export type InventoryProductListQuery = {
 export type InventoryProductListResponse = {
   data: InventoryProduct[];
   total: number;
+};
+
+export type InventoryAnalyticsBucket = {
+  key: string;
+  label: string;
+  count: number;
+  netWeight: number;
+  grossWeight: number;
+};
+
+export type InventoryAnalyticsLocationBucket = InventoryAnalyticsBucket & {
+  locationId: string | null;
+  city: string | null;
+  type: string | null;
+};
+
+export type InventoryAnalyticsMatrixCell = {
+  category: string;
+  locationId: string | null;
+  locationLabel: string;
+  count: number;
+};
+
+export type InventoryAnalyticsColorPurityCell = {
+  color: ProductColor;
+  colorLabel: string;
+  purity: number | null;
+  purityLabel: string;
+  count: number;
+  netWeight: number;
+  grossWeight: number;
+};
+
+export type InventoryAnalyticsResponse = {
+  summary: {
+    totalProducts: number;
+    availableProducts: number;
+    notAvailableProducts: number;
+    stockProducts: number;
+    customerProducts: number;
+    totalNetWeight: number;
+    totalGrossWeight: number;
+    averageNetWeight: number;
+  };
+  breakdowns: {
+    byCategory: InventoryAnalyticsBucket[];
+    byColor: InventoryAnalyticsBucket[];
+    byPurity: InventoryAnalyticsBucket[];
+    byStatus: InventoryAnalyticsBucket[];
+    bySource: InventoryAnalyticsBucket[];
+    byLocation: InventoryAnalyticsLocationBucket[];
+    byCategoryLocation: InventoryAnalyticsMatrixCell[];
+    byColorPurity: InventoryAnalyticsColorPurityCell[];
+  };
 };

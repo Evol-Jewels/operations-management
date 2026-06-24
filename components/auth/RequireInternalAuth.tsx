@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { getSessionRole, getUserRole } from "@/lib/auth";
@@ -30,8 +29,10 @@ function UnauthorizedState() {
 
 export function RequireInternalAuth({
   children,
+  roles,
 }: {
   children: React.ReactNode;
+  roles?: string[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -55,6 +56,10 @@ export function RequireInternalAuth({
   }
 
   if (getUserRole(session) !== "internal") {
+    return <UnauthorizedState />;
+  }
+
+  if (roles?.length && !roles.includes(getSessionRole(session))) {
     return <UnauthorizedState />;
   }
 
