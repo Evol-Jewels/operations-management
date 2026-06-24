@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  ArrowLeft,
-  Boxes,
-  CircleDot,
-  MapPin,
-  PackageCheck,
-  Scale,
-  TrendingUp,
-} from "lucide-react";
+import { ArrowLeft, Boxes, MapPin, PackageCheck, Scale } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
@@ -21,6 +13,7 @@ import {
 import {
   Bar,
   EvilBarChart,
+  Legend as EvilBarLegend,
   Tooltip as EvilBarTooltip,
   Grid,
   XAxis,
@@ -54,6 +47,7 @@ import { useInventoryAnalytics } from "@/hooks/useInventoryProducts";
 import { cn } from "@/lib/utils";
 import type {
   InventoryAnalyticsBucket,
+  InventoryAnalyticsColorPurityCell,
   InventoryAnalyticsMatrixCell,
   ProductColor,
 } from "@/types/inventory-api";
@@ -76,12 +70,11 @@ const PURITY_LABELS: Record<Exclude<PurityFilter, "ALL">, string> = {
   "24": "24K",
 };
 
-const inventoryAmber = "oklch(0.68 0.15 72 / 0.92)";
-const inventoryBarAmber = "rgb(245 158 11 / 0.4)";
-const inventoryBlue = "oklch(0.58 0.18 258 / 0.72)";
-const inventoryRose = "oklch(0.66 0.14 18 / 0.72)";
-const inventoryWhite = "oklch(0.94 0.01 95 / 0.72)";
-const inventoryNeutral = "oklch(0.68 0 0 / 0.42)";
+const inventoryAmber = "oklch(0.78 0.14 75 / 0.58)";
+const inventoryBlue = "oklch(0.7 0.14 258 / 0.56)";
+const inventoryRose = "oklch(0.74 0.12 18 / 0.54)";
+const inventoryWhite = "oklch(0.94 0.01 95 / 0.48)";
+const inventoryNeutral = "oklch(0.72 0 0 / 0.34)";
 
 const sourceChartColors = [inventoryAmber, inventoryBlue];
 
@@ -92,17 +85,50 @@ const colorMixColors = {
   other: inventoryNeutral,
 };
 
-const countChartConfig = {
-  count: {
-    label: "Products",
-    colors: {
-      light: [inventoryBarAmber],
-      dark: [inventoryBarAmber],
-    },
-  },
-} satisfies ChartConfig;
+const locationChartColors = [
+  inventoryAmber,
+  inventoryBlue,
+  inventoryRose,
+  "oklch(0.74 0.13 190 / 0.52)",
+  "oklch(0.76 0.1 145 / 0.5)",
+  "oklch(0.78 0.09 310 / 0.48)",
+  "oklch(0.8 0.08 55 / 0.5)",
+  inventoryNeutral,
+];
+
+const purityChartColors = {
+  "14": inventoryBlue,
+  "18": inventoryAmber,
+  "24": "oklch(0.76 0.1 145 / 0.52)",
+  unknown: inventoryNeutral,
+};
+
+const CATEGORY_ABBREVIATIONS: Record<string, string> = {
+  accessory: "ACC",
+  bangle: "BNG",
+  bracelet: "BRC",
+  chain: "CHN",
+  earring: "ERN",
+  necklace: "NCK",
+  pendant: "PND",
+  ring: "RNG",
+};
+
+const PRODUCT_COLOR_ORDER: ProductColor[] = [
+  "YELLOW",
+  "ROSE",
+  "WHITE",
+  "OTHERS",
+];
+
+const PURITY_ORDER = ["14", "18", "24"] as const;
 
 type ChartBucket = InventoryAnalyticsBucket & Record<string, unknown>;
+type StackedChartRow = {
+  key: string;
+  label: string;
+  total: number;
+} & Record<string, string | number>;
 
 type ProductSankeyNode = {
   name: string;
@@ -163,12 +189,151 @@ function getPercent(value: number, total: number) {
   return `${Math.round((value / total) * 100)}%`;
 }
 
-function getColorMixColor(item: InventoryAnalyticsBucket) {
-  const colorKey = `${item.key} ${item.label}`.toLowerCase();
-  if (colorKey.includes("white")) return colorMixColors.white;
-  if (colorKey.includes("rose")) return colorMixColors.rose;
-  if (colorKey.includes("yellow")) return colorMixColors.yellow;
+function getCategoryAbbreviation(value: unknown) {
+  const label = String(value).trim();
+  const knownAbbreviation = CATEGORY_ABBREVIATIONS[label.toLowerCase()];
+
+  if (knownAbbreviation) return knownAbbreviation;
+
+  const initials = label
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+  const compactLabel = label.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+
+  return (initials || compactLabel).slice(0, 3);
+}
+
+function slugChartKey(value: string) {
+  return value.replace(/[^a-zA-Z0-9]/g, "_");
+}
+
+function getLocationStackKey(location: string) {
+  return `location_${slugChartKey(location)}`;
+}
+
+function getPurityStackKey(purity: string | number | null) {
+  return `purity_${purity ?? "unknown"}`;
+}
+
+function getColorTone(color: ProductColor) {
+  if (color === "WHITE") return colorMixColors.white;
+  if (color === "ROSE") return colorMixColors.rose;
+  if (color === "YELLOW") return colorMixColors.yellow;
   return colorMixColors.other;
+}
+
+function getLocationChartConfig(locations: string[]) {
+  return locations.reduce<ChartConfig>((config, location, index) => {
+    config[getLocationStackKey(location)] = {
+      label: location,
+      colors: {
+        light: [locationChartColors[index % locationChartColors.length]],
+        dark: [locationChartColors[index % locationChartColors.length]],
+      },
+    };
+    return config;
+  }, {});
+}
+
+function getProductMixChartConfig(purityKeys: string[]) {
+  return purityKeys.reduce<ChartConfig>((config, purityKey) => {
+    const key = getPurityStackKey(purityKey === "unknown" ? null : purityKey);
+    const label = purityKey === "unknown" ? "Unknown" : `${purityKey}K`;
+    config[key] = {
+      label,
+      colors: {
+        light: [
+          purityChartColors[purityKey as keyof typeof purityChartColors] ??
+            purityChartColors.unknown,
+        ],
+        dark: [
+          purityChartColors[purityKey as keyof typeof purityChartColors] ??
+            purityChartColors.unknown,
+        ],
+      },
+    };
+    return config;
+  }, {});
+}
+
+function buildCategoryLocationChartData(
+  categories: string[],
+  locations: string[],
+  lookup: Map<string, number>,
+) {
+  return categories.map((category) => {
+    const row: StackedChartRow = {
+      key: category,
+      label: category,
+      total: 0,
+    };
+
+    for (const location of locations) {
+      const count = lookup.get(`${category}:${location}`) ?? 0;
+      row[getLocationStackKey(location)] = count;
+      row.total += count;
+    }
+
+    return row;
+  });
+}
+
+function buildProductMixChartData(cells: InventoryAnalyticsColorPurityCell[]) {
+  const purityKeys = Array.from(
+    new Set(
+      cells.map((cell) =>
+        cell.purity === null ? "unknown" : String(cell.purity),
+      ),
+    ),
+  ).sort((a, b) => {
+    const aIndex = PURITY_ORDER.indexOf(a as (typeof PURITY_ORDER)[number]);
+    const bIndex = PURITY_ORDER.indexOf(b as (typeof PURITY_ORDER)[number]);
+
+    if (aIndex !== -1 || bIndex !== -1) {
+      return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+    }
+
+    return a.localeCompare(b);
+  });
+  const availableColors = new Set(cells.map((cell) => cell.color));
+  const colorOrder = PRODUCT_COLOR_ORDER.filter((colorValue) =>
+    availableColors.has(colorValue),
+  );
+  const rows = colorOrder.map((colorValue) => {
+    const row: StackedChartRow = {
+      key: colorValue,
+      label: COLOR_LABELS[colorValue],
+      total: 0,
+    };
+
+    for (const purityKey of purityKeys) {
+      row[getPurityStackKey(purityKey === "unknown" ? null : purityKey)] = 0;
+    }
+
+    for (const cell of cells) {
+      if (cell.color !== colorValue) continue;
+      const purityKey = cell.purity === null ? "unknown" : String(cell.purity);
+      row[getPurityStackKey(cell.purity)] =
+        Number(row[getPurityStackKey(cell.purity)] ?? 0) + cell.count;
+      row.total += cell.count;
+      row[`${getPurityStackKey(cell.purity)}NetWeight`] =
+        Number(row[`${getPurityStackKey(cell.purity)}NetWeight`] ?? 0) +
+        cell.netWeight;
+      row[`${getPurityStackKey(cell.purity)}GrossWeight`] =
+        Number(row[`${getPurityStackKey(cell.purity)}GrossWeight`] ?? 0) +
+        cell.grossWeight;
+      row[`${getPurityStackKey(cell.purity)}Label`] =
+        purityKey === "unknown" ? "Unknown" : `${purityKey}K`;
+    }
+
+    return row;
+  });
+
+  return { rows, purityKeys };
 }
 
 function getTopBucketsWithOther(
@@ -241,7 +406,7 @@ function buildProductSankeyData({
         kind: "location" as const,
         color:
           index % 3 === 0
-            ? "oklch(0.64 0.16 190 / 0.76)"
+            ? locationChartColors[3]
             : index % 3 === 1
               ? inventoryRose
               : inventoryBlue,
@@ -592,15 +757,11 @@ function ProductDistributionSankeyCard({
   );
 }
 
-function CategoryLocationExplorer({
-  buckets,
-  cells,
+function AnalyticsFilterControls({
   color,
   purity,
   onFilterChange,
 }: {
-  buckets: InventoryAnalyticsBucket[];
-  cells: InventoryAnalyticsMatrixCell[];
   color: ColorFilter;
   purity: PurityFilter;
   onFilterChange: (
@@ -608,96 +769,104 @@ function CategoryLocationExplorer({
     value: ColorFilter | PurityFilter,
   ) => void;
 }) {
-  const chartData = topBuckets(buckets);
+  return (
+    <div className="grid w-full gap-2 sm:grid-cols-2 md:w-auto md:min-w-[24rem]">
+      <Select
+        value={purity}
+        onValueChange={(value) =>
+          onFilterChange("purity", value as PurityFilter)
+        }
+      >
+        <SelectTrigger className="h-10 w-full">
+          <SelectValue placeholder="Purity" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All purities</SelectItem>
+          {(
+            Object.keys(PURITY_LABELS) as Array<Exclude<PurityFilter, "ALL">>
+          ).map((purityValue) => (
+            <SelectItem key={purityValue} value={purityValue}>
+              {PURITY_LABELS[purityValue]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={color}
+        onValueChange={(value) => onFilterChange("color", value as ColorFilter)}
+      >
+        <SelectTrigger className="h-10 w-full">
+          <SelectValue placeholder="Color" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All colors</SelectItem>
+          {(Object.keys(COLOR_LABELS) as ProductColor[]).map((colorValue) => (
+            <SelectItem key={colorValue} value={colorValue}>
+              {COLOR_LABELS[colorValue]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function CategoryLocationExplorer({
+  buckets,
+  cells,
+}: {
+  buckets: InventoryAnalyticsBucket[];
+  cells: InventoryAnalyticsMatrixCell[];
+}) {
   const total = sumCounts(buckets);
-  const { categories, locations, lookup } = useMemo(() => {
-    const categoryList = Array.from(
-      new Set(cells.map((cell) => cell.category)),
-    );
-    const locationList = Array.from(
-      new Set(cells.map((cell) => cell.locationLabel)),
-    ).slice(0, 8);
-    const cellLookup = new Map<string, number>();
+  const { categories, locations, lookup, chartData, chartConfig } =
+    useMemo(() => {
+      const categoryList = Array.from(
+        new Set(cells.map((cell) => cell.category)),
+      );
+      const locationList = Array.from(
+        new Set(cells.map((cell) => cell.locationLabel)),
+      ).slice(0, 8);
+      const cellLookup = new Map<string, number>();
 
-    for (const cell of cells) {
-      cellLookup.set(`${cell.category}:${cell.locationLabel}`, cell.count);
-    }
+      for (const cell of cells) {
+        cellLookup.set(`${cell.category}:${cell.locationLabel}`, cell.count);
+      }
 
-    return {
-      categories: categoryList.slice(0, 8),
-      locations: locationList,
-      lookup: cellLookup,
-    };
-  }, [cells]);
+      return {
+        categories: categoryList.slice(0, 8),
+        locations: locationList,
+        lookup: cellLookup,
+        chartData: buildCategoryLocationChartData(
+          categoryList.slice(0, 8),
+          locationList,
+          cellLookup,
+        ),
+        chartConfig: getLocationChartConfig(locationList),
+      };
+    }, [cells]);
   const hasData =
     chartData.length > 0 && categories.length > 0 && locations.length > 0;
 
   return (
     <Card className="rounded-md border-border/80 py-0 shadow-none">
       <CardHeader className="gap-3 px-5 pt-5 pb-2">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-base">
-                Category by Location
-              </CardTitle>
+              <CardTitle className="text-base">Category by Location</CardTitle>
               <Badge variant="secondary" className="rounded-md">
                 {formatNumber(total)}
               </Badge>
             </div>
             <CardDescription className="mt-1">
-              Category counts and location spread for the selected purity and
-              color.
+              Category counts stacked by store location for the active filters.
             </CardDescription>
             {hasData ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                {getTopBucketLabel(chartData)}
+                {getTopBucketLabel(topBuckets(buckets))}
               </p>
             ) : null}
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:min-w-[24rem]">
-            <Select
-              value={purity}
-              onValueChange={(value) =>
-                onFilterChange("purity", value as PurityFilter)
-              }
-            >
-              <SelectTrigger className="h-10 w-full">
-                <SelectValue placeholder="Purity" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All purities</SelectItem>
-                {(
-                  Object.keys(PURITY_LABELS) as Array<
-                    Exclude<PurityFilter, "ALL">
-                  >
-                ).map((purityValue) => (
-                  <SelectItem key={purityValue} value={purityValue}>
-                    {PURITY_LABELS[purityValue]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={color}
-              onValueChange={(value) =>
-                onFilterChange("color", value as ColorFilter)
-              }
-            >
-              <SelectTrigger className="h-10 w-full">
-                <SelectValue placeholder="Color" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All colors</SelectItem>
-                {(Object.keys(COLOR_LABELS) as ProductColor[]).map(
-                  (colorValue) => (
-                    <SelectItem key={colorValue} value={colorValue}>
-                      {COLOR_LABELS[colorValue]}
-                    </SelectItem>
-                  ),
-                )}
-              </SelectContent>
-            </Select>
           </div>
         </div>
       </CardHeader>
@@ -706,34 +875,35 @@ function CategoryLocationExplorer({
           <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.9fr)_minmax(0,1.35fr)]">
             <div className="min-h-72 rounded-md border border-border/60 bg-muted/10 p-2">
               <EvilBarChart
-                data={chartData as ChartBucket[]}
-                config={countChartConfig}
+                data={chartData}
+                config={chartConfig}
                 className="h-72 w-full p-2"
                 barRadius={5}
+                stackType="stacked"
                 chartProps={{
-                  margin: { top: 12, left: -18, right: 8, bottom: 0 },
+                  margin: { top: 12, left: 4, right: 8, bottom: 4 },
                 }}
               >
                 <Grid vertical={false} strokeDasharray="3 3" />
                 <XAxis
                   dataKey="label"
                   interval={0}
-                  tickFormatter={(value) =>
-                    String(value).length > 12
-                      ? `${String(value).slice(0, 12)}...`
-                      : String(value)
-                  }
+                  tickFormatter={getCategoryAbbreviation}
                 />
-                <YAxis width={42} />
+                <YAxis width={58} />
                 <EvilBarTooltip variant="frosted-glass" />
-                <Bar
-                  dataKey="count"
-                  variant="default"
-                  enableHoverHighlight
-                  barProps={{
-                    name: "Products",
-                  }}
-                />
+                <EvilBarLegend align="left" verticalAlign="top" />
+                {locations.map((location) => (
+                  <Bar
+                    key={location}
+                    dataKey={getLocationStackKey(location)}
+                    variant="default"
+                    enableHoverHighlight
+                    barProps={{
+                      name: location,
+                    }}
+                  />
+                ))}
               </EvilBarChart>
             </div>
             <div className="overflow-x-auto rounded-md border border-border/60">
@@ -790,6 +960,119 @@ function CategoryLocationExplorer({
           <div className="flex h-64 items-center justify-center rounded-md border border-dashed border-border">
             <p className="text-sm text-muted-foreground">
               No category/location data for this filter.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProductMixCard({
+  cells,
+  totalProducts,
+}: {
+  cells: InventoryAnalyticsColorPurityCell[];
+  totalProducts: number;
+}) {
+  const { rows, purityKeys } = useMemo(
+    () => buildProductMixChartData(cells),
+    [cells],
+  );
+  const chartConfig = useMemo(
+    () => getProductMixChartConfig(purityKeys),
+    [purityKeys],
+  );
+  const hasData = rows.length > 0 && purityKeys.length > 0;
+
+  return (
+    <Card className="rounded-md border-border/80 py-0 shadow-none">
+      <CardHeader className="gap-2 px-5 pt-5 pb-2">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <CardTitle className="text-base">Product Mix</CardTitle>
+            <CardDescription className="mt-1">
+              Colors stacked by purity for the active filters.
+            </CardDescription>
+          </div>
+          <Badge variant="secondary" className="rounded-md">
+            {formatNumber(totalProducts)}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4 px-5 pb-5">
+        {hasData ? (
+          <>
+            <div className="min-h-72 rounded-md border border-border/60 bg-muted/10 p-2">
+              <EvilBarChart
+                data={rows}
+                config={chartConfig}
+                className="h-72 w-full p-2"
+                barRadius={5}
+                stackType="stacked"
+                chartProps={{
+                  margin: { top: 12, left: 4, right: 8, bottom: 4 },
+                }}
+              >
+                <Grid vertical={false} strokeDasharray="3 3" />
+                <XAxis dataKey="label" interval={0} />
+                <YAxis width={58} />
+                <EvilBarTooltip variant="frosted-glass" />
+                <EvilBarLegend align="left" verticalAlign="top" />
+                {purityKeys.map((purityKey) => {
+                  const dataKey = getPurityStackKey(
+                    purityKey === "unknown" ? null : purityKey,
+                  );
+                  return (
+                    <Bar
+                      key={dataKey}
+                      dataKey={dataKey}
+                      variant="default"
+                      enableHoverHighlight
+                      barProps={{
+                        name:
+                          purityKey === "unknown" ? "Unknown" : `${purityKey}K`,
+                      }}
+                    />
+                  );
+                })}
+              </EvilBarChart>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {rows.map((row) => (
+                <div
+                  key={row.key}
+                  className="rounded-md border border-border/80 bg-muted/20 px-3 py-2.5"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span
+                        className="size-2.5 shrink-0 rounded-sm"
+                        style={{
+                          backgroundColor: getColorTone(
+                            row.key as ProductColor,
+                          ),
+                        }}
+                      />
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {row.label}
+                      </span>
+                    </div>
+                    <Badge variant="secondary" className="rounded-md">
+                      {formatNumber(row.total)}
+                    </Badge>
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {getPercent(row.total, totalProducts)} of products
+                  </p>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="flex h-64 items-center justify-center rounded-md border border-dashed border-border">
+            <p className="text-sm text-muted-foreground">
+              No color/purity product mix data for this filter.
             </p>
           </div>
         )}
@@ -878,32 +1161,39 @@ export function ProductAnalyticsPageClient() {
             ) : null}
           </div>
         </div>
-        <Tabs
-          value={status}
-          onValueChange={(value) => updateStatus(value as StatusFilter)}
-          className="w-full md:w-auto"
-        >
-          <TabsList className="grid h-11 w-full grid-cols-3 rounded-lg border-border/80 bg-zinc-950/95 p-1 text-zinc-300 shadow-[inset_0_1px_0_rgb(255_255_255_/_0.05)] md:w-auto dark:border-zinc-800 dark:bg-zinc-950">
-            <TabsTrigger
-              value="ALL"
-              className="h-9 rounded-md border-transparent px-4 text-zinc-300 hover:text-white data-[state=active]:border-zinc-200/10 data-[state=active]:bg-white data-[state=active]:text-zinc-950 dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950"
-            >
-              All
-            </TabsTrigger>
-            <TabsTrigger
-              value="AVAILABLE"
-              className="h-9 rounded-md border-transparent px-4 text-zinc-300 hover:text-white data-[state=active]:border-zinc-200/10 data-[state=active]:bg-white data-[state=active]:text-zinc-950 dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950"
-            >
-              Available
-            </TabsTrigger>
-            <TabsTrigger
-              value="NOT_AVAILABLE"
-              className="h-9 rounded-md border-transparent px-4 text-zinc-300 hover:text-white data-[state=active]:border-zinc-200/10 data-[state=active]:bg-white data-[state=active]:text-zinc-950 dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950"
-            >
-              Unavailable
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex w-full flex-col items-stretch gap-2 md:w-auto md:items-end">
+          <Tabs
+            value={status}
+            onValueChange={(value) => updateStatus(value as StatusFilter)}
+            className="w-full md:w-auto"
+          >
+            <TabsList className="grid h-11 w-full grid-cols-3 rounded-lg border-border/80 bg-zinc-950/95 p-1 text-zinc-300 shadow-[inset_0_1px_0_rgb(255_255_255_/_0.05)] md:w-auto dark:border-zinc-800 dark:bg-zinc-950">
+              <TabsTrigger
+                value="ALL"
+                className="h-9 rounded-md border-transparent px-4 text-zinc-300 hover:text-white data-[state=active]:border-zinc-200/10 data-[state=active]:bg-white data-[state=active]:text-zinc-950 dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950"
+              >
+                All
+              </TabsTrigger>
+              <TabsTrigger
+                value="AVAILABLE"
+                className="h-9 rounded-md border-transparent px-4 text-zinc-300 hover:text-white data-[state=active]:border-zinc-200/10 data-[state=active]:bg-white data-[state=active]:text-zinc-950 dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950"
+              >
+                Available
+              </TabsTrigger>
+              <TabsTrigger
+                value="NOT_AVAILABLE"
+                className="h-9 rounded-md border-transparent px-4 text-zinc-300 hover:text-white data-[state=active]:border-zinc-200/10 data-[state=active]:bg-white data-[state=active]:text-zinc-950 dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950"
+              >
+                Unavailable
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <AnalyticsFilterControls
+            color={color}
+            purity={purity}
+            onFilterChange={updateAnalyticsFilter}
+          />
+        </div>
       </div>
 
       {analyticsQuery.isLoading ? <AnalyticsSkeleton /> : null}
@@ -960,9 +1250,6 @@ export function ProductAnalyticsPageClient() {
           <CategoryLocationExplorer
             buckets={analytics.breakdowns.byCategory}
             cells={analytics.breakdowns.byCategoryLocation}
-            color={color}
-            purity={purity}
-            onFilterChange={updateAnalyticsFilter}
           />
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
@@ -972,60 +1259,10 @@ export function ProductAnalyticsPageClient() {
               data={analytics.breakdowns.bySource}
               total={analytics.summary.totalProducts}
             />
-            <Card className="rounded-md border-border/80 py-0 shadow-none">
-              <CardHeader className="gap-1 px-5 pt-5 pb-2">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-base">Color Mix</CardTitle>
-                    <CardDescription className="mt-1">
-                      Color distribution and net weight contribution.
-                    </CardDescription>
-                  </div>
-                  <TrendingUp className="size-4 text-muted-foreground" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2 px-5 pb-5">
-                {analytics.breakdowns.byColor.map((item) => (
-                  <div
-                    key={item.key}
-                    className="rounded-md border border-border/80 bg-muted/20 px-3 py-2.5"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <CircleDot
-                          className="size-4 shrink-0"
-                          style={{
-                            color: getColorMixColor(item),
-                          }}
-                        />
-                        <span className="truncate text-sm font-medium text-foreground">
-                          {item.label}
-                        </span>
-                      </div>
-                      <Badge variant="secondary" className="rounded-md">
-                        {formatNumber(item.count)}
-                      </Badge>
-                    </div>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: getPercent(
-                            item.count,
-                            analytics.summary.totalProducts,
-                          ),
-                          backgroundColor: getColorMixColor(item),
-                        }}
-                      />
-                    </div>
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      {getPercent(item.count, analytics.summary.totalProducts)}{" "}
-                      of products - {formatWeight(item.netWeight)}
-                    </p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+            <ProductMixCard
+              cells={analytics.breakdowns.byColorPurity}
+              totalProducts={analytics.summary.totalProducts}
+            />
           </div>
 
           <div className="grid gap-4">

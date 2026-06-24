@@ -136,6 +136,16 @@ export type InventoryAnalyticsMatrixCell = {
   count: number;
 };
 
+export type InventoryAnalyticsColorPurityCell = {
+  color: ProductColor;
+  colorLabel: string;
+  purity: number | null;
+  purityLabel: string;
+  count: number;
+  netWeight: number;
+  grossWeight: number;
+};
+
 export type InventoryAnalyticsResponse = {
   summary: {
     totalProducts: number;
@@ -155,5 +165,6 @@ export type InventoryAnalyticsResponse = {
     bySource: InventoryAnalyticsBucket[];
     byLocation: InventoryAnalyticsLocationBucket[];
     byCategoryLocation: InventoryAnalyticsMatrixCell[];
+    byColorPurity: InventoryAnalyticsColorPurityCell[];
   };
 };
