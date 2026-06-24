@@ -13,7 +13,6 @@ import {
 import {
   Bar,
   EvilBarChart,
-  Legend as EvilBarLegend,
   Tooltip as EvilBarTooltip,
   Grid,
   XAxis,
@@ -113,6 +112,8 @@ const CATEGORY_ABBREVIATIONS: Record<string, string> = {
   pendant: "PND",
   ring: "RNG",
 };
+const segmentTriggerClassName =
+  "h-9 rounded-lg text-foreground hover:text-foreground data-[state=active]:bg-zinc-950 data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950";
 
 const PRODUCT_COLOR_ORDER: ProductColor[] = [
   "YELLOW",
@@ -258,6 +259,26 @@ function getProductMixChartConfig(purityKeys: string[]) {
     };
     return config;
   }, {});
+}
+
+function ChartColorLegend({
+  items,
+}: {
+  items: { label: string; color: string }[];
+}) {
+  return (
+    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 px-1">
+      {items.map((item) => (
+        <div key={item.label} className="flex items-center gap-2">
+          <span
+            className="size-2.5 shrink-0 rounded-sm"
+            style={{ backgroundColor: item.color }}
+          />
+          <span className="text-xs text-muted-foreground">{item.label}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function buildCategoryLocationChartData(
@@ -845,6 +866,10 @@ function CategoryLocationExplorer({
         chartConfig: getLocationChartConfig(locationList),
       };
     }, [cells]);
+  const legendItems = locations.map((location, index) => ({
+    label: location,
+    color: locationChartColors[index % locationChartColors.length],
+  }));
   const hasData =
     chartData.length > 0 && categories.length > 0 && locations.length > 0;
 
@@ -881,18 +906,18 @@ function CategoryLocationExplorer({
                 barRadius={5}
                 stackType="stacked"
                 chartProps={{
-                  margin: { top: 12, left: 4, right: 8, bottom: 4 },
+                  margin: { top: 12, left: 4, right: 8, bottom: 22 },
                 }}
               >
                 <Grid vertical={false} strokeDasharray="3 3" />
                 <XAxis
                   dataKey="label"
                   interval={0}
+                  tickMargin={10}
                   tickFormatter={getCategoryAbbreviation}
                 />
                 <YAxis width={58} />
                 <EvilBarTooltip variant="frosted-glass" />
-                <EvilBarLegend align="left" verticalAlign="top" />
                 {locations.map((location) => (
                   <Bar
                     key={location}
@@ -905,6 +930,7 @@ function CategoryLocationExplorer({
                   />
                 ))}
               </EvilBarChart>
+              <ChartColorLegend items={legendItems} />
             </div>
             <div className="overflow-x-auto rounded-md border border-border/60">
               <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
@@ -983,6 +1009,12 @@ function ProductMixCard({
     () => getProductMixChartConfig(purityKeys),
     [purityKeys],
   );
+  const legendItems = purityKeys.map((purityKey) => ({
+    label: purityKey === "unknown" ? "Unknown" : `${purityKey}K`,
+    color:
+      purityChartColors[purityKey as keyof typeof purityChartColors] ??
+      purityChartColors.unknown,
+  }));
   const hasData = rows.length > 0 && purityKeys.length > 0;
 
   return (
@@ -1011,14 +1043,13 @@ function ProductMixCard({
                 barRadius={5}
                 stackType="stacked"
                 chartProps={{
-                  margin: { top: 12, left: 4, right: 8, bottom: 4 },
+                  margin: { top: 12, left: 4, right: 8, bottom: 22 },
                 }}
               >
                 <Grid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="label" interval={0} />
+                <XAxis dataKey="label" interval={0} tickMargin={10} />
                 <YAxis width={58} />
                 <EvilBarTooltip variant="frosted-glass" />
-                <EvilBarLegend align="left" verticalAlign="top" />
                 {purityKeys.map((purityKey) => {
                   const dataKey = getPurityStackKey(
                     purityKey === "unknown" ? null : purityKey,
@@ -1037,6 +1068,7 @@ function ProductMixCard({
                   );
                 })}
               </EvilBarChart>
+              <ChartColorLegend items={legendItems} />
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               {rows.map((row) => (
@@ -1167,22 +1199,22 @@ export function ProductAnalyticsPageClient() {
             onValueChange={(value) => updateStatus(value as StatusFilter)}
             className="w-full md:w-auto"
           >
-            <TabsList className="grid h-11 w-full grid-cols-3 rounded-lg border-border/80 bg-zinc-950/95 p-1 text-zinc-300 shadow-[inset_0_1px_0_rgb(255_255_255_/_0.05)] md:w-auto dark:border-zinc-800 dark:bg-zinc-950">
+            <TabsList className="grid h-11 w-full grid-cols-3 rounded-xl p-1 md:w-auto">
               <TabsTrigger
                 value="ALL"
-                className="h-9 rounded-md border-transparent px-4 text-zinc-300 hover:text-white data-[state=active]:border-zinc-200/10 data-[state=active]:bg-white data-[state=active]:text-zinc-950 dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950"
+                className={cn(segmentTriggerClassName, "px-4")}
               >
                 All
               </TabsTrigger>
               <TabsTrigger
                 value="AVAILABLE"
-                className="h-9 rounded-md border-transparent px-4 text-zinc-300 hover:text-white data-[state=active]:border-zinc-200/10 data-[state=active]:bg-white data-[state=active]:text-zinc-950 dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950"
+                className={cn(segmentTriggerClassName, "px-4")}
               >
                 Available
               </TabsTrigger>
               <TabsTrigger
                 value="NOT_AVAILABLE"
-                className="h-9 rounded-md border-transparent px-4 text-zinc-300 hover:text-white data-[state=active]:border-zinc-200/10 data-[state=active]:bg-white data-[state=active]:text-zinc-950 dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950"
+                className={cn(segmentTriggerClassName, "px-4")}
               >
                 Unavailable
               </TabsTrigger>
