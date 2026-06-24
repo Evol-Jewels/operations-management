@@ -220,13 +220,6 @@ function getPurityStackKey(purity: string | number | null) {
   return `purity_${purity ?? "unknown"}`;
 }
 
-function getColorTone(color: ProductColor) {
-  if (color === "WHITE") return colorMixColors.white;
-  if (color === "ROSE") return colorMixColors.rose;
-  if (color === "YELLOW") return colorMixColors.yellow;
-  return colorMixColors.other;
-}
-
 function getLocationChartConfig(locations: string[]) {
   return locations.reduce<ChartConfig>((config, location, index) => {
     config[getLocationStackKey(location)] = {
@@ -263,11 +256,13 @@ function getProductMixChartConfig(purityKeys: string[]) {
 
 function ChartColorLegend({
   items,
+  className,
 }: {
   items: { label: string; color: string }[];
+  className?: string;
 }) {
   return (
-    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 px-1">
+    <div className={cn("mt-3 flex flex-wrap gap-x-4 gap-y-2 px-1", className)}>
       {items.map((item) => (
         <div key={item.label} className="flex items-center gap-2">
           <span
@@ -355,6 +350,75 @@ function buildProductMixChartData(cells: InventoryAnalyticsColorPurityCell[]) {
   });
 
   return { rows, purityKeys };
+}
+
+type ProductMixSummaryCard = {
+  key: string;
+  label: string;
+  count: number;
+  color: string;
+};
+
+function findBucketCount(
+  items: InventoryAnalyticsBucket[],
+  matcher: (item: InventoryAnalyticsBucket) => boolean,
+) {
+  return items.find(matcher)?.count ?? 0;
+}
+
+function buildProductMixSummaryCards({
+  colorBuckets,
+  purityBuckets,
+  categoryBuckets,
+}: {
+  colorBuckets: InventoryAnalyticsBucket[];
+  purityBuckets: InventoryAnalyticsBucket[];
+  categoryBuckets: InventoryAnalyticsBucket[];
+}): ProductMixSummaryCard[] {
+  return [
+    {
+      key: "YELLOW",
+      label: "Yellow",
+      count: findBucketCount(colorBuckets, (item) => item.key === "YELLOW"),
+      color: colorMixColors.yellow,
+    },
+    {
+      key: "ROSE",
+      label: "Rose",
+      count: findBucketCount(colorBuckets, (item) => item.key === "ROSE"),
+      color: colorMixColors.rose,
+    },
+    {
+      key: "WHITE",
+      label: "White",
+      count: findBucketCount(colorBuckets, (item) => item.key === "WHITE"),
+      color: colorMixColors.white,
+    },
+    {
+      key: "14K",
+      label: "14K",
+      count: findBucketCount(purityBuckets, (item) => item.key === "14"),
+      color: purityChartColors["14"],
+    },
+    {
+      key: "18K",
+      label: "18K",
+      count: findBucketCount(purityBuckets, (item) => item.key === "18"),
+      color: purityChartColors["18"],
+    },
+    {
+      key: "ACCESSORIES",
+      label: "Accessories",
+      count: findBucketCount(
+        categoryBuckets,
+        (item) =>
+          item.key.toLowerCase() === "accessory" ||
+          item.label.toLowerCase() === "accessory" ||
+          item.label.toLowerCase() === "accessories",
+      ),
+      color: locationChartColors[3],
+    },
+  ];
 }
 
 function getTopBucketsWithOther(
@@ -899,38 +963,43 @@ function CategoryLocationExplorer({
         {hasData ? (
           <div className="grid gap-4 xl:grid-cols-[minmax(18rem,0.9fr)_minmax(0,1.35fr)]">
             <div className="min-h-72 rounded-md border border-border/60 bg-muted/10 p-2">
-              <EvilBarChart
-                data={chartData}
-                config={chartConfig}
-                className="h-72 w-full p-2"
-                barRadius={5}
-                stackType="stacked"
-                chartProps={{
-                  margin: { top: 12, left: 4, right: 8, bottom: 22 },
-                }}
-              >
-                <Grid vertical={false} strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="label"
-                  interval={0}
-                  tickMargin={10}
-                  tickFormatter={getCategoryAbbreviation}
-                />
-                <YAxis width={58} />
-                <EvilBarTooltip variant="frosted-glass" />
-                {locations.map((location) => (
-                  <Bar
-                    key={location}
-                    dataKey={getLocationStackKey(location)}
-                    variant="default"
-                    enableHoverHighlight
-                    barProps={{
-                      name: location,
-                    }}
+              <div className="mx-auto max-w-[42rem]">
+                <EvilBarChart
+                  data={chartData}
+                  config={chartConfig}
+                  className="h-72 w-full p-2"
+                  barRadius={5}
+                  stackType="stacked"
+                  chartProps={{
+                    margin: { top: 12, left: 12, right: 12, bottom: 22 },
+                  }}
+                >
+                  <Grid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="label"
+                    interval={0}
+                    tickMargin={10}
+                    tickFormatter={getCategoryAbbreviation}
                   />
-                ))}
-              </EvilBarChart>
-              <ChartColorLegend items={legendItems} />
+                  <YAxis width={58} />
+                  <EvilBarTooltip variant="frosted-glass" />
+                  {locations.map((location) => (
+                    <Bar
+                      key={location}
+                      dataKey={getLocationStackKey(location)}
+                      variant="default"
+                      enableHoverHighlight
+                      barProps={{
+                        name: location,
+                      }}
+                    />
+                  ))}
+                </EvilBarChart>
+              </div>
+              <ChartColorLegend
+                items={legendItems}
+                className="justify-center"
+              />
             </div>
             <div className="overflow-x-auto rounded-md border border-border/60">
               <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
@@ -996,9 +1065,15 @@ function CategoryLocationExplorer({
 
 function ProductMixCard({
   cells,
+  colorBuckets,
+  purityBuckets,
+  categoryBuckets,
   totalProducts,
 }: {
   cells: InventoryAnalyticsColorPurityCell[];
+  colorBuckets: InventoryAnalyticsBucket[];
+  purityBuckets: InventoryAnalyticsBucket[];
+  categoryBuckets: InventoryAnalyticsBucket[];
   totalProducts: number;
 }) {
   const { rows, purityKeys } = useMemo(
@@ -1015,6 +1090,15 @@ function ProductMixCard({
       purityChartColors[purityKey as keyof typeof purityChartColors] ??
       purityChartColors.unknown,
   }));
+  const summaryCards = useMemo(
+    () =>
+      buildProductMixSummaryCards({
+        colorBuckets,
+        purityBuckets,
+        categoryBuckets,
+      }),
+    [colorBuckets, purityBuckets, categoryBuckets],
+  );
   const hasData = rows.length > 0 && purityKeys.length > 0;
 
   return (
@@ -1036,66 +1120,69 @@ function ProductMixCard({
         {hasData ? (
           <>
             <div className="min-h-72 rounded-md border border-border/60 bg-muted/10 p-2">
-              <EvilBarChart
-                data={rows}
-                config={chartConfig}
-                className="h-72 w-full p-2"
-                barRadius={5}
-                stackType="stacked"
-                chartProps={{
-                  margin: { top: 12, left: 4, right: 8, bottom: 22 },
-                }}
-              >
-                <Grid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="label" interval={0} tickMargin={10} />
-                <YAxis width={58} />
-                <EvilBarTooltip variant="frosted-glass" />
-                {purityKeys.map((purityKey) => {
-                  const dataKey = getPurityStackKey(
-                    purityKey === "unknown" ? null : purityKey,
-                  );
-                  return (
-                    <Bar
-                      key={dataKey}
-                      dataKey={dataKey}
-                      variant="default"
-                      enableHoverHighlight
-                      barProps={{
-                        name:
-                          purityKey === "unknown" ? "Unknown" : `${purityKey}K`,
-                      }}
-                    />
-                  );
-                })}
-              </EvilBarChart>
-              <ChartColorLegend items={legendItems} />
+              <div className="mx-auto max-w-[44rem]">
+                <EvilBarChart
+                  data={rows}
+                  config={chartConfig}
+                  className="h-72 w-full p-2"
+                  barRadius={5}
+                  stackType="stacked"
+                  chartProps={{
+                    margin: { top: 12, left: 12, right: 12, bottom: 22 },
+                  }}
+                >
+                  <Grid vertical={false} strokeDasharray="3 3" />
+                  <XAxis dataKey="label" interval={0} tickMargin={10} />
+                  <YAxis width={58} />
+                  <EvilBarTooltip variant="frosted-glass" />
+                  {purityKeys.map((purityKey) => {
+                    const dataKey = getPurityStackKey(
+                      purityKey === "unknown" ? null : purityKey,
+                    );
+                    return (
+                      <Bar
+                        key={dataKey}
+                        dataKey={dataKey}
+                        variant="default"
+                        enableHoverHighlight
+                        barProps={{
+                          name:
+                            purityKey === "unknown"
+                              ? "Unknown"
+                              : `${purityKey}K`,
+                        }}
+                      />
+                    );
+                  })}
+                </EvilBarChart>
+              </div>
+              <ChartColorLegend
+                items={legendItems}
+                className="justify-center"
+              />
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {rows.map((row) => (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {summaryCards.map((card) => (
                 <div
-                  key={row.key}
+                  key={card.key}
                   className="rounded-md border border-border/80 bg-muted/20 px-3 py-2.5"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
                       <span
                         className="size-2.5 shrink-0 rounded-sm"
-                        style={{
-                          backgroundColor: getColorTone(
-                            row.key as ProductColor,
-                          ),
-                        }}
+                        style={{ backgroundColor: card.color }}
                       />
                       <span className="truncate text-sm font-medium text-foreground">
-                        {row.label}
+                        {card.label}
                       </span>
                     </div>
                     <Badge variant="secondary" className="rounded-md">
-                      {formatNumber(row.total)}
+                      {formatNumber(card.count)}
                     </Badge>
                   </div>
                   <p className="mt-1.5 text-xs text-muted-foreground">
-                    {getPercent(row.total, totalProducts)} of products
+                    {getPercent(card.count, totalProducts)} of products
                   </p>
                 </div>
               ))}
@@ -1293,6 +1380,9 @@ export function ProductAnalyticsPageClient() {
             />
             <ProductMixCard
               cells={analytics.breakdowns.byColorPurity}
+              colorBuckets={analytics.breakdowns.byColor}
+              purityBuckets={analytics.breakdowns.byPurity}
+              categoryBuckets={analytics.breakdowns.byCategory}
               totalProducts={analytics.summary.totalProducts}
             />
           </div>
