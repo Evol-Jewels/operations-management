@@ -1657,92 +1657,94 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <SectionShell
-      icon={<ReceiptText className="h-5 w-5" />}
-      title="System Config"
-      description="View and update GST and making values from system config keys."
-      onBack={onBack}
-      action={
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => void systemConfigsQuery.refetch()}
-          className="gap-2"
-          disabled={systemConfigsQuery.isFetching}
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
-      }
-    >
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {systemConfigsQuery.isLoading ? <LoadingRows count={3} /> : null}
-        {systemConfigsQuery.isError ? (
-          <ErrorPanel
-            message={getErrorMessage(
-              systemConfigsQuery.error,
-              "Could not load system configs.",
-            )}
-            onRetry={() => void systemConfigsQuery.refetch()}
-          />
-        ) : null}
+    <div id="system-config" className="min-h-0 flex-1 scroll-mt-4">
+      <SectionShell
+        icon={<ReceiptText className="h-5 w-5" />}
+        title="System Config"
+        description="View and update GST and making values from system config keys."
+        onBack={onBack}
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void systemConfigsQuery.refetch()}
+            className="gap-2"
+            disabled={systemConfigsQuery.isFetching}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        }
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {systemConfigsQuery.isLoading ? <LoadingRows count={3} /> : null}
+          {systemConfigsQuery.isError ? (
+            <ErrorPanel
+              message={getErrorMessage(
+                systemConfigsQuery.error,
+                "Could not load system configs.",
+              )}
+              onRetry={() => void systemConfigsQuery.refetch()}
+            />
+          ) : null}
 
-        {!systemConfigsQuery.isLoading && !systemConfigsQuery.isError ? (
-          sortedConfigs.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border py-10 text-center">
-              <p className="text-sm text-muted-foreground">
-                No miscellaneous config keys found.
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {sortedConfigs.map((config) => (
-                <button
-                  key={config.id}
-                  type="button"
-                  onClick={() => setEditingConfig(config)}
-                  className="group rounded-xl border border-border bg-card p-4 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {formatSystemConfigLabel(config.key)}
-                      </p>
-                      <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-foreground">
-                        {formatSystemConfigValue(config)}
-                      </p>
+          {!systemConfigsQuery.isLoading && !systemConfigsQuery.isError ? (
+            sortedConfigs.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border py-10 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No miscellaneous config keys found.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {sortedConfigs.map((config) => (
+                  <button
+                    key={config.id}
+                    type="button"
+                    onClick={() => setEditingConfig(config)}
+                    className="group rounded-xl border border-border bg-card p-4 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-muted-foreground">
+                          {formatSystemConfigLabel(config.key)}
+                        </p>
+                        <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-foreground">
+                          {formatSystemConfigValue(config)}
+                        </p>
+                      </div>
+                      <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
                     </div>
-                    <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
-                  </div>
 
-                  {config.description ? (
-                    <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
-                      {config.description}
-                    </p>
-                  ) : null}
+                    {config.description ? (
+                      <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+                        {config.description}
+                      </p>
+                    ) : null}
 
-                  <div className="mt-4 flex items-center justify-end gap-3 text-xs text-muted-foreground">
-                    <span>
-                      {new Date(config.updatedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )
-        ) : null}
-      </div>
+                    <div className="mt-4 flex items-center justify-end gap-3 text-xs text-muted-foreground">
+                      <span>
+                        {new Date(config.updatedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )
+          ) : null}
+        </div>
 
-      <SystemConfigDialog
-        config={editingConfig}
-        open={!!editingConfig}
-        isSubmitting={updateSystemConfig.isPending}
-        onOpenChange={(open) => {
-          if (!open) setEditingConfig(null);
-        }}
-        onSubmit={submitConfig}
-      />
-    </SectionShell>
+        <SystemConfigDialog
+          config={editingConfig}
+          open={!!editingConfig}
+          isSubmitting={updateSystemConfig.isPending}
+          onOpenChange={(open) => {
+            if (!open) setEditingConfig(null);
+          }}
+          onSubmit={submitConfig}
+        />
+      </SectionShell>
+    </div>
   );
 }
 
@@ -1759,12 +1761,14 @@ export function ManageProductsAndPricePageClient() {
   }
 
   const activeTab = searchParams.get("tab");
+  const hashSection =
+    typeof window === "undefined" ? "" : window.location.hash.slice(1);
   const activeSection: ManageSection =
     activeTab === "stores"
       ? "locations"
       : activeTab === "stones"
         ? "stones-slabs"
-        : activeTab === "system"
+        : activeTab === "system" || hashSection === "system-config"
           ? "misc"
           : "overview";
 

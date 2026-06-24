@@ -1,13 +1,31 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchSystemConfigs, updateSystemConfig } from "@/lib/systemConfigApi";
+import {
+  fetchGoldRate,
+  fetchSystemConfigs,
+  updateSystemConfig,
+} from "@/lib/systemConfigApi";
 import type { UpdateSystemConfigInput } from "@/types";
 
 export const systemConfigKeys = {
   all: ["system-configs"] as const,
   list: () => [...systemConfigKeys.all, "list"] as const,
 };
+
+export const goldRateKeys = {
+  all: ["gold-rate"] as const,
+};
+
+export function useGoldRate(enabled = true) {
+  return useQuery({
+    queryKey: goldRateKeys.all,
+    queryFn: fetchGoldRate,
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
 
 export function useSystemConfigs(
   enabled = true,
