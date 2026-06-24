@@ -251,14 +251,14 @@ interface NormalizedItem {
 function ProductCard({
   item,
   settings,
-  isClosed,
+  isFinalized,
   canManageEstimations,
   isSavingEstimation,
   onSaveEstimation,
 }: {
   item: NormalizedItem;
   settings: CalculatorSettings;
-  isClosed: boolean;
+  isFinalized: boolean;
   canManageEstimations: boolean;
   isSavingEstimation?: boolean;
   onSaveEstimation: (estimation: ProductEstimation) => void;
@@ -371,7 +371,7 @@ function ProductCard({
           </dl>
         ) : null}
 
-        {!isClosed && canManageEstimations ? (
+        {!isFinalized && canManageEstimations ? (
           <div className="mt-auto pt-4">
             <EnquiryEstimationDialog
               productId={item.id}
@@ -392,19 +392,19 @@ function ProductCard({
 function ProductTable({
   items,
   settings,
-  isClosed,
+  isFinalized,
   canManageEstimations,
   isSavingEstimation,
   onSaveEstimation,
 }: {
   items: NormalizedItem[];
   settings: CalculatorSettings;
-  isClosed: boolean;
+  isFinalized: boolean;
   canManageEstimations: boolean;
   isSavingEstimation?: boolean;
   onSaveEstimation: (estimation: ProductEstimation) => void;
 }) {
-  const showActions = !isClosed && canManageEstimations;
+  const showActions = !isFinalized && canManageEstimations;
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -473,7 +473,7 @@ interface EnquiryProductListProps {
   selectedProducts: EnquirySelectedProduct[];
   customProducts: EnquiryCustomProduct[];
   estimations: ProductEstimation[];
-  isClosed: boolean;
+  isFinalized: boolean;
   canManageEstimations: boolean;
   isSavingEstimation?: boolean;
   onSaveEstimation: (estimation: ProductEstimation) => void;
@@ -483,7 +483,7 @@ export function EnquiryProductList({
   selectedProducts,
   customProducts,
   estimations,
-  isClosed,
+  isFinalized,
   canManageEstimations,
   isSavingEstimation,
   onSaveEstimation,
@@ -624,7 +624,7 @@ export function EnquiryProductList({
         <ProductTable
           items={filteredItems}
           settings={settings}
-          isClosed={isClosed}
+          isFinalized={isFinalized}
           canManageEstimations={canManageEstimations}
           isSavingEstimation={isSavingEstimation}
           onSaveEstimation={onSaveEstimation}
@@ -636,7 +636,7 @@ export function EnquiryProductList({
               key={item.id}
               item={item}
               settings={settings}
-              isClosed={isClosed}
+              isFinalized={isFinalized}
               canManageEstimations={canManageEstimations}
               isSavingEstimation={isSavingEstimation}
               onSaveEstimation={onSaveEstimation}

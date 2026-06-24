@@ -27,6 +27,12 @@ export function isEnquiryClosed(order: Order): boolean {
   return order.enquiryStatus === "CLOSED";
 }
 
+export function isEnquiryFinalized(order: Order): boolean {
+  return (
+    order.enquiryStatus === "CLOSED" || order.enquiryStatus === "CONVERTED"
+  );
+}
+
 export function getRecordStatus(order: Order): string {
   if (order.type === "enquiry") return getOrderEnquiryUiStatus(order);
   return order.currentStage;

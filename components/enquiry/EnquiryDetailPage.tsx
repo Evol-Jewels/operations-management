@@ -38,7 +38,7 @@ import {
   isEnquiryClosed,
 } from "@/lib/enquiryStatus";
 import { getInitials } from "@/lib/people";
-import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import type { Order, ProductEstimation } from "@/types";
 
 function enquiryStatusBadgeClass(status: EnquiryUiStatus): string {
@@ -267,6 +267,8 @@ export function EnquiryDetailPage({
   isClosingEnquiry,
 }: EnquiryDetailPageProps) {
   const isClosed = isEnquiryClosed(order);
+  const isConverted = order.enquiryStatus === "CONVERTED";
+  const isFinalized = isClosed || isConverted;
   const enquiryStatus = getOrderEnquiryUiStatus(order);
   const stage = deriveEnquiryStage(order);
   const selectedProducts = order.selectedProducts ?? [];
@@ -354,7 +356,7 @@ export function EnquiryDetailPage({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            {!isClosed && canConvertToOrder ? (
+            {!isFinalized && canConvertToOrder ? (
               <Button
                 size="sm"
                 asChild
@@ -367,7 +369,7 @@ export function EnquiryDetailPage({
                 </Link>
               </Button>
             ) : null}
-            {!isClosed ? (
+            {!isFinalized ? (
               <>
                 <Button
                   type="button"
@@ -426,7 +428,7 @@ export function EnquiryDetailPage({
               selectedProducts={selectedProducts}
               customProducts={customProducts}
               estimations={estimations}
-              isClosed={isClosed}
+              isFinalized={isFinalized}
               canManageEstimations={canManageEstimations}
               onSaveEstimation={handleSaveEstimation}
               isSavingEstimation={isSavingEstimation}
@@ -450,26 +452,20 @@ export function EnquiryDetailPage({
 
             <div className="border-t border-dashed border-border" />
 
-            {!isClosed ? (
-              <div className="pt-4">
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
-                  Post an update
+            <div className="pt-4">
+              <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                Post an update
+              </p>
+              <ComposeBox
+                onSubmit={handlePostUpdate}
+                isSubmitting={isPostingUpdate}
+              />
+              {isPostingUpdate ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Posting update...
                 </p>
-                <ComposeBox
-                  onSubmit={handlePostUpdate}
-                  isSubmitting={isPostingUpdate}
-                />
-                {isPostingUpdate ? (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Posting update...
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <div className="py-5 text-center text-sm text-muted-foreground">
-                This enquiry is closed. No new updates can be posted.
-              </div>
-            )}
+              ) : null}
+            </div>
 
             <div id="timeline-end" />
           </section>
