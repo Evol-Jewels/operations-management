@@ -18,13 +18,14 @@ import type {
 
 const ORDER_STATUS_TO_STAGE: Record<BackendOrderStatus, Stage> = {
   NEW: "New",
+  IN_PRODUCTION: "In Production",
   CAD_DESIGN: "CAD Design",
-  MANUFACTURING: "Manufacturing",
-  CERTIFICATION: "Certification",
-  IN_STORE: "At Store",
   IN_TRANSIT: "In Transit",
+  CERTIFICATION: "Certification",
+  AT_STORE: "At Store",
   DELIVERED: "Delivered",
   CLOSED: "Closed",
+  CANCELLED: "Cancelled",
 };
 
 function normalizeMetalType(value?: string | null): MetalType {
@@ -139,6 +140,7 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
       currentStage: mapBackendOrderStatusToStage(order.status),
       createdAt: order.createdAt,
       lastUpdatedAt: order.updatedAt,
+      orderStatus: order.status,
       activityFeed: [],
       sourceEnquiryId:
         order.sourceEnquiry !== null && order.sourceEnquiry !== undefined
@@ -176,6 +178,7 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
     currentStage: mapBackendOrderStatusToStage(order.status),
     createdAt: order.createdAt,
     lastUpdatedAt: order.updatedAt,
+    orderStatus: order.status,
     activityFeed: [],
     sourceEnquiryId:
       order.sourceEnquiry !== null && order.sourceEnquiry !== undefined

@@ -4,6 +4,7 @@ import type {
   CreateOrdersInput,
   CreateOrdersResponse,
   ListOrdersQuery,
+  UpdateOrderStatusInput,
   UpdateOrderInput,
   UpdateOrderResponse,
 } from "@/types/order-api";
@@ -90,6 +91,20 @@ export function createOrders(input: CreateOrdersInput) {
 export function updateOrder(refCode: string | number, input: UpdateOrderInput) {
   return apiFetch<UpdateOrderResponse>(
     buildUrl(`api/v1/orders/ref/${refCode}`),
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function updateOrderStatus(
+  refCode: string | number,
+  input: UpdateOrderStatusInput,
+) {
+  return apiFetch<UpdateOrderResponse>(
+    buildUrl(`api/v1/orders/ref/${refCode}/status`),
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

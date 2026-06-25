@@ -4,6 +4,7 @@ import { ArrowLeft, Check, Copy } from "lucide-react";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
 import { ActivityTimeline } from "@/components/order/ActivityTimeline";
 import { CloseEnquiryDialog } from "@/components/order/CloseEnquiryDialog";
@@ -15,11 +16,56 @@ import { ProductionSpecCard } from "@/components/order/ProductionSpecCard";
 import { StageBar } from "@/components/order/StageBar";
 import { StageHint } from "@/components/order/StageHint";
 import { Button } from "@/components/ui/button";
-import { orderKeys, useOrderDetails } from "@/hooks/useOrders";
+import {
+  orderKeys,
+  useOrderDetails,
+  useUpdateOrderStatus,
+} from "@/hooks/useOrders";
+import { useMyInternalProfile } from "@/hooks/useInternalProfile";
 import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
 import { mapBackendOrderDetailsToOrder } from "@/lib/orderMappers";
 import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
 import type { ActorRole, Order } from "@/types";
+import type { BackendOrderStatus } from "@/types/order-api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const ORDER_STATUS_OPTIONS: Array<{
+  value: BackendOrderStatus;
+  label: string;
+}> = [
+  { value: "NEW", label: "New" },
+  { value: "IN_PRODUCTION", label: "In Production" },
+  { value: "CAD_DESIGN", label: "CAD Design" },
+  { value: "IN_TRANSIT", label: "In Transit" },
+  { value: "CERTIFICATION", label: "Certification" },
+  { value: "AT_STORE", label: "At Store" },
+  { value: "DELIVERED", label: "Delivered" },
+  { value: "CLOSED", label: "Closed" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
+const LOCKED_ORDER_STATUSES = new Set<BackendOrderStatus>([
+  "DELIVERED",
+  "CLOSED",
+  "CANCELLED",
+]);
+
+function getOrderStatusLabel(status: BackendOrderStatus): string {
+  return (
+    ORDER_STATUS_OPTIONS.find((option) => option.value === status)?.label ??
+    status
+  );
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
 
 // ─── Copy link button ─────────────────────────────────────────────────────────
 
@@ -49,6 +95,64 @@ function CopyLinkButton() {
         </>
       )}
     </Button>
+  );
+}
+
+function OrderStatusControl({
+  refCode,
+  status,
+  canUpdate,
+}: {
+  refCode: string | number;
+  status?: BackendOrderStatus;
+  canUpdate: boolean;
+}) {
+  const updateStatus = useUpdateOrderStatus(refCode);
+
+  if (!status) return null;
+
+  const isLocked = LOCKED_ORDER_STATUSES.has(status);
+  const label = getOrderStatusLabel(status);
+
+  if (!canUpdate) {
+    return (
+      <span className="inline-flex h-8 items-center rounded-md border border-border bg-muted/30 px-2.5 text-xs font-medium text-muted-foreground">
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <Select
+      value={status}
+      disabled={isLocked || updateStatus.isPending}
+      onValueChange={async (nextStatus) => {
+        const typedStatus = nextStatus as BackendOrderStatus;
+        if (typedStatus === status) return;
+
+        try {
+          await updateStatus.mutateAsync({ status: typedStatus });
+          toast.success(`Order status changed to ${getOrderStatusLabel(typedStatus)}`);
+        } catch (error) {
+          toast.error(getErrorMessage(error, "Could not update order status"));
+        }
+      }}
+    >
+      <SelectTrigger
+        size="sm"
+        className="h-8 min-w-36 text-xs"
+        title={isLocked ? "Delivered, closed, and cancelled orders are locked" : undefined}
+      >
+        <SelectValue placeholder="Status" />
+      </SelectTrigger>
+      <SelectContent align="end">
+        {ORDER_STATUS_OPTIONS.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -114,6 +218,10 @@ export default function OrderPage() {
   const refCode = params.token as string;
   const numericRefCode = Number(refCode);
   const orderQuery = useOrderDetails(refCode);
+  const profileQuery = useMyInternalProfile();
+  const sessionRole = profileQuery.data?.profile?.role;
+  const canUpdateOrderStatus =
+    sessionRole === "OPERATIONS" || sessionRole === "ADMIN";
   const commentsQuery = useComments("ORDER", numericRefCode);
   const createCommentMutation = useCreateComment("ORDER", numericRefCode, {
     invalidateQueryKeys: [orderKeys.detail(refCode)],
@@ -211,6 +319,11 @@ export default function OrderPage() {
           )}
           {/* Actions — pushed right, wraps on mobile if needed */}
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            <OrderStatusControl
+              refCode={refCode}
+              status={order.orderStatus}
+              canUpdate={canUpdateOrderStatus}
+            />
             {order.type === "enquiry" && order.status !== "closed" && (
               <CloseEnquiryDialog orderId={order.id} />
             )}

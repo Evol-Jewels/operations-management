@@ -656,7 +656,8 @@ function getOpsAnalytics(orders: Order[]) {
     (order) =>
       order.type === "order" &&
       order.currentStage !== "Delivered" &&
-      order.currentStage !== "Closed",
+      order.currentStage !== "Closed" &&
+      order.currentStage !== "Cancelled",
   );
   const openEnquiries = orders.filter(
     (order) => order.type === "enquiry" && !isEnquiryFinalized(order),
@@ -1003,7 +1004,8 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
         (o) =>
           o.type === "order" &&
           o.currentStage !== "Delivered" &&
-          o.currentStage !== "Closed",
+          o.currentStage !== "Closed" &&
+          o.currentStage !== "Cancelled",
       )
       .sort(
         (a, b) =>

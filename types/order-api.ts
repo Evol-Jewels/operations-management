@@ -2,13 +2,14 @@ import type { BackendActivityLog } from "@/types/activity-api";
 
 export type BackendOrderStatus =
   | "NEW"
+  | "IN_PRODUCTION"
   | "CAD_DESIGN"
-  | "MANUFACTURING"
-  | "CERTIFICATION"
-  | "IN_STORE"
   | "IN_TRANSIT"
+  | "CERTIFICATION"
+  | "AT_STORE"
   | "DELIVERED"
-  | "CLOSED";
+  | "CLOSED"
+  | "CANCELLED";
 
 export type BackendOrderProductType = "EXISTING" | "CUSTOM";
 
@@ -152,11 +153,14 @@ export interface ListOrdersQuery {
 }
 
 export interface UpdateOrderInput {
-  status?: BackendOrderStatus;
   estimatedDeliveryDate?: string | null;
   vendor?: string | null;
   notes?: string | null;
   isCadRequired?: boolean;
+}
+
+export interface UpdateOrderStatusInput {
+  status: BackendOrderStatus;
 }
 
 export interface CreateOrdersResponse {

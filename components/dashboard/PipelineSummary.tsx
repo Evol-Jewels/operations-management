@@ -23,12 +23,13 @@ const STAGE_SHORT: Record<Stage, string> = {
   New: "New",
   "CAD Design": "CAD",
   "Order Confirmed": "Confirmed",
-  Manufacturing: "Mfg.",
+  "In Production": "Prod.",
   Certification: "Certify",
   "At Store": "Store",
   "In Transit": "Transit",
   Delivered: "Delivered",
   Closed: "Closed",
+  Cancelled: "Cancelled",
 };
 
 export function PipelineSummary({
@@ -106,8 +107,8 @@ export function PipelineSummary({
           })}
         </div>
 
-        {/* Desktop: 8-column grid */}
-        <div className="hidden sm:grid sm:grid-cols-8 gap-1.5">
+        {/* Desktop: responsive grid */}
+        <div className="hidden sm:grid sm:grid-cols-[repeat(auto-fit,minmax(72px,1fr))] gap-1.5">
           {STAGES.map((stage) => {
             const count = stageCounts[stage] ?? 0;
             const isActive = activeFilter === stage;

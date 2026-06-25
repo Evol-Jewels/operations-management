@@ -57,9 +57,9 @@ const STAGE_HINTS: Partial<Record<Stage, StageHintDef>> = {
     actor: "vendor",
     tone: "action",
   },
-  Manufacturing: {
+  "In Production": {
     icon: Package,
-    title: "Manufacturing",
+    title: "In production",
     body: "Vendor: post progress updates at key milestones. Move to Certification once the piece is complete.",
     actor: "vendor",
     tone: "info",
@@ -96,6 +96,13 @@ const STAGE_HINTS: Partial<Record<Stage, StageHintDef>> = {
     icon: CheckCircle2,
     title: "Closed",
     body: "Order is closed. Activity remains available for reference.",
+    actor: "sales",
+    tone: "neutral",
+  },
+  Cancelled: {
+    icon: CheckCircle2,
+    title: "Cancelled",
+    body: "Order is cancelled. Activity remains available for reference.",
     actor: "sales",
     tone: "neutral",
   },

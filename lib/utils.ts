@@ -125,7 +125,11 @@ export function isTerminalRecord(order: Order): boolean {
     );
   }
 
-  return order.currentStage === "Delivered" || order.currentStage === "Closed";
+  return (
+    order.currentStage === "Delivered" ||
+    order.currentStage === "Closed" ||
+    order.currentStage === "Cancelled"
+  );
 }
 
 // ─── Risk signal helpers ──────────────────────────────────────────────────────

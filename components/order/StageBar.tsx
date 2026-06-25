@@ -13,12 +13,13 @@ export function StageBar({ currentStage, cadDesignRequired }: StageBarProps) {
   const orderStages: Stage[] = [
     "New",
     "CAD Design",
-    "Manufacturing",
+    "In Production",
     "Certification",
     "At Store",
     "In Transit",
     "Delivered",
     "Closed",
+    "Cancelled",
   ];
   const enquiryStages: Stage[] = [
     "Enquiry",
