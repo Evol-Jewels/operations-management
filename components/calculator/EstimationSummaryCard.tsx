@@ -121,9 +121,9 @@ export function EstimationSummaryCard({
   const hasStones = summary.stoneDetails.some((stone) => stone.weight > 0);
   const displayName = summary.name || "";
   const displayCode = summary.code.trim();
-  const displaySubtotal = Math.round(summary.subTotal);
-  const displayGst = Math.round(summary.gst);
-  const displayTotal = displaySubtotal + displayGst;
+  const displaySubtotal = summary.subTotal;
+  const displayGst = summary.gst;
+  const displayTotal = summary.total;
 
   async function downloadSummary() {
     if (!cardRef.current) return;

@@ -17,16 +17,14 @@ import { StageBar } from "@/components/order/StageBar";
 import { StageHint } from "@/components/order/StageHint";
 import { Button } from "@/components/ui/button";
 import {
-  orderKeys,
-  useOrderDetails,
-  useUpdateOrderStatus,
-} from "@/hooks/useOrders";
-import { useMyInternalProfile } from "@/hooks/useInternalProfile";
-import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
-import { mapBackendOrderDetailsToOrder } from "@/lib/orderMappers";
-import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
-import type { ActorRole, Order } from "@/types";
-import type { BackendOrderStatus } from "@/types/order-api";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -34,6 +32,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useMyInternalProfile } from "@/hooks/useInternalProfile";
+import {
+  orderKeys,
+  useOrderDetails,
+  useUpdateOrderStatus,
+} from "@/hooks/useOrders";
+import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
+import { mapBackendOrderDetailsToOrder } from "@/lib/orderMappers";
+import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
+import type { ActorRole, Order } from "@/types";
+import type { BackendOrderStatus } from "@/types/order-api";
 
 const ORDER_STATUS_OPTIONS: Array<{
   value: BackendOrderStatus;
@@ -51,7 +61,11 @@ const ORDER_STATUS_OPTIONS: Array<{
 ];
 
 const LOCKED_ORDER_STATUSES = new Set<BackendOrderStatus>([
-  "DELIVERED",
+  "CLOSED",
+  "CANCELLED",
+]);
+
+const NOTE_REQUIRED_STATUSES = new Set<BackendOrderStatus>([
   "CLOSED",
   "CANCELLED",
 ]);
@@ -108,11 +122,48 @@ function OrderStatusControl({
   canUpdate: boolean;
 }) {
   const updateStatus = useUpdateOrderStatus(refCode);
+  const createCommentMutation = useCreateComment("ORDER", Number(refCode), {
+    invalidateQueryKeys: [orderKeys.detail(refCode)],
+  });
+  const [pendingStatus, setPendingStatus] = useState<BackendOrderStatus | null>(
+    null,
+  );
+  const [statusNote, setStatusNote] = useState("");
 
   if (!status) return null;
 
   const isLocked = LOCKED_ORDER_STATUSES.has(status);
   const label = getOrderStatusLabel(status);
+  const pendingStatusLabel = pendingStatus
+    ? getOrderStatusLabel(pendingStatus)
+    : "";
+  const isUpdating = updateStatus.isPending || createCommentMutation.isPending;
+
+  async function handleStatusChange(nextStatus: BackendOrderStatus) {
+    try {
+      await updateStatus.mutateAsync({ status: nextStatus });
+      toast.success(
+        `Order status changed to ${getOrderStatusLabel(nextStatus)}`,
+      );
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not update order status"));
+    }
+  }
+
+  async function handleConfirmTerminalStatus() {
+    const note = statusNote.trim();
+    if (!pendingStatus || !note) return;
+
+    try {
+      await updateStatus.mutateAsync({ status: pendingStatus });
+      await createCommentMutation.mutateAsync(note);
+      toast.success(`Order status changed to ${pendingStatusLabel}`);
+      setPendingStatus(null);
+      setStatusNote("");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not update order status"));
+    }
+  }
 
   if (!canUpdate) {
     return (
@@ -123,36 +174,93 @@ function OrderStatusControl({
   }
 
   return (
-    <Select
-      value={status}
-      disabled={isLocked || updateStatus.isPending}
-      onValueChange={async (nextStatus) => {
-        const typedStatus = nextStatus as BackendOrderStatus;
-        if (typedStatus === status) return;
+    <>
+      <Select
+        value={status}
+        disabled={isLocked || isUpdating}
+        onValueChange={(nextStatus) => {
+          const typedStatus = nextStatus as BackendOrderStatus;
+          if (typedStatus === status) return;
 
-        try {
-          await updateStatus.mutateAsync({ status: typedStatus });
-          toast.success(`Order status changed to ${getOrderStatusLabel(typedStatus)}`);
-        } catch (error) {
-          toast.error(getErrorMessage(error, "Could not update order status"));
-        }
-      }}
-    >
-      <SelectTrigger
-        size="sm"
-        className="h-8 min-w-36 text-xs"
-        title={isLocked ? "Delivered, closed, and cancelled orders are locked" : undefined}
+          if (NOTE_REQUIRED_STATUSES.has(typedStatus)) {
+            setPendingStatus(typedStatus);
+            setStatusNote("");
+            return;
+          }
+
+          void handleStatusChange(typedStatus);
+        }}
       >
-        <SelectValue placeholder="Status" />
-      </SelectTrigger>
-      <SelectContent align="end">
-        {ORDER_STATUS_OPTIONS.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+        <SelectTrigger
+          size="sm"
+          className="h-8 min-w-36 text-xs"
+          title={
+            isLocked ? "Closed and cancelled orders are locked" : undefined
+          }
+        >
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent align="end">
+          {ORDER_STATUS_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Dialog
+        open={Boolean(pendingStatus)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setPendingStatus(null);
+          setStatusNote("");
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mark order as {pendingStatusLabel}</DialogTitle>
+            <DialogDescription>
+              Add the required note for this status change. It will be posted to
+              the order activity as a comment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="terminal-status-note">
+              Notes <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="terminal-status-note"
+              value={statusNote}
+              onChange={(event) => setStatusNote(event.target.value)}
+              placeholder="Add the closing or cancellation note..."
+              rows={4}
+              disabled={isUpdating}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isUpdating}
+              onClick={() => {
+                setPendingStatus(null);
+                setStatusNote("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!statusNote.trim() || isUpdating}
+              onClick={handleConfirmTerminalStatus}
+            >
+              {isUpdating ? "Saving..." : `Mark as ${pendingStatusLabel}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -241,6 +349,8 @@ export default function OrderPage() {
 
   const urgency = getUrgencyLevel(order.deliveryDate);
   const daysLabel = formatDaysRemaining(order.deliveryDate);
+  const isTerminalOrder =
+    order.orderStatus === "CLOSED" || order.orderStatus === "CANCELLED";
 
   async function handlePostUpdate({ message }: { message: string }) {
     const note = message.trim();
@@ -301,7 +411,7 @@ export default function OrderPage() {
             </span>
           )}
           {/* Urgency */}
-          {order.deliveryDate && (
+          {order.deliveryDate && !isTerminalOrder && (
             <span
               className={cn(
                 "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
@@ -342,12 +452,14 @@ export default function OrderPage() {
       </div>
 
       {/* ── Stage Bar ────────────────────────────────────────────────── */}
-      <div className="mb-5 rounded-xl border border-border bg-card px-5 py-4">
-        <StageBar
-          currentStage={order.currentStage}
-          cadDesignRequired={order.cadDesignRequired}
-        />
-      </div>
+      {order.orderStatus !== "CANCELLED" && (
+        <div className="mb-5 rounded-xl border border-border bg-card px-5 py-4">
+          <StageBar
+            currentStage={order.currentStage}
+            cadDesignRequired={order.cadDesignRequired}
+          />
+        </div>
+      )}
 
       {/* ── Production Spec Card — vendor-facing work order summary ─────── */}
       {order.type === "order" && (
