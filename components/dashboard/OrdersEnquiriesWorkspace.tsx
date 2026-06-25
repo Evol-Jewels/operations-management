@@ -43,8 +43,6 @@ import { authClient } from "@/lib/auth-client";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
 import {
   ENQUIRY_STATUS_LABELS,
-  type EnquiryUiStatus,
-  getOrderEnquiryUiStatus,
   getRecordStatus,
 } from "@/lib/enquiryStatus";
 import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
@@ -72,12 +70,13 @@ const ENQUIRY_STATUS_OPTIONS = [
 const ORDER_STAGES = [
   "New",
   "CAD Design",
-  "Manufacturing",
+  "In Production",
   "Certification",
   "At Store",
   "In Transit",
   "Delivered",
   "Closed",
+  "Cancelled",
 ] as const;
 const ORDER_STATUS_OPTIONS = ["all", ...ORDER_STAGES] as const;
 const ORDER_KANBAN_COLUMNS: KanbanColumnConfig[] = ORDER_STAGES.map(
@@ -133,12 +132,12 @@ function isWithinDateFilter(date: string, filter: DateFilter) {
   return created >= cutoff;
 }
 
-function getKanbanStatus(record: Order): EnquiryUiStatus {
-  return getOrderEnquiryUiStatus(record);
+function getKanbanStatus(record: Order): string {
+  return getRecordStatus(record);
 }
 
 function statusBadgeClass(status: string) {
-  if (status === "Closed" || status === "Delivered") {
+  if (status === "Closed" || status === "Delivered" || status === "Cancelled") {
     return "border-muted-foreground/20 bg-muted text-foreground dark:border-muted-foreground/20 dark:bg-muted/50";
   }
   if (status === "Converted" || status === "Order Confirmed") {
@@ -153,7 +152,7 @@ function statusBadgeClass(status: string) {
   if (status === "In Progress") {
     return "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-400";
   }
-  if (status === "Manufacturing" || status === "Certification") {
+  if (status === "In Production" || status === "Certification") {
     return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400";
   }
   return "border-border bg-muted text-muted-foreground";

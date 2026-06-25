@@ -470,7 +470,7 @@ function ProductDetail({
               <InventoryStat label="Location" value={product.location.city} />
               <InventoryStat
                 label="Price"
-                value={formatCurrency(Math.round(estimateResult.pricing.total))}
+                value={formatCurrency(estimateResult.pricing.total)}
                 emphasis
                 onClick={scrollToEstimation}
               />

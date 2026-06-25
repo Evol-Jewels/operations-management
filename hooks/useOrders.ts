@@ -7,10 +7,12 @@ import {
   fetchOrderDetails,
   fetchOrders,
   updateOrder,
+  updateOrderStatus,
 } from "@/lib/ordersApi";
 import type {
   CreateOrdersInput,
   ListOrdersQuery,
+  UpdateOrderStatusInput,
   UpdateOrderInput,
 } from "@/types/order-api";
 
@@ -59,6 +61,21 @@ export function useUpdateOrder(refCode: string | number) {
 
   return useMutation({
     mutationFn: (input: UpdateOrderInput) => updateOrder(refCode, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+      void queryClient.invalidateQueries({
+        queryKey: orderKeys.detail(refCode),
+      });
+    },
+  });
+}
+
+export function useUpdateOrderStatus(refCode: string | number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateOrderStatusInput) =>
+      updateOrderStatus(refCode, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
       void queryClient.invalidateQueries({

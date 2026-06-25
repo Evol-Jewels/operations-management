@@ -118,6 +118,20 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+export function isTerminalRecord(order: Order): boolean {
+  if (order.type === "enquiry") {
+    return (
+      order.enquiryStatus === "CLOSED" || order.enquiryStatus === "CONVERTED"
+    );
+  }
+
+  return (
+    order.currentStage === "Delivered" ||
+    order.currentStage === "Closed" ||
+    order.currentStage === "Cancelled"
+  );
+}
+
 // ─── Risk signal helpers ──────────────────────────────────────────────────────
 
 /**
@@ -177,7 +191,7 @@ export function getDaysInCurrentStage(order: Order): number {
  */
 export function computeRiskSignal(order: Order): RiskSignal {
   // Terminal stage — no risk signals
-  if (order.currentStage === "Delivered" || order.currentStage === "Closed") {
+  if (isTerminalRecord(order)) {
     return null;
   }
 

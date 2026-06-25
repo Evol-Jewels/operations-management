@@ -12,10 +12,29 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import {
+  Bar,
+  EvilBarChart,
+  Tooltip as EvilBarTooltip,
+  Grid,
+  XAxis,
+  YAxis,
+} from "@/components/evilcharts/charts/bar-chart";
+import {
+  EvilPieChart,
+  Legend as EvilPieLegend,
+  Tooltip as EvilPieTooltip,
+  Pie,
+} from "@/components/evilcharts/charts/pie-chart";
+import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getOrderEnquiryUiStatus, isEnquiryClosed } from "@/lib/enquiryStatus";
+import {
+  getOrderEnquiryUiStatus,
+  isEnquiryClosed,
+  isEnquiryFinalized,
+} from "@/lib/enquiryStatus";
 import { getInitials } from "@/lib/people";
 import {
   cn,
@@ -26,6 +45,7 @@ import {
   getDaysInCurrentStage,
   getDaysSinceLastActivity,
   getUrgencyLevel,
+  isTerminalRecord,
 } from "@/lib/utils";
 import { type Order, STAGES, type UrgencyLevel } from "@/types";
 import { RecentActivities } from "./RecentActivities";
@@ -46,6 +66,12 @@ interface ChartDatum {
   label: string;
   value: number;
   color: string;
+}
+
+interface EvilChartDatum {
+  key: string;
+  label: string;
+  value: number;
 }
 
 const BAR_COLORS = [
@@ -69,6 +95,45 @@ const CHART_COLORS = [
   "oklch(0.52 0.08 250)",
   "oklch(0.62 0.15 18)",
 ];
+
+function getChartKey(label: string) {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function toEvilChartData(data: ChartDatum[]): EvilChartDatum[] {
+  return data.map((item) => ({
+    key: getChartKey(item.label),
+    label: item.label,
+    value: item.value,
+  }));
+}
+
+function getEvilPieChartConfig(data: ChartDatum[]): ChartConfig {
+  return data.reduce<ChartConfig>((config, item) => {
+    config[getChartKey(item.label)] = {
+      label: item.label,
+      colors: {
+        light: [item.color],
+        dark: [item.color],
+      },
+    };
+
+    return config;
+  }, {});
+}
+
+const STAGE_CHART_CONFIG = {
+  value: {
+    label: "Records",
+    colors: {
+      light: ["oklch(0.58 0.14 155)"],
+      dark: ["oklch(0.68 0.14 155)"],
+    },
+  },
+} satisfies ChartConfig;
 
 function getRecordHref(order: Order) {
   return order.type === "enquiry"
@@ -97,10 +162,7 @@ function sortRiskItems(items: RiskItem[]) {
 function getRiskItems(orders: Order[]) {
   return sortRiskItems(
     orders
-      .filter(
-        (order) =>
-          order.currentStage !== "Delivered" && order.currentStage !== "Closed",
-      )
+      .filter((order) => !isTerminalRecord(order))
       .map((order) => ({ order, signal: computeRiskSignal(order) }))
       .filter(
         (item): item is RiskItem =>
@@ -134,23 +196,25 @@ function MetricCard({ card }: { card: MetricCardData }) {
         <p className="truncate text-2xl font-semibold tracking-tight text-foreground">
           {card.value}
         </p>
-        {card.change !== undefined && (
+        {(card.change !== undefined || card.helper) && (
           <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 text-xs font-medium",
-                isPositive
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-red-600 dark:text-red-400",
-              )}
-            >
-              {isPositive ? (
-                <ArrowUp className="h-3 w-3" />
-              ) : (
-                <ArrowDown className="h-3 w-3" />
-              )}
-              {Math.abs(card.change)}%
-            </span>
+            {card.change !== undefined && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 text-xs font-medium",
+                  isPositive
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-600 dark:text-red-400",
+                )}
+              >
+                {isPositive ? (
+                  <ArrowUp className="h-3 w-3" />
+                ) : (
+                  <ArrowDown className="h-3 w-3" />
+                )}
+                {Math.abs(card.change)}%
+              </span>
+            )}
             {card.helper && (
               <span className="text-xs text-muted-foreground">
                 {card.helper}
@@ -297,6 +361,63 @@ function DonutChart({
   );
 }
 
+function EvilStageChart({ data }: { data: ChartDatum[] }) {
+  return (
+    <EvilBarChart
+      data={data}
+      config={STAGE_CHART_CONFIG}
+      layout="horizontal"
+      className="h-[19rem] w-full p-1"
+      barRadius={5}
+      chartProps={{
+        margin: { top: 4, right: 8, bottom: 4, left: 0 },
+      }}
+    >
+      <Grid horizontal={false} />
+      <XAxis hide />
+      <YAxis dataKey="label" width={96} tickMargin={8} />
+      <EvilBarTooltip variant="frosted-glass" />
+      <Bar
+        dataKey="value"
+        variant="default"
+        enableHoverHighlight
+        barProps={{ name: "Records" }}
+      />
+    </EvilBarChart>
+  );
+}
+
+function EvilDonutChart({
+  data,
+  className,
+}: {
+  data: ChartDatum[];
+  className?: string;
+}) {
+  const chartData = toEvilChartData(data);
+  const chartConfig = getEvilPieChartConfig(data);
+
+  return (
+    <EvilPieChart
+      data={chartData}
+      config={chartConfig}
+      dataKey="value"
+      nameKey="key"
+      className={cn("h-52 w-full p-1", className)}
+    >
+      <EvilPieTooltip variant="frosted-glass" />
+      <Pie
+        innerRadius={50}
+        outerRadius={80}
+        cornerRadius={3}
+        paddingAngle={2}
+        isClickable
+      />
+      <EvilPieLegend variant="circle" align="center" isClickable />
+    </EvilPieChart>
+  );
+}
+
 function SignalBadge({ signal }: { signal: "stale" | "stuck" }) {
   const isStale = signal === "stale";
 
@@ -334,17 +455,33 @@ function ActionItemRow({
     signal === "stale"
       ? `${getDaysSinceLastActivity(order) ?? 0}d silent`
       : `${getDaysInCurrentStage(order)}d in stage`;
+  const isStuckEnquiry = order.type === "enquiry" && signal === "stuck";
 
   return (
     <Link
       href={getRecordHref(order)}
-      className="group flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      className={cn(
+        "group flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+        isStuckEnquiry &&
+          "border-l-2 border-l-amber-500/35 bg-amber-500/[0.025] hover:bg-amber-500/[0.06]",
+      )}
     >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-base font-medium text-foreground">
             {order.customerName}
           </p>
+          <Badge
+            variant="outline"
+            className={cn(
+              "h-5 rounded-sm px-1.5 text-[10px] font-medium uppercase tracking-normal",
+              order.type === "enquiry"
+                ? "border-amber-500/25 bg-amber-500/5 text-amber-700 dark:text-amber-300"
+                : "border-blue-500/25 bg-blue-500/5 text-blue-700 dark:text-blue-300",
+            )}
+          >
+            {order.type}
+          </Badge>
           <SignalBadge signal={signal} />
         </div>
         <div>
@@ -486,7 +623,9 @@ function EmptyRows({
 function getAdminAnalytics(orders: Order[]) {
   const allOrders = orders.filter((order) => order.type === "order");
   const allEnquiries = orders.filter((order) => order.type === "enquiry");
-  const openEnquiries = allEnquiries.filter((order) => !isEnquiryClosed(order));
+  const openEnquiries = allEnquiries.filter(
+    (order) => !isEnquiryFinalized(order),
+  );
   const closedEnquiries = allEnquiries.filter(isEnquiryClosed);
   const revenue = allOrders.reduce(
     (sum, order) => sum + (order.totalEstimate ?? 0),
@@ -517,10 +656,11 @@ function getOpsAnalytics(orders: Order[]) {
     (order) =>
       order.type === "order" &&
       order.currentStage !== "Delivered" &&
-      order.currentStage !== "Closed",
+      order.currentStage !== "Closed" &&
+      order.currentStage !== "Cancelled",
   );
   const openEnquiries = orders.filter(
-    (order) => order.type === "enquiry" && !isEnquiryClosed(order),
+    (order) => order.type === "enquiry" && !isEnquiryFinalized(order),
   );
   const activeRecords = [...activeOrders, ...openEnquiries];
   const urgency: Record<UrgencyLevel, number> = {
@@ -559,16 +699,12 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
     {
       label: "Total Orders",
       value: String(analytics.allOrders.length),
-      change: 12,
-      helper: "vs last period",
       icon: <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />,
       accent: "bg-blue-500/10 dark:bg-blue-500/10",
     },
     {
       label: "Active Enquiries",
       value: String(analytics.openEnquiries.length),
-      change: 8,
-      helper: "vs last period",
       icon: (
         <MessageSquare className="h-5 w-5 text-amber-600 dark:text-amber-400" />
       ),
@@ -577,8 +713,6 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
     {
       label: "Revenue Pipeline",
       value: formatCurrency(analytics.revenue),
-      change: 18,
-      helper: "estimated value",
       icon: (
         <IndianRupee className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
       ),
@@ -587,8 +721,6 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
     {
       label: "Avg Order Value",
       value: formatCurrency(analytics.averageOrderValue),
-      change: -3,
-      helper: "needs lift",
       icon: (
         <TrendingUp className="h-5 w-5 text-violet-600 dark:text-violet-400" />
       ),
@@ -625,7 +757,7 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
               </div>
             )}
             {analytics.riskItems.length > 6 && (
-              <div className="pt-2 text-center">
+              <div className="flex justify-center px-4 py-3">
                 <Button variant="ghost" size="sm" asChild>
                   <Link href="/orders-and-enquiries">
                     View all {analytics.riskItems.length} items
@@ -636,71 +768,63 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
           </div>
         </Panel>
 
-        <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-          <Panel title="Orders by stage">
-            <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
-              {analytics.stageCounts.map((item, index) => (
-                <HorizontalBar
-                  key={item.label}
-                  item={item}
-                  max={Math.max(
-                    ...analytics.stageCounts.map((s) => s.value),
-                    1,
-                  )}
-                  index={index}
+        <div className="grid items-stretch gap-5 my-4 xl:grid-cols-2">
+          <Panel title="Orders by stage" className="xl:flex xl:h-full xl:flex-col">
+            <div className="rounded-lg border border-border/70 bg-card p-4 xl:flex xl:flex-1 xl:flex-col xl:py-6">
+              <EvilStageChart data={analytics.stageCounts} />
+            </div>
+          </Panel>
+
+          <div className="grid gap-5 xl:h-full xl:grid-rows-2">
+            <Panel title="By category" className="xl:flex xl:min-h-0 xl:flex-col">
+              <div className="rounded-lg border border-border/70 bg-card p-4 xl:flex xl:flex-1 xl:flex-col">
+                <EvilDonutChart data={analytics.categoryCounts} />
+              </div>
+            </Panel>
+
+            <Panel title="Status breakdown" className="xl:flex xl:min-h-0 xl:flex-col">
+              <div className="rounded-lg border border-border/70 bg-card p-4 pb-5 xl:flex xl:flex-1 xl:flex-col xl:pb-6">
+                <EvilDonutChart
+                  data={[
+                    {
+                      label: "Open",
+                      value: analytics.openEnquiries.length,
+                      color: "oklch(0.55 0.13 178)",
+                    },
+                    {
+                      label: "Converted",
+                      value: analytics.allOrders.filter(
+                        (o) => o.sourceEnquiryId,
+                      ).length,
+                      color: "oklch(0.68 0.19 46)",
+                    },
+                    {
+                      label: "Closed",
+                      value: analytics.closedEnquiries.length,
+                      color: "oklch(0.38 0.09 225)",
+                    },
+                  ]}
                 />
-              ))}
-            </div>
-          </Panel>
-
-          <Panel title="By category">
-            <div className="rounded-lg border border-border/70 bg-card p-4">
-              <DonutChart data={analytics.categoryCounts} />
-            </div>
-          </Panel>
-        </div>
-
-        <Panel title="Status breakdown">
-          <div className="flex flex-col items-center gap-5 rounded-lg border border-border/70 bg-card p-4 sm:flex-row sm:justify-around">
-            <DonutChart
-              data={[
-                {
-                  label: "Open",
-                  value: analytics.openEnquiries.length,
-                  color: "oklch(0.55 0.13 178)",
-                },
-                {
-                  label: "Converted",
-                  value: analytics.allOrders.filter((o) => o.sourceEnquiryId)
-                    .length,
-                  color: "oklch(0.68 0.19 46)",
-                },
-                {
-                  label: "Closed",
-                  value: analytics.closedEnquiries.length,
-                  color: "oklch(0.38 0.09 225)",
-                },
-              ]}
-              size={120}
-            />
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "Conversion", value: "42%" },
-                { label: "Avg Response", value: "2.4h" },
-                { label: "Close Time", value: "6d" },
-              ].map((stat) => (
-                <div key={stat.label} className="px-3 py-2 text-center">
-                  <p className="text-lg font-semibold tracking-tight text-foreground">
-                    {stat.value}
-                  </p>
-                  <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
-                    {stat.label}
-                  </p>
+                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/60 pt-3">
+                  {[
+                    { label: "Conversion", value: "42%" },
+                    { label: "Avg Response", value: "2.4h" },
+                    { label: "Close Time", value: "6d" },
+                  ].map((stat) => (
+                    <div key={stat.label} className="text-center">
+                      <p className="text-base font-semibold tracking-tight text-foreground">
+                        {stat.value}
+                      </p>
+                      <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
+                        {stat.label}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            </Panel>
           </div>
-        </Panel>
+        </div>
       </div>
 
       <div className="xl:sticky xl:top-5 xl:self-start">
@@ -795,7 +919,7 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
                 />
               ))}
               {analytics.riskItems.length > 5 && (
-                <div className="pt-2 text-center">
+                <div className="flex justify-center px-4 py-3">
                   <Button variant="ghost" size="sm" asChild>
                     <Link href="/orders-and-enquiries">
                       View all {analytics.riskItems.length} items
@@ -880,7 +1004,8 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
         (o) =>
           o.type === "order" &&
           o.currentStage !== "Delivered" &&
-          o.currentStage !== "Closed",
+          o.currentStage !== "Closed" &&
+          o.currentStage !== "Cancelled",
       )
       .sort(
         (a, b) =>
@@ -888,7 +1013,7 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
           new Date(a.lastUpdatedAt).getTime(),
       );
     const openEnquiries = orders
-      .filter((o) => o.type === "enquiry" && !isEnquiryClosed(o))
+      .filter((o) => o.type === "enquiry" && !isEnquiryFinalized(o))
       .sort(
         (a, b) =>
           new Date(b.lastUpdatedAt).getTime() -

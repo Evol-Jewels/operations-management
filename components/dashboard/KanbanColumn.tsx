@@ -23,6 +23,7 @@ const COLUMN_COLORS: Record<string, string> = {
   Estimation: "bg-amber-500/5 dark:bg-amber-500/10",
   "Order Confirmed": "bg-emerald-500/5 dark:bg-emerald-500/10",
   Closed: "bg-muted/30 dark:bg-muted/20",
+  Cancelled: "bg-muted/30 dark:bg-muted/20",
 };
 
 export function KanbanColumn({

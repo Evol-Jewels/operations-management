@@ -4,6 +4,7 @@ import { ArrowLeft, Check, Copy } from "lucide-react";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
 import { ActivityTimeline } from "@/components/order/ActivityTimeline";
 import { CloseEnquiryDialog } from "@/components/order/CloseEnquiryDialog";
@@ -15,11 +16,70 @@ import { ProductionSpecCard } from "@/components/order/ProductionSpecCard";
 import { StageBar } from "@/components/order/StageBar";
 import { StageHint } from "@/components/order/StageHint";
 import { Button } from "@/components/ui/button";
-import { orderKeys, useOrderDetails } from "@/hooks/useOrders";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useMyInternalProfile } from "@/hooks/useInternalProfile";
+import {
+  orderKeys,
+  useOrderDetails,
+  useUpdateOrderStatus,
+} from "@/hooks/useOrders";
 import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
 import { mapBackendOrderDetailsToOrder } from "@/lib/orderMappers";
 import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
 import type { ActorRole, Order } from "@/types";
+import type { BackendOrderStatus } from "@/types/order-api";
+
+const ORDER_STATUS_OPTIONS: Array<{
+  value: BackendOrderStatus;
+  label: string;
+}> = [
+  { value: "NEW", label: "New" },
+  { value: "IN_PRODUCTION", label: "In Production" },
+  { value: "CAD_DESIGN", label: "CAD Design" },
+  { value: "IN_TRANSIT", label: "In Transit" },
+  { value: "CERTIFICATION", label: "Certification" },
+  { value: "AT_STORE", label: "At Store" },
+  { value: "DELIVERED", label: "Delivered" },
+  { value: "CLOSED", label: "Closed" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
+const LOCKED_ORDER_STATUSES = new Set<BackendOrderStatus>([
+  "CLOSED",
+  "CANCELLED",
+]);
+
+const NOTE_REQUIRED_STATUSES = new Set<BackendOrderStatus>([
+  "CLOSED",
+  "CANCELLED",
+]);
+
+function getOrderStatusLabel(status: BackendOrderStatus): string {
+  return (
+    ORDER_STATUS_OPTIONS.find((option) => option.value === status)?.label ??
+    status
+  );
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
 
 // ─── Copy link button ─────────────────────────────────────────────────────────
 
@@ -49,6 +109,158 @@ function CopyLinkButton() {
         </>
       )}
     </Button>
+  );
+}
+
+function OrderStatusControl({
+  refCode,
+  status,
+  canUpdate,
+}: {
+  refCode: string | number;
+  status?: BackendOrderStatus;
+  canUpdate: boolean;
+}) {
+  const updateStatus = useUpdateOrderStatus(refCode);
+  const createCommentMutation = useCreateComment("ORDER", Number(refCode), {
+    invalidateQueryKeys: [orderKeys.detail(refCode)],
+  });
+  const [pendingStatus, setPendingStatus] = useState<BackendOrderStatus | null>(
+    null,
+  );
+  const [statusNote, setStatusNote] = useState("");
+
+  if (!status) return null;
+
+  const isLocked = LOCKED_ORDER_STATUSES.has(status);
+  const label = getOrderStatusLabel(status);
+  const pendingStatusLabel = pendingStatus
+    ? getOrderStatusLabel(pendingStatus)
+    : "";
+  const isUpdating = updateStatus.isPending || createCommentMutation.isPending;
+
+  async function handleStatusChange(nextStatus: BackendOrderStatus) {
+    try {
+      await updateStatus.mutateAsync({ status: nextStatus });
+      toast.success(
+        `Order status changed to ${getOrderStatusLabel(nextStatus)}`,
+      );
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not update order status"));
+    }
+  }
+
+  async function handleConfirmTerminalStatus() {
+    const note = statusNote.trim();
+    if (!pendingStatus || !note) return;
+
+    try {
+      await updateStatus.mutateAsync({ status: pendingStatus });
+      await createCommentMutation.mutateAsync(note);
+      toast.success(`Order status changed to ${pendingStatusLabel}`);
+      setPendingStatus(null);
+      setStatusNote("");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not update order status"));
+    }
+  }
+
+  if (!canUpdate) {
+    return (
+      <span className="inline-flex h-8 items-center rounded-md border border-border bg-muted/30 px-2.5 text-xs font-medium text-muted-foreground">
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <Select
+        value={status}
+        disabled={isLocked || isUpdating}
+        onValueChange={(nextStatus) => {
+          const typedStatus = nextStatus as BackendOrderStatus;
+          if (typedStatus === status) return;
+
+          if (NOTE_REQUIRED_STATUSES.has(typedStatus)) {
+            setPendingStatus(typedStatus);
+            setStatusNote("");
+            return;
+          }
+
+          void handleStatusChange(typedStatus);
+        }}
+      >
+        <SelectTrigger
+          size="sm"
+          className="h-8 min-w-36 text-xs"
+          title={
+            isLocked ? "Closed and cancelled orders are locked" : undefined
+          }
+        >
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent align="end">
+          {ORDER_STATUS_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Dialog
+        open={Boolean(pendingStatus)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setPendingStatus(null);
+          setStatusNote("");
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mark order as {pendingStatusLabel}</DialogTitle>
+            <DialogDescription>
+              Add the required note for this status change. It will be posted to
+              the order activity as a comment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="terminal-status-note">
+              Notes <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="terminal-status-note"
+              value={statusNote}
+              onChange={(event) => setStatusNote(event.target.value)}
+              placeholder="Add the closing or cancellation note..."
+              rows={4}
+              disabled={isUpdating}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isUpdating}
+              onClick={() => {
+                setPendingStatus(null);
+                setStatusNote("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!statusNote.trim() || isUpdating}
+              onClick={handleConfirmTerminalStatus}
+            >
+              {isUpdating ? "Saving..." : `Mark as ${pendingStatusLabel}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -114,6 +326,10 @@ export default function OrderPage() {
   const refCode = params.token as string;
   const numericRefCode = Number(refCode);
   const orderQuery = useOrderDetails(refCode);
+  const profileQuery = useMyInternalProfile();
+  const sessionRole = profileQuery.data?.profile?.role;
+  const canUpdateOrderStatus =
+    sessionRole === "OPERATIONS" || sessionRole === "ADMIN";
   const commentsQuery = useComments("ORDER", numericRefCode);
   const createCommentMutation = useCreateComment("ORDER", numericRefCode, {
     invalidateQueryKeys: [orderKeys.detail(refCode)],
@@ -133,6 +349,8 @@ export default function OrderPage() {
 
   const urgency = getUrgencyLevel(order.deliveryDate);
   const daysLabel = formatDaysRemaining(order.deliveryDate);
+  const isTerminalOrder =
+    order.orderStatus === "CLOSED" || order.orderStatus === "CANCELLED";
 
   async function handlePostUpdate({ message }: { message: string }) {
     const note = message.trim();
@@ -193,7 +411,7 @@ export default function OrderPage() {
             </span>
           )}
           {/* Urgency */}
-          {order.deliveryDate && (
+          {order.deliveryDate && !isTerminalOrder && (
             <span
               className={cn(
                 "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
@@ -211,6 +429,11 @@ export default function OrderPage() {
           )}
           {/* Actions — pushed right, wraps on mobile if needed */}
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            <OrderStatusControl
+              refCode={refCode}
+              status={order.orderStatus}
+              canUpdate={canUpdateOrderStatus}
+            />
             {order.type === "enquiry" && order.status !== "closed" && (
               <CloseEnquiryDialog orderId={order.id} />
             )}
@@ -229,12 +452,14 @@ export default function OrderPage() {
       </div>
 
       {/* ── Stage Bar ────────────────────────────────────────────────── */}
-      <div className="mb-5 rounded-xl border border-border bg-card px-5 py-4">
-        <StageBar
-          currentStage={order.currentStage}
-          cadDesignRequired={order.cadDesignRequired}
-        />
-      </div>
+      {order.orderStatus !== "CANCELLED" && (
+        <div className="mb-5 rounded-xl border border-border bg-card px-5 py-4">
+          <StageBar
+            currentStage={order.currentStage}
+            cadDesignRequired={order.cadDesignRequired}
+          />
+        </div>
+      )}
 
       {/* ── Production Spec Card — vendor-facing work order summary ─────── */}
       {order.type === "order" && (

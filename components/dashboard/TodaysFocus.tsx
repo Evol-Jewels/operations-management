@@ -9,6 +9,7 @@ import {
   getDaysInCurrentStage,
   getDaysSinceLastActivity,
   getUrgencyLevel,
+  isTerminalRecord,
 } from "@/lib/utils";
 import type { Order, RiskSignal } from "@/types";
 
@@ -166,9 +167,7 @@ interface TodaysFocusProps {
 
 export function TodaysFocus({ orders }: TodaysFocusProps) {
   const atRiskOrders = orders
-    .filter(
-      (o) => o.currentStage !== "Delivered" && o.currentStage !== "Closed",
-    )
+    .filter((o) => !isTerminalRecord(o))
     .map((o) => ({ order: o, signal: computeRiskSignal(o) }))
     .filter(
       (r): r is { order: Order; signal: "stale" | "stuck" } =>

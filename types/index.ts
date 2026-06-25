@@ -1,6 +1,7 @@
 // ─── Pipeline Stages ────────────────────────────────────────────────────────
 
 import type { BackendEnquiryStatus } from "@/types/enquiry-api";
+import type { BackendOrderStatus } from "@/types/order-api";
 
 export const STAGES = [
   "Enquiry",
@@ -8,12 +9,13 @@ export const STAGES = [
   "New",
   "CAD Design",
   "Order Confirmed",
-  "Manufacturing",
+  "In Production",
   "Certification",
   "At Store",
   "In Transit",
   "Delivered",
   "Closed",
+  "Cancelled",
 ] as const;
 
 export type Stage = (typeof STAGES)[number];
@@ -46,11 +48,11 @@ export const STAGE_EXPECTED_DAYS: Partial<Record<Stage, number>> = {
   New: 2,
   "CAD Design": 5,
   "Order Confirmed": 2,
-  Manufacturing: 10,
+  "In Production": 10,
   Certification: 5,
   "At Store": 3,
   "In Transit": 3,
-  // Delivered and Closed are terminal.
+  // Delivered, Closed, and Cancelled are terminal.
 };
 
 // ─── Actor Roles ─────────────────────────────────────────────────────────────
@@ -397,6 +399,7 @@ export interface Order {
   deliveryDate?: string;
 
   // Pipeline
+  orderStatus?: BackendOrderStatus;
   currentStage: Stage;
   createdAt: string;
   lastUpdatedAt: string;
