@@ -3,20 +3,27 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import {
   fetchStockSales,
+  fetchStockSalesAnalytics,
   STOCK_SALES_LIST_DEFAULT_LIMIT,
   syncStockSales,
 } from "@/lib/stockSalesApi";
-import type { ListStockSalesQuery } from "@/types/stock-sales-api";
+import type {
+  ListStockSalesQuery,
+  StockSalesAnalyticsQuery,
+} from "@/types/stock-sales-api";
 
 export const stockSalesKeys = {
   all: ["stock-sales"] as const,
   lists: () => [...stockSalesKeys.all, "list"] as const,
   list: (query: ListStockSalesQuery = {}) =>
     [...stockSalesKeys.lists(), query] as const,
+  analytics: (query: StockSalesAnalyticsQuery = {}) =>
+    [...stockSalesKeys.all, "analytics", query] as const,
 };
 
 export function useStockSales(
@@ -64,5 +71,12 @@ export function useSyncStockSales() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: stockSalesKeys.all });
     },
+  });
+}
+
+export function useStockSalesAnalytics(query: StockSalesAnalyticsQuery = {}) {
+  return useQuery({
+    queryKey: stockSalesKeys.analytics(query),
+    queryFn: () => fetchStockSalesAnalytics(query),
   });
 }

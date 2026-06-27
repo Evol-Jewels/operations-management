@@ -2,6 +2,8 @@ import { apiFetch, buildUrl } from "@/lib/apiClient";
 import type {
   BackendStockSaleRow,
   ListStockSalesQuery,
+  StockSalesAnalyticsQuery,
+  StockSalesAnalyticsResponse,
   StockSalesListResponse,
   StockSalesSyncSummary,
 } from "@/types/stock-sales-api";
@@ -58,6 +60,17 @@ export function fetchStockSales(query: ListStockSalesQuery = {}) {
       offset: query.offset,
     }),
   ).then(normalizeStockSalesList);
+}
+
+export function fetchStockSalesAnalytics(
+  query: StockSalesAnalyticsQuery = { period: "month" },
+) {
+  return apiFetch<StockSalesAnalyticsResponse>(
+    buildUrl("api/v1/stock-sales/sales-analytics", {
+      period: query.period,
+      saleMonth: query.period === "month" ? query.saleMonth : undefined,
+    }),
+  );
 }
 
 export function syncStockSales() {

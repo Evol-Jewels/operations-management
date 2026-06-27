@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
+  Award,
   Inbox,
   IndianRupee,
   MessageSquare,
@@ -30,6 +31,24 @@ import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useStockSalesAnalytics } from "@/hooks/useStockSales";
 import {
   getOrderEnquiryUiStatus,
   isEnquiryClosed,
@@ -48,6 +67,10 @@ import {
   isTerminalRecord,
 } from "@/lib/utils";
 import { type Order, STAGES, type UrgencyLevel } from "@/types";
+import type {
+  StockSalesAnalyticsLeaderboardRow,
+  StockSalesAnalyticsPeriod,
+} from "@/types/stock-sales-api";
 import { RecentActivities } from "./RecentActivities";
 
 type RiskItem = { order: Order; signal: "stale" | "stuck" };
@@ -611,6 +634,78 @@ function getAdminAnalytics(orders: Order[]) {
   };
 }
 
+function getCurrentSaleMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatSaleMonthLabel(saleMonth: string) {
+  const [year, month] = saleMonth.split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+
+  if (Number.isNaN(date.getTime())) return saleMonth;
+
+  return date.toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatAnalyticsCurrency(value: string) {
+  return formatCurrency(Number(value) || 0);
+}
+
+function getAnalyticsPeriodTitle(
+  period: StockSalesAnalyticsPeriod,
+  saleMonth: string,
+) {
+  return `Sales Analytics for ${
+    period === "allTime" ? "All Time" : formatSaleMonthLabel(saleMonth)
+  }`;
+}
+
+function SalespersonCell({
+  row,
+}: {
+  row: StockSalesAnalyticsLeaderboardRow;
+}) {
+  const person = row.salesPerson;
+  const name = person.name ?? "Unknown";
+
+  return (
+    <div className="flex min-w-[12rem] items-center gap-3">
+      <Avatar size="sm">
+        {person.image && <AvatarImage src={person.image} alt={name} />}
+        <AvatarFallback className="text-[10px]">
+          {getInitials({ id: person.id, name, image: person.image })}
+        </AvatarFallback>
+      </Avatar>
+      <div className="min-w-0">
+        <p className="truncate font-medium text-foreground">{name}</p>
+        <p className="truncate text-xs text-muted-foreground">{person.id}</p>
+      </div>
+    </div>
+  );
+}
+
+function RevenueShareCell({ value }: { value: string }) {
+  const share = Math.max(0, Math.min(100, Number(value) || 0));
+
+  return (
+    <div className="min-w-[10rem] space-y-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-medium tabular-nums">{value}%</span>
+      </div>
+      <div className="h-2 rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-emerald-600"
+          style={{ width: `${share}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function getOpsAnalytics(orders: Order[]) {
   const activeOrders = orders.filter(
     (order) =>
@@ -657,6 +752,200 @@ function getOpsAnalytics(orders: Order[]) {
     status,
     riskItems: getRiskItems(activeRecords),
   };
+}
+
+function StockSalesAnalyticsSection() {
+  const [period, setPeriod] = useState<StockSalesAnalyticsPeriod>("month");
+  const [saleMonth, setSaleMonth] = useState(getCurrentSaleMonth);
+  const analyticsQuery = useStockSalesAnalytics(
+    period === "allTime" ? { period } : { period, saleMonth },
+  );
+  const analytics = analyticsQuery.data;
+  const isAllTime = period === "allTime";
+  const cards: MetricCardData[] = [
+    {
+      label: "Sales People",
+      value: analytics ? String(analytics.summary.totalSalesPeople) : "-",
+    },
+    {
+      label: "Transactions",
+      value: analytics ? String(analytics.summary.totalTransactions) : "-",
+    },
+    {
+      label: "Revenue",
+      value: analytics
+        ? formatAnalyticsCurrency(analytics.summary.totalRevenue)
+        : "-",
+    },
+    ...(isAllTime
+      ? []
+      : [
+          {
+            label: "Incentive",
+            value: analytics
+              ? formatAnalyticsCurrency(analytics.summary.totalIncentive)
+              : "-",
+          },
+        ]),
+  ];
+
+  return (
+    <section className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-foreground">
+            Sales Analytics
+          </h2>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+            {getAnalyticsPeriodTitle(period, saleMonth)}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Select
+            value={period}
+            onValueChange={(value) =>
+              setPeriod(value as StockSalesAnalyticsPeriod)
+            }
+          >
+            <SelectTrigger className="w-full sm:w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="month">Month</SelectItem>
+              <SelectItem value="allTime">All Time</SelectItem>
+            </SelectContent>
+          </Select>
+          {period === "month" && (
+            <Input
+              aria-label="Sale month"
+              className="w-full sm:w-40"
+              type="month"
+              value={saleMonth}
+              onChange={(event) => setSaleMonth(event.target.value)}
+            />
+          )}
+        </div>
+      </div>
+
+      <MetricsGrid>
+        {analyticsQuery.isLoading
+          ? cards.map((card) => (
+              <div
+                className="border-border/70 px-5 py-4 max-sm:border-b sm:border-r sm:last:border-r-0"
+                key={card.label}
+              >
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="mt-3 h-7 w-24" />
+              </div>
+            ))
+          : cards.map((card) => <MetricCard key={card.label} card={card} />)}
+      </MetricsGrid>
+
+      <Panel
+        title="Salesperson Leaderboard"
+        action={
+          analytics && (
+            <span className="text-xs text-muted-foreground">
+              {analytics.period}
+            </span>
+          )
+        }
+      >
+        <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
+          {analyticsQuery.isLoading && (
+            <div className="space-y-3 p-4">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Skeleton className="h-12 w-full" key={index} />
+              ))}
+            </div>
+          )}
+
+          {analyticsQuery.isError && (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              Unable to load sales analytics.
+            </div>
+          )}
+
+          {analytics && analytics.leaderboard.length === 0 && (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              No sales data found for this period.
+            </div>
+          )}
+
+          {analytics && analytics.leaderboard.length > 0 && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-16">Rank</TableHead>
+                  <TableHead>Salesperson</TableHead>
+                  <TableHead className="text-right">Transactions</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead>Revenue Share</TableHead>
+                  {!isAllTime && (
+                    <TableHead className="text-right">Incentive</TableHead>
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {analytics.leaderboard.map((row) => (
+                  <TableRow key={row.salesPerson.id}>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold",
+                          row.rank === 1
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
+                            : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {row.rank === 1 ? (
+                          <Award className="h-4 w-4" />
+                        ) : (
+                          row.rank
+                        )}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <SalespersonCell row={row} />
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {row.transactions}
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {formatAnalyticsCurrency(row.revenue)}
+                    </TableCell>
+                    <TableCell>
+                      <RevenueShareCell value={row.revenueShare} />
+                    </TableCell>
+                    {!isAllTime && (
+                      <TableCell className="text-right">
+                        <div className="font-medium tabular-nums">
+                          {formatAnalyticsCurrency(row.incentive.amount)}
+                        </div>
+                        <div
+                          className={cn(
+                            "text-xs",
+                            row.incentive.eligible
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {row.incentive.eligible
+                            ? "Eligible"
+                            : "Not eligible"}
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </Panel>
+    </section>
+  );
 }
 
 export function AdminDashboard({ orders }: { orders: Order[] }) {
@@ -711,6 +1000,8 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
             <MetricCard key={card.label} card={card} />
           ))}
         </MetricsGrid>
+
+        <StockSalesAnalyticsSection />
 
         <Panel title="Needs attention">
           <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
