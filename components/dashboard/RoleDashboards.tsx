@@ -759,7 +759,7 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
             {analytics.riskItems.length > 6 && (
               <div className="flex justify-center px-4 py-3">
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href="/orders-and-enquiries">
+                  <Link href="/orders-workspace">
                     View all {analytics.riskItems.length} items
                   </Link>
                 </Button>
@@ -885,7 +885,7 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
             />
           </MetricsGrid>
           <Button asChild variant="outline" className="self-start sm:self-auto">
-            <Link href="/orders-and-enquiries">Open workspace</Link>
+            <Link href="/orders-workspace">Open workspace</Link>
           </Button>
         </div>
 
@@ -921,7 +921,7 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
               {analytics.riskItems.length > 5 && (
                 <div className="flex justify-center px-4 py-3">
                   <Button variant="ghost" size="sm" asChild>
-                    <Link href="/orders-and-enquiries">
+                    <Link href="/orders-workspace">
                       View all {analytics.riskItems.length} items
                     </Link>
                   </Button>

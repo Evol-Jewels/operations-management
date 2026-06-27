@@ -313,7 +313,7 @@ export function EnquiryDetailPage({
           asChild
           className="-ml-2 gap-1.5 text-muted-foreground"
         >
-          <Link href="/orders-and-enquiries">
+          <Link href="/orders-workspace">
             <ArrowLeft className="size-3.5" />
             All enquiries
           </Link>

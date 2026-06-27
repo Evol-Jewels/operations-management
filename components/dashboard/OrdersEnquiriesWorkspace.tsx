@@ -614,8 +614,6 @@ export function OrdersEnquiriesWorkspace() {
     ? kanbanRecords.length
     : filteredRecords.length;
   const purchasesShownCount = stockSales.length;
-  const totalRecordCount =
-    typeTab === "purchase" ? purchasesShownCount : (tabCounts[typeTab] ?? 0);
   const isFilterDisabled = isKanbanMode || typeTab === "purchase";
 
   const sectionHeading =
@@ -640,30 +638,8 @@ export function OrdersEnquiriesWorkspace() {
     }
     setStatusFilter("all");
   };
-  const recordCountLabel = (
-    <>
-      <span className="sm:hidden">
-        <strong className="font-medium text-foreground">
-          {typeTab === "purchase" ? purchasesShownCount : shownRecordCount}
-        </strong>{" "}
-        of{" "}
-        <strong className="font-medium text-foreground">
-          {totalRecordCount}
-        </strong>
-      </span>
-      <span className="hidden sm:inline">
-        Showing{" "}
-        <strong className="font-medium text-foreground">
-          {typeTab === "purchase" ? purchasesShownCount : shownRecordCount}
-        </strong>{" "}
-        of{" "}
-        <strong className="font-medium text-foreground">
-          {totalRecordCount}
-        </strong>{" "}
-        records
-      </span>
-    </>
-  );
+  const sectionCount =
+    typeTab === "purchase" ? purchasesShownCount : shownRecordCount;
 
   return (
     <div className="space-y-4">
@@ -777,78 +753,78 @@ export function OrdersEnquiriesWorkspace() {
             Kanban
           </button>
         </div>
-
-        <div className={cn("lg:hidden", typeTab === "purchase" && "hidden")}>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setIsMobileFiltersOpen(true)}
-            className="w-full justify-center gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Filters
-            {activeFilterCount > 0 ? (
-              <Badge variant="secondary" className="ml-0.5 px-1.5">
-                {activeFilterCount}
-              </Badge>
-            ) : null}
-          </Button>
-        </div>
       </div>
 
-      <div
-        className={cn(
-          "hidden gap-3 lg:grid lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end",
-          typeTab === "purchase" && "lg:hidden",
-        )}
-      >
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search customer or ID"
-            className="pl-9"
+      <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
+        <div className="flex min-w-0 items-center justify-between gap-3 lg:block">
+          <h2 className="shrink-0 text-base font-medium text-foreground lg:min-w-28">
+            {sectionHeading}{" "}
+            <span className="text-muted-foreground">({sectionCount})</span>
+          </h2>
+
+          <div className={cn("lg:hidden", typeTab === "purchase" && "hidden")}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsMobileFiltersOpen(true)}
+              className="h-10 shrink-0 justify-center gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              Filters
+              {activeFilterCount > 0 ? (
+                <Badge variant="secondary" className="ml-0.5 px-1.5">
+                  {activeFilterCount}
+                </Badge>
+              ) : null}
+            </Button>
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            "hidden min-w-0 flex-1 gap-3 lg:grid lg:grid-cols-[minmax(160px,1fr)_minmax(140px,180px)_minmax(120px,160px)] lg:items-center",
+            typeTab === "purchase" && "lg:hidden",
+          )}
+        >
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search customer or ID"
+              className="pl-9"
+              disabled={isFilterDisabled}
+            />
+          </div>
+
+          <FilterSelect
+            label="Status"
+            value={statusFilter}
+            onValueChange={setStatusFilter}
             disabled={isFilterDisabled}
-          />
+          >
+            {(typeTab === "enquiry"
+              ? ENQUIRY_STATUS_OPTIONS
+              : ORDER_STATUS_OPTIONS
+            ).map((status) => (
+              <SelectItem key={status} value={status}>
+                {status === "all" ? "All statuses" : status}
+              </SelectItem>
+            ))}
+          </FilterSelect>
+
+          <FilterSelect
+            label="Creation Date"
+            value={dateFilter}
+            onValueChange={(value) => setDateFilter(value as DateFilter)}
+            disabled={isFilterDisabled}
+          >
+            <SelectItem value="all">All time</SelectItem>
+            <SelectItem value="7d">Last 7 days</SelectItem>
+            <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="90d">Last 90 days</SelectItem>
+          </FilterSelect>
         </div>
-
-        <FilterSelect
-          label="Status"
-          value={statusFilter}
-          onValueChange={setStatusFilter}
-          disabled={isFilterDisabled}
-        >
-          {(typeTab === "enquiry"
-            ? ENQUIRY_STATUS_OPTIONS
-            : ORDER_STATUS_OPTIONS
-          ).map((status) => (
-            <SelectItem key={status} value={status}>
-              {status === "all" ? "All statuses" : status}
-            </SelectItem>
-          ))}
-        </FilterSelect>
-
-        <FilterSelect
-          label="Creation Date"
-          value={dateFilter}
-          onValueChange={(value) => setDateFilter(value as DateFilter)}
-          disabled={isFilterDisabled}
-        >
-          <SelectItem value="all">All time</SelectItem>
-          <SelectItem value="7d">Last 7 days</SelectItem>
-          <SelectItem value="30d">Last 30 days</SelectItem>
-          <SelectItem value="90d">Last 90 days</SelectItem>
-        </FilterSelect>
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-medium text-foreground">
-          {sectionHeading}
-        </h2>
-        <p className="shrink-0 text-sm text-muted-foreground">
-          {recordCountLabel}
-        </p>
       </div>
 
       <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>

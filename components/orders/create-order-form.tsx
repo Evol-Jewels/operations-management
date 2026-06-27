@@ -638,7 +638,7 @@ export function CreateOrderForm() {
       setTimeout(() => {
         const refCode = response.refCodes?.length === 1 && response.refCodes[0];
         router.push(
-          refCode ? `/orders/${refCode}` : "/orders-and-enquiries?type=order",
+          refCode ? `/orders/${refCode}` : "/orders-workspace?type=order",
         );
       }, 1200);
     } catch (error) {
