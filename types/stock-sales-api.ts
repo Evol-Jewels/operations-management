@@ -31,3 +31,13 @@ export interface BackendStockSaleRow {
   updatedAt: string;
   syncedAt: string;
 }
+
+export interface ListStockSalesQuery {
+  limit?: number;
+  offset?: number;
+}
+
+export interface StockSalesListResponse {
+  data: BackendStockSaleRow[];
+  total: number;
+}

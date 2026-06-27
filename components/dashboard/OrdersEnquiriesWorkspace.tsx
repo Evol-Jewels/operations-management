@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { useOrders } from "@/hooks/useOrders";
 import { useStockSales } from "@/hooks/useStockSales";
@@ -417,18 +423,74 @@ function formatStockSaleMonth(saleMonth: string | null) {
   });
 }
 
-function getStockSaleProducts(sale: BackendStockSaleRow) {
-  return sale.items.map((item) => item.productCode).join(", ") || "-";
+function getStockSaleProductCodes(sale: BackendStockSaleRow) {
+  return sale.items.map((item) => item.productCode).filter(Boolean);
+}
+
+function StockSaleProductCodes({ sale }: { sale: BackendStockSaleRow }) {
+  const codes = getStockSaleProductCodes(sale);
+  const visibleCodes = codes.slice(0, 2);
+  const hiddenCount = codes.length - visibleCodes.length;
+
+  if (codes.length === 0) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex max-w-72 flex-wrap gap-1">
+            {visibleCodes.map((code) => (
+              <Badge
+                className="font-mono text-[11px] font-medium"
+                key={code}
+                variant="secondary"
+              >
+                {code}
+              </Badge>
+            ))}
+            {hiddenCount > 0 && (
+              <Badge
+                className="border-border bg-transparent text-muted-foreground"
+                variant="outline"
+              >
+                +{hiddenCount} more
+              </Badge>
+            )}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-80" side="top" sideOffset={6}>
+          <div className="flex flex-wrap gap-1.5">
+            {codes.map((code) => (
+              <span
+                className="rounded border border-background/20 px-1.5 py-0.5 font-mono text-[11px]"
+                key={code}
+              >
+                {code}
+              </span>
+            ))}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 function StockPurchasesTable({
   sales,
   isLoading,
   isError,
+  isFetchingNextPage,
+  hasNextPage,
+  loadMoreRef,
 }: {
   sales: BackendStockSaleRow[];
   isLoading: boolean;
   isError: boolean;
+  isFetchingNextPage: boolean;
+  hasNextPage: boolean;
+  loadMoreRef: RefObject<HTMLDivElement | null>;
 }) {
   if (isLoading) {
     return (
@@ -457,13 +519,13 @@ function StockPurchasesTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
+    <div className="overflow-hidden rounded-xl border border-border bg-card my-4">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="min-w-52">Customer</TableHead>
-              <TableHead className="min-w-60">Product codes</TableHead>
+              <TableHead className="w-72 min-w-72">Product codes</TableHead>
               <TableHead className="min-w-32">Amount</TableHead>
               <TableHead className="min-w-40">Sales person</TableHead>
               <TableHead className="min-w-36">Store</TableHead>
@@ -482,8 +544,8 @@ function StockPurchasesTable({
                     {sale.stockType ?? "Stock sale"}
                   </p>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {getStockSaleProducts(sale)}
+                <TableCell className="w-72 min-w-72">
+                  <StockSaleProductCodes sale={sale} />
                 </TableCell>
                 <TableCell className="font-medium text-foreground">
                   {formatStockSaleAmount(sale.totalAmount)}
@@ -505,6 +567,16 @@ function StockPurchasesTable({
           </TableBody>
         </Table>
       </div>
+      <div ref={loadMoreRef} className="h-4" />
+      {isFetchingNextPage ? (
+        <p className="py-3 text-center text-xs text-muted-foreground">
+          Fetching more purchases...
+        </p>
+      ) : !hasNextPage ? (
+        <p className="py-3 text-center text-xs text-muted-foreground">
+          -- End of List --
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -522,7 +594,11 @@ export function OrdersEnquiriesWorkspace() {
     { limit: 100 },
     { enabled: typeTab === "order" },
   );
-  const stockSalesQuery = useStockSales({ enabled: typeTab === "purchase" });
+  const stockSalesQuery = useStockSales(
+    { limit: 40 },
+    { enabled: typeTab === "purchase" },
+  );
+  const stockSalesLoadMoreRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -540,6 +616,35 @@ export function OrdersEnquiriesWorkspace() {
   useEffect(() => {
     writeStoredTypeTab(typeTab);
   }, [typeTab]);
+
+  useEffect(() => {
+    if (typeTab !== "purchase") return;
+
+    const sentinel = stockSalesLoadMoreRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (
+          entry.isIntersecting &&
+          stockSalesQuery.hasNextPage &&
+          !stockSalesQuery.isFetchingNextPage
+        ) {
+          stockSalesQuery.fetchNextPage();
+        }
+      },
+      { rootMargin: "360px" },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    stockSalesQuery.fetchNextPage,
+    stockSalesQuery.hasNextPage,
+    stockSalesQuery.isFetchingNextPage,
+    typeTab,
+  ]);
 
   const apiEnquiries = useMemo(
     () =>
@@ -559,7 +664,10 @@ export function OrdersEnquiriesWorkspace() {
     () => (typeTab === "order" ? apiOrders : apiEnquiries),
     [apiEnquiries, apiOrders, typeTab],
   );
-  const stockSales = stockSalesQuery.data ?? [];
+  const stockSales = useMemo(
+    () => stockSalesQuery.data?.pages.flatMap((page) => page.data) ?? [],
+    [stockSalesQuery.data],
+  );
 
   const tabCounts = useMemo(
     () => ({
@@ -947,6 +1055,9 @@ export function OrdersEnquiriesWorkspace() {
           sales={stockSales}
           isLoading={stockSalesQuery.isLoading}
           isError={stockSalesQuery.isError}
+          isFetchingNextPage={stockSalesQuery.isFetchingNextPage}
+          hasNextPage={Boolean(stockSalesQuery.hasNextPage)}
+          loadMoreRef={stockSalesLoadMoreRef}
         />
       ) : viewMode === "table" ? (
         <>
