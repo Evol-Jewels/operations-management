@@ -5,10 +5,12 @@ import {
   ArrowRight,
   ArrowUp,
   Award,
+  ChartNoAxesColumn,
   Inbox,
   IndianRupee,
   MessageSquare,
   Package,
+  Users,
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
@@ -48,6 +50,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStockSalesAnalytics } from "@/hooks/useStockSales";
 import {
   getOrderEnquiryUiStatus,
@@ -995,42 +998,65 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
           </p>
         </div>
 
-        <MetricsGrid>
-          {cards.map((card) => (
-            <MetricCard key={card.label} card={card} />
-          ))}
-        </MetricsGrid>
+        <Tabs defaultValue="orders-enquiries" className="gap-5">
+          <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-0 border-b border-border bg-transparent p-0 text-muted-foreground">
+            <TabsTrigger
+              value="orders-enquiries"
+              className="h-11 flex-none rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              <ChartNoAxesColumn className="h-4 w-4" />
+              Orders & Enquiries
+            </TabsTrigger>
+            <TabsTrigger
+              value="sales-analytics"
+              className="h-11 flex-none rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              <Users className="h-4 w-4" />
+              Sales Analytics
+            </TabsTrigger>
+          </TabsList>
 
-        <StockSalesAnalyticsSection />
+          <TabsContent value="orders-enquiries" className="space-y-5">
+            <MetricsGrid>
+              {cards.map((card) => (
+                <MetricCard key={card.label} card={card} />
+              ))}
+            </MetricsGrid>
 
-        <Panel title="Needs attention">
-          <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
-            {analytics.riskItems.slice(0, 6).map(({ order, signal }) => (
-              <ActionItemRow key={order.id} order={order} signal={signal} />
-            ))}
-            {analytics.riskItems.length === 0 && (
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                No stale or stuck records right now.
+            <Panel title="Needs attention">
+              <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
+                {analytics.riskItems.slice(0, 6).map(({ order, signal }) => (
+                  <ActionItemRow key={order.id} order={order} signal={signal} />
+                ))}
+                {analytics.riskItems.length === 0 && (
+                  <div className="py-10 text-center text-sm text-muted-foreground">
+                    No stale or stuck records right now.
+                  </div>
+                )}
+                {analytics.riskItems.length > 6 && (
+                  <div className="flex justify-center px-4 py-3">
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href="/orders-workspace">
+                        View all {analytics.riskItems.length} items
+                      </Link>
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-            {analytics.riskItems.length > 6 && (
-              <div className="flex justify-center px-4 py-3">
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/orders-workspace">
-                    View all {analytics.riskItems.length} items
-                  </Link>
-                </Button>
-              </div>
-            )}
-          </div>
-        </Panel>
+            </Panel>
 
-        <StageAndBreakdownCharts
-          stageTitle="Orders by stage"
-          stageCounts={analytics.stageCounts}
-          urgencyData={buildUrgencyData(analytics.urgency)}
-          statusData={buildStatusData(analytics.status)}
-        />
+            <StageAndBreakdownCharts
+              stageTitle="Orders by stage"
+              stageCounts={analytics.stageCounts}
+              urgencyData={buildUrgencyData(analytics.urgency)}
+              statusData={buildStatusData(analytics.status)}
+            />
+          </TabsContent>
+
+          <TabsContent value="sales-analytics">
+            <StockSalesAnalyticsSection />
+          </TabsContent>
+        </Tabs>
       </div>
 
       <div className="xl:sticky xl:top-5 xl:self-start">
