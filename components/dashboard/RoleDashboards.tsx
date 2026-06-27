@@ -931,8 +931,8 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
           </Panel>
         )}
 
-        <div className="grid gap-5 xl:grid-cols-2">
-          <Panel title="Records by stage">
+        <div className="grid items-start gap-5 xl:grid-cols-2">
+          <Panel title="Records by stage" className="xl:h-full">
             <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
               {analytics.stageCounts.map((item, index) => (
                 <HorizontalBar
@@ -948,41 +948,43 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
             </div>
           </Panel>
 
-          <Panel title="Urgency breakdown">
-            <div className="rounded-lg border border-border/70 bg-card p-4">
-              <DonutChart
-                data={[
-                  {
-                    label: "Overdue",
-                    value: analytics.urgency.overdue,
-                    color: "oklch(0.62 0.22 25)",
-                  },
-                  {
-                    label: "Due Soon",
-                    value: analytics.urgency["due-soon"],
-                    color: "oklch(0.76 0.17 72)",
-                  },
-                  {
-                    label: "On Track",
-                    value: analytics.urgency["on-track"],
-                    color: "oklch(0.59 0.14 145)",
-                  },
-                  {
-                    label: "No Date",
-                    value: analytics.urgency.none,
-                    color: "oklch(0.55 0.02 260)",
-                  },
-                ]}
-              />
-            </div>
-          </Panel>
-        </div>
+          <div className="grid gap-5">
+            <Panel title="Urgency breakdown">
+              <div className="rounded-lg border border-border/70 bg-card p-4">
+                <DonutChart
+                  data={[
+                    {
+                      label: "Overdue",
+                      value: analytics.urgency.overdue,
+                      color: "oklch(0.62 0.22 25)",
+                    },
+                    {
+                      label: "Due Soon",
+                      value: analytics.urgency["due-soon"],
+                      color: "oklch(0.76 0.17 72)",
+                    },
+                    {
+                      label: "On Track",
+                      value: analytics.urgency["on-track"],
+                      color: "oklch(0.59 0.14 145)",
+                    },
+                    {
+                      label: "No Date",
+                      value: analytics.urgency.none,
+                      color: "oklch(0.55 0.02 260)",
+                    },
+                  ]}
+                />
+              </div>
+            </Panel>
 
-        <Panel title="By category">
-          <div className="rounded-lg border border-border/70 bg-card p-4">
-            <DonutChart data={analytics.categoryCounts} size={132} />
+            <Panel title="By category">
+              <div className="rounded-lg border border-border/70 bg-card p-4">
+                <DonutChart data={analytics.categoryCounts} />
+              </div>
+            </Panel>
           </div>
-        </Panel>
+        </div>
       </div>
 
       <div className="xl:sticky xl:top-5 xl:self-start">
