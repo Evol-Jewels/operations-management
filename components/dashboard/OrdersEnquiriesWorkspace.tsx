@@ -782,11 +782,11 @@ export function OrdersEnquiriesWorkspace() {
 
         <div
           className={cn(
-            "hidden min-w-0 flex-1 gap-3 lg:grid lg:grid-cols-[minmax(160px,1fr)_minmax(140px,180px)_minmax(120px,160px)] lg:items-center",
+            "hidden justify-items-end min-w-0 flex-1 gap-3 lg:grid lg:grid-cols-[minmax(160px,1fr)_minmax(140px,180px)_minmax(120px,160px)] lg:items-center",
             typeTab === "purchase" && "lg:hidden",
           )}
         >
-          <div className="relative">
+          <div className="relative w-1/2">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
