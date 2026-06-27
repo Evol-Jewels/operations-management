@@ -62,13 +62,13 @@ interface MetricCardData {
   accent?: string;
 }
 
-interface ChartDatum {
+interface ChartDatum extends Record<string, unknown> {
   label: string;
   value: number;
   color: string;
 }
 
-interface EvilChartDatum {
+interface EvilChartDatum extends Record<string, unknown> {
   key: string;
   label: string;
   value: number;
