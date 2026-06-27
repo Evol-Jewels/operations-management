@@ -58,7 +58,7 @@ const navItems = [
   {
     icon: BookA,
     label: "Orders and Enquiries",
-    href: "/orders-and-enquiries",
+    href: "/orders-workspace",
   },
   {
     icon: Calculator,

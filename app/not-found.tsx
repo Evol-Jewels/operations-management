@@ -32,7 +32,7 @@ export default function NotFound() {
             Go back
           </Button>
           <Button asChild className="gap-2">
-            <Link href="/orders-and-enquiries">
+            <Link href="/orders-workspace">
               <Home className="h-4 w-4" />
               Go to home
             </Link>

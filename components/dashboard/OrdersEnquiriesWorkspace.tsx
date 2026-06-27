@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,23 +36,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { useOrders } from "@/hooks/useOrders";
+import { useStockSales } from "@/hooks/useStockSales";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
-import {
-  ENQUIRY_STATUS_LABELS,
-  getRecordStatus,
-} from "@/lib/enquiryStatus";
+import { ENQUIRY_STATUS_LABELS, getRecordStatus } from "@/lib/enquiryStatus";
 import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { Order, PersonSummary, RecordType } from "@/types";
 import type { BackendEnquiryStatus } from "@/types/enquiry-api";
+import type { BackendStockSaleRow } from "@/types/stock-sales-api";
 import { KanbanBoard, type KanbanColumnConfig } from "./KanbanBoard";
 
-type TypeTab = RecordType;
+type TypeTab = RecordType | "purchase";
 type ViewMode = "table" | "kanban";
 type DateFilter = "all" | "7d" | "30d" | "90d";
 
@@ -92,17 +97,18 @@ const ENQUIRY_KANBAN_COLUMNS: KanbanColumnConfig[] = [
   })),
 ];
 
-function isTypeTab(value: unknown): value is RecordType {
-  return value === "order" || value === "enquiry";
+function isTypeTab(value: unknown): value is TypeTab {
+  return value === "order" || value === "enquiry" || value === "purchase";
 }
 
 function getTypeTabFromSearchParams(searchParams: URLSearchParams) {
   const type = searchParams.get("type");
   if (type === "enquiries") return "enquiry";
+  if (type === "purchases") return "purchase";
   return isTypeTab(type) ? type : null;
 }
 
-function readStoredTypeTab(): RecordType | null {
+function readStoredTypeTab(): TypeTab | null {
   if (typeof window === "undefined") return null;
 
   try {
@@ -113,7 +119,7 @@ function readStoredTypeTab(): RecordType | null {
   }
 }
 
-function writeStoredTypeTab(tab: RecordType) {
+function writeStoredTypeTab(tab: TypeTab) {
   if (typeof window === "undefined") return;
 
   try {
@@ -404,6 +410,177 @@ function RecordsMobileList({
   );
 }
 
+function formatStockSaleAmount(amount: string) {
+  const parsed = Number(amount);
+  return Number.isFinite(parsed) ? formatCurrency(parsed) : amount;
+}
+
+function formatStockSaleMonth(saleMonth: string | null) {
+  if (!saleMonth) return "-";
+  return new Date(saleMonth).toLocaleDateString("en-IN", {
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function getStockSaleProductCodes(sale: BackendStockSaleRow) {
+  return sale.items.map((item) => item.productCode).filter(Boolean);
+}
+
+function StockSaleProductCodes({ sale }: { sale: BackendStockSaleRow }) {
+  const codes = getStockSaleProductCodes(sale);
+  const visibleCodes = codes.slice(0, 2);
+  const hiddenCount = codes.length - visibleCodes.length;
+
+  if (codes.length === 0) {
+    return <span className="text-muted-foreground">-</span>;
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex max-w-72 flex-wrap gap-1">
+            {visibleCodes.map((code) => (
+              <Badge
+                className="font-mono text-[11px] font-medium"
+                key={code}
+                variant="secondary"
+              >
+                {code}
+              </Badge>
+            ))}
+            {hiddenCount > 0 && (
+              <Badge
+                className="border-border bg-transparent text-muted-foreground"
+                variant="outline"
+              >
+                +{hiddenCount} more
+              </Badge>
+            )}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-80" side="top" sideOffset={6}>
+          <div className="flex flex-wrap gap-1.5">
+            {codes.map((code) => (
+              <span
+                className="rounded border border-background/20 px-1.5 py-0.5 font-mono text-[11px]"
+                key={code}
+              >
+                {code}
+              </span>
+            ))}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function StockPurchasesTable({
+  sales,
+  isLoading,
+  isError,
+  isFetchingNextPage,
+  hasNextPage,
+  loadMoreRef,
+}: {
+  sales: BackendStockSaleRow[];
+  isLoading: boolean;
+  isError: boolean;
+  isFetchingNextPage: boolean;
+  hasNextPage: boolean;
+  loadMoreRef: RefObject<HTMLDivElement | null>;
+}) {
+  if (isLoading) {
+    return (
+      <p className="text-sm text-muted-foreground">Loading purchases...</p>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-dashed border-border py-16 text-center">
+        <p className="text-sm font-medium text-muted-foreground">
+          Could not load purchases
+        </p>
+      </div>
+    );
+  }
+
+  if (sales.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-border py-16 text-center">
+        <p className="text-sm font-medium text-muted-foreground">
+          No stock purchases found
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card my-4">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="min-w-52">Customer</TableHead>
+              <TableHead className="w-72 min-w-72">Product codes</TableHead>
+              <TableHead className="min-w-32">Amount</TableHead>
+              <TableHead className="min-w-40">Sales person</TableHead>
+              <TableHead className="min-w-36">Store</TableHead>
+              <TableHead className="min-w-40">Source</TableHead>
+              <TableHead className="min-w-28">Month</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sales.map((sale) => (
+              <TableRow key={sale.id}>
+                <TableCell>
+                  <p className="font-medium text-foreground">
+                    {sale.customerName}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {sale.stockType ?? "Stock sale"}
+                  </p>
+                </TableCell>
+                <TableCell className="w-72 min-w-72">
+                  <StockSaleProductCodes sale={sale} />
+                </TableCell>
+                <TableCell className="font-medium text-foreground">
+                  {formatStockSaleAmount(sale.totalAmount)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {sale.salesPerson?.name ?? "-"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {sale.location?.name ?? sale.storeName ?? "-"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {sale.source ?? "-"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatStockSaleMonth(sale.saleMonth)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <div ref={loadMoreRef} className="h-4" />
+      {isFetchingNextPage ? (
+        <p className="py-3 text-center text-xs text-muted-foreground">
+          Fetching more purchases...
+        </p>
+      ) : !hasNextPage ? (
+        <p className="py-3 text-center text-xs text-muted-foreground">
+          -- End of List --
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function OrdersEnquiriesWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -417,6 +594,11 @@ export function OrdersEnquiriesWorkspace() {
     { limit: 100 },
     { enabled: typeTab === "order" },
   );
+  const stockSalesQuery = useStockSales(
+    { limit: 40 },
+    { enabled: typeTab === "purchase" },
+  );
+  const stockSalesLoadMoreRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -434,6 +616,35 @@ export function OrdersEnquiriesWorkspace() {
   useEffect(() => {
     writeStoredTypeTab(typeTab);
   }, [typeTab]);
+
+  useEffect(() => {
+    if (typeTab !== "purchase") return;
+
+    const sentinel = stockSalesLoadMoreRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (
+          entry.isIntersecting &&
+          stockSalesQuery.hasNextPage &&
+          !stockSalesQuery.isFetchingNextPage
+        ) {
+          stockSalesQuery.fetchNextPage();
+        }
+      },
+      { rootMargin: "360px" },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    stockSalesQuery.fetchNextPage,
+    stockSalesQuery.hasNextPage,
+    stockSalesQuery.isFetchingNextPage,
+    typeTab,
+  ]);
 
   const apiEnquiries = useMemo(
     () =>
@@ -453,13 +664,18 @@ export function OrdersEnquiriesWorkspace() {
     () => (typeTab === "order" ? apiOrders : apiEnquiries),
     [apiEnquiries, apiOrders, typeTab],
   );
+  const stockSales = useMemo(
+    () => stockSalesQuery.data?.pages.flatMap((page) => page.data) ?? [],
+    [stockSalesQuery.data],
+  );
 
   const tabCounts = useMemo(
     () => ({
       order: typeTab === "order" ? records.length : undefined,
       enquiry: typeTab === "enquiry" ? records.length : undefined,
+      purchase: typeTab === "purchase" ? stockSales.length : undefined,
     }),
-    [records.length, typeTab],
+    [records.length, stockSales.length, typeTab],
   );
 
   const filteredRecords = useMemo(() => {
@@ -505,10 +721,15 @@ export function OrdersEnquiriesWorkspace() {
   const shownRecordCount = isKanbanMode
     ? kanbanRecords.length
     : filteredRecords.length;
-  const totalRecordCount = tabCounts[typeTab] ?? 0;
-  const isFilterDisabled = isKanbanMode;
+  const purchasesShownCount = stockSales.length;
+  const isFilterDisabled = isKanbanMode || typeTab === "purchase";
 
-  const sectionHeading = typeTab === "order" ? "Orders" : "Enquiries";
+  const sectionHeading =
+    typeTab === "order"
+      ? "Orders"
+      : typeTab === "enquiry"
+        ? "Enquiries"
+        : "Purchases";
   const activeFilterCount =
     (search.trim() ? 1 : 0) +
     (statusFilter !== "all" ? 1 : 0) +
@@ -520,32 +741,13 @@ export function OrdersEnquiriesWorkspace() {
   };
   const handleTypeTabChange = (tab: TypeTab) => {
     setTypeTab(tab);
+    if (tab === "purchase") {
+      setViewMode("table");
+    }
     setStatusFilter("all");
   };
-  const recordCountLabel = (
-    <>
-      <span className="sm:hidden">
-        <strong className="font-medium text-foreground">
-          {shownRecordCount}
-        </strong>{" "}
-        of{" "}
-        <strong className="font-medium text-foreground">
-          {totalRecordCount}
-        </strong>
-      </span>
-      <span className="hidden sm:inline">
-        Showing{" "}
-        <strong className="font-medium text-foreground">
-          {shownRecordCount}
-        </strong>{" "}
-        of{" "}
-        <strong className="font-medium text-foreground">
-          {totalRecordCount}
-        </strong>{" "}
-        records
-      </span>
-    </>
-  );
+  const sectionCount =
+    typeTab === "purchase" ? purchasesShownCount : shownRecordCount;
 
   return (
     <div className="space-y-4">
@@ -604,36 +806,34 @@ export function OrdersEnquiriesWorkspace() {
               label: "Enquiries",
               count: tabCounts.enquiry,
             },
+            {
+              key: "purchase" as const,
+              label: "Purchases",
+              count: tabCounts.purchase,
+            },
           ].map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => handleTypeTabChange(tab.key)}
               className={cn(
-                "flex min-h-8 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
+                "flex min-h-8 shrink-0 cursor-pointer items-center rounded-full border px-4 text-sm font-medium transition-colors",
                 typeTab === tab.key
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-background text-muted-foreground hover:text-foreground",
               )}
             >
               {tab.label}
-              {tab.count !== undefined ? (
-                <span
-                  className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[10px]",
-                    typeTab === tab.key
-                      ? "bg-background/20 text-background"
-                      : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  {tab.count}
-                </span>
-              ) : null}
             </button>
           ))}
         </div>
 
-        <div className="hidden w-full items-center gap-1 rounded-lg border border-border bg-background p-1 lg:flex lg:w-auto">
+        <div
+          className={cn(
+            "hidden w-full items-center gap-1 rounded-lg border border-border bg-background p-1 lg:w-auto",
+            typeTab === "purchase" ? "lg:hidden" : "lg:flex",
+          )}
+        >
           <button
             type="button"
             onClick={() => setViewMode("table")}
@@ -661,73 +861,78 @@ export function OrdersEnquiriesWorkspace() {
             Kanban
           </button>
         </div>
-
-        <div className="lg:hidden">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setIsMobileFiltersOpen(true)}
-            className="w-full justify-center gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Filters
-            {activeFilterCount > 0 ? (
-              <Badge variant="secondary" className="ml-0.5 px-1.5">
-                {activeFilterCount}
-              </Badge>
-            ) : null}
-          </Button>
-        </div>
       </div>
 
-      <div className="hidden gap-3 lg:grid lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search customer or ID"
-            className="pl-9"
+      <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
+        <div className="flex min-w-0 items-center justify-between gap-3 lg:block">
+          <h2 className="shrink-0 text-base font-medium text-foreground lg:min-w-28">
+            {sectionHeading}{" "}
+            <span className="text-muted-foreground">({sectionCount})</span>
+          </h2>
+
+          <div className={cn("lg:hidden", typeTab === "purchase" && "hidden")}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsMobileFiltersOpen(true)}
+              className="h-10 shrink-0 justify-center gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              Filters
+              {activeFilterCount > 0 ? (
+                <Badge variant="secondary" className="ml-0.5 px-1.5">
+                  {activeFilterCount}
+                </Badge>
+              ) : null}
+            </Button>
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            "hidden justify-items-end min-w-0 flex-1 gap-3 lg:grid lg:grid-cols-[minmax(160px,1fr)_minmax(140px,180px)_minmax(120px,160px)] lg:items-center",
+            typeTab === "purchase" && "lg:hidden",
+          )}
+        >
+          <div className="relative w-1/2">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search customer or ID"
+              className="pl-9"
+              disabled={isFilterDisabled}
+            />
+          </div>
+
+          <FilterSelect
+            label="Status"
+            value={statusFilter}
+            onValueChange={setStatusFilter}
             disabled={isFilterDisabled}
-          />
+          >
+            {(typeTab === "enquiry"
+              ? ENQUIRY_STATUS_OPTIONS
+              : ORDER_STATUS_OPTIONS
+            ).map((status) => (
+              <SelectItem key={status} value={status}>
+                {status === "all" ? "All statuses" : status}
+              </SelectItem>
+            ))}
+          </FilterSelect>
+
+          <FilterSelect
+            label="Creation Date"
+            value={dateFilter}
+            onValueChange={(value) => setDateFilter(value as DateFilter)}
+            disabled={isFilterDisabled}
+          >
+            <SelectItem value="all">All time</SelectItem>
+            <SelectItem value="7d">Last 7 days</SelectItem>
+            <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="90d">Last 90 days</SelectItem>
+          </FilterSelect>
         </div>
-
-        <FilterSelect
-          label="Status"
-          value={statusFilter}
-          onValueChange={setStatusFilter}
-          disabled={isFilterDisabled}
-        >
-          {(typeTab === "enquiry"
-            ? ENQUIRY_STATUS_OPTIONS
-            : ORDER_STATUS_OPTIONS
-          ).map((status) => (
-            <SelectItem key={status} value={status}>
-              {status === "all" ? "All statuses" : status}
-            </SelectItem>
-          ))}
-        </FilterSelect>
-
-        <FilterSelect
-          label="Creation Date"
-          value={dateFilter}
-          onValueChange={(value) => setDateFilter(value as DateFilter)}
-          disabled={isFilterDisabled}
-        >
-          <SelectItem value="all">All time</SelectItem>
-          <SelectItem value="7d">Last 7 days</SelectItem>
-          <SelectItem value="30d">Last 30 days</SelectItem>
-          <SelectItem value="90d">Last 90 days</SelectItem>
-        </FilterSelect>
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-medium text-foreground">
-          {sectionHeading}
-        </h2>
-        <p className="shrink-0 text-sm text-muted-foreground">
-          {recordCountLabel}
-        </p>
       </div>
 
       <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
@@ -838,12 +1043,23 @@ export function OrdersEnquiriesWorkspace() {
       {(
         typeTab === "order"
           ? ordersQuery.isLoading
-          : enquiriesQuery.isLoading
+          : typeTab === "enquiry"
+            ? enquiriesQuery.isLoading
+            : false
       ) ? (
         <p className="text-sm text-muted-foreground">Loading records...</p>
       ) : null}
 
-      {viewMode === "table" ? (
+      {typeTab === "purchase" ? (
+        <StockPurchasesTable
+          sales={stockSales}
+          isLoading={stockSalesQuery.isLoading}
+          isError={stockSalesQuery.isError}
+          isFetchingNextPage={stockSalesQuery.isFetchingNextPage}
+          hasNextPage={Boolean(stockSalesQuery.hasNextPage)}
+          loadMoreRef={stockSalesLoadMoreRef}
+        />
+      ) : viewMode === "table" ? (
         <>
           <div className="sm:hidden">
             <RecordsMobileList

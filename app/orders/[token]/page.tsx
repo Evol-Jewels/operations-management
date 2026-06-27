@@ -375,7 +375,7 @@ export default function OrderPage() {
           asChild
           className="-ml-2 gap-1.5 text-muted-foreground"
         >
-          <Link href="/orders-and-enquiries">
+          <Link href="/orders-workspace">
             <ArrowLeft className="h-3.5 w-3.5" />
             All orders
           </Link>
