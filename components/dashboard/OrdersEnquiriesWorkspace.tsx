@@ -38,21 +38,20 @@ import {
 } from "@/components/ui/table";
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { useOrders } from "@/hooks/useOrders";
+import { useStockSales } from "@/hooks/useStockSales";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
-import {
-  ENQUIRY_STATUS_LABELS,
-  getRecordStatus,
-} from "@/lib/enquiryStatus";
+import { ENQUIRY_STATUS_LABELS, getRecordStatus } from "@/lib/enquiryStatus";
 import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { Order, PersonSummary, RecordType } from "@/types";
 import type { BackendEnquiryStatus } from "@/types/enquiry-api";
+import type { BackendStockSaleRow } from "@/types/stock-sales-api";
 import { KanbanBoard, type KanbanColumnConfig } from "./KanbanBoard";
 
-type TypeTab = RecordType;
+type TypeTab = RecordType | "purchase";
 type ViewMode = "table" | "kanban";
 type DateFilter = "all" | "7d" | "30d" | "90d";
 
@@ -92,17 +91,18 @@ const ENQUIRY_KANBAN_COLUMNS: KanbanColumnConfig[] = [
   })),
 ];
 
-function isTypeTab(value: unknown): value is RecordType {
-  return value === "order" || value === "enquiry";
+function isTypeTab(value: unknown): value is TypeTab {
+  return value === "order" || value === "enquiry" || value === "purchase";
 }
 
 function getTypeTabFromSearchParams(searchParams: URLSearchParams) {
   const type = searchParams.get("type");
   if (type === "enquiries") return "enquiry";
+  if (type === "purchases") return "purchase";
   return isTypeTab(type) ? type : null;
 }
 
-function readStoredTypeTab(): RecordType | null {
+function readStoredTypeTab(): TypeTab | null {
   if (typeof window === "undefined") return null;
 
   try {
@@ -113,7 +113,7 @@ function readStoredTypeTab(): RecordType | null {
   }
 }
 
-function writeStoredTypeTab(tab: RecordType) {
+function writeStoredTypeTab(tab: TypeTab) {
   if (typeof window === "undefined") return;
 
   try {
@@ -404,6 +404,111 @@ function RecordsMobileList({
   );
 }
 
+function formatStockSaleAmount(amount: string) {
+  const parsed = Number(amount);
+  return Number.isFinite(parsed) ? formatCurrency(parsed) : amount;
+}
+
+function formatStockSaleMonth(saleMonth: string | null) {
+  if (!saleMonth) return "-";
+  return new Date(saleMonth).toLocaleDateString("en-IN", {
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function getStockSaleProducts(sale: BackendStockSaleRow) {
+  return sale.items.map((item) => item.productCode).join(", ") || "-";
+}
+
+function StockPurchasesTable({
+  sales,
+  isLoading,
+  isError,
+}: {
+  sales: BackendStockSaleRow[];
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <p className="text-sm text-muted-foreground">Loading purchases...</p>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-xl border border-dashed border-border py-16 text-center">
+        <p className="text-sm font-medium text-muted-foreground">
+          Could not load purchases
+        </p>
+      </div>
+    );
+  }
+
+  if (sales.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-border py-16 text-center">
+        <p className="text-sm font-medium text-muted-foreground">
+          No stock purchases found
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="min-w-52">Customer</TableHead>
+              <TableHead className="min-w-60">Product codes</TableHead>
+              <TableHead className="min-w-32">Amount</TableHead>
+              <TableHead className="min-w-40">Sales person</TableHead>
+              <TableHead className="min-w-36">Store</TableHead>
+              <TableHead className="min-w-40">Source</TableHead>
+              <TableHead className="min-w-28">Month</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sales.map((sale) => (
+              <TableRow key={sale.id}>
+                <TableCell>
+                  <p className="font-medium text-foreground">
+                    {sale.customerName}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {sale.stockType ?? "Stock sale"}
+                  </p>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {getStockSaleProducts(sale)}
+                </TableCell>
+                <TableCell className="font-medium text-foreground">
+                  {formatStockSaleAmount(sale.totalAmount)}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {sale.salesPerson?.name ?? "-"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {sale.location?.name ?? sale.storeName ?? "-"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {sale.source ?? "-"}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {formatStockSaleMonth(sale.saleMonth)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 export function OrdersEnquiriesWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -417,6 +522,7 @@ export function OrdersEnquiriesWorkspace() {
     { limit: 100 },
     { enabled: typeTab === "order" },
   );
+  const stockSalesQuery = useStockSales({ enabled: typeTab === "purchase" });
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -453,13 +559,15 @@ export function OrdersEnquiriesWorkspace() {
     () => (typeTab === "order" ? apiOrders : apiEnquiries),
     [apiEnquiries, apiOrders, typeTab],
   );
+  const stockSales = stockSalesQuery.data ?? [];
 
   const tabCounts = useMemo(
     () => ({
       order: typeTab === "order" ? records.length : undefined,
       enquiry: typeTab === "enquiry" ? records.length : undefined,
+      purchase: typeTab === "purchase" ? stockSales.length : undefined,
     }),
-    [records.length, typeTab],
+    [records.length, stockSales.length, typeTab],
   );
 
   const filteredRecords = useMemo(() => {
@@ -505,10 +613,17 @@ export function OrdersEnquiriesWorkspace() {
   const shownRecordCount = isKanbanMode
     ? kanbanRecords.length
     : filteredRecords.length;
-  const totalRecordCount = tabCounts[typeTab] ?? 0;
-  const isFilterDisabled = isKanbanMode;
+  const purchasesShownCount = stockSales.length;
+  const totalRecordCount =
+    typeTab === "purchase" ? purchasesShownCount : (tabCounts[typeTab] ?? 0);
+  const isFilterDisabled = isKanbanMode || typeTab === "purchase";
 
-  const sectionHeading = typeTab === "order" ? "Orders" : "Enquiries";
+  const sectionHeading =
+    typeTab === "order"
+      ? "Orders"
+      : typeTab === "enquiry"
+        ? "Enquiries"
+        : "Purchases";
   const activeFilterCount =
     (search.trim() ? 1 : 0) +
     (statusFilter !== "all" ? 1 : 0) +
@@ -520,13 +635,16 @@ export function OrdersEnquiriesWorkspace() {
   };
   const handleTypeTabChange = (tab: TypeTab) => {
     setTypeTab(tab);
+    if (tab === "purchase") {
+      setViewMode("table");
+    }
     setStatusFilter("all");
   };
   const recordCountLabel = (
     <>
       <span className="sm:hidden">
         <strong className="font-medium text-foreground">
-          {shownRecordCount}
+          {typeTab === "purchase" ? purchasesShownCount : shownRecordCount}
         </strong>{" "}
         of{" "}
         <strong className="font-medium text-foreground">
@@ -536,7 +654,7 @@ export function OrdersEnquiriesWorkspace() {
       <span className="hidden sm:inline">
         Showing{" "}
         <strong className="font-medium text-foreground">
-          {shownRecordCount}
+          {typeTab === "purchase" ? purchasesShownCount : shownRecordCount}
         </strong>{" "}
         of{" "}
         <strong className="font-medium text-foreground">
@@ -604,36 +722,34 @@ export function OrdersEnquiriesWorkspace() {
               label: "Enquiries",
               count: tabCounts.enquiry,
             },
+            {
+              key: "purchase" as const,
+              label: "Purchases",
+              count: tabCounts.purchase,
+            },
           ].map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => handleTypeTabChange(tab.key)}
               className={cn(
-                "flex min-h-8 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
+                "flex min-h-8 shrink-0 cursor-pointer items-center rounded-full border px-4 text-sm font-medium transition-colors",
                 typeTab === tab.key
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-background text-muted-foreground hover:text-foreground",
               )}
             >
               {tab.label}
-              {tab.count !== undefined ? (
-                <span
-                  className={cn(
-                    "rounded-full px-1.5 py-0.5 text-[10px]",
-                    typeTab === tab.key
-                      ? "bg-background/20 text-background"
-                      : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  {tab.count}
-                </span>
-              ) : null}
             </button>
           ))}
         </div>
 
-        <div className="hidden w-full items-center gap-1 rounded-lg border border-border bg-background p-1 lg:flex lg:w-auto">
+        <div
+          className={cn(
+            "hidden w-full items-center gap-1 rounded-lg border border-border bg-background p-1 lg:w-auto",
+            typeTab === "purchase" ? "lg:hidden" : "lg:flex",
+          )}
+        >
           <button
             type="button"
             onClick={() => setViewMode("table")}
@@ -662,7 +778,7 @@ export function OrdersEnquiriesWorkspace() {
           </button>
         </div>
 
-        <div className="lg:hidden">
+        <div className={cn("lg:hidden", typeTab === "purchase" && "hidden")}>
           <Button
             type="button"
             variant="outline"
@@ -680,7 +796,12 @@ export function OrdersEnquiriesWorkspace() {
         </div>
       </div>
 
-      <div className="hidden gap-3 lg:grid lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end">
+      <div
+        className={cn(
+          "hidden gap-3 lg:grid lg:grid-cols-[minmax(240px,1fr)_auto_auto] lg:items-end",
+          typeTab === "purchase" && "lg:hidden",
+        )}
+      >
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -838,12 +959,20 @@ export function OrdersEnquiriesWorkspace() {
       {(
         typeTab === "order"
           ? ordersQuery.isLoading
-          : enquiriesQuery.isLoading
+          : typeTab === "enquiry"
+            ? enquiriesQuery.isLoading
+            : false
       ) ? (
         <p className="text-sm text-muted-foreground">Loading records...</p>
       ) : null}
 
-      {viewMode === "table" ? (
+      {typeTab === "purchase" ? (
+        <StockPurchasesTable
+          sales={stockSales}
+          isLoading={stockSalesQuery.isLoading}
+          isError={stockSalesQuery.isError}
+        />
+      ) : viewMode === "table" ? (
         <>
           <div className="sm:hidden">
             <RecordsMobileList
