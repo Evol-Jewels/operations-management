@@ -74,28 +74,6 @@ interface EvilChartDatum extends Record<string, unknown> {
   value: number;
 }
 
-const BAR_COLORS = [
-  "bg-blue-600",
-  "bg-amber-500",
-  "bg-emerald-600",
-  "bg-violet-600",
-  "bg-orange-500",
-  "bg-cyan-600",
-  "bg-slate-600",
-  "bg-rose-500",
-];
-
-const CHART_COLORS = [
-  "oklch(0.56 0.17 254)",
-  "oklch(0.69 0.16 75)",
-  "oklch(0.58 0.14 155)",
-  "oklch(0.59 0.18 295)",
-  "oklch(0.64 0.2 35)",
-  "oklch(0.55 0.12 210)",
-  "oklch(0.52 0.08 250)",
-  "oklch(0.62 0.15 18)",
-];
-
 function getChartKey(label: string) {
   return label
     .toLowerCase()
@@ -135,6 +113,40 @@ const STAGE_CHART_CONFIG = {
   },
 } satisfies ChartConfig;
 
+const URGENCY_COLORS: Record<UrgencyLevel, string> = {
+  overdue: "oklch(0.62 0.22 25)",
+  "due-soon": "oklch(0.76 0.17 72)",
+  "on-track": "oklch(0.59 0.14 145)",
+  none: "oklch(0.55 0.02 260)",
+};
+
+const URGENCY_LABELS: Record<UrgencyLevel, string> = {
+  overdue: "Overdue",
+  "due-soon": "Due Soon",
+  "on-track": "On Track",
+  none: "No Date",
+};
+
+function buildUrgencyData(urgency: Record<UrgencyLevel, number>): ChartDatum[] {
+  return (Object.keys(URGENCY_COLORS) as UrgencyLevel[]).map((level) => ({
+    label: URGENCY_LABELS[level],
+    value: urgency[level],
+    color: URGENCY_COLORS[level],
+  }));
+}
+
+function buildStatusData(status: {
+  open: number;
+  converted: number;
+  closed: number;
+}): ChartDatum[] {
+  return [
+    { label: "Open", value: status.open, color: "oklch(0.55 0.13 178)" },
+    { label: "Converted", value: status.converted, color: "oklch(0.68 0.19 46)" },
+    { label: "Closed", value: status.closed, color: "oklch(0.38 0.09 225)" },
+  ];
+}
+
 function getRecordHref(order: Order) {
   return order.type === "enquiry"
     ? `/enquiries/${order.refCode}`
@@ -169,21 +181,6 @@ function getRiskItems(orders: Order[]) {
           item.signal === "stale" || item.signal === "stuck",
       ),
   );
-}
-
-function getCategoryCounts(orders: Order[]) {
-  return Object.entries(
-    orders.reduce<Record<string, number>>((acc, order) => {
-      acc[order.category] = (acc[order.category] ?? 0) + 1;
-      return acc;
-    }, {}),
-  )
-    .sort((a, b) => b[1] - a[1])
-    .map(([label, value], index) => ({
-      label,
-      value,
-      color: CHART_COLORS[index % CHART_COLORS.length],
-    }));
 }
 
 function MetricCard({ card }: { card: MetricCardData }) {
@@ -257,117 +254,19 @@ function Panel({
   );
 }
 
-function HorizontalBar({
-  item,
-  max,
-  index,
-}: {
-  item: ChartDatum;
-  max: number;
-  index: number;
-}) {
-  const pct = max > 0 ? (item.value / max) * 100 : 0;
-
-  return (
-    <div className="grid grid-cols-[minmax(92px,150px)_1fr_34px] items-center gap-3">
-      <span className="truncate text-sm text-muted-foreground">
-        {item.label}
-      </span>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all duration-500",
-            BAR_COLORS[index % BAR_COLORS.length],
-          )}
-          style={{ width: `${Math.max(pct, item.value > 0 ? 3 : 0)}%` }}
-        />
-      </div>
-      <span className="text-right text-sm tabular-nums text-foreground">
-        {item.value}
-      </span>
-    </div>
-  );
-}
-
-function DonutChart({
+function EvilStageChart({
   data,
-  size = 150,
+  className,
 }: {
   data: ChartDatum[];
-  size?: number;
+  className?: string;
 }) {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  let offset = 25;
-  const segments =
-    total > 0
-      ? data
-          .filter((item) => item.value > 0)
-          .map((item) => {
-            const length = (item.value / total) * 100;
-            const segment = (
-              <circle
-                key={item.label}
-                cx="21"
-                cy="21"
-                r="15.915"
-                fill="transparent"
-                stroke={item.color}
-                strokeDasharray={`${length} ${100 - length}`}
-                strokeDashoffset={offset}
-                strokeWidth="8"
-              />
-            );
-            offset -= length;
-            return segment;
-          })
-      : [];
-
-  return (
-    <div className="flex flex-wrap items-center justify-center gap-8">
-      <svg
-        viewBox="0 0 42 42"
-        width={size}
-        height={size}
-        className="-rotate-90"
-        aria-label="Donut chart"
-        role="img"
-      >
-        <circle
-          cx="21"
-          cy="21"
-          r="15.915"
-          fill="transparent"
-          stroke="currentColor"
-          className="text-muted"
-          strokeWidth="8"
-        />
-        {segments}
-      </svg>
-      <div className="grid min-w-36 gap-2">
-        {data.map((item) => (
-          <div key={item.label} className="flex items-center gap-2 text-sm">
-            <span
-              className="h-3 w-3 rounded-full"
-              style={{ backgroundColor: item.color }}
-            />
-            <span className="flex-1 text-muted-foreground">{item.label}</span>
-            <span className="font-medium tabular-nums text-foreground">
-              {item.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function EvilStageChart({ data }: { data: ChartDatum[] }) {
   return (
     <EvilBarChart
       data={data}
       config={STAGE_CHART_CONFIG}
       layout="horizontal"
-      className="h-[19rem] w-full p-1"
+      className={cn("h-64 w-full p-1", className)}
       barRadius={5}
       chartProps={{
         margin: { top: 4, right: 8, bottom: 4, left: 0 },
@@ -390,9 +289,13 @@ function EvilStageChart({ data }: { data: ChartDatum[] }) {
 function EvilDonutChart({
   data,
   className,
+  innerRadius = 42,
+  outerRadius = 66,
 }: {
   data: ChartDatum[];
   className?: string;
+  innerRadius?: number;
+  outerRadius?: number;
 }) {
   const chartData = toEvilChartData(data);
   const chartConfig = getEvilPieChartConfig(data);
@@ -403,18 +306,60 @@ function EvilDonutChart({
       config={chartConfig}
       dataKey="value"
       nameKey="key"
-      className={cn("h-52 w-full p-1", className)}
+      className={cn("h-40 w-full p-1", className)}
     >
       <EvilPieTooltip variant="frosted-glass" />
       <Pie
-        innerRadius={50}
-        outerRadius={80}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius}
         cornerRadius={3}
         paddingAngle={2}
         isClickable
       />
       <EvilPieLegend variant="circle" align="center" isClickable />
     </EvilPieChart>
+  );
+}
+
+function StageAndBreakdownCharts({
+  stageTitle,
+  stageCounts,
+  urgencyData,
+  statusData,
+}: {
+  stageTitle: string;
+  stageCounts: ChartDatum[];
+  urgencyData: ChartDatum[];
+  statusData: ChartDatum[];
+}) {
+  return (
+    <div className="my-4 grid items-stretch gap-5 xl:grid-cols-2">
+      <Panel title={stageTitle} className="xl:flex xl:h-full xl:flex-col">
+        <div className="rounded-lg border border-border/70 bg-card p-4 xl:flex xl:flex-1 xl:flex-col">
+          <EvilStageChart data={stageCounts} />
+        </div>
+      </Panel>
+
+      <div className="grid gap-5 xl:h-full xl:grid-rows-2">
+        <Panel
+          title="Urgency breakdown"
+          className="xl:flex xl:min-h-0 xl:flex-col"
+        >
+          <div className="rounded-lg border border-border/70 bg-card p-4 xl:flex xl:flex-1 xl:flex-col">
+            <EvilDonutChart data={urgencyData} />
+          </div>
+        </Panel>
+
+        <Panel
+          title="Status breakdown"
+          className="xl:flex xl:min-h-0 xl:flex-col"
+        >
+          <div className="rounded-lg border border-border/70 bg-card p-4 xl:flex xl:flex-1 xl:flex-col">
+            <EvilDonutChart data={statusData} />
+          </div>
+        </Panel>
+      </div>
+    </div>
   );
 }
 
@@ -638,6 +583,20 @@ function getAdminAnalytics(orders: Order[]) {
     value: allOrders.filter((order) => order.currentStage === stage).length,
     color: "",
   }));
+  const urgency: Record<UrgencyLevel, number> = {
+    overdue: 0,
+    "due-soon": 0,
+    "on-track": 0,
+    none: 0,
+  };
+  for (const order of allOrders) {
+    urgency[getUrgencyLevel(order.deliveryDate)] += 1;
+  }
+  const status = {
+    open: openEnquiries.length,
+    converted: allOrders.filter((order) => order.sourceEnquiryId).length,
+    closed: closedEnquiries.length,
+  };
 
   return {
     allOrders,
@@ -646,7 +605,8 @@ function getAdminAnalytics(orders: Order[]) {
     revenue,
     averageOrderValue,
     stageCounts,
-    categoryCounts: getCategoryCounts(orders),
+    urgency,
+    status,
     riskItems: getRiskItems(orders),
   };
 }
@@ -674,6 +634,12 @@ function getOpsAnalytics(orders: Order[]) {
     urgency[getUrgencyLevel(order.deliveryDate)] += 1;
   }
 
+  const status = {
+    open: openEnquiries.length,
+    converted: activeOrders.filter((order) => order.sourceEnquiryId).length,
+    closed: 0,
+  };
+
   return {
     activeOrders,
     openEnquiries,
@@ -687,8 +653,8 @@ function getOpsAnalytics(orders: Order[]) {
         .length,
       color: "",
     })),
-    categoryCounts: getCategoryCounts(activeRecords),
     urgency,
+    status,
     riskItems: getRiskItems(activeRecords),
   };
 }
@@ -768,63 +734,12 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
           </div>
         </Panel>
 
-        <div className="grid items-stretch gap-5 my-4 xl:grid-cols-2">
-          <Panel title="Orders by stage" className="xl:flex xl:h-full xl:flex-col">
-            <div className="rounded-lg border border-border/70 bg-card p-4 xl:flex xl:flex-1 xl:flex-col xl:py-6">
-              <EvilStageChart data={analytics.stageCounts} />
-            </div>
-          </Panel>
-
-          <div className="grid gap-5 xl:h-full xl:grid-rows-2">
-            <Panel title="By category" className="xl:flex xl:min-h-0 xl:flex-col">
-              <div className="rounded-lg border border-border/70 bg-card p-4 xl:flex xl:flex-1 xl:flex-col">
-                <EvilDonutChart data={analytics.categoryCounts} />
-              </div>
-            </Panel>
-
-            <Panel title="Status breakdown" className="xl:flex xl:min-h-0 xl:flex-col">
-              <div className="rounded-lg border border-border/70 bg-card p-4 pb-5 xl:flex xl:flex-1 xl:flex-col xl:pb-6">
-                <EvilDonutChart
-                  data={[
-                    {
-                      label: "Open",
-                      value: analytics.openEnquiries.length,
-                      color: "oklch(0.55 0.13 178)",
-                    },
-                    {
-                      label: "Converted",
-                      value: analytics.allOrders.filter(
-                        (o) => o.sourceEnquiryId,
-                      ).length,
-                      color: "oklch(0.68 0.19 46)",
-                    },
-                    {
-                      label: "Closed",
-                      value: analytics.closedEnquiries.length,
-                      color: "oklch(0.38 0.09 225)",
-                    },
-                  ]}
-                />
-                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/60 pt-3">
-                  {[
-                    { label: "Conversion", value: "42%" },
-                    { label: "Avg Response", value: "2.4h" },
-                    { label: "Close Time", value: "6d" },
-                  ].map((stat) => (
-                    <div key={stat.label} className="text-center">
-                      <p className="text-base font-semibold tracking-tight text-foreground">
-                        {stat.value}
-                      </p>
-                      <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
-                        {stat.label}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Panel>
-          </div>
-        </div>
+        <StageAndBreakdownCharts
+          stageTitle="Orders by stage"
+          stageCounts={analytics.stageCounts}
+          urgencyData={buildUrgencyData(analytics.urgency)}
+          statusData={buildStatusData(analytics.status)}
+        />
       </div>
 
       <div className="xl:sticky xl:top-5 xl:self-start">
@@ -931,60 +846,12 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
           </Panel>
         )}
 
-        <div className="grid items-start gap-5 xl:grid-cols-2">
-          <Panel title="Records by stage" className="xl:h-full">
-            <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
-              {analytics.stageCounts.map((item, index) => (
-                <HorizontalBar
-                  key={item.label}
-                  item={item}
-                  max={Math.max(
-                    ...analytics.stageCounts.map((s) => s.value),
-                    1,
-                  )}
-                  index={index}
-                />
-              ))}
-            </div>
-          </Panel>
-
-          <div className="grid gap-5">
-            <Panel title="Urgency breakdown">
-              <div className="rounded-lg border border-border/70 bg-card p-4">
-                <DonutChart
-                  data={[
-                    {
-                      label: "Overdue",
-                      value: analytics.urgency.overdue,
-                      color: "oklch(0.62 0.22 25)",
-                    },
-                    {
-                      label: "Due Soon",
-                      value: analytics.urgency["due-soon"],
-                      color: "oklch(0.76 0.17 72)",
-                    },
-                    {
-                      label: "On Track",
-                      value: analytics.urgency["on-track"],
-                      color: "oklch(0.59 0.14 145)",
-                    },
-                    {
-                      label: "No Date",
-                      value: analytics.urgency.none,
-                      color: "oklch(0.55 0.02 260)",
-                    },
-                  ]}
-                />
-              </div>
-            </Panel>
-
-            <Panel title="By category">
-              <div className="rounded-lg border border-border/70 bg-card p-4">
-                <DonutChart data={analytics.categoryCounts} />
-              </div>
-            </Panel>
-          </div>
-        </div>
+        <StageAndBreakdownCharts
+          stageTitle="Records by stage"
+          stageCounts={analytics.stageCounts}
+          urgencyData={buildUrgencyData(analytics.urgency)}
+          statusData={buildStatusData(analytics.status)}
+        />
       </div>
 
       <div className="xl:sticky xl:top-5 xl:self-start">
