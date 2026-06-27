@@ -3,6 +3,7 @@ import type {
   BackendStockSaleRow,
   ListStockSalesQuery,
   StockSalesListResponse,
+  StockSalesSyncSummary,
 } from "@/types/stock-sales-api";
 
 export const STOCK_SALES_LIST_DEFAULT_LIMIT = 40;
@@ -52,8 +53,15 @@ function normalizeStockSalesList(response: unknown): StockSalesListResponse {
 export function fetchStockSales(query: ListStockSalesQuery = {}) {
   return apiFetch<unknown>(
     buildUrl("api/v1/stock-sales", {
+      search: query.search,
       limit: query.limit,
       offset: query.offset,
     }),
   ).then(normalizeStockSalesList);
+}
+
+export function syncStockSales() {
+  return apiFetch<StockSalesSyncSummary>(buildUrl("api/v1/stock-sales/sync"), {
+    method: "POST",
+  });
 }

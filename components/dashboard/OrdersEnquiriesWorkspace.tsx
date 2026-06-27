@@ -6,11 +6,13 @@ import {
   List,
   PackagePlus,
   Plus,
+  RefreshCw,
   Search,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,7 +46,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { useOrders } from "@/hooks/useOrders";
-import { useStockSales } from "@/hooks/useStockSales";
+import { useStockSales, useSyncStockSales } from "@/hooks/useStockSales";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
@@ -427,6 +429,10 @@ function getStockSaleProductCodes(sale: BackendStockSaleRow) {
   return sale.items.map((item) => item.productCode).filter(Boolean);
 }
 
+function getErrorMessage(error: unknown, fallback = "Something went wrong") {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function StockSaleProductCodes({ sale }: { sale: BackendStockSaleRow }) {
   const codes = getStockSaleProductCodes(sale);
   const visibleCodes = codes.slice(0, 2);
@@ -594,19 +600,21 @@ export function OrdersEnquiriesWorkspace() {
     { limit: 100 },
     { enabled: typeTab === "order" },
   );
+  const [search, setSearch] = useState("");
   const stockSalesQuery = useStockSales(
-    { limit: 40 },
+    { limit: 40, search: search.trim() || undefined },
     { enabled: typeTab === "purchase" },
   );
+  const syncStockSalesMutation = useSyncStockSales();
   const stockSalesLoadMoreRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
-  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const isKanbanMode = viewMode === "kanban";
   const sessionRole = session ? getSessionRole(session) : "";
   const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
+  const canSyncPurchases = ["ADMIN", "OPERATIONS"].includes(sessionRole);
 
   useEffect(() => {
     const queryTab = getTypeTabFromSearchParams(searchParams);
@@ -745,6 +753,16 @@ export function OrdersEnquiriesWorkspace() {
       setViewMode("table");
     }
     setStatusFilter("all");
+  };
+  const handleSyncPurchases = async () => {
+    try {
+      const summary = await syncStockSalesMutation.mutateAsync();
+      toast.success(
+        `Purchase sync completed: ${summary.transactionsInserted} purchases imported`,
+      );
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not sync purchases"));
+    }
   };
   const sectionCount =
     typeTab === "purchase" ? purchasesShownCount : shownRecordCount;
@@ -933,6 +951,40 @@ export function OrdersEnquiriesWorkspace() {
             <SelectItem value="90d">Last 90 days</SelectItem>
           </FilterSelect>
         </div>
+
+        {typeTab === "purchase" ? (
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:min-w-0 lg:flex-1 lg:justify-end">
+            <div className="relative w-full sm:max-w-xs lg:w-80">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search customer, product code, or salesperson"
+                className="h-10 pl-9"
+                aria-label="Search purchases"
+              />
+            </div>
+            {canSyncPurchases ? (
+              <Button
+                variant="outline"
+                type="button"
+                className="h-10 justify-center gap-2"
+                onClick={() => void handleSyncPurchases()}
+                disabled={syncStockSalesMutation.isPending}
+              >
+                <RefreshCw
+                  className={cn(
+                    "h-4 w-4",
+                    syncStockSalesMutation.isPending && "animate-spin",
+                  )}
+                />
+                {syncStockSalesMutation.isPending
+                  ? "Syncing..."
+                  : "Sync purchases"}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>

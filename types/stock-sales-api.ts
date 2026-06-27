@@ -33,6 +33,7 @@ export interface BackendStockSaleRow {
 }
 
 export interface ListStockSalesQuery {
+  search?: string;
   limit?: number;
   offset?: number;
 }
@@ -40,4 +41,14 @@ export interface ListStockSalesQuery {
 export interface StockSalesListResponse {
   data: BackendStockSaleRow[];
   total: number;
+}
+
+export interface StockSalesSyncSummary {
+  sheetUrl: string;
+  startedAt: string;
+  finishedAt: string;
+  rowsRead: number;
+  transactionsInserted: number;
+  itemsInserted: number;
+  rowsSkipped: number;
 }
