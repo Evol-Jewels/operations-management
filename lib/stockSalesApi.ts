@@ -2,7 +2,10 @@ import { apiFetch, buildUrl } from "@/lib/apiClient";
 import type {
   BackendStockSaleRow,
   ListStockSalesQuery,
+  StockSalesAnalyticsQuery,
+  StockSalesAnalyticsResponse,
   StockSalesListResponse,
+  StockSalesSyncSummary,
 } from "@/types/stock-sales-api";
 
 export const STOCK_SALES_LIST_DEFAULT_LIMIT = 40;
@@ -52,8 +55,26 @@ function normalizeStockSalesList(response: unknown): StockSalesListResponse {
 export function fetchStockSales(query: ListStockSalesQuery = {}) {
   return apiFetch<unknown>(
     buildUrl("api/v1/stock-sales", {
+      search: query.search,
       limit: query.limit,
       offset: query.offset,
     }),
   ).then(normalizeStockSalesList);
+}
+
+export function fetchStockSalesAnalytics(
+  query: StockSalesAnalyticsQuery = { period: "month" },
+) {
+  return apiFetch<StockSalesAnalyticsResponse>(
+    buildUrl("api/v1/stock-sales/sales-analytics", {
+      period: query.period,
+      saleMonth: query.period === "month" ? query.saleMonth : undefined,
+    }),
+  );
+}
+
+export function syncStockSales() {
+  return apiFetch<StockSalesSyncSummary>(buildUrl("api/v1/stock-sales/sync"), {
+    method: "POST",
+  });
 }

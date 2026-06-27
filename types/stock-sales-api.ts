@@ -33,6 +33,7 @@ export interface BackendStockSaleRow {
 }
 
 export interface ListStockSalesQuery {
+  search?: string;
   limit?: number;
   offset?: number;
 }
@@ -40,4 +41,50 @@ export interface ListStockSalesQuery {
 export interface StockSalesListResponse {
   data: BackendStockSaleRow[];
   total: number;
+}
+
+export type StockSalesAnalyticsPeriod = "month" | "allTime";
+
+export interface StockSalesAnalyticsQuery {
+  period?: StockSalesAnalyticsPeriod;
+  saleMonth?: string;
+}
+
+export interface StockSalesAnalyticsSalesPerson {
+  id: string;
+  name: string | null;
+  image: string | null;
+}
+
+export interface StockSalesAnalyticsLeaderboardRow {
+  rank: number;
+  salesPerson: StockSalesAnalyticsSalesPerson;
+  transactions: number;
+  revenue: string;
+  revenueShare: string;
+  incentive: {
+    eligible: boolean;
+    amount: string;
+  };
+}
+
+export interface StockSalesAnalyticsResponse {
+  period: string;
+  summary: {
+    totalSalesPeople: number;
+    totalTransactions: number;
+    totalRevenue: string;
+    totalIncentive: string;
+  };
+  leaderboard: StockSalesAnalyticsLeaderboardRow[];
+}
+
+export interface StockSalesSyncSummary {
+  sheetUrl: string;
+  startedAt: string;
+  finishedAt: string;
+  rowsRead: number;
+  transactionsInserted: number;
+  itemsInserted: number;
+  rowsSkipped: number;
 }
