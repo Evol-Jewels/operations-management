@@ -68,6 +68,28 @@ export interface StockSalesAnalyticsLeaderboardRow {
   };
 }
 
+export interface StockSalesLeaderboardRow {
+  rank: number;
+  salesPerson: StockSalesAnalyticsSalesPerson;
+  xp: number;
+}
+
+export interface StockSalesLeaderboardResponse {
+  period: string;
+  leaderboard: StockSalesLeaderboardRow[];
+}
+
+export interface StockSalesMeResponse {
+  period: string;
+  salesPerson: StockSalesAnalyticsSalesPerson;
+  transactions: number;
+  revenue: string;
+  incentive: {
+    eligible: boolean;
+    amount: string;
+  };
+}
+
 export interface StockSalesAnalyticsResponse {
   period: string;
   summary: {

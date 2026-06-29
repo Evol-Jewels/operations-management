@@ -7,8 +7,10 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
+  fetchMyStockSales,
   fetchStockSales,
   fetchStockSalesAnalytics,
+  fetchStockSalesLeaderboard,
   STOCK_SALES_LIST_DEFAULT_LIMIT,
   syncStockSales,
 } from "@/lib/stockSalesApi";
@@ -24,6 +26,10 @@ export const stockSalesKeys = {
     [...stockSalesKeys.lists(), query] as const,
   analytics: (query: StockSalesAnalyticsQuery = {}) =>
     [...stockSalesKeys.all, "analytics", query] as const,
+  leaderboard: (query: StockSalesAnalyticsQuery = {}) =>
+    [...stockSalesKeys.all, "leaderboard", query] as const,
+  me: (query: StockSalesAnalyticsQuery = {}) =>
+    [...stockSalesKeys.all, "me", query] as const,
 };
 
 export function useStockSales(
@@ -78,5 +84,19 @@ export function useStockSalesAnalytics(query: StockSalesAnalyticsQuery = {}) {
   return useQuery({
     queryKey: stockSalesKeys.analytics(query),
     queryFn: () => fetchStockSalesAnalytics(query),
+  });
+}
+
+export function useStockSalesLeaderboard(query: StockSalesAnalyticsQuery = {}) {
+  return useQuery({
+    queryKey: stockSalesKeys.leaderboard(query),
+    queryFn: () => fetchStockSalesLeaderboard(query),
+  });
+}
+
+export function useMyStockSales(query: StockSalesAnalyticsQuery = {}) {
+  return useQuery({
+    queryKey: stockSalesKeys.me(query),
+    queryFn: () => fetchMyStockSales(query),
   });
 }

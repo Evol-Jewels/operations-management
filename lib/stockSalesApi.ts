@@ -4,7 +4,9 @@ import type {
   ListStockSalesQuery,
   StockSalesAnalyticsQuery,
   StockSalesAnalyticsResponse,
+  StockSalesLeaderboardResponse,
   StockSalesListResponse,
+  StockSalesMeResponse,
   StockSalesSyncSummary,
 } from "@/types/stock-sales-api";
 
@@ -67,6 +69,26 @@ export function fetchStockSalesAnalytics(
 ) {
   return apiFetch<StockSalesAnalyticsResponse>(
     buildUrl("api/v1/stock-sales/sales-analytics", {
+      period: query.period,
+      saleMonth: query.period === "month" ? query.saleMonth : undefined,
+    }),
+  );
+}
+
+export function fetchStockSalesLeaderboard(
+  query: StockSalesAnalyticsQuery = { period: "month" },
+) {
+  return apiFetch<StockSalesLeaderboardResponse>(
+    buildUrl("api/v1/stock-sales/leaderboard", {
+      period: query.period,
+      saleMonth: query.period === "month" ? query.saleMonth : undefined,
+    }),
+  );
+}
+
+export function fetchMyStockSales(query: StockSalesAnalyticsQuery = {}) {
+  return apiFetch<StockSalesMeResponse>(
+    buildUrl("api/v1/stock-sales/me", {
       period: query.period,
       saleMonth: query.period === "month" ? query.saleMonth : undefined,
     }),

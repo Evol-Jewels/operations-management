@@ -5,16 +5,19 @@ import {
   ArrowRight,
   ArrowUp,
   Award,
+  BadgeCheck,
   ChartNoAxesColumn,
   Inbox,
   IndianRupee,
+  Lock,
   MessageSquare,
   Package,
-  Users,
   TrendingUp,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useMemo, useState } from "react";
 import {
   Bar,
   EvilBarChart,
@@ -33,7 +36,6 @@ import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -51,7 +53,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useStockSalesAnalytics } from "@/hooks/useStockSales";
+import {
+  useMyStockSales,
+  useStockSalesAnalytics,
+  useStockSalesLeaderboard,
+} from "@/hooks/useStockSales";
 import {
   getOrderEnquiryUiStatus,
   isEnquiryClosed,
@@ -78,6 +84,7 @@ import { RecentActivities } from "./RecentActivities";
 
 type RiskItem = { order: Order; signal: "stale" | "stuck" };
 type SalesTab = "orders" | "enquiries";
+type AdminDashboardTab = "orders-enquiries" | "sales-analytics";
 
 interface MetricCardData {
   label: string;
@@ -153,6 +160,28 @@ const URGENCY_LABELS: Record<UrgencyLevel, string> = {
   none: "No Date",
 };
 
+const ADMIN_DASHBOARD_TABS = new Set<AdminDashboardTab>([
+  "orders-enquiries",
+  "sales-analytics",
+]);
+
+const SALE_MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => {
+  const date = new Date(2026, index, 1);
+
+  return {
+    value: String(index + 1).padStart(2, "0"),
+    label: date.toLocaleDateString("en-IN", { month: "long" }),
+  };
+});
+const SALES_LEADERBOARD_SKELETON_ROWS = ["first", "second", "third"] as const;
+const ANALYTICS_TABLE_SKELETON_ROWS = [
+  "first",
+  "second",
+  "third",
+  "fourth",
+  "fifth",
+] as const;
+
 function buildUrgencyData(urgency: Record<UrgencyLevel, number>): ChartDatum[] {
   return (Object.keys(URGENCY_COLORS) as UrgencyLevel[]).map((level) => ({
     label: URGENCY_LABELS[level],
@@ -168,7 +197,11 @@ function buildStatusData(status: {
 }): ChartDatum[] {
   return [
     { label: "Open", value: status.open, color: "oklch(0.55 0.13 178)" },
-    { label: "Converted", value: status.converted, color: "oklch(0.68 0.19 46)" },
+    {
+      label: "Converted",
+      value: status.converted,
+      color: "oklch(0.68 0.19 46)",
+    },
     { label: "Closed", value: status.closed, color: "oklch(0.38 0.09 225)" },
   ];
 }
@@ -250,9 +283,20 @@ function MetricCard({ card }: { card: MetricCardData }) {
   );
 }
 
-function MetricsGrid({ children }: { children: React.ReactNode }) {
+function MetricsGrid({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="grid overflow-hidden rounded-lg border border-border/70 bg-card sm:grid-cols-2 xl:grid-cols-4">
+    <div
+      className={cn(
+        "grid overflow-hidden rounded-lg border border-border/70 bg-card sm:grid-cols-2 xl:grid-cols-4",
+        className,
+      )}
+    >
       {children}
     </div>
   );
@@ -642,6 +686,57 @@ function getCurrentSaleMonth() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function getCurrentSaleMonthParts() {
+  const [year, month] = getCurrentSaleMonth().split("-");
+  return { month, year };
+}
+
+function getSaleYearOptions(selectedYear: string) {
+  const currentYear = new Date().getFullYear();
+  const years = new Set<string>();
+
+  for (let year = currentYear; year >= currentYear - 4; year -= 1) {
+    years.add(String(year));
+  }
+
+  years.add(String(currentYear + 1));
+  years.add(selectedYear);
+
+  return Array.from(years).sort((a, b) => Number(b) - Number(a));
+}
+
+function getSearchParamValue(
+  searchParams: URLSearchParams,
+  key: string,
+  fallback: string,
+) {
+  const value = searchParams.get(key);
+  return value?.trim() || fallback;
+}
+
+function getAdminDashboardTab(searchParams: URLSearchParams) {
+  const tab = searchParams.get("tab");
+  return ADMIN_DASHBOARD_TABS.has(tab as AdminDashboardTab)
+    ? (tab as AdminDashboardTab)
+    : "orders-enquiries";
+}
+
+function getSaleMonthFromSearchParams(searchParams: URLSearchParams) {
+  const current = getCurrentSaleMonthParts();
+  const queryMonth = getSearchParamValue(searchParams, "month", current.month);
+  const queryYear = getSearchParamValue(searchParams, "year", current.year);
+  const month = /^(0[1-9]|1[0-2])$/.test(queryMonth)
+    ? queryMonth
+    : current.month;
+  const year = /^\d{4}$/.test(queryYear) ? queryYear : current.year;
+
+  return { month, year, saleMonth: `${year}-${month}` };
+}
+
+function getSalesAnalyticsPeriod(searchParams: URLSearchParams) {
+  return searchParams.get("year") === "allTime" ? "allTime" : "month";
+}
+
 function formatSaleMonthLabel(saleMonth: string) {
   const [year, month] = saleMonth.split("-");
   const date = new Date(Number(year), Number(month) - 1, 1);
@@ -658,20 +753,108 @@ function formatAnalyticsCurrency(value: string) {
   return formatCurrency(Number(value) || 0);
 }
 
-function getAnalyticsPeriodTitle(
+function getAnalyticsPeriodTitle(saleMonth: string) {
+  return `Sales Analytics for ${formatSaleMonthLabel(saleMonth)}`;
+}
+
+function getAnalyticsTitle(
   period: StockSalesAnalyticsPeriod,
   saleMonth: string,
 ) {
-  return `Sales Analytics for ${
-    period === "allTime" ? "All Time" : formatSaleMonthLabel(saleMonth)
-  }`;
+  return period === "allTime"
+    ? "Sales Analytics for All Time"
+    : getAnalyticsPeriodTitle(saleMonth);
 }
 
-function SalespersonCell({
-  row,
+function formatXp(value: number) {
+  return `${value.toLocaleString("en-IN")} XP`;
+}
+
+function getLeaderboardPeriodLabel(period: string) {
+  return `Based on performance for ${formatSaleMonthLabel(period).split(" ")[0]} month`;
+}
+
+function SalesAnalyticsValue({
+  value,
+  isLoading,
 }: {
-  row: StockSalesAnalyticsLeaderboardRow;
+  value: string;
+  isLoading: boolean;
 }) {
+  if (isLoading) {
+    return <Skeleton className="h-8 w-24" />;
+  }
+
+  return (
+    <p className="truncate text-2xl font-semibold tracking-tight text-foreground">
+      {value}
+    </p>
+  );
+}
+
+function MySalesAnalyticsCards() {
+  const saleMonth = getCurrentSaleMonth();
+  const salesQuery = useMyStockSales({
+    period: "month",
+    saleMonth,
+  });
+  const analytics = salesQuery.data;
+  const incentiveAmount = analytics?.incentive.amount ?? "0";
+  const isIncentiveEligible = analytics?.incentive.eligible ?? false;
+  const revenue = analytics?.revenue ?? "0";
+  const monthLabel = formatSaleMonthLabel(analytics?.period ?? saleMonth).split(
+    " ",
+  )[0];
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold text-foreground">
+        Your Sales Performance this {monthLabel}
+      </h2>
+      <MetricsGrid className="xl:grid-cols-3">
+        <div className="border-border/70 px-5 py-4 max-sm:border-b sm:border-r sm:last:border-r-0">
+          <p className="text-sm text-muted-foreground">Sales Value</p>
+          <div className="mt-2">
+            <SalesAnalyticsValue
+              isLoading={salesQuery.isLoading}
+              value={formatAnalyticsCurrency(revenue)}
+            />
+          </div>
+        </div>
+
+        <div className="border-border/70 px-5 py-4 max-sm:border-b sm:border-r sm:last:border-r-0">
+          <p className="text-sm text-muted-foreground">Transactions</p>
+          <div className="mt-2">
+            <SalesAnalyticsValue
+              isLoading={salesQuery.isLoading}
+              value={String(analytics?.transactions ?? 0)}
+            />
+          </div>
+        </div>
+
+        <div className="border-border/70 px-5 py-4 max-sm:border-b sm:border-r sm:last:border-r-0">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm text-muted-foreground">Incentive</p>
+            {!salesQuery.isLoading &&
+              (isIncentiveEligible ? (
+                <BadgeCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <Lock className="h-4 w-4 text-muted-foreground" />
+              ))}
+          </div>
+          <div className="mt-2">
+            <SalesAnalyticsValue
+              isLoading={salesQuery.isLoading}
+              value={formatAnalyticsCurrency(incentiveAmount)}
+            />
+          </div>
+        </div>
+      </MetricsGrid>
+    </section>
+  );
+}
+
+function SalespersonCell({ row }: { row: StockSalesAnalyticsLeaderboardRow }) {
   const person = row.salesPerson;
   const name = person.name ?? "Unknown";
 
@@ -688,6 +871,110 @@ function SalespersonCell({
         <p className="truncate text-xs text-muted-foreground">{person.id}</p>
       </div>
     </div>
+  );
+}
+
+function SalesLeaderboardCard({ className }: { className?: string }) {
+  const saleMonth = getCurrentSaleMonth();
+  const leaderboardQuery = useStockSalesLeaderboard({
+    period: "month",
+    saleMonth,
+  });
+  const leaderboard = leaderboardQuery.data?.leaderboard ?? [];
+  const periodLabel = getLeaderboardPeriodLabel(
+    leaderboardQuery.data?.period ?? saleMonth,
+  );
+
+  return (
+    <section
+      className={cn(
+        "flex max-w-md flex-col overflow-hidden rounded-lg border border-border/70 bg-card",
+        className,
+      )}
+    >
+      <div className="flex items-start justify-between gap-4 px-4 pt-4">
+        <div className="min-w-0">
+          <h2 className="truncate text-sm font-semibold uppercase tracking-normal text-foreground">
+            Sales Leaderboard
+          </h2>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {periodLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3 lg:max-h-64">
+        {leaderboardQuery.isLoading &&
+          SALES_LEADERBOARD_SKELETON_ROWS.map((row) => (
+            <Skeleton className="h-12 w-full rounded-md" key={row} />
+          ))}
+
+        {leaderboardQuery.isError && (
+          <div className="py-6 text-center text-sm text-muted-foreground">
+            Unable to load leaderboard.
+          </div>
+        )}
+
+        {!leaderboardQuery.isLoading &&
+          !leaderboardQuery.isError &&
+          leaderboard.length === 0 && (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              No sales data found this month.
+            </div>
+          )}
+
+        {leaderboard.map((row) => {
+          const person = row.salesPerson;
+          const name = person.name ?? "Unknown";
+          const isLeader = row.rank === 1;
+
+          return (
+            <div
+              className={cn(
+                "grid min-h-12 grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2 transition-colors",
+                isLeader
+                  ? "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                  : "text-muted-foreground",
+              )}
+              key={person.id}
+            >
+              <span className="flex justify-center text-sm font-medium tabular-nums">
+                {isLeader ? (
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md border border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                    <Award className="h-4 w-4" />
+                  </span>
+                ) : (
+                  row.rank
+                )}
+              </span>
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar>
+                  {person.image && (
+                    <AvatarImage src={person.image} alt={name} />
+                  )}
+                  <AvatarFallback className="text-xs">
+                    {getInitials({ id: person.id, name, image: person.image })}
+                  </AvatarFallback>
+                </Avatar>
+                <span
+                  className={cn(
+                    "truncate text-sm",
+                    isLeader
+                      ? "font-medium text-foreground"
+                      : "text-foreground",
+                  )}
+                >
+                  {name}
+                </span>
+              </div>
+              <span className="whitespace-nowrap text-sm font-medium tabular-nums text-muted-foreground">
+                {formatXp(row.xp)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -758,13 +1045,56 @@ function getOpsAnalytics(orders: Order[]) {
 }
 
 function StockSalesAnalyticsSection() {
-  const [period, setPeriod] = useState<StockSalesAnalyticsPeriod>("month");
-  const [saleMonth, setSaleMonth] = useState(getCurrentSaleMonth);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const period = getSalesAnalyticsPeriod(
+    new URLSearchParams(searchParams.toString()),
+  );
+  const { month, year, saleMonth } = getSaleMonthFromSearchParams(
+    new URLSearchParams(searchParams.toString()),
+  );
+  const yearOptions = useMemo(() => getSaleYearOptions(year), [year]);
   const analyticsQuery = useStockSalesAnalytics(
     period === "allTime" ? { period } : { period, saleMonth },
   );
   const analytics = analyticsQuery.data;
   const isAllTime = period === "allTime";
+  const updateSalesAnalyticsParams = useCallback(
+    (nextValues: {
+      month?: string;
+      period?: StockSalesAnalyticsPeriod;
+      year?: string;
+    }) => {
+      const nextParams = new URLSearchParams(searchParams.toString());
+      const nextPeriod =
+        nextValues.year === "allTime"
+          ? "allTime"
+          : (nextValues.period ?? period);
+
+      nextParams.set("tab", "sales-analytics");
+      nextParams.delete("period");
+
+      if (nextPeriod === "month") {
+        nextParams.set("month", nextValues.month ?? month);
+        nextParams.set("year", nextValues.year ?? year);
+      } else {
+        nextParams.delete("month");
+        nextParams.set("year", "allTime");
+      }
+
+      router.replace(`${pathname}?${nextParams.toString()}`, {
+        scroll: false,
+      });
+    },
+    [month, pathname, period, router, searchParams, year],
+  );
+  const updateSaleMonthParams = useCallback(
+    (nextValues: { month?: string; year?: string }) => {
+      updateSalesAnalyticsParams({ ...nextValues, period: "month" });
+    },
+    [updateSalesAnalyticsParams],
+  );
   const cards: MetricCardData[] = [
     {
       label: "Sales People",
@@ -800,34 +1130,49 @@ function StockSalesAnalyticsSection() {
             Sales Analytics
           </h2>
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            {getAnalyticsPeriodTitle(period, saleMonth)}
+            {getAnalyticsTitle(period, saleMonth)}
           </p>
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {period === "month" && (
+            <Select
+              value={month}
+              onValueChange={(value) => updateSaleMonthParams({ month: value })}
+            >
+              <SelectTrigger aria-label="Sale month" className="w-full sm:w-40">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {SALE_MONTH_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select
-            value={period}
+            value={period === "allTime" ? "allTime" : year}
             onValueChange={(value) =>
-              setPeriod(value as StockSalesAnalyticsPeriod)
+              updateSalesAnalyticsParams({
+                period: value === "allTime" ? "allTime" : "month",
+                year: value,
+              })
             }
           >
-            <SelectTrigger className="w-full sm:w-36">
-              <SelectValue />
+            <SelectTrigger aria-label="Sale year" className="w-full sm:w-32">
+              <SelectValue placeholder="Year" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="month">Month</SelectItem>
               <SelectItem value="allTime">All Time</SelectItem>
+              {yearOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          {period === "month" && (
-            <Input
-              aria-label="Sale month"
-              className="w-full sm:w-40"
-              type="month"
-              value={saleMonth}
-              onChange={(event) => setSaleMonth(event.target.value)}
-            />
-          )}
         </div>
       </div>
 
@@ -858,8 +1203,8 @@ function StockSalesAnalyticsSection() {
         <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
           {analyticsQuery.isLoading && (
             <div className="space-y-3 p-4">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <Skeleton className="h-12 w-full" key={index} />
+              {ANALYTICS_TABLE_SKELETON_ROWS.map((row) => (
+                <Skeleton className="h-12 w-full" key={row} />
               ))}
             </div>
           )}
@@ -934,9 +1279,7 @@ function StockSalesAnalyticsSection() {
                               : "text-muted-foreground",
                           )}
                         >
-                          {row.incentive.eligible
-                            ? "Eligible"
-                            : "Not eligible"}
+                          {row.incentive.eligible ? "Eligible" : "Not eligible"}
                         </div>
                       </TableCell>
                     )}
@@ -952,7 +1295,26 @@ function StockSalesAnalyticsSection() {
 }
 
 export function AdminDashboard({ orders }: { orders: Order[] }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const analytics = useMemo(() => getAdminAnalytics(orders), [orders]);
+  const activeTab = getAdminDashboardTab(
+    new URLSearchParams(searchParams.toString()),
+  );
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      const nextTab = ADMIN_DASHBOARD_TABS.has(tab as AdminDashboardTab)
+        ? (tab as AdminDashboardTab)
+        : "orders-enquiries";
+      const nextParams = new URLSearchParams(searchParams.toString());
+      nextParams.set("tab", nextTab);
+      router.replace(`${pathname}?${nextParams.toString()}`, {
+        scroll: false,
+      });
+    },
+    [pathname, router, searchParams],
+  );
   const cards: MetricCardData[] = [
     {
       label: "Total Orders",
@@ -998,7 +1360,11 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
           </p>
         </div>
 
-        <Tabs defaultValue="orders-enquiries" className="gap-5">
+        <Tabs
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="gap-5"
+        >
           <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-0 border-b border-border bg-transparent p-0 text-muted-foreground">
             <TabsTrigger
               value="orders-enquiries"
@@ -1238,24 +1604,30 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
           Keep on eye on your customer and sales pipeline.
         </p>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <MetricsGrid>
-          <MetricCard
-            card={{
-              label: "Open Orders",
-              value: String(data.openOrders.length),
-            }}
-          />
-          <MetricCard
-            card={{
-              label: "Open Enquiries",
-              value: String(data.openEnquiries.length),
-            }}
-          />
-          <MetricCard
-            card={{ label: "Overdue", value: String(data.overdueCount) }}
-          />
-        </MetricsGrid>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)] lg:items-stretch">
+        <div className="space-y-5">
+          <MetricsGrid className="xl:grid-cols-3">
+            <MetricCard
+              card={{
+                label: "Open Orders",
+                value: String(data.openOrders.length),
+              }}
+            />
+            <MetricCard
+              card={{
+                label: "Open Enquiries",
+                value: String(data.openEnquiries.length),
+              }}
+            />
+            <MetricCard
+              card={{ label: "Overdue", value: String(data.overdueCount) }}
+            />
+          </MetricsGrid>
+
+          <MySalesAnalyticsCards />
+        </div>
+
+        <SalesLeaderboardCard className="w-full max-w-none" />
       </div>
 
       {data.actionItems.length > 0 && (
