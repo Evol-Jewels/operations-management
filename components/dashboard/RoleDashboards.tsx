@@ -77,7 +77,7 @@ import {
 } from "@/lib/utils";
 import { type Order, STAGES, type UrgencyLevel } from "@/types";
 import type {
-  StockSalesAnalyticsLeaderboardRow,
+  StockSalesAnalyticsBreakdownRow,
   StockSalesAnalyticsPeriod,
 } from "@/types/stock-sales-api";
 import { RecentActivities } from "./RecentActivities";
@@ -854,33 +854,50 @@ function MySalesAnalyticsCards() {
   );
 }
 
-function SalespersonCell({ row }: { row: StockSalesAnalyticsLeaderboardRow }) {
+function SalespersonCell({ row }: { row: StockSalesAnalyticsBreakdownRow }) {
   const person = row.salesPerson;
-  const name = person.name ?? "Unknown";
+  const name = person?.name ?? row.label ?? "Unknown";
 
   return (
     <div className="flex min-w-[12rem] items-center gap-3">
       <Avatar size="sm">
-        {person.image && <AvatarImage src={person.image} alt={name} />}
+        {person?.image && <AvatarImage src={person.image} alt={name} />}
         <AvatarFallback className="text-[10px]">
-          {getInitials({ id: person.id, name, image: person.image })}
+          {getInitials({
+            id: person?.id ?? row.label ?? name,
+            name,
+            image: person?.image ?? null,
+          })}
         </AvatarFallback>
       </Avatar>
       <div className="min-w-0">
         <p className="truncate font-medium text-foreground">{name}</p>
-        <p className="truncate text-xs text-muted-foreground">{person.id}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          {person?.id ?? "Unassigned sales"}
+        </p>
       </div>
     </div>
   );
 }
 
-function SalesLeaderboardCard({ className }: { className?: string }) {
+function SalesLeaderboardCard({
+  className,
+  title = "Sales Leaderboard",
+}: {
+  className?: string;
+  title?: string;
+}) {
   const saleMonth = getCurrentSaleMonth();
   const leaderboardQuery = useStockSalesLeaderboard({
     period: "month",
     saleMonth,
   });
+  const mySalesQuery = useMyStockSales({
+    period: "month",
+    saleMonth,
+  });
   const leaderboard = leaderboardQuery.data?.leaderboard ?? [];
+  const currentSalesPersonId = mySalesQuery.data?.salesPerson.id;
   const periodLabel = getLeaderboardPeriodLabel(
     leaderboardQuery.data?.period ?? saleMonth,
   );
@@ -895,7 +912,7 @@ function SalesLeaderboardCard({ className }: { className?: string }) {
       <div className="flex items-start justify-between gap-4 px-4 pt-4">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold uppercase tracking-normal text-foreground">
-            Sales Leaderboard
+            {title}
           </h2>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {periodLabel}
@@ -927,14 +944,21 @@ function SalesLeaderboardCard({ className }: { className?: string }) {
           const person = row.salesPerson;
           const name = person.name ?? "Unknown";
           const isLeader = row.rank === 1;
+          const isCurrentPerson =
+            Boolean(currentSalesPersonId) && person.id === currentSalesPersonId;
+          const rowHighlightClass = isLeader
+            ? isCurrentPerson
+              ? "border border-emerald-500/40 bg-emerald-500/10 text-emerald-800 shadow-[inset_3px_0_0_rgb(16_185_129)] dark:bg-emerald-500/15 dark:text-emerald-200"
+              : "border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+            : isCurrentPerson
+              ? "border border-sky-500/35 bg-sky-500/10 text-sky-800 shadow-[inset_3px_0_0_rgb(14_165_233)] dark:bg-sky-500/15 dark:text-sky-200"
+              : "border border-transparent text-muted-foreground";
 
           return (
             <div
               className={cn(
                 "grid min-h-12 grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2 transition-colors",
-                isLeader
-                  ? "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-                  : "text-muted-foreground",
+                rowHighlightClass,
               )}
               key={person.id}
             >
@@ -959,13 +983,30 @@ function SalesLeaderboardCard({ className }: { className?: string }) {
                 <span
                   className={cn(
                     "truncate text-sm",
-                    isLeader
+                    isLeader || isCurrentPerson
                       ? "font-medium text-foreground"
                       : "text-foreground",
                   )}
                 >
                   {name}
                 </span>
+                {(isLeader || isCurrentPerson) && (
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      "h-5 shrink-0 rounded-md px-1.5 text-[10px] font-medium",
+                      isLeader
+                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                        : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+                    )}
+                  >
+                    {isLeader && isCurrentPerson
+                      ? "Top · You"
+                      : isLeader
+                        ? "Top"
+                        : "You"}
+                  </Badge>
+                )}
               </div>
               <span className="whitespace-nowrap text-sm font-medium tabular-nums text-muted-foreground">
                 {formatXp(row.xp)}
@@ -1059,6 +1100,7 @@ function StockSalesAnalyticsSection() {
     period === "allTime" ? { period } : { period, saleMonth },
   );
   const analytics = analyticsQuery.data;
+  const salesBreakdown = analytics?.salesBreakdown ?? [];
   const isAllTime = period === "allTime";
   const updateSalesAnalyticsParams = useCallback(
     (nextValues: {
@@ -1190,16 +1232,7 @@ function StockSalesAnalyticsSection() {
           : cards.map((card) => <MetricCard key={card.label} card={card} />)}
       </MetricsGrid>
 
-      <Panel
-        title="Salesperson Leaderboard"
-        action={
-          analytics && (
-            <span className="text-xs text-muted-foreground">
-              {analytics.period}
-            </span>
-          )
-        }
-      >
+      <div className="space-y-5">
         <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
           {analyticsQuery.isLoading && (
             <div className="space-y-3 p-4">
@@ -1215,17 +1248,16 @@ function StockSalesAnalyticsSection() {
             </div>
           )}
 
-          {analytics && analytics.leaderboard.length === 0 && (
+          {analytics && salesBreakdown.length === 0 && (
             <div className="py-10 text-center text-sm text-muted-foreground">
               No sales data found for this period.
             </div>
           )}
 
-          {analytics && analytics.leaderboard.length > 0 && (
+          {analytics && salesBreakdown.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-16">Rank</TableHead>
                   <TableHead>Salesperson</TableHead>
                   <TableHead className="text-right">Transactions</TableHead>
                   <TableHead className="text-right">Revenue</TableHead>
@@ -1236,24 +1268,8 @@ function StockSalesAnalyticsSection() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {analytics.leaderboard.map((row) => (
-                  <TableRow key={row.salesPerson.id}>
-                    <TableCell>
-                      <span
-                        className={cn(
-                          "inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold",
-                          row.rank === 1
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
-                            : "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {row.rank === 1 ? (
-                          <Award className="h-4 w-4" />
-                        ) : (
-                          row.rank
-                        )}
-                      </span>
-                    </TableCell>
+                {salesBreakdown.map((row) => (
+                  <TableRow key={row.salesPerson?.id ?? row.label ?? row.rank}>
                     <TableCell>
                       <SalespersonCell row={row} />
                     </TableCell>
@@ -1268,19 +1284,29 @@ function StockSalesAnalyticsSection() {
                     </TableCell>
                     {!isAllTime && (
                       <TableCell className="text-right">
-                        <div className="font-medium tabular-nums">
-                          {formatAnalyticsCurrency(row.incentive.amount)}
-                        </div>
-                        <div
-                          className={cn(
-                            "text-xs",
-                            row.incentive.eligible
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-muted-foreground",
-                          )}
-                        >
-                          {row.incentive.eligible ? "Eligible" : "Not eligible"}
-                        </div>
+                        {row.incentive ? (
+                          <>
+                            <div className="font-medium tabular-nums">
+                              {formatAnalyticsCurrency(row.incentive.amount)}
+                            </div>
+                            <div
+                              className={cn(
+                                "text-xs",
+                                row.incentive.eligible
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : "text-muted-foreground",
+                              )}
+                            >
+                              {row.incentive.eligible
+                                ? "Eligible"
+                                : "Not eligible"}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            -
+                          </span>
+                        )}
                       </TableCell>
                     )}
                   </TableRow>
@@ -1289,7 +1315,12 @@ function StockSalesAnalyticsSection() {
             </Table>
           )}
         </div>
-      </Panel>
+
+        <SalesLeaderboardCard
+          className="max-w-none"
+          title={`Sales Leaderboard for ${formatSaleMonthLabel(getCurrentSaleMonth())}`}
+        />
+      </div>
     </section>
   );
 }

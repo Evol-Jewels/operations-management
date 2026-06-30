@@ -601,9 +601,13 @@ export function OrdersEnquiriesWorkspace() {
     { enabled: typeTab === "order" },
   );
   const [search, setSearch] = useState("");
+  const sessionRole = session ? getSessionRole(session) : "";
+  const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
+  const canViewPurchases = ["ADMIN", "OPERATIONS"].includes(sessionRole);
+  const canSyncPurchases = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const stockSalesQuery = useStockSales(
     { limit: 40, search: search.trim() || undefined },
-    { enabled: typeTab === "purchase" },
+    { enabled: typeTab === "purchase" && canViewPurchases },
   );
   const syncStockSalesMutation = useSyncStockSales();
   const stockSalesLoadMoreRef = useRef<HTMLDivElement>(null);
@@ -612,21 +616,26 @@ export function OrdersEnquiriesWorkspace() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const isKanbanMode = viewMode === "kanban";
-  const sessionRole = session ? getSessionRole(session) : "";
-  const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
-  const canSyncPurchases = ["ADMIN", "OPERATIONS"].includes(sessionRole);
 
   useEffect(() => {
     const queryTab = getTypeTabFromSearchParams(searchParams);
-    if (queryTab) setTypeTab(queryTab);
-  }, [searchParams]);
+    if (queryTab && (queryTab !== "purchase" || canViewPurchases)) {
+      setTypeTab(queryTab);
+    }
+  }, [canViewPurchases, searchParams]);
+
+  useEffect(() => {
+    if (session && !canViewPurchases && typeTab === "purchase") {
+      setTypeTab("order");
+    }
+  }, [canViewPurchases, session, typeTab]);
 
   useEffect(() => {
     writeStoredTypeTab(typeTab);
   }, [typeTab]);
 
   useEffect(() => {
-    if (typeTab !== "purchase") return;
+    if (typeTab !== "purchase" || !canViewPurchases) return;
 
     const sentinel = stockSalesLoadMoreRef.current;
     if (!sentinel) return;
@@ -651,6 +660,7 @@ export function OrdersEnquiriesWorkspace() {
     stockSalesQuery.fetchNextPage,
     stockSalesQuery.hasNextPage,
     stockSalesQuery.isFetchingNextPage,
+    canViewPurchases,
     typeTab,
   ]);
 
@@ -684,6 +694,26 @@ export function OrdersEnquiriesWorkspace() {
       purchase: typeTab === "purchase" ? stockSales.length : undefined,
     }),
     [records.length, stockSales.length, typeTab],
+  );
+  const typeTabs = useMemo(
+    () => [
+      { key: "order" as const, label: "Orders", count: tabCounts.order },
+      {
+        key: "enquiry" as const,
+        label: "Enquiries",
+        count: tabCounts.enquiry,
+      },
+      ...(canViewPurchases
+        ? [
+            {
+              key: "purchase" as const,
+              label: "Purchases",
+              count: tabCounts.purchase,
+            },
+          ]
+        : []),
+    ],
+    [canViewPurchases, tabCounts.enquiry, tabCounts.order, tabCounts.purchase],
   );
 
   const filteredRecords = useMemo(() => {
@@ -817,19 +847,7 @@ export function OrdersEnquiriesWorkspace() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pr-8 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
-          {[
-            { key: "order" as const, label: "Orders", count: tabCounts.order },
-            {
-              key: "enquiry" as const,
-              label: "Enquiries",
-              count: tabCounts.enquiry,
-            },
-            {
-              key: "purchase" as const,
-              label: "Purchases",
-              count: tabCounts.purchase,
-            },
-          ].map((tab) => (
+          {typeTabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
@@ -912,44 +930,6 @@ export function OrdersEnquiriesWorkspace() {
             typeTab === "purchase" && "lg:hidden",
           )}
         >
-          <div className="relative w-1/2">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search customer or ID"
-              className="pl-9"
-              disabled={isFilterDisabled}
-            />
-          </div>
-
-          <FilterSelect
-            label="Status"
-            value={statusFilter}
-            onValueChange={setStatusFilter}
-            disabled={isFilterDisabled}
-          >
-            {(typeTab === "enquiry"
-              ? ENQUIRY_STATUS_OPTIONS
-              : ORDER_STATUS_OPTIONS
-            ).map((status) => (
-              <SelectItem key={status} value={status}>
-                {status === "all" ? "All statuses" : status}
-              </SelectItem>
-            ))}
-          </FilterSelect>
-
-          <FilterSelect
-            label="Creation Date"
-            value={dateFilter}
-            onValueChange={(value) => setDateFilter(value as DateFilter)}
-            disabled={isFilterDisabled}
-          >
-            <SelectItem value="all">All time</SelectItem>
-            <SelectItem value="7d">Last 7 days</SelectItem>
-            <SelectItem value="30d">Last 30 days</SelectItem>
-            <SelectItem value="90d">Last 90 days</SelectItem>
-          </FilterSelect>
         </div>
 
         {typeTab === "purchase" ? (
