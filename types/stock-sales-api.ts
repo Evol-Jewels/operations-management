@@ -56,16 +56,17 @@ export interface StockSalesAnalyticsSalesPerson {
   image: string | null;
 }
 
-export interface StockSalesAnalyticsLeaderboardRow {
+export interface StockSalesAnalyticsBreakdownRow {
   rank: number;
-  salesPerson: StockSalesAnalyticsSalesPerson;
+  salesPerson: StockSalesAnalyticsSalesPerson | null;
+  label?: string;
   transactions: number;
   revenue: string;
   revenueShare: string;
   incentive: {
     eligible: boolean;
     amount: string;
-  };
+  } | null;
 }
 
 export interface StockSalesLeaderboardRow {
@@ -98,7 +99,7 @@ export interface StockSalesAnalyticsResponse {
     totalRevenue: string;
     totalIncentive: string;
   };
-  leaderboard: StockSalesAnalyticsLeaderboardRow[];
+  salesBreakdown: StockSalesAnalyticsBreakdownRow[];
 }
 
 export interface StockSalesSyncSummary {

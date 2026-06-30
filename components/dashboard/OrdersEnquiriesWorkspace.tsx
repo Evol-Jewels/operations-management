@@ -601,9 +601,13 @@ export function OrdersEnquiriesWorkspace() {
     { enabled: typeTab === "order" },
   );
   const [search, setSearch] = useState("");
+  const sessionRole = session ? getSessionRole(session) : "";
+  const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
+  const canViewPurchases = ["ADMIN", "OPERATIONS"].includes(sessionRole);
+  const canSyncPurchases = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const stockSalesQuery = useStockSales(
     { limit: 40, search: search.trim() || undefined },
-    { enabled: typeTab === "purchase" },
+    { enabled: typeTab === "purchase" && canViewPurchases },
   );
   const syncStockSalesMutation = useSyncStockSales();
   const stockSalesLoadMoreRef = useRef<HTMLDivElement>(null);
@@ -612,21 +616,26 @@ export function OrdersEnquiriesWorkspace() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const isKanbanMode = viewMode === "kanban";
-  const sessionRole = session ? getSessionRole(session) : "";
-  const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
-  const canSyncPurchases = ["ADMIN", "OPERATIONS"].includes(sessionRole);
 
   useEffect(() => {
     const queryTab = getTypeTabFromSearchParams(searchParams);
-    if (queryTab) setTypeTab(queryTab);
-  }, [searchParams]);
+    if (queryTab && (queryTab !== "purchase" || canViewPurchases)) {
+      setTypeTab(queryTab);
+    }
+  }, [canViewPurchases, searchParams]);
+
+  useEffect(() => {
+    if (session && !canViewPurchases && typeTab === "purchase") {
+      setTypeTab("order");
+    }
+  }, [canViewPurchases, session, typeTab]);
 
   useEffect(() => {
     writeStoredTypeTab(typeTab);
   }, [typeTab]);
 
   useEffect(() => {
-    if (typeTab !== "purchase") return;
+    if (typeTab !== "purchase" || !canViewPurchases) return;
 
     const sentinel = stockSalesLoadMoreRef.current;
     if (!sentinel) return;
@@ -651,6 +660,7 @@ export function OrdersEnquiriesWorkspace() {
     stockSalesQuery.fetchNextPage,
     stockSalesQuery.hasNextPage,
     stockSalesQuery.isFetchingNextPage,
+    canViewPurchases,
     typeTab,
   ]);
 
@@ -684,6 +694,26 @@ export function OrdersEnquiriesWorkspace() {
       purchase: typeTab === "purchase" ? stockSales.length : undefined,
     }),
     [records.length, stockSales.length, typeTab],
+  );
+  const typeTabs = useMemo(
+    () => [
+      { key: "order" as const, label: "Orders", count: tabCounts.order },
+      {
+        key: "enquiry" as const,
+        label: "Enquiries",
+        count: tabCounts.enquiry,
+      },
+      ...(canViewPurchases
+        ? [
+            {
+              key: "purchase" as const,
+              label: "Purchases",
+              count: tabCounts.purchase,
+            },
+          ]
+        : []),
+    ],
+    [canViewPurchases, tabCounts.enquiry, tabCounts.order, tabCounts.purchase],
   );
 
   const filteredRecords = useMemo(() => {
@@ -817,19 +847,7 @@ export function OrdersEnquiriesWorkspace() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pr-8 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
-          {[
-            { key: "order" as const, label: "Orders", count: tabCounts.order },
-            {
-              key: "enquiry" as const,
-              label: "Enquiries",
-              count: tabCounts.enquiry,
-            },
-            {
-              key: "purchase" as const,
-              label: "Purchases",
-              count: tabCounts.purchase,
-            },
-          ].map((tab) => (
+          {typeTabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
