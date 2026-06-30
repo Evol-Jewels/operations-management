@@ -892,7 +892,12 @@ function SalesLeaderboardCard({
     period: "month",
     saleMonth,
   });
+  const mySalesQuery = useMyStockSales({
+    period: "month",
+    saleMonth,
+  });
   const leaderboard = leaderboardQuery.data?.leaderboard ?? [];
+  const currentSalesPersonId = mySalesQuery.data?.salesPerson.id;
   const periodLabel = getLeaderboardPeriodLabel(
     leaderboardQuery.data?.period ?? saleMonth,
   );
@@ -939,14 +944,21 @@ function SalesLeaderboardCard({
           const person = row.salesPerson;
           const name = person.name ?? "Unknown";
           const isLeader = row.rank === 1;
+          const isCurrentPerson =
+            Boolean(currentSalesPersonId) && person.id === currentSalesPersonId;
+          const rowHighlightClass = isLeader
+            ? isCurrentPerson
+              ? "border border-emerald-500/40 bg-emerald-500/10 text-emerald-800 shadow-[inset_3px_0_0_rgb(16_185_129)] dark:bg-emerald-500/15 dark:text-emerald-200"
+              : "border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+            : isCurrentPerson
+              ? "border border-sky-500/35 bg-sky-500/10 text-sky-800 shadow-[inset_3px_0_0_rgb(14_165_233)] dark:bg-sky-500/15 dark:text-sky-200"
+              : "border border-transparent text-muted-foreground";
 
           return (
             <div
               className={cn(
                 "grid min-h-12 grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2 transition-colors",
-                isLeader
-                  ? "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-                  : "text-muted-foreground",
+                rowHighlightClass,
               )}
               key={person.id}
             >
@@ -971,13 +983,30 @@ function SalesLeaderboardCard({
                 <span
                   className={cn(
                     "truncate text-sm",
-                    isLeader
+                    isLeader || isCurrentPerson
                       ? "font-medium text-foreground"
                       : "text-foreground",
                   )}
                 >
                   {name}
                 </span>
+                {(isLeader || isCurrentPerson) && (
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      "h-5 shrink-0 rounded-md px-1.5 text-[10px] font-medium",
+                      isLeader
+                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                        : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+                    )}
+                  >
+                    {isLeader && isCurrentPerson
+                      ? "Top · You"
+                      : isLeader
+                        ? "Top"
+                        : "You"}
+                  </Badge>
+                )}
               </div>
               <span className="whitespace-nowrap text-sm font-medium tabular-nums text-muted-foreground">
                 {formatXp(row.xp)}

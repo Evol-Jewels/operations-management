@@ -930,44 +930,6 @@ export function OrdersEnquiriesWorkspace() {
             typeTab === "purchase" && "lg:hidden",
           )}
         >
-          <div className="relative w-1/2">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search customer or ID"
-              className="pl-9"
-              disabled={isFilterDisabled}
-            />
-          </div>
-
-          <FilterSelect
-            label="Status"
-            value={statusFilter}
-            onValueChange={setStatusFilter}
-            disabled={isFilterDisabled}
-          >
-            {(typeTab === "enquiry"
-              ? ENQUIRY_STATUS_OPTIONS
-              : ORDER_STATUS_OPTIONS
-            ).map((status) => (
-              <SelectItem key={status} value={status}>
-                {status === "all" ? "All statuses" : status}
-              </SelectItem>
-            ))}
-          </FilterSelect>
-
-          <FilterSelect
-            label="Creation Date"
-            value={dateFilter}
-            onValueChange={(value) => setDateFilter(value as DateFilter)}
-            disabled={isFilterDisabled}
-          >
-            <SelectItem value="all">All time</SelectItem>
-            <SelectItem value="7d">Last 7 days</SelectItem>
-            <SelectItem value="30d">Last 30 days</SelectItem>
-            <SelectItem value="90d">Last 90 days</SelectItem>
-          </FilterSelect>
         </div>
 
         {typeTab === "purchase" ? (
