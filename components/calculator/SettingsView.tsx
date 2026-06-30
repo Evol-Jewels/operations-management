@@ -10,6 +10,7 @@ import {
   Percent,
   Plus,
   RefreshCw,
+  Search,
   Trash2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -94,6 +95,7 @@ export function SettingsView({
   const [makingExpanded, setMakingExpanded] = useState(true);
   const [taxExpanded, setTaxExpanded] = useState(true);
   const [stonesExpanded, setStonesExpanded] = useState(true);
+  const [stoneSearch, setStoneSearch] = useState("");
 
   const calculatedGoldRates = useMemo(() => {
     return GOLD_PURITIES.map((purity) => {
@@ -110,6 +112,25 @@ export function SettingsView({
     (sum, stone) => sum + stone.slabs.length,
     0,
   );
+  const filteredStoneTypes = useMemo(() => {
+    const query = stoneSearch.trim().toLowerCase();
+    if (!query) return settings.stoneTypes;
+
+    return settings.stoneTypes.filter((stone) =>
+      [
+        stone.name,
+        stone.stoneId,
+        stone.category,
+        stone.clarity,
+        stone.color,
+        ...stone.slabs.map((slab) => slab.code),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [settings.stoneTypes, stoneSearch]);
   const lastSyncedLabel = getLastSyncedLabel(lastSynced);
 
   function updatePurityPercentage(purity: MetalPurity, value: number) {
@@ -569,6 +590,15 @@ export function SettingsView({
                   </div>
                 ) : (
                   <div className="space-y-2 pt-2">
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={stoneSearch}
+                        onChange={(event) => setStoneSearch(event.target.value)}
+                        placeholder="Search stone by name, ID or type"
+                        className="h-10 rounded-md border-border bg-background pl-9 text-sm"
+                      />
+                    </div>
                     {settings.stoneTypes.length === 0 ? (
                       <div className="rounded-md bg-muted py-6 text-center">
                         <Diamond className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
@@ -576,8 +606,14 @@ export function SettingsView({
                           No stone types configured
                         </p>
                       </div>
+                    ) : filteredStoneTypes.length === 0 ? (
+                      <div className="rounded-md bg-muted py-6 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          No stone types match your search.
+                        </p>
+                      </div>
                     ) : (
-                      settings.stoneTypes.map((stone) => (
+                      filteredStoneTypes.map((stone) => (
                         <div
                           key={stone.stoneId}
                           className="rounded-md bg-muted p-3"

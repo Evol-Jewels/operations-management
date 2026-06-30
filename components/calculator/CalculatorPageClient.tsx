@@ -2,11 +2,14 @@
 
 import {
   ArrowUpRight,
+  Check,
+  ChevronsUpDown,
   CircleDollarSign,
   Diamond,
   ImageIcon,
   Loader2,
   MapPin,
+  Minus,
   Plus,
   RefreshCcw,
   ScanLine,
@@ -23,14 +26,20 @@ import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import { EstimationSummaryCard } from "@/components/calculator/EstimationSummaryCard";
 import { SettingsView } from "@/components/calculator/SettingsView";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -93,11 +102,16 @@ function normalizeMetalPurity(value: string): MetalPurity {
 }
 
 function createStone(settings: CalculatorSettings): CalculatorStoneInput {
+  const defaultStoneType =
+    settings.stoneTypes.find(
+      (stone) => stone.name.trim().toLowerCase() === "round",
+    ) ?? settings.stoneTypes[0];
+
   return {
     id: generateId(),
-    stoneTypeId: settings.stoneTypes[0]?.stoneId ?? "",
+    stoneTypeId: defaultStoneType?.stoneId ?? "",
     weight: 0,
-    quantity: 1,
+    quantity: 0,
   };
 }
 
@@ -138,6 +152,107 @@ function NumericLineInput({
         </span>
       ) : null}
     </div>
+  );
+}
+
+function getStoneSearchValue(item: CalculatorSettings["stoneTypes"][number]) {
+  return [
+    item.name,
+    item.stoneId,
+    item.category,
+    item.clarity,
+    item.color,
+    ...item.slabs.map((slab) => slab.code),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function StoneTypeCombobox({
+  stoneTypes,
+  value,
+  onChange,
+}: {
+  stoneTypes: CalculatorSettings["stoneTypes"];
+  value: string;
+  onChange: (stoneTypeId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedStone = stoneTypes.find((stone) => stone.stoneId === value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="h-9 w-full justify-between border-0 border-b bg-transparent px-0 text-sm shadow-none hover:bg-transparent"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            {!selectedStone || selectedStone.category === "Diamond" ? (
+              <Diamond className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            ) : (
+              <span className="h-3 w-3 shrink-0 rounded-full bg-muted-foreground/40" />
+            )}
+            <span
+              className={cn(
+                "truncate",
+                !selectedStone && "text-muted-foreground/60",
+              )}
+            >
+              {selectedStone?.name ?? "Select stone type..."}
+            </span>
+          </span>
+          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-[min(360px,var(--radix-popover-trigger-width))] p-0"
+      >
+        <Command>
+          <CommandInput placeholder="Search stone shape or type..." />
+          <CommandList>
+            <CommandEmpty>No stone types found.</CommandEmpty>
+            <CommandGroup heading="Stone types">
+              {stoneTypes.map((item) => (
+                <CommandItem
+                  key={item.stoneId}
+                  value={`${item.stoneId} ${getStoneSearchValue(item)}`}
+                  onSelect={() => {
+                    onChange(item.stoneId);
+                    setOpen(false);
+                  }}
+                  className="items-start gap-2 py-2"
+                >
+                  {item.category === "Diamond" ? (
+                    <Diamond className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <span className="mt-1 h-3 w-3 shrink-0 rounded-full bg-muted-foreground/40" />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {item.name}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                      {item.category} · {item.slabs.length} slabs
+                    </span>
+                  </span>
+                  <Check
+                    className={cn(
+                      "mt-0.5 h-4 w-4 shrink-0",
+                      value === item.stoneId ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -261,6 +376,29 @@ function StoneRow({
   );
   const hasFixedRate = stone.fixedRatePerCarat !== undefined;
   const hasUnmatchedWeight = stone.weight > 0 && !resolvedSlab && !hasFixedRate;
+  const ratePerCarat =
+    stone.fixedRatePerCarat ?? resolvedSlab?.pricePerCarat ?? 0;
+  const stoneTotal = ratePerCarat * stone.weight;
+  const priceValue = hasFixedRate
+    ? stone.fixedRatePerCarat || ""
+    : resolvedSlab?.pricePerCarat || "";
+
+  function updatePricePerCarat(value: string) {
+    onChange({
+      fixedRatePerCarat: value.trim()
+        ? Math.max(0, Number(value) || 0)
+        : undefined,
+    });
+  }
+
+  function updatePieces(quantity: number) {
+    onChange({ quantity: Math.max(0, quantity) });
+  }
+
+  function updatePiecesInput(value: string) {
+    const digits = value.replace(/\D/g, "");
+    updatePieces(digits ? Number(digits) : 0);
+  }
 
   return (
     <div className="space-y-3 border-b border-border pb-3.5 last:border-b-0 last:pb-0">
@@ -276,53 +414,45 @@ function StoneRow({
             </span>
           ) : hasFixedRate ? (
             <span className="text-[11px] text-muted-foreground">
-              Source rate {formatCurrency(stone.fixedRatePerCarat ?? 0)}/ct
+              Manual rate
             </span>
           ) : null}
         </div>
-        {canRemove ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            onClick={onRemove}
-            aria-label={`Remove stone ${index + 1}`}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-1">
+          <span className="text-sm font-semibold tabular">
+            {formatCurrency(stoneTotal)}
+          </span>
+          {canRemove ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={onRemove}
+              aria-label={`Remove stone ${index + 1}`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          ) : null}
+        </div>
       </div>
 
-      <Select
-        value={stone.stoneTypeId}
-        onValueChange={(stoneTypeId) =>
-          onChange({
-            stoneTypeId,
-            fixedRatePerCarat: undefined,
-            sourceStoneName: undefined,
-          })
-        }
-      >
-        <SelectTrigger className="h-9 w-full border-0 border-b bg-transparent px-0 text-sm shadow-none focus:ring-0">
-          <SelectValue placeholder="Select stone" />
-        </SelectTrigger>
-        <SelectContent>
-          {settings.stoneTypes.map((item) => (
-            <SelectItem key={item.stoneId} value={item.stoneId}>
-              <span className="flex items-center gap-2">
-                {item.category === "Diamond" ? (
-                  <Diamond className="h-3.5 w-3.5 text-muted-foreground" />
-                ) : (
-                  <span className="h-3 w-3 rounded-full bg-muted-foreground/40" />
-                )}
-                {item.name}
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
       <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 min-[430px]:gap-5">
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Stone Type
+          </p>
+          <StoneTypeCombobox
+            stoneTypes={settings.stoneTypes}
+            value={stone.stoneTypeId}
+            onChange={(stoneTypeId) =>
+              onChange({
+                stoneTypeId,
+                fixedRatePerCarat: undefined,
+                sourceStoneName: undefined,
+              })
+            }
+          />
+        </div>
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Weight
@@ -333,23 +463,69 @@ function StoneRow({
             placeholder="0.000"
             suffix="ct"
           />
-          {hasUnmatchedWeight ? (
-            <p className="text-xs text-destructive">No matching slab</p>
-          ) : null}
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 min-[430px]:gap-5">
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Pieces
           </p>
-          <NumericLineInput
-            value={stone.quantity}
-            onChange={(quantity) =>
-              onChange({ quantity: Math.max(1, quantity) })
-            }
-            placeholder="1"
-            min={1}
-            step={1}
-          />
+          <div className="grid h-9 grid-cols-[32px_minmax(0,1fr)_32px] items-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-md"
+              onClick={() => updatePieces(Math.max(0, stone.quantity - 1))}
+              aria-label={`Decrease pieces for stone ${index + 1}`}
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </Button>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={stone.quantity || ""}
+              onChange={(event) => updatePiecesInput(event.target.value)}
+              placeholder="pieces"
+              className="h-8 min-w-0 border-b border-border bg-transparent px-0 text-center text-sm outline-none placeholder:text-muted-foreground/35 focus:border-foreground"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-md"
+              onClick={() => updatePieces(stone.quantity + 1)}
+              aria-label={`Increase pieces for stone ${index + 1}`}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Price / Carat
+          </p>
+          <div className="flex h-9 items-end gap-2 border-b border-border pb-1.5 focus-within:border-foreground">
+            <input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step={1}
+              value={priceValue}
+              onChange={(event) => updatePricePerCarat(event.target.value)}
+              onFocus={(event) => event.target.select()}
+              placeholder={
+                hasUnmatchedWeight
+                  ? "Enter price per carat"
+                  : "Auto match after weight + pieces"
+              }
+              className="min-w-0 flex-1 bg-transparent px-0 text-sm outline-none placeholder:text-muted-foreground/35"
+            />
+            <span className="shrink-0 pb-0.5 text-sm text-muted-foreground">
+              /ct
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -383,6 +559,58 @@ function ProductImageInput({
         onChange={(event) => onImageChange(event.target.files?.[0] ?? null)}
       />
     </>
+  );
+}
+
+function RequirementItem({
+  complete,
+  children,
+}: {
+  complete: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <li
+      className={cn(
+        "flex items-center gap-2 whitespace-nowrap text-sm",
+        complete ? "text-foreground" : "text-muted-foreground",
+      )}
+    >
+      {complete ? (
+        <Check className="h-4 w-4 shrink-0" />
+      ) : (
+        <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-current" />
+      )}
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function EstimateRequirementsCard({
+  requirements,
+  className,
+}: {
+  requirements: { label: string; complete: boolean }[];
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center text-start justify-center gap-2 flex-col py-2 h-full w-full",
+        className,
+      )}
+    >
+      {/*<ul className="flex flex-col items-center justify-center gap-3">*/}
+        {requirements.map((requirement) => (
+          <RequirementItem
+            key={requirement.label}
+            complete={requirement.complete}
+          >
+            {requirement.label}
+          </RequirementItem>
+        ))}
+      {/*</ul>*/}
+    </div>
   );
 }
 
@@ -1162,7 +1390,7 @@ export function CalculatorPageClient({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [form, setForm] = useState<CalculatorFormState>({
     netGoldWeight: 0,
-    purity: "22K",
+    purity: "18K",
     stones: [createStone(settings)],
     productName: "",
     productNote: "",
@@ -1176,6 +1404,36 @@ export function CalculatorPageClient({
       form.stones,
     );
   }, [settings, form.netGoldWeight, form.purity, form.stones]);
+  const estimateRequirements = useMemo(() => {
+    const hasNetWeight = form.netGoldWeight > 0;
+    const hasStoneRows = form.stones.length > 0;
+    const hasStoneType = form.stones.every((stone) =>
+      Boolean(getStoneType(settings, stone.stoneTypeId)),
+    );
+    const hasStoneWeight = form.stones.every((stone) => stone.weight > 0);
+    const hasStoneQuantity = form.stones.every((stone) => stone.quantity > 0);
+    const hasStoneRates = breakdown.stoneDetails.every(
+      (stone) =>
+        stone.weight > 0 &&
+        (stone.fixedRatePerCarat !== undefined || stone.slabInfo !== null),
+    );
+
+    return [
+      { label: "Select correct metal net weight and purity", complete: hasNetWeight },
+      {
+        label: "Select stone type and weight for each stone",
+        complete: hasStoneRows && hasStoneType && hasStoneWeight,
+      },
+      {
+        label: "Enter pieces and match slab for each stone",
+        complete:
+          hasStoneRows && hasStoneQuantity && hasStoneRates,
+      },
+    ];
+  }, [settings, form.netGoldWeight, form.stones, breakdown.stoneDetails]);
+  const canShowSummary = estimateRequirements.every(
+    (requirement) => requirement.complete,
+  );
 
   useEffect(() => {
     setForm((current) => {
@@ -1274,7 +1532,7 @@ export function CalculatorPageClient({
 
     setForm({
       netGoldWeight: 0,
-      purity: "22K",
+      purity: "18K",
       stones: [createStone(settings)],
       productName: "",
       productNote: "",
@@ -1355,16 +1613,23 @@ export function CalculatorPageClient({
               onImageChange={handleImageChange}
               onOpenSettings={() => setSettingsOpen(true)}
             />
-            <div ref={summaryCardRef} className="min-w-0 w-full max-w-[760px]">
-              <EstimationSummaryCard
-                data={{
-                  kind: "calculator",
-                  form,
-                  breakdown,
-                  gstRate: settings.gstRate,
-                }}
-                className="lg:sticky lg:top-6 lg:self-start"
-              />
+            <div ref={summaryCardRef} className="min-w-0 h-full w-full max-w-[760px]">
+              {canShowSummary ? (
+                <EstimationSummaryCard
+                  data={{
+                    kind: "calculator",
+                    form,
+                    breakdown,
+                    gstRate: settings.gstRate,
+                  }}
+                  className="lg:sticky lg:top-6 lg:self-start"
+                />
+              ) : (
+                <EstimateRequirementsCard
+                  requirements={estimateRequirements}
+                  className="lg:sticky lg:top-6 lg:self-start"
+                />
+              )}
             </div>
           </div>
         )}

@@ -100,7 +100,8 @@ export function computeEstimateFromInputs(
             stone.quantity,
           )
         : null;
-    const ratePerCarat = stone.fixedRatePerCarat ?? slabInfo?.pricePerCarat ?? 0;
+    const ratePerCarat =
+      stone.fixedRatePerCarat ?? slabInfo?.pricePerCarat ?? 0;
     const totalCost = ratePerCarat * stone.weight;
 
     return {
