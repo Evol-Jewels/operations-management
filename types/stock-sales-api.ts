@@ -44,6 +44,7 @@ export interface StockSalesListResponse {
 }
 
 export type StockSalesAnalyticsPeriod = "month" | "allTime";
+export type StockSalesMoneyValue = string | number;
 
 export interface StockSalesAnalyticsQuery {
   period?: StockSalesAnalyticsPeriod;
@@ -84,10 +85,11 @@ export interface StockSalesMeResponse {
   period: string;
   salesPerson: StockSalesAnalyticsSalesPerson;
   transactions: number;
-  revenue: string;
+  target?: StockSalesMoneyValue | null;
+  revenue: StockSalesMoneyValue;
   incentive: {
     eligible: boolean;
-    amount: string;
+    amount: StockSalesMoneyValue;
   };
 }
 
