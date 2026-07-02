@@ -833,6 +833,7 @@ function MySalesAnalyticsCards() {
   const progress = getTargetProgress(revenue, target);
   const progressValue = progress?.displayProgress ?? 0;
   const fillHeight = progress?.fillHeight ?? 0;
+  const meterBadgePosition = Math.max(fillHeight, 10);
   const isIncentiveEligible =
     analytics?.incentive.eligible ?? progressValue >= 100;
   const nextMilestone =
@@ -997,21 +998,21 @@ function MySalesAnalyticsCards() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-white">
-                  Incentive Meter
+                  Sales Target Meter
                 </p>
                 <p className="mt-1 text-xs text-white/55">
-                  Filled by monthly sales progress
+                  Monthly target achieved
                 </p>
               </div>
               <IndianRupee className="h-5 w-5 text-white/70" />
             </div>
 
             <div className="relative mx-auto mt-4 h-80 w-64">
-              <div className="absolute left-[43%] top-4 z-30 h-8 w-36 -translate-x-1/2 rounded-md border border-white/20 bg-[linear-gradient(90deg,rgba(255,255,255,0.52),rgba(255,255,255,0.12)_32%,rgba(255,255,255,0.48)_54%,rgba(255,255,255,0.16)_78%,rgba(255,255,255,0.38))] shadow-[0_8px_18px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.5)]" />
+              <div className="absolute left-[43%] top-6 z-30 h-8 w-36 -translate-x-1/2 rounded-md border border-white/20 bg-[linear-gradient(90deg,rgba(255,255,255,0.52),rgba(255,255,255,0.12)_32%,rgba(255,255,255,0.48)_54%,rgba(255,255,255,0.16)_78%,rgba(255,255,255,0.38))] shadow-[0_8px_18px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.5)]" />
               <div className="absolute left-[43%] bottom-4 z-30 h-4 w-36 -translate-x-1/2 rounded-md border border-white/20 bg-[linear-gradient(90deg,rgba(255,255,255,0.48),rgba(255,255,255,0.12)_35%,rgba(255,255,255,0.45)_58%,rgba(255,255,255,0.18)_80%,rgba(255,255,255,0.38))] shadow-[0_8px_18px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.5)]" />
 
               <div className="absolute left-[43%] top-[3.85rem] h-[13.9rem] w-40 -translate-x-1/2 rounded-b-[2.1rem] rounded-t-[1.55rem] border-2 border-white/45 bg-white/[0.035] shadow-[inset_15px_0_24px_rgba(255,255,255,0.09),inset_-18px_0_24px_rgba(0,0,0,0.34),0_22px_42px_rgba(0,0,0,0.36)] backdrop-blur-sm">
-                <div className="absolute -top-4 left-4 right-4 h-8 rounded-b-[1.4rem] border-x-2 border-b-2 border-white/45" />
+                <div className="absolute left-5 right-5 top-1 h-5 rounded-b-[1.35rem] border-x-2 border-b-2 border-white/28 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(10,10,10,0.42))] shadow-[inset_0_-9px_14px_rgba(0,0,0,0.24),0_1px_0_rgba(255,255,255,0.14)]" />
                 <div className="absolute inset-y-7 left-7 w-4 rounded-full bg-white/18 blur-sm" />
                 <div className="absolute inset-y-8 right-7 w-5 rounded-full bg-white/10 blur-md" />
 
@@ -1071,14 +1072,14 @@ function MySalesAnalyticsCards() {
                 />
                 <span
                   className="absolute left-1/2 z-30 -translate-x-1/2 translate-y-1/2 rounded-md bg-white px-2 py-0.5 text-sm font-semibold tabular-nums text-neutral-950 shadow-sm"
-                  style={{ bottom: `${meterProgress}%` }}
+                  style={{ bottom: `${meterBadgePosition}%` }}
                 >
                   {progress == null ? "N/A" : `${progressValue}%`}
                 </span>
               </div>
 
-              <div className="absolute left-[calc(43%+5.25rem)] top-[4.75rem] h-[13rem] w-16">
-                {[75, 50, 25, 0].map((mark) => (
+              <div className="absolute left-[calc(43%+5.25rem)] top-[4.85rem] h-[11.65rem] w-16">
+                {[100, 75, 50, 25, 0].map((mark) => (
                   <div
                     className="absolute left-0 flex items-center gap-2"
                     key={mark}
