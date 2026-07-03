@@ -30,6 +30,7 @@ export interface InternalUserProfile {
   role: InternalProfileRole | null;
   department: string | null;
   locationId: string | null;
+  monthlySalesTarget: string | null;
   location?: InternalUserProfileLocation | null;
 }
 
@@ -154,6 +155,14 @@ export interface ResetPasswordResponse {
 
 export interface UpdateMyInternalProfileInput {
   locationId?: string | null;
+}
+
+export interface UpdateInternalUserProfileInput {
+  name?: string;
+  username?: string;
+  role?: InternalProfileRole;
+  locationId?: string | null;
+  monthlySalesTarget?: string | null;
 }
 
 export interface ChangeInternalPasswordInput {

@@ -24,7 +24,7 @@ interface UsersTableProps {
   users: InternalUserWithProfile[];
   isLoading: boolean;
   currentUserEmail?: string;
-  onSelectUserEmail: (email: string) => void;
+  onOpenUserProfile: (user: InternalUserWithProfile) => void;
   onBlock: (user: InternalUserWithProfile) => void;
   onUnblock: (user: InternalUserWithProfile) => void;
   onResetPassword: (user: InternalUserWithProfile) => void;
@@ -147,7 +147,7 @@ export function UsersTable({
   users,
   isLoading,
   currentUserEmail,
-  onSelectUserEmail,
+  onOpenUserProfile,
   onBlock,
   onUnblock,
   onResetPassword,
@@ -168,69 +168,81 @@ export function UsersTable({
   return (
     <div className="min-h-0 h-[30vh] overflow-y-auto rounded-md border border-border/70">
       <div className="space-y-3 p-3 sm:hidden">
-        {users.map((user) => (
-          <div
-            key={user.id}
-            className="relative rounded-md border border-border/70 bg-background p-4"
-          >
-            <button
-              type="button"
-              onClick={() => onSelectUserEmail(user.email)}
-              className="w-full text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        {users.map((user) => {
+          const isAdminUser = user.profile?.role === "ADMIN";
+
+          return (
+            <div
+              key={user.id}
+              className="relative rounded-md border border-border/70 bg-background p-4"
             >
-              <div className="flex min-w-0 items-start gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
-                  {initials(user.name, user.email)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">
-                        {user.username || user.name || "Unnamed user"}
-                      </p>
-                      <p className="mt-1 truncate text-xs text-muted-foreground">
-                        {user.email}
-                      </p>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "shrink-0 border",
-                        statusStyles[user.status],
-                      )}
-                    >
-                      {user.status}
-                    </Badge>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isAdminUser) onOpenUserProfile(user);
+                }}
+                className={cn(
+                  "w-full text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                  isAdminUser
+                    ? "cursor-default"
+                    : "cursor-pointer hover:bg-muted/40",
+                )}
+                disabled={isAdminUser}
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
+                    {initials(user.name, user.email)}
                   </div>
-                  <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
-                    <div className="flex justify-between gap-3">
-                      <span>Role</span>
-                      <span className="font-medium text-foreground">
-                        {user.profile?.role ?? "-"}
-                      </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-foreground">
+                          {user.username || user.name || "Unnamed user"}
+                        </p>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          {user.email}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "shrink-0 border",
+                          statusStyles[user.status],
+                        )}
+                      >
+                        {user.status}
+                      </Badge>
                     </div>
-                    <div className="flex justify-between gap-3">
-                      <span>Created</span>
-                      <span className="font-medium text-foreground">
-                        {formatDate(user.createdAt)}
-                      </span>
+                    <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
+                      <div className="flex justify-between gap-3">
+                        <span>Role</span>
+                        <span className="font-medium text-foreground">
+                          {user.profile?.role ?? "-"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span>Created</span>
+                        <span className="font-medium text-foreground">
+                          {formatDate(user.createdAt)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
+              </button>
+              <div className="absolute right-4 top-4">
+                <UserActions
+                  user={user}
+                  currentUserEmail={currentUserEmail}
+                  onBlock={() => onBlock(user)}
+                  onUnblock={() => onUnblock(user)}
+                  onResetPassword={() => onResetPassword(user)}
+                  isLoading={actionLoading === user.id}
+                />
               </div>
-            </button>
-            <div className="absolute right-4 top-4">
-              <UserActions
-                user={user}
-                currentUserEmail={currentUserEmail}
-                onBlock={() => onBlock(user)}
-                onUnblock={() => onUnblock(user)}
-                onResetPassword={() => onResetPassword(user)}
-                isLoading={actionLoading === user.id}
-              />
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="hidden sm:block">
@@ -245,58 +257,64 @@ export function UsersTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
-              <TableRow
-                key={user.id}
-                className="cursor-pointer"
-                onClick={() => onSelectUserEmail(user.email)}
-              >
-                <TableCell className="py-3">
-                  <div className="flex min-w-64 items-center gap-3">
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
-                      {initials(user.name, user.email)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">
-                        {user.username || user.name || "Unnamed user"}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {user.email}
-                      </p>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="py-3">
-                  <Badge
-                    variant="outline"
-                    className={cn("border", statusStyles[user.status])}
-                  >
-                    {user.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="py-3">
-                  <p className="text-sm text-foreground">
-                    {user.profile?.role ?? "-"}
-                  </p>
-                </TableCell>
-                <TableCell className="py-3 text-muted-foreground">
-                  {formatDate(user.createdAt)}
-                </TableCell>
-                <TableCell
-                  className="py-3"
-                  onClick={(e) => e.stopPropagation()}
+            {users.map((user) => {
+              const isAdminUser = user.profile?.role === "ADMIN";
+
+              return (
+                <TableRow
+                  key={user.id}
+                  className={isAdminUser ? undefined : "cursor-pointer"}
+                  onClick={() => {
+                    if (!isAdminUser) onOpenUserProfile(user);
+                  }}
                 >
-                  <UserActions
-                    user={user}
-                    currentUserEmail={currentUserEmail}
-                    onBlock={() => onBlock(user)}
-                    onUnblock={() => onUnblock(user)}
-                    onResetPassword={() => onResetPassword(user)}
-                    isLoading={actionLoading === user.id}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
+                  <TableCell className="py-3">
+                    <div className="flex min-w-64 items-center gap-3">
+                      <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
+                        {initials(user.name, user.email)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-foreground">
+                          {user.username || user.name || "Unnamed user"}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <Badge
+                      variant="outline"
+                      className={cn("border", statusStyles[user.status])}
+                    >
+                      {user.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <p className="text-sm text-foreground">
+                      {user.profile?.role ?? "-"}
+                    </p>
+                  </TableCell>
+                  <TableCell className="py-3 text-muted-foreground">
+                    {formatDate(user.createdAt)}
+                  </TableCell>
+                  <TableCell
+                    className="py-3"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <UserActions
+                      user={user}
+                      currentUserEmail={currentUserEmail}
+                      onBlock={() => onBlock(user)}
+                      onUnblock={() => onUnblock(user)}
+                      onResetPassword={() => onResetPassword(user)}
+                      isLoading={actionLoading === user.id}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

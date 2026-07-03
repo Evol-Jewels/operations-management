@@ -1,6 +1,16 @@
 "use client";
 
-import { Check, Copy, Eye, EyeOff, RefreshCw, Search, X } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Eye,
+  EyeOff,
+  LoaderCircle,
+  RefreshCw,
+  Save,
+  Search,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,15 +35,18 @@ import { InvitesTable } from "@/components/user-management/InvitesTable";
 import { SendInviteDialog } from "@/components/user-management/SendInviteDialog";
 import { UpdateInviteDialog } from "@/components/user-management/UpdateInviteDialog";
 import { UsersTable } from "@/components/user-management/UsersTable";
+import { useLocations } from "@/hooks/useManageProducts";
 import { authClient } from "@/lib/auth-client";
 import {
   blockInternalUser,
   createInternalInvite,
   fetchInternalInvites,
+  fetchInternalUserProfile,
   fetchInternalUsers,
   resetInternalUserPassword,
   unblockInternalUser,
   updateInternalInvite,
+  updateInternalUserProfile,
 } from "@/lib/internalUserManagementApi";
 import type {
   CreateInternalInviteInput,
@@ -43,6 +56,7 @@ import type {
   InternalProfileRole,
   InternalUserStatus,
   InternalUserWithProfile,
+  UpdateInternalUserProfileInput,
 } from "@/types/user-management";
 import {
   INTERNAL_INVITE_STATUSES,
@@ -99,6 +113,7 @@ function matchesInviteSearch(invite: InternalInviteRow, query: string) {
 }
 
 type ConfirmDialogType = "block" | "unblock" | "expire" | null;
+const NO_LOCATION_VALUE = "none";
 
 interface ConfirmDialogData {
   type: ConfirmDialogType;
@@ -109,6 +124,247 @@ interface ConfirmDialogData {
 interface ResetPasswordDialogData {
   user?: InternalUserWithProfile;
   invite?: InternalInviteRow;
+}
+
+function UserProfileDialog({
+  user,
+  open,
+  isLoading,
+  isSubmitting,
+  onOpenChange,
+  onSubmit,
+}: {
+  user: InternalUserWithProfile | null;
+  open: boolean;
+  isLoading: boolean;
+  isSubmitting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (input: UpdateInternalUserProfileInput) => Promise<void>;
+}) {
+  const locationsQuery = useLocations({ limit: 100 }, open);
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [role, setRole] = useState<InternalProfileRole>("SALES");
+  const [locationId, setLocationId] = useState(NO_LOCATION_VALUE);
+  const [monthlySalesTarget, setMonthlySalesTarget] = useState("");
+
+  useEffect(() => {
+    if (!user) return;
+
+    setName(user.name ?? "");
+    setUsername(user.username ?? "");
+    setRole(user.profile?.role ?? "SALES");
+    setLocationId(user.profile?.locationId ?? NO_LOCATION_VALUE);
+    setMonthlySalesTarget(user.profile?.monthlySalesTarget ?? "");
+  }, [user]);
+
+  const locations = locationsQuery.data?.data ?? [];
+  const currentUser = user;
+  const originalLocationId = user?.profile?.locationId ?? NO_LOCATION_VALUE;
+  const trimmedName = name.trim();
+  const trimmedUsername = username.trim();
+  const trimmedTarget = monthlySalesTarget.trim();
+  const isAdminUser = user?.profile?.role === "ADMIN";
+
+  const hasChanges =
+    currentUser !== null &&
+    (trimmedName !== currentUser.name ||
+      trimmedUsername !== (currentUser.username ?? "") ||
+      (!isAdminUser && role !== (currentUser.profile?.role ?? "SALES")) ||
+      locationId !== originalLocationId ||
+      trimmedTarget !== (currentUser.profile?.monthlySalesTarget ?? ""));
+  const nameInvalid = trimmedName.length < 1 || trimmedName.length > 255;
+  const usernameInvalid =
+    trimmedUsername.length > 0 &&
+    (trimmedUsername.length < 3 ||
+      trimmedUsername.length > 64 ||
+      !/^[a-zA-Z0-9_.-]+$/.test(trimmedUsername));
+  const canSubmit =
+    hasChanges &&
+    !nameInvalid &&
+    !usernameInvalid &&
+    !isLoading &&
+    !isSubmitting;
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canSubmit || !user) return;
+
+    const input: UpdateInternalUserProfileInput = {};
+    if (trimmedName !== user.name) {
+      input.name = trimmedName;
+    }
+    if (trimmedUsername !== (user.username ?? "")) {
+      input.username = trimmedUsername;
+    }
+    if (!isAdminUser && role !== (user.profile?.role ?? "SALES")) {
+      input.role = role;
+    }
+    if (locationId !== originalLocationId) {
+      input.locationId = locationId === NO_LOCATION_VALUE ? null : locationId;
+    }
+    if (trimmedTarget !== (user.profile?.monthlySalesTarget ?? "")) {
+      input.monthlySalesTarget = trimmedTarget || null;
+    }
+
+    await onSubmit(input);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit User Profile</DialogTitle>
+          <DialogDescription>
+            Update profile settings for {user?.email ?? "this user"}.
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="flex min-h-48 items-center justify-center text-sm text-muted-foreground">
+            <LoaderCircle className="mr-2 size-4 animate-spin" />
+            Loading profile...
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-name">Name</Label>
+                <Input
+                  id="edit-user-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  disabled={isSubmitting}
+                  aria-invalid={nameInvalid}
+                  className="h-10"
+                />
+                {nameInvalid ? (
+                  <p className="text-xs text-destructive">
+                    Name is required and must be 255 characters or fewer.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-email">Email</Label>
+                <Input
+                  id="edit-user-email"
+                  value={user?.email ?? ""}
+                  disabled
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-username">Username</Label>
+                <Input
+                  id="edit-user-username"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="username"
+                  disabled={isSubmitting}
+                  aria-invalid={usernameInvalid}
+                  className="h-10"
+                />
+                {usernameInvalid ? (
+                  <p className="text-xs text-destructive">
+                    Use 3-64 letters, numbers, dots, dashes, or underscores.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-role">Role</Label>
+                <Select
+                  value={role}
+                  onValueChange={(value) =>
+                    setRole(value as InternalProfileRole)
+                  }
+                  disabled={isAdminUser || isSubmitting}
+                >
+                  <SelectTrigger id="edit-user-role" className="h-10 w-full">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INTERNAL_PROFILE_ROLES.map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isAdminUser ? (
+                  <p className="text-xs text-muted-foreground">
+                    Admin role cannot be changed.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-location">Location</Label>
+                <Select
+                  value={locationId}
+                  onValueChange={setLocationId}
+                  disabled={locationsQuery.isLoading || isSubmitting}
+                >
+                  <SelectTrigger
+                    id="edit-user-location"
+                    className="h-10 w-full"
+                  >
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_LOCATION_VALUE}>
+                      No location
+                    </SelectItem>
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id}>
+                        {location.name} - {location.city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-user-target">Monthly Sales Target</Label>
+                <Input
+                  id="edit-user-target"
+                  value={monthlySalesTarget}
+                  onChange={(event) =>
+                    setMonthlySalesTarget(event.target.value)
+                  }
+                  placeholder="0.00"
+                  inputMode="decimal"
+                  disabled={isSubmitting}
+                  className="h-10"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!canSubmit}>
+                {isSubmitting ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export function UserManagementPageClient() {
@@ -146,6 +402,11 @@ export function UserManagementPageClient() {
   const [updateInviteDialog, setUpdateInviteDialog] =
     useState<InternalInviteRow | null>(null);
   const [updateInviteSubmitting, setUpdateInviteSubmitting] = useState(false);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] =
+    useState<InternalUserWithProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSubmitting, setProfileSubmitting] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -255,6 +516,52 @@ export function UserManagementPageClient() {
     setUpdateInviteDialog(invite);
   }
 
+  async function handleOpenUserProfile(user: InternalUserWithProfile) {
+    setSelectedUser(user);
+    setProfileDialogOpen(true);
+    setProfileLoading(true);
+
+    try {
+      const profile = await fetchInternalUserProfile(user.id);
+      setSelectedUser(profile);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load profile",
+      );
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
+  async function handleUpdateUserProfile(
+    input: UpdateInternalUserProfileInput,
+  ) {
+    if (!selectedUser) return;
+
+    setProfileSubmitting(true);
+    try {
+      const updatedUser = await updateInternalUserProfile(
+        selectedUser.id,
+        input,
+      );
+      setSelectedUser(updatedUser);
+      setUsers((currentUsers) =>
+        currentUsers.map((user) =>
+          user.id === updatedUser.id ? updatedUser : user,
+        ),
+      );
+      toast.success("Profile updated");
+      setProfileDialogOpen(false);
+      await loadUsers();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update profile",
+      );
+    } finally {
+      setProfileSubmitting(false);
+    }
+  }
+
   async function handleResetPassword(
     user: InternalUserWithProfile | InternalInviteRow,
     isInvite?: boolean,
@@ -307,7 +614,7 @@ export function UserManagementPageClient() {
   }
 
   async function executeUpdateInvite(data: {
-    status?: "PENDING" | "EXPIRED" | "CANCELLED";
+    status?: InternalInviteStatus;
     expiration?: string;
   }) {
     const invite = updateInviteDialog;
@@ -315,7 +622,10 @@ export function UserManagementPageClient() {
 
     setUpdateInviteSubmitting(true);
     try {
-      await updateInternalInvite(invite.id, data);
+      await updateInternalInvite(invite.id, {
+        ...data,
+        status: data.status === "ACCEPTED" ? undefined : data.status,
+      });
       toast.success("Invite updated");
       setUpdateInviteDialog(null);
       await loadInvites();
@@ -490,7 +800,7 @@ export function UserManagementPageClient() {
               users={filteredUsers}
               isLoading={usersLoading}
               currentUserEmail={session?.user.email ?? undefined}
-              onSelectUserEmail={(email) => setInviteSearch(email)}
+              onOpenUserProfile={handleOpenUserProfile}
               onBlock={handleBlock}
               onUnblock={handleUnblock}
               onResetPassword={(user) => handleResetPassword(user)}
@@ -684,6 +994,18 @@ export function UserManagementPageClient() {
         onOpenChange={(open) => !open && setUpdateInviteDialog(null)}
         onSubmit={executeUpdateInvite}
         isSubmitting={updateInviteSubmitting}
+      />
+
+      <UserProfileDialog
+        user={selectedUser}
+        open={profileDialogOpen}
+        isLoading={profileLoading}
+        isSubmitting={profileSubmitting}
+        onOpenChange={(open) => {
+          setProfileDialogOpen(open);
+          if (!open) setSelectedUser(null);
+        }}
+        onSubmit={handleUpdateUserProfile}
       />
 
       <Dialog
