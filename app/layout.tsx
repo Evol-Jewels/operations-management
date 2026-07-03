@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AppShell } from "@/components/layout/AppShell";
 import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
@@ -57,6 +59,8 @@ export default function RootLayout({
           </TooltipProvider>
         </ThemeProvider>
         <Toaster richColors />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
