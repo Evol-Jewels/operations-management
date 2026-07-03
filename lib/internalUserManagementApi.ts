@@ -8,6 +8,7 @@ import type {
   InternalUserProfileMeResponse,
   InternalUsersQuery,
   InternalUserWithProfile,
+  UpdateInternalUserProfileInput,
   UpdateMyInternalProfileInput,
 } from "@/types/user-management";
 
@@ -77,9 +78,29 @@ export function fetchMyInternalProfile() {
   );
 }
 
+export function fetchInternalUserProfile(userId: string) {
+  return apiFetch<InternalUserWithProfile>(
+    buildUrl(`api/v1/internal-users/profile/${userId}`),
+  );
+}
+
 export function updateMyInternalProfile(input: UpdateMyInternalProfileInput) {
   return apiFetch<InternalUserProfileMeResponse>(
     buildUrl("api/v1/internal-users/profile/me"),
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function updateInternalUserProfile(
+  userId: string,
+  input: UpdateInternalUserProfileInput,
+) {
+  return apiFetch<InternalUserWithProfile>(
+    buildUrl(`api/v1/internal-users/${userId}/profile`),
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
