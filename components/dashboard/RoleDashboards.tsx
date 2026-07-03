@@ -1125,9 +1125,6 @@ function SalespersonCell({ row }: { row: StockSalesAnalyticsBreakdownRow }) {
       </Avatar>
       <div className="min-w-0">
         <p className="truncate font-medium text-foreground">{name}</p>
-        <p className="truncate text-xs text-muted-foreground">
-          {person?.id ?? "Unassigned sales"}
-        </p>
       </div>
     </div>
   );

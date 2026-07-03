@@ -46,6 +46,8 @@ import { type AuthSession, authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 const MAX_AVATAR_SIZE = 2 * 1024 * 1024;
+const profileTabTriggerClassName =
+  "h-11 flex-none rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 shadow-none focus-visible:border-transparent focus-visible:border-b-foreground focus-visible:ring-0 data-[state=active]:border-x-transparent data-[state=active]:border-t-transparent data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none";
 
 type SessionUserProfile = NonNullable<AuthSession>["user"] & {
   username?: string | null;
@@ -303,7 +305,7 @@ export function ProfilePageClient() {
         <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-border border-b bg-transparent p-0 text-muted-foreground">
           <TabsTrigger
             value="profile"
-            className="h-11 flex-none rounded-none border-transparent border-b-2 bg-transparent px-0 shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className={profileTabTriggerClassName}
           >
             <User className="size-4" />
             Profile
@@ -311,7 +313,7 @@ export function ProfilePageClient() {
           {hasUsername ? (
             <TabsTrigger
               value="password"
-              className="h-11 flex-none rounded-none border-transparent border-b-2 bg-transparent px-0 shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+              className={profileTabTriggerClassName}
             >
               <KeyRound className="size-4" />
               Password

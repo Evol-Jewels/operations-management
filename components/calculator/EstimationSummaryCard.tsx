@@ -3,6 +3,7 @@
 import { toPng } from "html-to-image";
 import { Download, ImageIcon, Loader2 } from "lucide-react";
 import Image from "next/image";
+import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -35,8 +36,13 @@ interface SharedSummaryData {
 interface EstimationSummaryCardProps {
   className?: string;
   showDownloadButton?: boolean;
+  showHeader?: boolean;
   downloadFilename?: string;
   title?: string;
+  renderActions?: (props: {
+    downloadSummary: () => Promise<void>;
+    isDownloading: boolean;
+  }) => ReactNode;
   data:
     | {
         kind: "calculator";
@@ -111,8 +117,10 @@ function getSummaryData(
 export function EstimationSummaryCard({
   className,
   showDownloadButton = true,
+  showHeader = true,
   downloadFilename,
   title = "Estimate summary",
+  renderActions,
   data,
 }: EstimationSummaryCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -154,35 +162,39 @@ export function EstimationSummaryCard({
         className,
       )}
     >
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Estimation as per values, share with customers using the download
-            button
-          </p>
-        </div>
-        {showDownloadButton ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0 rounded-md px-2.5 sm:px-3"
-            onClick={downloadSummary}
-            disabled={isDownloading}
-            aria-label="Download summary"
-          >
-            {isDownloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            <span className="hidden sm:inline">Download</span>
-          </Button>
-        ) : null}
-      </div>
+      {showHeader ? (
+        <>
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Estimation as per values, share with customers using the
+                download button
+              </p>
+            </div>
+            {showDownloadButton ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 rounded-md px-2.5 sm:px-3"
+                onClick={downloadSummary}
+                disabled={isDownloading}
+                aria-label="Download summary"
+              >
+                {isDownloading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">Download</span>
+              </Button>
+            ) : null}
+          </div>
 
-      <Separator className="mb-4" />
+          <Separator className="mb-4" />
+        </>
+      ) : null}
 
       <div
         ref={cardRef}
@@ -368,6 +380,12 @@ export function EstimationSummaryCard({
           </ul>
         </div>
       </div>
+
+      {renderActions ? (
+        <div className="mt-4">
+          {renderActions({ downloadSummary, isDownloading })}
+        </div>
+      ) : null}
     </section>
   );
 }
