@@ -43,6 +43,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryAnalytics } from "@/hooks/useInventoryProducts";
+import { useLocations } from "@/hooks/useManageProducts";
 import { cn } from "@/lib/utils";
 import type {
   InventoryAnalyticsBucket,
@@ -54,6 +55,7 @@ import type {
 type StatusFilter = "ALL" | "AVAILABLE" | "NOT_AVAILABLE";
 type ColorFilter = "ALL" | ProductColor;
 type PurityFilter = "ALL" | "14" | "18" | "24";
+type LocationFilter = "ALL" | string;
 const DEFAULT_STATUS_FILTER: StatusFilter = "AVAILABLE";
 
 const COLOR_LABELS: Record<ProductColor, string> = {
@@ -532,6 +534,10 @@ function getPurityFilter(params: URLSearchParams): PurityFilter {
     : "ALL";
 }
 
+function getLocationFilter(params: URLSearchParams): LocationFilter {
+  return params.get("locationId") ?? "ALL";
+}
+
 function MetricCard({
   label,
   value,
@@ -844,18 +850,24 @@ function ProductDistributionSankeyCard({
 
 function AnalyticsFilterControls({
   color,
+  location,
+  locations,
+  locationsLoading,
   purity,
   onFilterChange,
 }: {
   color: ColorFilter;
+  location: LocationFilter;
+  locations: { id: string; name: string; city: string }[];
+  locationsLoading: boolean;
   purity: PurityFilter;
   onFilterChange: (
-    key: "color" | "purity",
-    value: ColorFilter | PurityFilter,
+    key: "color" | "locationId" | "purity",
+    value: ColorFilter | LocationFilter | PurityFilter,
   ) => void;
 }) {
   return (
-    <div className="grid w-full gap-2 sm:grid-cols-2 md:w-auto md:min-w-[24rem]">
+    <div className="grid w-full gap-2 sm:grid-cols-2 md:w-auto md:min-w-[36rem] lg:grid-cols-3">
       <Select
         value={purity}
         onValueChange={(value) =>
@@ -872,6 +884,25 @@ function AnalyticsFilterControls({
           ).map((purityValue) => (
             <SelectItem key={purityValue} value={purityValue}>
               {PURITY_LABELS[purityValue]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={location}
+        onValueChange={(value) =>
+          onFilterChange("locationId", value as LocationFilter)
+        }
+        disabled={locationsLoading}
+      >
+        <SelectTrigger className="h-10 w-full">
+          <SelectValue placeholder="Location" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">All locations</SelectItem>
+          {locations.map((locationValue) => (
+            <SelectItem key={locationValue.id} value={locationValue.id}>
+              {locationValue.name}, {locationValue.city}
             </SelectItem>
           ))}
         </SelectContent>
@@ -1207,12 +1238,16 @@ export function ProductAnalyticsPageClient() {
   const status = getStatusFilter(searchParams);
   const color = getColorFilter(searchParams);
   const purity = getPurityFilter(searchParams);
+  const location = getLocationFilter(searchParams);
+  const locationsQuery = useLocations({ limit: 100 });
   const analyticsQuery = useInventoryAnalytics({
     ...(status === "ALL" ? {} : { status }),
     ...(color === "ALL" ? {} : { color }),
     ...(purity === "ALL" ? {} : { purity: Number(purity) }),
+    ...(location === "ALL" ? {} : { locationId: location }),
   });
   const analytics = analyticsQuery.data;
+  const locations = locationsQuery.data?.data ?? [];
   const stockPercent = analytics
     ? getPercent(
         analytics.summary.stockProducts,
@@ -1240,8 +1275,8 @@ export function ProductAnalyticsPageClient() {
   }
 
   function updateAnalyticsFilter(
-    key: "color" | "purity",
-    value: ColorFilter | PurityFilter,
+    key: "color" | "locationId" | "purity",
+    value: ColorFilter | LocationFilter | PurityFilter,
   ) {
     const params = new URLSearchParams(searchParams);
     if (value === "ALL") {
@@ -1309,6 +1344,9 @@ export function ProductAnalyticsPageClient() {
           </Tabs>
           <AnalyticsFilterControls
             color={color}
+            location={location}
+            locations={locations}
+            locationsLoading={locationsQuery.isLoading}
             purity={purity}
             onFilterChange={updateAnalyticsFilter}
           />
