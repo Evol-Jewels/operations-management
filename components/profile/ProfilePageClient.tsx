@@ -302,7 +302,7 @@ export function ProfilePageClient() {
       </header>
 
       <Tabs defaultValue="profile" className="gap-6">
-        <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-border border-b bg-transparent p-0 text-muted-foreground">
+        <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-0 border-border border-b bg-transparent p-0 text-muted-foreground">
           <TabsTrigger
             value="profile"
             className={profileTabTriggerClassName}
