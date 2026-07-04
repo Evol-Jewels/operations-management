@@ -791,10 +791,6 @@ function getAnalyticsTitle(
     : getAnalyticsPeriodTitle(saleMonth);
 }
 
-function formatXp(value: number) {
-  return `${value.toLocaleString("en-IN")} XP`;
-}
-
 function getLeaderboardPeriodLabel(period: string) {
   return `Based on performance for ${formatSaleMonthLabel(period).split(" ")[0]} month`;
 }
@@ -1190,29 +1186,48 @@ function SalesLeaderboardCard({
             </div>
           )}
 
-        {leaderboard.map((row) => {
+        {!leaderboardQuery.isLoading &&
+          !leaderboardQuery.isError &&
+          leaderboard.length > 0 && (
+            <Table className="border-separate border-spacing-y-1">
+              <TableHeader>
+                <TableRow className="border-0 hover:bg-transparent">
+                  <TableHead className="h-8 w-12 px-3 text-xs text-muted-foreground">
+                    Rank
+                  </TableHead>
+                  <TableHead className="h-8 px-3 text-xs text-muted-foreground">
+                    Name
+                  </TableHead>
+                  <TableHead className="h-8 w-28 px-3 text-right text-xs text-muted-foreground">
+                    Products Sold
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leaderboard.map((row) => {
           const person = row.salesPerson;
           const name = person.name ?? "Unknown";
-          const isLeader = row.rank === 1;
+          const isLeader = row.rank === 1 && row.totalProductsSold > 0;
           const isCurrentPerson =
             Boolean(currentSalesPersonId) && person.id === currentSalesPersonId;
           const rowHighlightClass = isLeader
             ? isCurrentPerson
-              ? "border border-emerald-500/40 bg-emerald-500/10 text-emerald-800 shadow-[inset_3px_0_0_rgb(16_185_129)] dark:bg-emerald-500/15 dark:text-emerald-200"
-              : "border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 shadow-[inset_3px_0_0_rgb(16_185_129)] dark:bg-emerald-500/15 dark:text-emerald-200"
+              : "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
             : isCurrentPerson
-              ? "border border-sky-500/35 bg-sky-500/10 text-sky-800 shadow-[inset_3px_0_0_rgb(14_165_233)] dark:bg-sky-500/15 dark:text-sky-200"
-              : "border border-transparent text-muted-foreground";
+              ? "border-sky-500/35 bg-sky-500/10 text-sky-800 shadow-[inset_3px_0_0_rgb(14_165_233)] dark:bg-sky-500/15 dark:text-sky-200"
+              : "border-transparent text-muted-foreground";
 
           return (
-            <div
+            <TableRow
               className={cn(
-                "grid min-h-12 grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2 transition-colors",
+                "border transition-colors hover:bg-muted/40",
                 rowHighlightClass,
               )}
               key={person.id}
             >
-              <span className="flex justify-center text-sm font-medium tabular-nums">
+              <TableCell className="h-12 rounded-l-md px-3 py-2">
+                <span className="flex justify-center text-sm font-medium tabular-nums">
                 {isLeader ? (
                   <span className="flex h-8 w-8 items-center justify-center rounded-md border border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300">
                     <Award className="h-4 w-4" />
@@ -1220,8 +1235,10 @@ function SalesLeaderboardCard({
                 ) : (
                   row.rank
                 )}
-              </span>
-              <div className="flex min-w-0 items-center gap-3">
+                </span>
+              </TableCell>
+              <TableCell className="min-w-0 px-3 py-2">
+                <div className="flex min-w-0 items-center gap-3">
                 <Avatar>
                   {person.image && (
                     <AvatarImage src={person.image} alt={name} />
@@ -1257,13 +1274,17 @@ function SalesLeaderboardCard({
                         : "You"}
                   </Badge>
                 )}
-              </div>
-              <span className="whitespace-nowrap text-sm font-medium tabular-nums text-muted-foreground">
-                {formatXp(row.xp)}
-              </span>
-            </div>
+                </div>
+              </TableCell>
+              <TableCell className="rounded-r-md px-3 py-2 text-right text-sm font-medium tabular-nums text-muted-foreground">
+                {row.totalProductsSold.toLocaleString("en-IN")}
+              </TableCell>
+            </TableRow>
           );
-        })}
+                })}
+              </TableBody>
+            </Table>
+          )}
       </div>
     </section>
   );
