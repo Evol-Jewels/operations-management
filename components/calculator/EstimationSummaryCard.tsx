@@ -255,7 +255,7 @@ export function EstimationSummaryCard({
       >
         <div className="flex items-center justify-center border-b border-border py-3">
           <img
-            src="/evol-logo.webp"
+            src="/evol-jewels-logo.png"
             alt="Evol"
             width={82}
             height={30}
