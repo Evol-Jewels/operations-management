@@ -1128,9 +1128,11 @@ function SalespersonCell({ row }: { row: StockSalesAnalyticsBreakdownRow }) {
 
 function SalesLeaderboardCard({
   className,
+  highlightCurrentUser = true,
   title = "Sales Leaderboard",
 }: {
   className?: string;
+  highlightCurrentUser?: boolean;
   title?: string;
 }) {
   const saleMonth = getCurrentSaleMonth();
@@ -1138,12 +1140,19 @@ function SalesLeaderboardCard({
     period: "month",
     saleMonth,
   });
-  const mySalesQuery = useMyStockSales({
-    period: "month",
-    saleMonth,
-  });
+  const mySalesQuery = useMyStockSales(
+    {
+      period: "month",
+      saleMonth,
+    },
+    {
+      enabled: highlightCurrentUser,
+    },
+  );
   const leaderboard = leaderboardQuery.data?.leaderboard ?? [];
-  const currentSalesPersonId = mySalesQuery.data?.salesPerson.id;
+  const currentSalesPersonId = highlightCurrentUser
+    ? mySalesQuery.data?.salesPerson.id
+    : undefined;
   const periodLabel = getLeaderboardPeriodLabel(
     leaderboardQuery.data?.period ?? saleMonth,
   );
@@ -1205,82 +1214,87 @@ function SalesLeaderboardCard({
               </TableHeader>
               <TableBody>
                 {leaderboard.map((row) => {
-          const person = row.salesPerson;
-          const name = person.name ?? "Unknown";
-          const isLeader = row.rank === 1 && row.totalProductsSold > 0;
-          const isCurrentPerson =
-            Boolean(currentSalesPersonId) && person.id === currentSalesPersonId;
-          const rowHighlightClass = isLeader
-            ? isCurrentPerson
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 shadow-[inset_3px_0_0_rgb(16_185_129)] dark:bg-emerald-500/15 dark:text-emerald-200"
-              : "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-            : isCurrentPerson
-              ? "border-sky-500/35 bg-sky-500/10 text-sky-800 shadow-[inset_3px_0_0_rgb(14_165_233)] dark:bg-sky-500/15 dark:text-sky-200"
-              : "border-transparent text-muted-foreground";
+                  const person = row.salesPerson;
+                  const name = person.name ?? "Unknown";
+                  const isLeader = row.rank === 1 && row.totalProductsSold > 0;
+                  const isCurrentPerson =
+                    Boolean(currentSalesPersonId) &&
+                    person.id === currentSalesPersonId;
+                  const rowHighlightClass = isLeader
+                    ? isCurrentPerson
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 shadow-[inset_3px_0_0_rgb(16_185_129)] dark:bg-emerald-500/15 dark:text-emerald-200"
+                      : "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                    : isCurrentPerson
+                      ? "border-sky-500/35 bg-sky-500/10 text-sky-800 shadow-[inset_3px_0_0_rgb(14_165_233)] dark:bg-sky-500/15 dark:text-sky-200"
+                      : "border-transparent text-muted-foreground";
 
-          return (
-            <TableRow
-              className={cn(
-                "border transition-colors hover:bg-muted/40",
-                rowHighlightClass,
-              )}
-              key={person.id}
-            >
-              <TableCell className="h-12 rounded-l-md px-3 py-2">
-                <span className="flex justify-center text-sm font-medium tabular-nums">
-                {isLeader ? (
-                  <span className="flex h-8 w-8 items-center justify-center rounded-md border border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300">
-                    <Award className="h-4 w-4" />
-                  </span>
-                ) : (
-                  row.rank
-                )}
-                </span>
-              </TableCell>
-              <TableCell className="min-w-0 px-3 py-2">
-                <div className="flex min-w-0 items-center gap-3">
-                <Avatar>
-                  {person.image && (
-                    <AvatarImage src={person.image} alt={name} />
-                  )}
-                  <AvatarFallback className="text-xs">
-                    {getInitials({ id: person.id, name, image: person.image })}
-                  </AvatarFallback>
-                </Avatar>
-                <span
-                  className={cn(
-                    "truncate text-sm",
-                    isLeader || isCurrentPerson
-                      ? "font-medium text-foreground"
-                      : "text-foreground",
-                  )}
-                >
-                  {name}
-                </span>
-                {(isLeader || isCurrentPerson) && (
-                  <Badge
-                    variant="secondary"
-                    className={cn(
-                      "h-5 shrink-0 rounded-md px-1.5 text-[10px] font-medium",
-                      isLeader
-                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                        : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
-                    )}
-                  >
-                    {isLeader && isCurrentPerson
-                      ? "Top · You"
-                      : isLeader
-                        ? "Top"
-                        : "You"}
-                  </Badge>
-                )}
-                </div>
-              </TableCell>
-              <TableCell className="rounded-r-md px-3 py-2 text-right text-sm font-medium tabular-nums text-muted-foreground">
-                {row.totalProductsSold.toLocaleString("en-IN")}
-              </TableCell>
-            </TableRow>
-          );
+                  return (
+                    <TableRow
+                      className={cn(
+                        "border transition-colors hover:bg-muted/40",
+                        rowHighlightClass,
+                      )}
+                      key={person.id}
+                    >
+                      <TableCell className="h-12 rounded-l-md px-3 py-2">
+                        <span className="flex justify-center text-sm font-medium tabular-nums">
+                          {isLeader ? (
+                            <span className="flex h-8 w-8 items-center justify-center rounded-md border border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                              <Award className="h-4 w-4" />
+                            </span>
+                          ) : (
+                            row.rank
+                          )}
+                        </span>
+                      </TableCell>
+                      <TableCell className="min-w-0 px-3 py-2">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Avatar>
+                            {person.image && (
+                              <AvatarImage src={person.image} alt={name} />
+                            )}
+                            <AvatarFallback className="text-xs">
+                              {getInitials({
+                                id: person.id,
+                                name,
+                                image: person.image,
+                              })}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span
+                            className={cn(
+                              "truncate text-sm",
+                              isLeader || isCurrentPerson
+                                ? "font-medium text-foreground"
+                                : "text-foreground",
+                            )}
+                          >
+                            {name}
+                          </span>
+                          {(isLeader || isCurrentPerson) && (
+                            <Badge
+                              variant="secondary"
+                              className={cn(
+                                "h-5 shrink-0 rounded-md px-1.5 text-[10px] font-medium",
+                                isLeader
+                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                  : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+                              )}
+                            >
+                              {isLeader && isCurrentPerson
+                                ? "Top · You"
+                                : isLeader
+                                  ? "Top"
+                                  : "You"}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="rounded-r-md px-3 py-2 text-right text-sm font-medium tabular-nums text-muted-foreground">
+                        {row.totalProductsSold.toLocaleString("en-IN")}
+                      </TableCell>
+                    </TableRow>
+                  );
                 })}
               </TableBody>
             </Table>
@@ -1589,6 +1603,7 @@ function StockSalesAnalyticsSection() {
 
         <SalesLeaderboardCard
           className="max-w-none"
+          highlightCurrentUser={false}
           title={`Sales Leaderboard for ${formatSaleMonthLabel(getCurrentSaleMonth())}`}
         />
       </div>
