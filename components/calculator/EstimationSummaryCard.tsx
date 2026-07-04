@@ -114,6 +114,56 @@ function getSummaryData(
   };
 }
 
+function waitForCardImages(card: HTMLElement) {
+  const images = Array.from(card.querySelectorAll("img"));
+
+  return Promise.all(
+    images.map((image) => {
+      if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+
+      return new Promise<void>((resolve, reject) => {
+        image.addEventListener("load", () => resolve(), { once: true });
+        image.addEventListener(
+          "error",
+          () => reject(new Error(`Failed to load image: ${image.currentSrc}`)),
+          { once: true },
+        );
+      });
+    }),
+  );
+}
+
+function imageToPngDataUrl(image: HTMLImageElement) {
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Unable to prepare logo for download");
+
+  context.drawImage(image, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
+function inlineDownloadLogos(card: HTMLElement) {
+  const logos = Array.from(
+    card.querySelectorAll<HTMLImageElement>("[data-download-logo]"),
+  );
+  const originalSources = logos.map((logo) => logo.currentSrc || logo.src);
+
+  logos.forEach((logo, index) => {
+    logo.src = imageToPngDataUrl(logo);
+    logo.removeAttribute("srcset");
+    originalSources[index] = originalSources[index] || logo.src;
+  });
+
+  return () => {
+    logos.forEach((logo, index) => {
+      logo.src = originalSources[index];
+    });
+  };
+}
+
 export function EstimationSummaryCard({
   className,
   showDownloadButton = true,
@@ -138,10 +188,13 @@ export function EstimationSummaryCard({
 
     setIsDownloading(true);
     try {
+      await waitForCardImages(cardRef.current);
+      const restoreLogos = inlineDownloadLogos(cardRef.current);
+
       const dataUrl = await toPng(cardRef.current, {
         pixelRatio: 2,
         cacheBust: true,
-      });
+      }).finally(restoreLogos);
       const link = document.createElement("a");
       link.href = dataUrl;
       link.download =
@@ -201,13 +254,13 @@ export function EstimationSummaryCard({
         className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
       >
         <div className="flex items-center justify-center border-b border-border py-3">
-          <Image
+          <img
             src="/evol-logo.webp"
             alt="Evol"
             width={82}
             height={30}
             className="h-7 w-auto object-contain dark:brightness-0 dark:invert"
-            priority
+            data-download-logo
           />
         </div>
 
