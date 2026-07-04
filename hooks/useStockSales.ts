@@ -94,9 +94,13 @@ export function useStockSalesLeaderboard(query: StockSalesAnalyticsQuery = {}) {
   });
 }
 
-export function useMyStockSales(query: StockSalesAnalyticsQuery = {}) {
+export function useMyStockSales(
+  query: StockSalesAnalyticsQuery = {},
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: stockSalesKeys.me(query),
     queryFn: () => fetchMyStockSales(query),
+    enabled: options.enabled,
   });
 }

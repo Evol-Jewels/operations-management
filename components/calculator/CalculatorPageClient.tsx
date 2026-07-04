@@ -6,6 +6,7 @@ import {
   ChevronsUpDown,
   CircleDollarSign,
   Diamond,
+  Download,
   ImageIcon,
   Loader2,
   MapPin,
@@ -887,18 +888,14 @@ function RecentEstimateSummaryDialog({
         className="max-h-[92vh] gap-0 overflow-hidden rounded-xl p-0 sm:max-w-2xl"
         showCloseButton={false}
       >
-        <DialogTitle className="sr-only">
-          Estimate summary for {estimate?.productCode ?? "product"}
-        </DialogTitle>
-        <div className="flex items-center justify-center border-b border-border px-5 py-4">
-          <Image
-            src="/evol-logo-white.webp"
-            alt="Evol"
-            width={82}
-            height={30}
-            className="h-7 w-auto object-contain dark:brightness-0 dark:invert"
-            priority
-          />
+        <div className="relative border-b border-border px-5 py-4 pr-14">
+          <DialogTitle className="text-lg font-semibold tracking-tight">
+            Summary
+          </DialogTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Review the estimate before downloading or loading it into the
+            calculator.
+          </p>
           <button
             type="button"
             aria-label="Close summary"
@@ -919,26 +916,44 @@ function RecentEstimateSummaryDialog({
           </div>
         ) : result ? (
           <>
-            <div className="max-h-[72vh] overflow-y-auto p-5">
+            <div className="max-h-[76vh] overflow-y-auto p-4 sm:p-5">
               <EstimationSummaryCard
                 data={{ kind: "estimate", result }}
                 downloadFilename={`evol-estimate-${result.product.productCode}-${new Date()
                   .toISOString()
                   .slice(0, 10)}.png`}
                 className="border-0 bg-transparent p-0 shadow-none"
+                showHeader={false}
+                showDownloadButton={false}
                 title="Summary"
+                renderActions={({ downloadSummary, isDownloading }) => (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Button
+                      type="button"
+                      className="h-12 rounded-xl"
+                      onClick={downloadSummary}
+                      disabled={isDownloading}
+                      aria-label="Download summary"
+                    >
+                      {isDownloading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      Download
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-12 rounded-xl"
+                      onClick={loadIntoCalculator}
+                    >
+                      <ArrowUpRight className="h-4 w-4" />
+                      Load into Calculator
+                    </Button>
+                  </div>
+                )}
               />
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 border-t border-border bg-background px-5 py-4 sm:grid-cols-2">
-              <Button
-                type="button"
-                className="h-12 rounded-xl"
-                onClick={loadIntoCalculator}
-              >
-                <ArrowUpRight className="h-4 w-4" />
-                Load into Calculator
-              </Button>
             </div>
           </>
         ) : null}

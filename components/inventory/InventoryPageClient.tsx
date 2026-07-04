@@ -1224,8 +1224,8 @@ export function InventoryPageClient() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className={cn(hasSelectedProduct && "hidden lg:block")}>
+    <div className="flex h-[calc(100svh-5.25rem)] min-h-0 flex-col gap-6 sm:h-[calc(100svh-3rem)]">
+      <div className={cn("shrink-0", hasSelectedProduct && "hidden lg:block")}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
@@ -1261,7 +1261,7 @@ export function InventoryPageClient() {
 
       <section
         className={cn(
-          "grid gap-3 lg:grid-cols-[minmax(0,40%)_minmax(0,60%)] lg:items-center",
+          "grid shrink-0 gap-3 lg:grid-cols-[minmax(0,40%)_minmax(0,60%)] lg:items-center",
           hasSelectedProduct && "hidden lg:grid",
         )}
       >
@@ -1344,8 +1344,9 @@ export function InventoryPageClient() {
       {activeFilterChips.length > 0 ? (
         <ul
           className={cn(
-            "flex flex-wrap items-center gap-2",
+            "shrink-0 flex-wrap items-center gap-2",
             hasSelectedProduct && "hidden lg:flex",
+            !hasSelectedProduct && "flex",
           )}
           aria-label="Selected inventory filters"
         >
@@ -1475,17 +1476,18 @@ export function InventoryPageClient() {
 
       <div
         className={cn(
-          "grid w-full gap-3",
+          "grid min-h-0 w-full flex-1 gap-3",
           hasSelectedProduct
-            ? "lg:h-[calc(100svh-12rem)] lg:min-h-[32rem] lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)] lg:overflow-hidden"
-            : "",
+            ? "lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)] lg:overflow-hidden"
+            : "overflow-hidden",
         )}
       >
         <section
           className={cn(
-            "rounded-md",
+            "min-h-0 rounded-md",
             hasSelectedProduct &&
               "hidden lg:block lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-3",
+            !hasSelectedProduct && "overflow-y-auto pr-3",
           )}
         >
           {listQuery.isLoading ? (

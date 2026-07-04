@@ -73,7 +73,7 @@ export interface StockSalesAnalyticsBreakdownRow {
 export interface StockSalesLeaderboardRow {
   rank: number;
   salesPerson: StockSalesAnalyticsSalesPerson;
-  xp: number;
+  totalProductsSold: number;
 }
 
 export interface StockSalesLeaderboardResponse {
