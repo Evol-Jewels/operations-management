@@ -5,8 +5,6 @@
 - Start dev server: `pnpm dev` (runs on port 4000)
 - Build for production: `pnpm build`
 - Start production server: `pnpm start` (runs on port 4000)
-- Lint code: `pnpm lint`
-- Format code: `pnpm format`
 
 ## Technology Stack
 
@@ -32,5 +30,5 @@
 ## Notes
 
 - The dev server runs on port 4000 (as specified in scripts)
-- Biome is used for both linting and formatting; run `pnpm lint` to check and `pnpm format` to fix.
+  - Don't run `pnpm lint`
 - When adding new UI components, consider using the `shadcn` CLI (if installed) or copying from the existing patterns in `components/`.
