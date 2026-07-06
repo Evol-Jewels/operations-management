@@ -94,6 +94,7 @@ interface MetricCardData {
   helper?: string;
   icon?: React.ReactNode;
   accent?: string;
+  href?: string;
 }
 
 interface ChartDatum extends Record<string, unknown> {
@@ -245,9 +246,8 @@ function getRiskItems(orders: Order[]) {
 
 function MetricCard({ card }: { card: MetricCardData }) {
   const isPositive = (card.change ?? 0) >= 0;
-
-  return (
-    <div className="border-border/70 px-5 py-4 max-sm:border-b sm:border-r sm:last:border-r-0">
+  const content = (
+    <>
       <p className="text-sm text-muted-foreground">{card.label}</p>
       <div className="mt-2 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
         <p className="truncate text-2xl font-semibold tracking-tight text-foreground">
@@ -280,6 +280,28 @@ function MetricCard({ card }: { card: MetricCardData }) {
           </div>
         )}
       </div>
+    </>
+  );
+  const className =
+    "border-border/70 px-5 py-4 max-sm:border-b sm:border-r sm:last:border-r-0";
+
+  if (card.href) {
+    return (
+      <Link
+        href={card.href}
+        className={cn(
+          className,
+          "transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        )}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={className}>
+      {content}
     </div>
   );
 }
@@ -822,7 +844,9 @@ function MySalesAnalyticsCards() {
   const analytics = salesQuery.data;
   const target = analytics?.target;
   const revenue = analytics?.revenue ?? "0";
-  const incentiveAmount = analytics?.incentive.amount ?? "0";
+  const earnedIncentiveAmount = analytics?.incentive.earnedAmount ?? "0";
+  const payableIncentiveAmount = analytics?.incentive.payableAmount ?? "0";
+  const incentiveMultiplier = analytics?.incentive.multiplier ?? "0.00";
   const monthLabel = formatSaleMonthLabel(analytics?.period ?? saleMonth).split(
     " ",
   )[0];
@@ -909,7 +933,7 @@ function MySalesAnalyticsCards() {
             <div className="flex min-h-28 flex-col justify-between rounded-md border border-border/70 bg-background/70 p-4">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm font-medium text-muted-foreground">
-                  Current Incentive
+                  Payable Incentive
                 </p>
                 {isIncentiveEligible ? (
                   <BadgeCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -920,8 +944,13 @@ function MySalesAnalyticsCards() {
               <div>
                 <SalesAnalyticsValue
                   isLoading={salesQuery.isLoading}
-                  value={formatAnalyticsCurrency(incentiveAmount)}
+                  value={formatAnalyticsCurrency(payableIncentiveAmount)}
                 />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {salesQuery.isLoading
+                    ? "--"
+                    : `${formatAnalyticsCurrency(earnedIncentiveAmount)} earned - ${incentiveMultiplier}x`}
+                </p>
               </div>
             </div>
           </div>
@@ -1441,9 +1470,15 @@ function StockSalesAnalyticsSection() {
       ? []
       : [
           {
-            label: "Incentive",
+            label: "Earned Incentive",
             value: analytics
-              ? formatAnalyticsCurrency(analytics.summary.totalIncentive)
+              ? formatAnalyticsCurrency(analytics.summary.totalEarnedIncentive)
+              : "-",
+          },
+          {
+            label: "Payable Incentive",
+            value: analytics
+              ? formatAnalyticsCurrency(analytics.summary.totalPayableIncentive)
               : "-",
           },
         ]),
@@ -1546,6 +1581,7 @@ function StockSalesAnalyticsSection() {
                   <TableHead>Salesperson</TableHead>
                   <TableHead className="text-right">Transactions</TableHead>
                   <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">Target</TableHead>
                   <TableHead>Revenue Share</TableHead>
                   {!isAllTime && (
                     <TableHead className="text-right">Incentive</TableHead>
@@ -1553,38 +1589,33 @@ function StockSalesAnalyticsSection() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {salesBreakdown.map((row) => (
-                  <TableRow key={row.salesPerson?.id ?? row.label ?? row.rank}>
-                    <TableCell>
-                      <SalespersonCell row={row} />
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {row.transactions}
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {formatAnalyticsCurrency(row.revenue)}
-                    </TableCell>
-                    <TableCell>
-                      <RevenueShareCell value={row.revenueShare} />
-                    </TableCell>
-                    {!isAllTime && (
+                {salesBreakdown.map((row) => {
+                  const targetProgress = getTargetProgress(
+                    row.revenue,
+                    row.target,
+                  );
+
+                  return (
+                    <TableRow
+                      key={row.salesPerson?.id ?? row.label ?? row.rank}
+                    >
+                      <TableCell>
+                        <SalespersonCell row={row} />
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {row.transactions}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {formatAnalyticsCurrency(row.revenue)}
+                      </TableCell>
                       <TableCell className="text-right">
-                        {row.incentive ? (
+                        {row.target ? (
                           <>
                             <div className="font-medium tabular-nums">
-                              {formatAnalyticsCurrency(row.incentive.amount)}
+                              {formatAnalyticsCurrency(row.target)}
                             </div>
-                            <div
-                              className={cn(
-                                "text-xs",
-                                row.incentive.eligible
-                                  ? "text-emerald-600 dark:text-emerald-400"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {row.incentive.eligible
-                                ? "Eligible"
-                                : "Not eligible"}
+                            <div className="text-xs text-muted-foreground">
+                              {targetProgress?.displayProgress ?? 0}% achieved
                             </div>
                           </>
                         ) : (
@@ -1593,9 +1624,36 @@ function StockSalesAnalyticsSection() {
                           </span>
                         )}
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
+                      <TableCell>
+                        <RevenueShareCell value={row.revenueShare} />
+                      </TableCell>
+                      {!isAllTime && (
+                        <TableCell className="text-right">
+                          {row.incentive ? (
+                            <>
+                              <div className="font-medium tabular-nums">
+                                {formatAnalyticsCurrency(
+                                  row.incentive.payableAmount,
+                                )}{" "}
+                                payable
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatAnalyticsCurrency(
+                                  row.incentive.earnedAmount,
+                                )}{" "}
+                                earned - {row.incentive.multiplier}x
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              -
+                            </span>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -1778,12 +1836,14 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
               card={{
                 label: "Active Orders",
                 value: String(analytics.activeOrders.length),
+                href: "/orders-workspace?type=order",
               }}
             />
             <MetricCard
               card={{
                 label: "Open Enquiries",
                 value: String(analytics.openEnquiries.length),
+                href: "/orders-workspace?type=enquiry",
               }}
             />
             <MetricCard
