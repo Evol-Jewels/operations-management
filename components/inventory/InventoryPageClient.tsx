@@ -839,6 +839,7 @@ export function InventoryPageClient() {
   const internalRole = profileQuery.data?.profile?.role;
   const canSyncProducts =
     internalRole === "ADMIN" || internalRole === "OPERATIONS";
+  const canScanInventory = Boolean(internalRole) && internalRole !== "SALES";
 
   const updateSearchParams = useCallback(
     (
@@ -1285,15 +1286,17 @@ export function InventoryPageClient() {
               className="h-10 pl-9"
             />
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setIsScannerOpen(true)}
-            className="h-10 shrink-0 gap-2"
-          >
-            <ScanLine className="h-4 w-4" />
-            Scan
-          </Button>
+          {canScanInventory ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsScannerOpen(true)}
+              className="h-10 shrink-0 gap-2"
+            >
+              <ScanLine className="h-4 w-4" />
+              Scan
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant={hasActiveDialogFilters ? "default" : "outline"}
@@ -1586,11 +1589,13 @@ export function InventoryPageClient() {
         ) : null}
       </div>
 
-      <BarcodeScanDialog
-        open={isScannerOpen}
-        onOpenChange={setIsScannerOpen}
-        onDecoded={handleDecodedBarcode}
-      />
+      {canScanInventory ? (
+        <BarcodeScanDialog
+          open={isScannerOpen}
+          onOpenChange={setIsScannerOpen}
+          onDecoded={handleDecodedBarcode}
+        />
+      ) : null}
     </div>
   );
 }

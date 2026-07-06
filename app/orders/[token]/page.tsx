@@ -241,17 +241,6 @@ function OrderStatusControl({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
-              disabled={isUpdating}
-              onClick={() => {
-                setPendingStatus(null);
-                setStatusNote("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
               disabled={!statusNote.trim() || isUpdating}
               onClick={handleConfirmTerminalStatus}
             >

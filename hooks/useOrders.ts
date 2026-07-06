@@ -84,3 +84,23 @@ export function useUpdateOrderStatus(refCode: string | number) {
     },
   });
 }
+
+export function useUpdateAnyOrderStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      refCode,
+      input,
+    }: {
+      refCode: string | number;
+      input: UpdateOrderStatusInput;
+    }) => updateOrderStatus(refCode, input),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+      void queryClient.invalidateQueries({
+        queryKey: orderKeys.detail(variables.refCode),
+      });
+    },
+  });
+}

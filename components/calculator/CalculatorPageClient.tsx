@@ -52,6 +52,8 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
+import { getSessionRole } from "@/lib/auth";
+import { authClient } from "@/lib/auth-client";
 import {
   calculateGoldRate,
   computeEstimateFromInputs,
@@ -965,9 +967,11 @@ function RecentEstimateSummaryDialog({
 function SearchPanel({
   settings,
   onLoadProduct,
+  canUseRecentEstimates,
 }: {
   settings: CalculatorSettings;
   onLoadProduct: (result: ProductEstimateResult) => void;
+  canUseRecentEstimates: boolean;
 }) {
   const [searchInput, setSearchInput] = useState("");
   const [searchedCode, setSearchedCode] = useState("");
@@ -1007,16 +1011,18 @@ function SearchPanel({
         settings,
       );
 
-      createRecentProductEstimate({
-        productCode: normalized.product.productCode,
-        imageUrl: normalized.product.imageUrl ?? undefined,
-      })
-        .then(() => {
-          setRecentRefreshKey((current) => current + 1);
+      if (canUseRecentEstimates) {
+        createRecentProductEstimate({
+          productCode: normalized.product.productCode,
+          imageUrl: normalized.product.imageUrl ?? undefined,
         })
-        .catch(() => {
-          // Recording recents should not block a successful calculator load.
-        });
+          .then(() => {
+            setRecentRefreshKey((current) => current + 1);
+          })
+          .catch(() => {
+            // Recording recents should not block a successful calculator load.
+          });
+      }
 
       onLoadProduct(normalized);
     } catch (err) {
@@ -1401,6 +1407,8 @@ export function CalculatorPageClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { data: session } = authClient.useSession();
+  const canUseRecentEstimates = getSessionRole(session) === "SALES";
   const [activeTab, setActiveTabState] = useState<CalculatorTab>(initialTab);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [form, setForm] = useState<CalculatorFormState>({
@@ -1612,6 +1620,7 @@ export function CalculatorPageClient({
             <SearchPanel
               settings={settings}
               onLoadProduct={loadInventoryProduct}
+              canUseRecentEstimates={canUseRecentEstimates}
             />
           </div>
         ) : (

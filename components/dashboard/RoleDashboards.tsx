@@ -1470,12 +1470,6 @@ function StockSalesAnalyticsSection() {
       ? []
       : [
           {
-            label: "Earned Incentive",
-            value: analytics
-              ? formatAnalyticsCurrency(analytics.summary.totalEarnedIncentive)
-              : "-",
-          },
-          {
             label: "Payable Incentive",
             value: analytics
               ? formatAnalyticsCurrency(analytics.summary.totalPayableIncentive)
@@ -1694,12 +1688,14 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
     {
       label: "Total Orders",
       value: String(analytics.allOrders.length),
+      href: "/orders-workspace?type=order",
       icon: <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />,
       accent: "bg-blue-500/10 dark:bg-blue-500/10",
     },
     {
       label: "Active Enquiries",
       value: String(analytics.openEnquiries.length),
+      href: "/orders-workspace?type=enquiry",
       icon: (
         <MessageSquare className="h-5 w-5 text-amber-600 dark:text-amber-400" />
       ),
@@ -1830,7 +1826,7 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
             Get a bird's-eye view of the ongoing records.
           </p>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
           <MetricsGrid>
             <MetricCard
               card={{
@@ -1859,9 +1855,6 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
               }}
             />
           </MetricsGrid>
-          <Button asChild variant="outline" className="self-start sm:self-auto">
-            <Link href="/orders-workspace">Open workspace</Link>
-          </Button>
         </div>
 
         {analytics.riskItems.length > 0 && (
