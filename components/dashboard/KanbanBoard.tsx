@@ -4,7 +4,6 @@ import {
   closestCorners,
   DndContext,
   type DragEndEvent,
-  type DragOverEvent,
   DragOverlay,
   type DragStartEvent,
   KeyboardSensor,
@@ -29,7 +28,7 @@ interface KanbanBoardProps {
   orders: Order[];
   columns: KanbanColumnConfig[];
   getColumnId: (order: Order) => string;
-  onOrderMove?: (orderId: string, newColumnId: string) => void;
+  onOrderMove?: (order: Order, newColumnId: string) => void;
   onCardClick: (order: Order) => void;
   emptyLabel?: string;
 }
@@ -94,34 +93,6 @@ export function KanbanBoard({
     [orders],
   );
 
-  const handleDragOver = useCallback(
-    (event: DragOverEvent) => {
-      const { active, over } = event;
-
-      if (!over) return;
-
-      const activeId = active.id;
-      const overId = over.id;
-
-      // Find the containers
-      const activeOrder = orders.find((o) => o.id === activeId);
-      if (!activeOrder) return;
-
-      const overData = over.data.current;
-
-      // If dragging over a column (stage)
-      if (overData?.type === "Column" && onOrderMove) {
-        const newColumnId = String(overId);
-
-        // Only update if stage actually changed
-        if (getColumnId(activeOrder) !== newColumnId) {
-          onOrderMove(activeOrder.id, newColumnId);
-        }
-      }
-    },
-    [getColumnId, orders, onOrderMove],
-  );
-
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
@@ -131,15 +102,23 @@ export function KanbanBoard({
       if (!over) return;
 
       const activeId = active.id;
-      const overId = over.id;
+      const order = orders.find((o) => o.id === activeId);
+      if (!order || !onOrderMove) return;
 
-      // If dropped over a column
-      if (over.data.current?.type === "Column" && onOrderMove) {
-        const order = orders.find((o) => o.id === activeId);
-        const newColumnId = String(overId);
-        if (order && getColumnId(order) !== newColumnId) {
-          onOrderMove(order.id, newColumnId);
-        }
+      const overData = over.data.current;
+      const overOrder =
+        overData?.type === "Card"
+          ? orders.find((candidate) => candidate.id === over.id)
+          : null;
+      const newColumnId =
+        overData?.type === "Column"
+          ? String(over.id)
+          : overOrder
+            ? getColumnId(overOrder)
+            : null;
+
+      if (newColumnId && getColumnId(order) !== newColumnId) {
+        onOrderMove(order, newColumnId);
       }
     },
     [getColumnId, orders, onOrderMove],
@@ -150,7 +129,6 @@ export function KanbanBoard({
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="relative">

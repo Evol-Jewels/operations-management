@@ -15,7 +15,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { motion } from "motion/react";
+
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
@@ -82,6 +82,7 @@ import type {
   StockSalesAnalyticsPeriod,
 } from "@/types/stock-sales-api";
 import { RecentActivities } from "./RecentActivities";
+import { SalesTargetMeter } from "./SalesTargetMeter";
 
 type RiskItem = { order: Order; signal: "stale" | "stuck" };
 type SalesTab = "orders" | "enquiries";
@@ -94,6 +95,7 @@ interface MetricCardData {
   helper?: string;
   icon?: React.ReactNode;
   accent?: string;
+  href?: string;
 }
 
 interface ChartDatum extends Record<string, unknown> {
@@ -245,9 +247,8 @@ function getRiskItems(orders: Order[]) {
 
 function MetricCard({ card }: { card: MetricCardData }) {
   const isPositive = (card.change ?? 0) >= 0;
-
-  return (
-    <div className="border-border/70 px-5 py-4 max-sm:border-b sm:border-r sm:last:border-r-0">
+  const content = (
+    <>
       <p className="text-sm text-muted-foreground">{card.label}</p>
       <div className="mt-2 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
         <p className="truncate text-2xl font-semibold tracking-tight text-foreground">
@@ -280,6 +281,28 @@ function MetricCard({ card }: { card: MetricCardData }) {
           </div>
         )}
       </div>
+    </>
+  );
+  const className =
+    "border-border/70 px-5 py-4 max-sm:border-b sm:border-r sm:last:border-r-0";
+
+  if (card.href) {
+    return (
+      <Link
+        href={card.href}
+        className={cn(
+          className,
+          "transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        )}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={className}>
+      {content}
     </div>
   );
 }
@@ -822,14 +845,15 @@ function MySalesAnalyticsCards() {
   const analytics = salesQuery.data;
   const target = analytics?.target;
   const revenue = analytics?.revenue ?? "0";
-  const incentiveAmount = analytics?.incentive.amount ?? "0";
+  const earnedIncentiveAmount = analytics?.incentive.earnedAmount ?? "0";
+  const payableIncentiveAmount = analytics?.incentive.payableAmount ?? "0";
+  const incentiveMultiplier = analytics?.incentive.multiplier ?? "0.00";
   const monthLabel = formatSaleMonthLabel(analytics?.period ?? saleMonth).split(
     " ",
   )[0];
   const progress = getTargetProgress(revenue, target);
   const progressValue = progress?.displayProgress ?? 0;
   const fillHeight = progress?.fillHeight ?? 0;
-  const meterBadgePosition = Math.max(fillHeight, 10);
   const isIncentiveEligible =
     analytics?.incentive.eligible ?? progressValue >= 100;
   const nextMilestone =
@@ -842,30 +866,7 @@ function MySalesAnalyticsCards() {
           : progressValue >= 50
             ? "Halfway crossed"
             : "Building momentum";
-  const meterProgress = fillHeight;
-  const diamondPieces = [
-    { left: 6, bottom: 7, size: 22, delay: 0, rotate: -18 },
-    { left: 22, bottom: 4, size: 24, delay: 0.25, rotate: 16 },
-    { left: 39, bottom: 7, size: 22, delay: 0.5, rotate: -8 },
-    { left: 56, bottom: 3, size: 25, delay: 0.15, rotate: 20 },
-    { left: 77, bottom: 8, size: 22, delay: 0.35, rotate: -14 },
-    { left: 12, bottom: 23, size: 23, delay: 0.75, rotate: 14 },
-    { left: 30, bottom: 24, size: 26, delay: 0.45, rotate: -22 },
-    { left: 51, bottom: 24, size: 24, delay: 0.9, rotate: 10 },
-    { left: 72, bottom: 25, size: 25, delay: 0.6, rotate: -10 },
-    { left: 2, bottom: 43, size: 21, delay: 1.05, rotate: 28 },
-    { left: 19, bottom: 45, size: 25, delay: 0.2, rotate: -12 },
-    { left: 40, bottom: 46, size: 28, delay: 1.2, rotate: 6 },
-    { left: 63, bottom: 45, size: 24, delay: 0.55, rotate: -16 },
-    { left: 84, bottom: 42, size: 20, delay: 1.35, rotate: 18 },
-    { left: 9, bottom: 63, size: 22, delay: 0.8, rotate: -6 },
-    { left: 28, bottom: 68, size: 24, delay: 0.4, rotate: 19 },
-    { left: 49, bottom: 67, size: 26, delay: 1.1, rotate: -20 },
-    { left: 72, bottom: 64, size: 23, delay: 0.7, rotate: 11 },
-    { left: 18, bottom: 86, size: 20, delay: 1.45, rotate: 17 },
-    { left: 37, bottom: 91, size: 23, delay: 0.95, rotate: -12 },
-    { left: 58, bottom: 88, size: 22, delay: 1.6, rotate: 15 },
-  ];
+
 
   return (
     <section className="overflow-hidden rounded-lg border border-border/70 bg-card">
@@ -909,7 +910,7 @@ function MySalesAnalyticsCards() {
             <div className="flex min-h-28 flex-col justify-between rounded-md border border-border/70 bg-background/70 p-4">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm font-medium text-muted-foreground">
-                  Current Incentive
+                  Payable Incentive
                 </p>
                 {isIncentiveEligible ? (
                   <BadgeCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -920,8 +921,13 @@ function MySalesAnalyticsCards() {
               <div>
                 <SalesAnalyticsValue
                   isLoading={salesQuery.isLoading}
-                  value={formatAnalyticsCurrency(incentiveAmount)}
+                  value={formatAnalyticsCurrency(payableIncentiveAmount)}
                 />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {salesQuery.isLoading
+                    ? "--"
+                    : `${formatAnalyticsCurrency(earnedIncentiveAmount)} earned - ${incentiveMultiplier}x`}
+                </p>
               </div>
             </div>
           </div>
@@ -989,114 +995,13 @@ function MySalesAnalyticsCards() {
           </div>
         </div>
 
-        <div className="border-border/70 border-t bg-neutral-950 p-5 xl:border-t-0">
-          <div className="flex h-full min-h-72 flex-col rounded-md border border-white/10 bg-neutral-950 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-white">
-                  Sales Target Meter
-                </p>
-                <p className="mt-1 text-xs text-white/55">
-                  Monthly target achieved
-                </p>
-              </div>
-              <IndianRupee className="h-5 w-5 text-white/70" />
-            </div>
-
-            <div className="relative mx-auto mt-4 h-80 w-64">
-              <div className="absolute left-[43%] top-6 z-30 h-8 w-36 -translate-x-1/2 rounded-md border border-white/20 bg-[linear-gradient(90deg,rgba(255,255,255,0.52),rgba(255,255,255,0.12)_32%,rgba(255,255,255,0.48)_54%,rgba(255,255,255,0.16)_78%,rgba(255,255,255,0.38))] shadow-[0_8px_18px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.5)]" />
-              <div className="absolute left-[43%] bottom-4 z-30 h-4 w-36 -translate-x-1/2 rounded-md border border-white/20 bg-[linear-gradient(90deg,rgba(255,255,255,0.48),rgba(255,255,255,0.12)_35%,rgba(255,255,255,0.45)_58%,rgba(255,255,255,0.18)_80%,rgba(255,255,255,0.38))] shadow-[0_8px_18px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.5)]" />
-
-              <div className="absolute left-[43%] top-[3.85rem] h-[13.9rem] w-40 -translate-x-1/2 rounded-b-[2.1rem] rounded-t-[1.55rem] border-2 border-white/45 bg-white/[0.035] shadow-[inset_15px_0_24px_rgba(255,255,255,0.09),inset_-18px_0_24px_rgba(0,0,0,0.34),0_22px_42px_rgba(0,0,0,0.36)] backdrop-blur-sm">
-                <div className="absolute left-5 right-5 top-1 h-5 rounded-b-[1.35rem] border-x-2 border-b-2 border-white/28 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(10,10,10,0.42))] shadow-[inset_0_-9px_14px_rgba(0,0,0,0.24),0_1px_0_rgba(255,255,255,0.14)]" />
-                <div className="absolute inset-y-7 left-7 w-4 rounded-full bg-white/18 blur-sm" />
-                <div className="absolute inset-y-8 right-7 w-5 rounded-full bg-white/10 blur-md" />
-
-                <div className="absolute inset-x-4 bottom-5 h-[11.65rem] overflow-hidden rounded-b-[1.55rem]">
-                  <motion.div
-                    animate={{ opacity: [0.15, 0.24, 0.17] }}
-                    className="absolute inset-x-0 bottom-0 rounded-b-[1.55rem] rounded-t-xl bg-amber-200/35 shadow-[0_-10px_28px_rgba(251,191,36,0.08),inset_0_1px_0_rgba(255,255,255,0.2)]"
-                    style={{ height: `${meterProgress}%` }}
-                    transition={{
-                      duration: 4,
-                      ease: "easeInOut",
-                      repeat: Number.POSITIVE_INFINITY,
-                    }}
-                  />
-
-                  <div
-                    className="absolute inset-x-0 bottom-0 overflow-hidden rounded-b-[1.55rem]"
-                    style={{ height: `${meterProgress}%` }}
-                  >
-                    {diamondPieces.map((diamond, index) => (
-                      <motion.span
-                        animate={{
-                          filter: [
-                            "brightness(0.9)",
-                            "brightness(1.24)",
-                            "brightness(0.92)",
-                          ],
-                          opacity: [0.92, 1, 0.94],
-                          y: [0, -1.5, 0],
-                        }}
-                        className="absolute block border border-white/45 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(207,215,220,0.9)_34%,rgba(78,86,94,0.85)_35%,rgba(250,252,253,0.95)_64%,rgba(119,128,136,0.88))] shadow-[0_2px_6px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.92)] [clip-path:polygon(50%_0%,88%_30%,72%_100%,28%_100%,12%_30%)]"
-                        key={`${diamond.left}-${diamond.bottom}`}
-                        style={{
-                          bottom: `${diamond.bottom}px`,
-                          height: `${diamond.size}px`,
-                          left: `${diamond.left}px`,
-                          rotate: `${diamond.rotate}deg`,
-                          width: `${diamond.size}px`,
-                        }}
-                        transition={{
-                          delay: diamond.delay,
-                          duration: 3.8 + (index % 4) * 0.25,
-                          ease: "easeInOut",
-                          repeat: Number.POSITIVE_INFINITY,
-                        }}
-                      >
-                        <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-white/55" />
-                        <span className="absolute left-[18%] top-[30%] h-px w-[64%] bg-white/45" />
-                      </motion.span>
-                    ))}
-                  </div>
-                </div>
-
-                <div
-                  className="absolute left-4 right-4 z-20 h-px bg-white/70"
-                  style={{ bottom: `${meterProgress}%` }}
-                />
-                <span
-                  className="absolute left-1/2 z-30 -translate-x-1/2 translate-y-1/2 rounded-md bg-white px-2 py-0.5 text-sm font-semibold tabular-nums text-neutral-950 shadow-sm"
-                  style={{ bottom: `${meterBadgePosition}%` }}
-                >
-                  {progress == null ? "N/A" : `${progressValue}%`}
-                </span>
-              </div>
-
-              <div className="absolute left-[calc(43%+5.25rem)] top-[4.85rem] h-[11.65rem] w-16">
-                {[100, 75, 50, 25, 0].map((mark) => (
-                  <div
-                    className="absolute left-0 flex items-center gap-2"
-                    key={mark}
-                    style={{ bottom: `${mark}%` }}
-                  >
-                    <span className="h-px w-5 bg-white/60" />
-                    <span
-                      className={cn(
-                        "text-xs font-semibold tabular-nums text-white/62",
-                        mark === meterProgress && "text-white",
-                      )}
-                    >
-                      {mark}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="absolute inset-x-14 bottom-1 h-7 rounded-[50%] bg-black/45 blur-xl" />
-            </div>
-          </div>
+        <div className="border-border/70 border-t bg-muted/30 p-5 dark:bg-neutral-950 xl:border-t-0">
+          <SalesTargetMeter
+            fillHeight={fillHeight}
+            isIncentiveEligible={isIncentiveEligible}
+            isLoading={salesQuery.isLoading}
+            progressValue={progressValue}
+          />
         </div>
       </div>
     </section>
@@ -1441,9 +1346,9 @@ function StockSalesAnalyticsSection() {
       ? []
       : [
           {
-            label: "Incentive",
+            label: "Payable Incentive",
             value: analytics
-              ? formatAnalyticsCurrency(analytics.summary.totalIncentive)
+              ? formatAnalyticsCurrency(analytics.summary.totalPayableIncentive)
               : "-",
           },
         ]),
@@ -1546,6 +1451,7 @@ function StockSalesAnalyticsSection() {
                   <TableHead>Salesperson</TableHead>
                   <TableHead className="text-right">Transactions</TableHead>
                   <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">Target</TableHead>
                   <TableHead>Revenue Share</TableHead>
                   {!isAllTime && (
                     <TableHead className="text-right">Incentive</TableHead>
@@ -1553,38 +1459,33 @@ function StockSalesAnalyticsSection() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {salesBreakdown.map((row) => (
-                  <TableRow key={row.salesPerson?.id ?? row.label ?? row.rank}>
-                    <TableCell>
-                      <SalespersonCell row={row} />
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {row.transactions}
-                    </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {formatAnalyticsCurrency(row.revenue)}
-                    </TableCell>
-                    <TableCell>
-                      <RevenueShareCell value={row.revenueShare} />
-                    </TableCell>
-                    {!isAllTime && (
+                {salesBreakdown.map((row) => {
+                  const targetProgress = getTargetProgress(
+                    row.revenue,
+                    row.target,
+                  );
+
+                  return (
+                    <TableRow
+                      key={row.salesPerson?.id ?? row.label ?? row.rank}
+                    >
+                      <TableCell>
+                        <SalespersonCell row={row} />
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {row.transactions}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {formatAnalyticsCurrency(row.revenue)}
+                      </TableCell>
                       <TableCell className="text-right">
-                        {row.incentive ? (
+                        {row.target ? (
                           <>
                             <div className="font-medium tabular-nums">
-                              {formatAnalyticsCurrency(row.incentive.amount)}
+                              {formatAnalyticsCurrency(row.target)}
                             </div>
-                            <div
-                              className={cn(
-                                "text-xs",
-                                row.incentive.eligible
-                                  ? "text-emerald-600 dark:text-emerald-400"
-                                  : "text-muted-foreground",
-                              )}
-                            >
-                              {row.incentive.eligible
-                                ? "Eligible"
-                                : "Not eligible"}
+                            <div className="text-xs text-muted-foreground">
+                              {targetProgress?.displayProgress ?? 0}% achieved
                             </div>
                           </>
                         ) : (
@@ -1593,9 +1494,36 @@ function StockSalesAnalyticsSection() {
                           </span>
                         )}
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
+                      <TableCell>
+                        <RevenueShareCell value={row.revenueShare} />
+                      </TableCell>
+                      {!isAllTime && (
+                        <TableCell className="text-right">
+                          {row.incentive ? (
+                            <>
+                              <div className="font-medium tabular-nums">
+                                {formatAnalyticsCurrency(
+                                  row.incentive.payableAmount,
+                                )}{" "}
+                                payable
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatAnalyticsCurrency(
+                                  row.incentive.earnedAmount,
+                                )}{" "}
+                                earned - {row.incentive.multiplier}x
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              -
+                            </span>
+                          )}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -1636,12 +1564,14 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
     {
       label: "Total Orders",
       value: String(analytics.allOrders.length),
+      href: "/orders-workspace?type=order",
       icon: <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />,
       accent: "bg-blue-500/10 dark:bg-blue-500/10",
     },
     {
       label: "Active Enquiries",
       value: String(analytics.openEnquiries.length),
+      href: "/orders-workspace?type=enquiry",
       icon: (
         <MessageSquare className="h-5 w-5 text-amber-600 dark:text-amber-400" />
       ),
@@ -1772,18 +1702,20 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
             Get a bird's-eye view of the ongoing records.
           </p>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
           <MetricsGrid>
             <MetricCard
               card={{
                 label: "Active Orders",
                 value: String(analytics.activeOrders.length),
+                href: "/orders-workspace?type=order",
               }}
             />
             <MetricCard
               card={{
                 label: "Open Enquiries",
                 value: String(analytics.openEnquiries.length),
+                href: "/orders-workspace?type=enquiry",
               }}
             />
             <MetricCard
@@ -1799,9 +1731,6 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
               }}
             />
           </MetricsGrid>
-          <Button asChild variant="outline" className="self-start sm:self-auto">
-            <Link href="/orders-workspace">Open workspace</Link>
-          </Button>
         </div>
 
         {analytics.riskItems.length > 0 && (
@@ -1928,12 +1857,14 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
               card={{
                 label: "Open Orders",
                 value: String(data.openOrders.length),
+                href: "/orders-workspace?type=order",
               }}
             />
             <MetricCard
               card={{
                 label: "Open Enquiries",
                 value: String(data.openEnquiries.length),
+                href: "/orders-workspace?type=enquiry",
               }}
             />
             <MetricCard

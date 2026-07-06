@@ -10,8 +10,15 @@ import {
   Search,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  type RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +52,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useEnquiries } from "@/hooks/useEnquiries";
-import { useOrders } from "@/hooks/useOrders";
+import { useOrders, useUpdateAnyOrderStatus } from "@/hooks/useOrders";
 import { useStockSales, useSyncStockSales } from "@/hooks/useStockSales";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
@@ -56,6 +63,7 @@ import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { Order, PersonSummary, RecordType } from "@/types";
 import type { BackendEnquiryStatus } from "@/types/enquiry-api";
+import type { BackendOrderStatus } from "@/types/order-api";
 import type { BackendStockSaleRow } from "@/types/stock-sales-api";
 import { KanbanBoard, type KanbanColumnConfig } from "./KanbanBoard";
 
@@ -92,6 +100,21 @@ const ORDER_KANBAN_COLUMNS: KanbanColumnConfig[] = ORDER_STAGES.map(
     label: stage,
   }),
 );
+const ORDER_STAGE_TO_STATUS: Record<
+  (typeof ORDER_STAGES)[number],
+  BackendOrderStatus
+> = {
+  New: "NEW",
+  "CAD Design": "CAD_DESIGN",
+  "In Production": "IN_PRODUCTION",
+  Certification: "CERTIFICATION",
+  "At Store": "AT_STORE",
+  "In Transit": "IN_TRANSIT",
+  Delivered: "DELIVERED",
+  Closed: "CLOSED",
+  Cancelled: "CANCELLED",
+};
+const KANBAN_BLOCKED_ORDER_STAGES = new Set<string>(["Closed", "Cancelled"]);
 const ENQUIRY_KANBAN_COLUMNS: KanbanColumnConfig[] = [
   ...ENQUIRY_STATUSES.map((status) => ({
     id: ENQUIRY_STATUS_LABELS[status],
@@ -108,6 +131,11 @@ function getTypeTabFromSearchParams(searchParams: URLSearchParams) {
   if (type === "enquiries") return "enquiry";
   if (type === "purchases") return "purchase";
   return isTypeTab(type) ? type : null;
+}
+
+function getViewModeFromSearchParams(searchParams: URLSearchParams) {
+  const view = searchParams.get("view");
+  return view === "table" || view === "kanban" ? view : null;
 }
 
 function readStoredTypeTab(): TypeTab | null {
@@ -131,6 +159,24 @@ function writeStoredTypeTab(tab: TypeTab) {
   }
 }
 
+function getInitialTypeTab(searchParams: URLSearchParams): TypeTab {
+  return getTypeTabFromSearchParams(searchParams) ?? readStoredTypeTab() ?? "order";
+}
+
+function getDefaultViewMode(tab: TypeTab): ViewMode {
+  return tab === "purchase" ? "table" : "kanban";
+}
+
+function getInitialViewMode(searchParams: URLSearchParams): ViewMode {
+  const tab = getInitialTypeTab(searchParams);
+  if (tab === "purchase") return "table";
+  return getViewModeFromSearchParams(searchParams) ?? getDefaultViewMode(tab);
+}
+
+function getViewModeForTab(tab: TypeTab, viewMode: ViewMode): ViewMode {
+  return tab === "purchase" ? "table" : viewMode;
+}
+
 function isWithinDateFilter(date: string, filter: DateFilter) {
   if (filter === "all") return true;
   const days = Number(filter.replace("d", ""));
@@ -142,6 +188,10 @@ function isWithinDateFilter(date: string, filter: DateFilter) {
 
 function getKanbanStatus(record: Order): string {
   return getRecordStatus(record);
+}
+
+function isOrderStage(value: string): value is (typeof ORDER_STAGES)[number] {
+  return ORDER_STAGES.some((stage) => stage === value);
 }
 
 function statusBadgeClass(status: string) {
@@ -589,17 +639,18 @@ function StockPurchasesTable({
 
 export function OrdersEnquiriesWorkspace() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
-  const [typeTab, setTypeTab] = useState<TypeTab>(() => {
-    const queryTab = getTypeTabFromSearchParams(searchParams);
-    return queryTab ?? readStoredTypeTab() ?? "order";
-  });
+  const [typeTab, setTypeTab] = useState<TypeTab>(() =>
+    getInitialTypeTab(searchParams),
+  );
   const enquiriesQuery = useEnquiries({}, { enabled: typeTab === "enquiry" });
   const ordersQuery = useOrders(
     { limit: 100 },
     { enabled: typeTab === "order" },
   );
+  const updateOrderStatusMutation = useUpdateAnyOrderStatus();
   const [search, setSearch] = useState("");
   const sessionRole = session ? getSessionRole(session) : "";
   const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
@@ -611,22 +662,45 @@ export function OrdersEnquiriesWorkspace() {
   );
   const syncStockSalesMutation = useSyncStockSales();
   const stockSalesLoadMoreRef = useRef<HTMLDivElement>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    getInitialViewMode(searchParams),
+  );
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const isKanbanMode = viewMode === "kanban";
 
+  const replaceWorkspaceUrl = useCallback(
+    (tab: TypeTab, nextViewMode: ViewMode) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("type", tab);
+
+      if (tab === "purchase") {
+        params.delete("view");
+      } else {
+        params.set("view", nextViewMode);
+      }
+
+      const queryString = params.toString();
+      router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+        scroll: false,
+      });
+    },
+    [pathname, router, searchParams],
+  );
+
   useEffect(() => {
     const queryTab = getTypeTabFromSearchParams(searchParams);
     if (queryTab && (queryTab !== "purchase" || canViewPurchases)) {
       setTypeTab(queryTab);
+      setViewMode(getViewModeForTab(queryTab, getInitialViewMode(searchParams)));
     }
   }, [canViewPurchases, searchParams]);
 
   useEffect(() => {
     if (session && !canViewPurchases && typeTab === "purchase") {
       setTypeTab("order");
+      setViewMode("kanban");
     }
   }, [canViewPurchases, session, typeTab]);
 
@@ -778,11 +852,15 @@ export function OrdersEnquiriesWorkspace() {
     setDateFilter("all");
   };
   const handleTypeTabChange = (tab: TypeTab) => {
+    const nextViewMode = getViewModeForTab(tab, viewMode);
     setTypeTab(tab);
-    if (tab === "purchase") {
-      setViewMode("table");
-    }
+    setViewMode(nextViewMode);
+    replaceWorkspaceUrl(tab, nextViewMode);
     setStatusFilter("all");
+  };
+  const handleViewModeChange = (nextViewMode: ViewMode) => {
+    setViewMode(nextViewMode);
+    replaceWorkspaceUrl(typeTab, nextViewMode);
   };
   const handleSyncPurchases = async () => {
     try {
@@ -792,6 +870,36 @@ export function OrdersEnquiriesWorkspace() {
       );
     } catch (error) {
       toast.error(getErrorMessage(error, "Could not sync purchases"));
+    }
+  };
+  const handleKanbanOrderMove = async (record: Order, newColumnId: string) => {
+    if (record.type === "enquiry") {
+      toast.error(
+        "Enquiry status can't be changed in kanban mode, please open enquiry detail",
+      );
+      return;
+    }
+
+    if (
+      KANBAN_BLOCKED_ORDER_STAGES.has(record.currentStage) ||
+      KANBAN_BLOCKED_ORDER_STAGES.has(newColumnId)
+    ) {
+      toast.error(
+        "Closed or cancelled orders can't be changed in kanban mode, please open order detail",
+      );
+      return;
+    }
+
+    if (!record.refCode || !isOrderStage(newColumnId)) return;
+
+    try {
+      await updateOrderStatusMutation.mutateAsync({
+        refCode: record.refCode,
+        input: { status: ORDER_STAGE_TO_STATUS[newColumnId] },
+      });
+      toast.success(`Order moved to ${newColumnId}`);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not update order status"));
     }
   };
   const sectionCount =
@@ -872,7 +980,7 @@ export function OrdersEnquiriesWorkspace() {
         >
           <button
             type="button"
-            onClick={() => setViewMode("table")}
+            onClick={() => handleViewModeChange("table")}
             className={cn(
               "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors sm:flex-none",
               viewMode === "table"
@@ -885,7 +993,7 @@ export function OrdersEnquiriesWorkspace() {
           </button>
           <button
             type="button"
-            onClick={() => setViewMode("kanban")}
+            onClick={() => handleViewModeChange("kanban")}
             className={cn(
               "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors sm:flex-none",
               viewMode === "kanban"
@@ -989,7 +1097,7 @@ export function OrdersEnquiriesWorkspace() {
             <div className="flex w-full items-center gap-1 rounded-lg border border-border bg-background p-1">
               <button
                 type="button"
-                onClick={() => setViewMode("table")}
+                onClick={() => handleViewModeChange("table")}
                 className={cn(
                   "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
                   viewMode === "table"
@@ -1002,7 +1110,7 @@ export function OrdersEnquiriesWorkspace() {
               </button>
               <button
                 type="button"
-                onClick={() => setViewMode("kanban")}
+                onClick={() => handleViewModeChange("kanban")}
                 className={cn(
                   "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
                   viewMode === "kanban"
@@ -1127,6 +1235,9 @@ export function OrdersEnquiriesWorkspace() {
             columns={kanbanColumns}
             getColumnId={getKanbanStatus}
             emptyLabel={typeTab === "order" ? "No orders" : "No enquiries"}
+            onOrderMove={(order, newColumnId) => {
+              void handleKanbanOrderMove(order, newColumnId);
+            }}
             onCardClick={(order) =>
               router.push(
                 order.type === "enquiry"

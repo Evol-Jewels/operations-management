@@ -346,6 +346,28 @@ export interface UpdateSystemConfigInput {
   value: string;
 }
 
+export interface SpecialProductMakingCharge {
+  id: string;
+  productCode: string;
+  makingCost: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
+}
+
+export interface CreateSpecialProductMakingChargeInput {
+  productCode: string;
+  makingCost: string;
+  notes?: string;
+}
+
+export interface UpdateSpecialProductMakingChargeInput {
+  productCode?: string;
+  makingCost?: string;
+  notes?: string | null;
+}
+
 // ─── Order / Enquiry ──────────────────────────────────────────────────────────
 
 export interface Order {

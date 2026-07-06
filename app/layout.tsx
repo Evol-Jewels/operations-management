@@ -21,8 +21,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:4000"),
   title: "EVOL Jewels - Operations",
   description: "Order tracking and operations dashboard for EVOL Jewels.",
+  openGraph: {
+    title: "EVOL Jewels - Operations",
+    description: "Order tracking and operations dashboard for EVOL Jewels.",
+    images: [
+      {
+        url: "/evol-jewels-logo.png",
+        alt: "EVOL Jewels logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "EVOL Jewels - Operations",
+    description: "Order tracking and operations dashboard for EVOL Jewels.",
+    images: ["/evol-jewels-logo.png"],
+  },
 };
 
 export default function RootLayout({

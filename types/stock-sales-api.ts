@@ -63,10 +63,13 @@ export interface StockSalesAnalyticsBreakdownRow {
   label?: string;
   transactions: number;
   revenue: string;
+  target: string | null;
   revenueShare: string;
   incentive: {
     eligible: boolean;
-    amount: string;
+    earnedAmount: string;
+    payableAmount: string;
+    multiplier: string;
   } | null;
 }
 
@@ -89,7 +92,9 @@ export interface StockSalesMeResponse {
   revenue: StockSalesMoneyValue;
   incentive: {
     eligible: boolean;
-    amount: StockSalesMoneyValue;
+    earnedAmount: StockSalesMoneyValue;
+    payableAmount: StockSalesMoneyValue;
+    multiplier: string;
   };
 }
 
@@ -99,7 +104,8 @@ export interface StockSalesAnalyticsResponse {
     totalSalesPeople: number;
     totalTransactions: number;
     totalRevenue: string;
-    totalIncentive: string;
+    totalEarnedIncentive: string;
+    totalPayableIncentive: string;
   };
   salesBreakdown: StockSalesAnalyticsBreakdownRow[];
 }
