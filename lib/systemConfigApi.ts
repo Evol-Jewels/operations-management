@@ -1,4 +1,10 @@
-import type { SystemConfig, UpdateSystemConfigInput } from "@/types";
+import type {
+  CreateSpecialProductMakingChargeInput,
+  SpecialProductMakingCharge,
+  SystemConfig,
+  UpdateSpecialProductMakingChargeInput,
+  UpdateSystemConfigInput,
+} from "@/types";
 
 interface GoldRateResponse {
   goldRate24k: number;
@@ -12,9 +18,18 @@ function ensureApiConfig() {
   }
 }
 
-function buildUrl(path: string) {
+function buildUrl(path: string, query?: Record<string, string | undefined>) {
   ensureApiConfig();
-  return new URL(path, `${apiBaseUrl}/`).toString();
+  const url = new URL(path, `${apiBaseUrl}/`);
+
+  if (query) {
+    for (const [key, value] of Object.entries(query)) {
+      const trimmed = value?.trim();
+      if (trimmed) url.searchParams.set(key, trimmed);
+    }
+  }
+
+  return url.toString();
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -65,4 +80,60 @@ export function updateSystemConfig(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
+}
+
+export function fetchSpecialProductMakingCharges(
+  query: {
+    productCode?: string;
+    q?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+) {
+  return apiFetch<SpecialProductMakingCharge[]>(
+    buildUrl("api/v1/special-product-making-charges", {
+      productCode: query.productCode,
+      q: query.q,
+      limit: query.limit ? String(query.limit) : undefined,
+      offset: query.offset ? String(query.offset) : undefined,
+    }),
+  );
+}
+
+export function createSpecialProductMakingCharge(
+  input: CreateSpecialProductMakingChargeInput,
+) {
+  return apiFetch<SpecialProductMakingCharge>(
+    buildUrl("api/v1/special-product-making-charges"),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function updateSpecialProductMakingCharge(
+  productCode: string,
+  input: UpdateSpecialProductMakingChargeInput,
+) {
+  return apiFetch<SpecialProductMakingCharge>(
+    buildUrl(
+      `api/v1/special-product-making-charges/${encodeURIComponent(productCode)}`,
+    ),
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function deleteSpecialProductMakingCharge(productCode: string) {
+  return apiFetch<{ deleted: true; productCode: string }>(
+    buildUrl(
+      `api/v1/special-product-making-charges/${encodeURIComponent(productCode)}`,
+    ),
+    { method: "DELETE" },
+  );
 }

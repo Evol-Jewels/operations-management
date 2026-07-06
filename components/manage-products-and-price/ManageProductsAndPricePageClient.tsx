@@ -70,11 +70,20 @@ import {
   useUpdateStoneType,
 } from "@/hooks/useManageProducts";
 import {
+  useCreateSpecialProductMakingCharge,
+  useDeleteSpecialProductMakingCharge,
+  useSpecialProductMakingCharges,
   useSystemConfigs,
+  useUpdateSpecialProductMakingCharge,
   useUpdateSystemConfig,
 } from "@/hooks/useSystemConfigs";
 import { formatCurrency } from "@/lib/utils";
-import type { SystemConfig } from "@/types";
+import type {
+  CreateSpecialProductMakingChargeInput,
+  SpecialProductMakingCharge,
+  SystemConfig,
+  UpdateSpecialProductMakingChargeInput,
+} from "@/types";
 import type {
   CreateLocationInput,
   CreateStoneSlabInput,
@@ -104,6 +113,12 @@ type SlabDraft = {
   rangeFrom: string;
   rangeTo: string;
   pricePerCarat: string;
+  notes: string;
+};
+
+type SpecialMakingChargeDraft = {
+  productCode: string;
+  makingCost: string;
   notes: string;
 };
 
@@ -171,6 +186,7 @@ function SectionShell({
   title,
   description,
   onBack,
+  backLabel = "Back to manage config",
   action,
   children,
 }: {
@@ -178,6 +194,7 @@ function SectionShell({
   title: string;
   description: string;
   onBack: () => void;
+  backLabel?: string;
   action?: ReactNode;
   children: ReactNode;
 }) {
@@ -192,7 +209,7 @@ function SectionShell({
           className="gap-2 px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to categories
+          {backLabel}
         </Button>
 
         <div className="flex items-start justify-between gap-4">
@@ -1630,16 +1647,388 @@ function SystemConfigDialog({
   );
 }
 
+function SpecialMakingChargeDialog({
+  mode,
+  open,
+  draft,
+  isSubmitting,
+  onDraftChange,
+  onOpenChange,
+  onSubmit,
+}: {
+  mode: DialogMode;
+  open: boolean;
+  draft: SpecialMakingChargeDraft;
+  isSubmitting: boolean;
+  onDraftChange: (draft: SpecialMakingChargeDraft) => void;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>
+            {mode === "edit"
+              ? "Edit special making charge"
+              : "Add special making charge"}
+          </DialogTitle>
+          <DialogDescription>
+            Set a flat making charge override for a product code.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-5 py-2">
+          <FieldBlock label="Product code">
+            <TextInput
+              value={draft.productCode}
+              onChange={(productCode) =>
+                onDraftChange({
+                  ...draft,
+                  productCode: productCode.trimStart(),
+                })
+              }
+              placeholder="EVOL123"
+            />
+          </FieldBlock>
+          <FieldBlock label="Making charge">
+            <TextInput
+              value={draft.makingCost}
+              onChange={(makingCost) => onDraftChange({ ...draft, makingCost })}
+              placeholder="4000"
+            />
+          </FieldBlock>
+          <FieldBlock label="Notes">
+            <Textarea
+              value={draft.notes}
+              onChange={(event) =>
+                onDraftChange({ ...draft, notes: event.target.value })
+              }
+              placeholder="Optional note"
+              className="min-h-24 resize-none"
+            />
+          </FieldBlock>
+        </div>
+
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline" disabled={isSubmitting}>
+              Cancel
+            </Button>
+          </DialogClose>
+          <Button type="button" onClick={onSubmit} disabled={isSubmitting}>
+            {isSubmitting
+              ? mode === "edit"
+                ? "Saving..."
+                : "Adding..."
+              : mode === "edit"
+                ? "Save changes"
+                : "Add charge"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SpecialProductMakingChargesPanel({ onBack }: { onBack: () => void }) {
+  const chargesQuery = useSpecialProductMakingCharges();
+  const createCharge = useCreateSpecialProductMakingCharge();
+  const updateCharge = useUpdateSpecialProductMakingCharge();
+  const deleteCharge = useDeleteSpecialProductMakingCharge();
+  const [dialogMode, setDialogMode] = useState<DialogMode>("add");
+  const [editingCharge, setEditingCharge] =
+    useState<SpecialProductMakingCharge | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [draft, setDraft] = useState<SpecialMakingChargeDraft>({
+    productCode: "",
+    makingCost: "",
+    notes: "",
+  });
+  const [chargeToDelete, setChargeToDelete] =
+    useState<SpecialProductMakingCharge | null>(null);
+  const charges = chargesQuery.data ?? [];
+
+  function openAddDialog() {
+    setDialogMode("add");
+    setEditingCharge(null);
+    setDraft({ productCode: "", makingCost: "", notes: "" });
+    setDialogOpen(true);
+  }
+
+  function openEditDialog(charge: SpecialProductMakingCharge) {
+    setDialogMode("edit");
+    setEditingCharge(charge);
+    setDraft({
+      productCode: charge.productCode,
+      makingCost: charge.makingCost,
+      notes: charge.notes ?? "",
+    });
+    setDialogOpen(true);
+  }
+
+  function validateDraft() {
+    const productCode = draft.productCode.trim();
+    const makingCost = draft.makingCost.trim();
+
+    if (!productCode) {
+      toast.error("Product code is required.");
+      return false;
+    }
+    if (productCode.length > 255) {
+      toast.error("Product code must be 255 characters or less.");
+      return false;
+    }
+    if (!MONEY_PATTERN.test(makingCost)) {
+      toast.error("Making charge must be a valid amount.");
+      return false;
+    }
+    if (draft.notes.length > 10000) {
+      toast.error("Notes must be 10,000 characters or less.");
+      return false;
+    }
+
+    return true;
+  }
+
+  async function submitCharge() {
+    if (!validateDraft()) return;
+
+    try {
+      if (dialogMode === "edit" && editingCharge) {
+        const input: UpdateSpecialProductMakingChargeInput = {
+          productCode: draft.productCode.trim(),
+          makingCost: draft.makingCost.trim(),
+          notes: optionalUpdateValue(draft.notes),
+        };
+        await updateCharge.mutateAsync({
+          productCode: editingCharge.productCode,
+          input,
+        });
+        toast.success("Special making charge updated");
+      } else {
+        const input: CreateSpecialProductMakingChargeInput = {
+          productCode: draft.productCode.trim(),
+          makingCost: draft.makingCost.trim(),
+          notes: optionalCreateValue(draft.notes),
+        };
+        await createCharge.mutateAsync(input);
+        toast.success("Special making charge added");
+      }
+      setDialogOpen(false);
+      setEditingCharge(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not save special charge"));
+    }
+  }
+
+  async function confirmDeleteCharge() {
+    if (!chargeToDelete) return;
+
+    try {
+      await deleteCharge.mutateAsync(chargeToDelete.productCode);
+      setChargeToDelete(null);
+      toast.success("Special making charge deleted");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not delete special charge"));
+    }
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-5">
+      <div className="shrink-0 space-y-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          className="gap-2 px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to system config
+        </Button>
+
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
+              Special product making charges
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Product-specific flat making charges override the default
+              estimation making logic.
+            </p>
+          </div>
+          <Button type="button" onClick={openAddDialog} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Product
+          </Button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {chargesQuery.isLoading ? <LoadingRows /> : null}
+        {chargesQuery.isError ? (
+          <ErrorPanel
+            message={getErrorMessage(
+              chargesQuery.error,
+              "Could not load special product making charges.",
+            )}
+            onRetry={() => void chargesQuery.refetch()}
+          />
+        ) : null}
+        {!chargesQuery.isLoading && !chargesQuery.isError ? (
+          charges.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border py-10 text-center">
+              <p className="text-sm text-muted-foreground">
+                No special product making charges configured.
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={openAddDialog}
+                className="mt-3 gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add first product
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product Code</TableHead>
+                  <TableHead>Making Charge</TableHead>
+                  <TableHead>Notes</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {charges.map((charge) => (
+                  <TableRow key={charge.id}>
+                    <TableCell className="font-medium">
+                      {charge.productCode}
+                    </TableCell>
+                    <TableCell>{formatMoneyValue(charge.makingCost)}</TableCell>
+                    <TableCell className="max-w-72 truncate">
+                      {charge.notes || "No notes"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(charge.updatedAt)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => openEditDialog(charge)}
+                          aria-label={`Edit ${charge.productCode}`}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setChargeToDelete(charge)}
+                          aria-label={`Delete ${charge.productCode}`}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )
+        ) : null}
+      </div>
+
+      <SpecialMakingChargeDialog
+        mode={dialogMode}
+        open={dialogOpen}
+        draft={draft}
+        isSubmitting={createCharge.isPending || updateCharge.isPending}
+        onDraftChange={setDraft}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingCharge(null);
+        }}
+        onSubmit={submitCharge}
+      />
+
+      <AlertDialog
+        open={!!chargeToDelete}
+        onOpenChange={(open) => {
+          if (!open) setChargeToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete special making charge?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the flat making charge override for{" "}
+              {chargeToDelete?.productCode ?? "this product"}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteCharge.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteCharge}
+              disabled={deleteCharge.isPending}
+            >
+              {deleteCharge.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
 function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const systemConfigsQuery = useSystemConfigs(true);
   const updateSystemConfig = useUpdateSystemConfig();
   const [editingConfig, setEditingConfig] = useState<SystemConfig | null>(null);
+  const showSpecialCharges = searchParams.get("config") === "special-products";
 
   const configs = systemConfigsQuery.data ?? [];
   const sortedConfigs = useMemo(
     () => [...configs].sort((a, b) => a.key.localeCompare(b.key)),
     [configs],
   );
+
+  function updateSystemSearchParams(
+    updater: (params: URLSearchParams) => void,
+  ) {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    updater(nextParams);
+    const query = nextParams.toString();
+    router.push(query ? `${pathname}?${query}` : pathname);
+  }
+
+  function openSpecialCharges() {
+    updateSystemSearchParams((params) => {
+      params.set("tab", "system");
+      params.set("config", "special-products");
+    });
+  }
+
+  function closeSpecialCharges() {
+    updateSystemSearchParams((params) => {
+      params.set("tab", "system");
+      params.delete("config");
+    });
+  }
 
   async function submitConfig(value: string) {
     if (!editingConfig) return;
@@ -1658,6 +2047,9 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
 
   return (
     <div id="system-config" className="min-h-0 flex-1 scroll-mt-4">
+      {showSpecialCharges ? (
+        <SpecialProductMakingChargesPanel onBack={closeSpecialCharges} />
+      ) : (
       <SectionShell
         icon={<ReceiptText className="h-5 w-5" />}
         title="System Config"
@@ -1676,74 +2068,99 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
           </Button>
         }
       >
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {systemConfigsQuery.isLoading ? <LoadingRows count={3} /> : null}
-          {systemConfigsQuery.isError ? (
-            <ErrorPanel
-              message={getErrorMessage(
-                systemConfigsQuery.error,
-                "Could not load system configs.",
-              )}
-              onRetry={() => void systemConfigsQuery.refetch()}
-            />
-          ) : null}
+          <>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {systemConfigsQuery.isLoading ? <LoadingRows count={3} /> : null}
+              {systemConfigsQuery.isError ? (
+                <ErrorPanel
+                  message={getErrorMessage(
+                    systemConfigsQuery.error,
+                    "Could not load system configs.",
+                  )}
+                  onRetry={() => void systemConfigsQuery.refetch()}
+                />
+              ) : null}
 
-          {!systemConfigsQuery.isLoading && !systemConfigsQuery.isError ? (
-            sortedConfigs.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border py-10 text-center">
-                <p className="text-sm text-muted-foreground">
-                  No miscellaneous config keys found.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {sortedConfigs.map((config) => (
-                  <button
-                    key={config.id}
-                    type="button"
-                    onClick={() => setEditingConfig(config)}
-                    className="group rounded-xl border border-border bg-card p-4 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-muted-foreground">
-                          {formatSystemConfigLabel(config.key)}
-                        </p>
-                        <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-foreground">
-                          {formatSystemConfigValue(config)}
-                        </p>
+              {!systemConfigsQuery.isLoading && !systemConfigsQuery.isError ? (
+                sortedConfigs.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border py-10 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No miscellaneous config keys found.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {sortedConfigs.map((config) => (
+                      <button
+                        key={config.id}
+                        type="button"
+                        onClick={() => setEditingConfig(config)}
+                        className="group rounded-xl border border-border bg-card p-4 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-muted-foreground">
+                              {formatSystemConfigLabel(config.key)}
+                            </p>
+                            <p className="mt-2 break-words text-2xl font-semibold tracking-tight text-foreground">
+                              {formatSystemConfigValue(config)}
+                            </p>
+                          </div>
+                          <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
+                        </div>
+
+                        {config.description ? (
+                          <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+                            {config.description}
+                          </p>
+                        ) : null}
+
+                        <div className="mt-4 flex items-center justify-end gap-3 text-xs text-muted-foreground">
+                          <span>
+                            {new Date(config.updatedAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={openSpecialCharges}
+                      className="group rounded-xl border border-border bg-card p-4 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Making for special products
+                          </p>
+                          <p className="mt-2 text-lg font-semibold tracking-tight text-foreground">
+                            Product overrides
+                          </p>
+                        </div>
+                        <CircleDollarSign className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
                       </div>
-                      <Pencil className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
-                    </div>
-
-                    {config.description ? (
                       <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
-                        {config.description}
+                        Add flat making charge overrides for specific product
+                        codes.
                       </p>
-                    ) : null}
+                    </button>
+                  </div>
+                )
+              ) : null}
+            </div>
 
-                    <div className="mt-4 flex items-center justify-end gap-3 text-xs text-muted-foreground">
-                      <span>
-                        {new Date(config.updatedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )
-          ) : null}
-        </div>
-
-        <SystemConfigDialog
-          config={editingConfig}
-          open={!!editingConfig}
-          isSubmitting={updateSystemConfig.isPending}
-          onOpenChange={(open) => {
-            if (!open) setEditingConfig(null);
-          }}
-          onSubmit={submitConfig}
-        />
+            <SystemConfigDialog
+              config={editingConfig}
+              open={!!editingConfig}
+              isSubmitting={updateSystemConfig.isPending}
+              onOpenChange={(open) => {
+                if (!open) setEditingConfig(null);
+              }}
+              onSubmit={submitConfig}
+            />
+          </>
       </SectionShell>
+      )}
     </div>
   );
 }
@@ -1787,7 +2204,7 @@ export function ManageProductsAndPricePageClient() {
       ) : null}
       {activeSection === "misc" ? (
         <SystemConfigsEditor
-          onBack={() => updateSearchParams((p) => p.delete("tab"))}
+          onBack={() => router.push("/manage-products-and-price")}
         />
       ) : null}
     </div>

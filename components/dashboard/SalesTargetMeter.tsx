@@ -268,7 +268,7 @@ export function SalesTargetMeter({
             {/* Liquid fill behind diamonds */}
             <motion.div
               animate={{ opacity: [0.46, 0.58, 0.5] }}
-              className="absolute inset-x-0 bottom-0 rounded-b-[2.1rem] rounded-t-[1.45rem] bg-[radial-gradient(circle_at_35%_24%,rgba(255,255,255,0.7),transparent_30%),linear-gradient(180deg,rgba(240,253,250,0.66),rgba(204,251,241,0.28)_42%,rgba(125,211,252,0.26))] shadow-[0_-10px_24px_rgba(8,145,178,0.1),inset_0_1px_0_rgba(255,255,255,0.66),inset_0_-16px_22px_rgba(14,116,144,0.06)] dark:bg-[radial-gradient(circle_at_35%_24%,rgba(255,255,255,0.2),transparent_34%),linear-gradient(180deg,rgba(45,212,191,0.35),rgba(165,243,252,0.2)_38%,rgba(8,145,178,0.24))] dark:shadow-[0_-12px_30px_rgba(45,212,191,0.18),inset_0_1px_0_rgba(255,255,255,0.32)]"
+              className="absolute inset-x-0 bottom-0 rounded-b-[2.1rem] bg-[radial-gradient(circle_at_35%_24%,rgba(255,255,255,0.7),transparent_30%),linear-gradient(180deg,rgba(240,253,250,0.66),rgba(204,251,241,0.28)_42%,rgba(125,211,252,0.26))] shadow-[0_-10px_24px_rgba(8,145,178,0.1),inset_0_1px_0_rgba(255,255,255,0.66),inset_0_-16px_22px_rgba(14,116,144,0.06)] dark:bg-[radial-gradient(circle_at_35%_24%,rgba(255,255,255,0.2),transparent_34%),linear-gradient(180deg,rgba(45,212,191,0.35),rgba(165,243,252,0.2)_38%,rgba(8,145,178,0.24))] dark:shadow-[0_-12px_30px_rgba(45,212,191,0.18),inset_0_1px_0_rgba(255,255,255,0.32)]"
               style={{ height: `${meterProgress}%` }}
               transition={{
                 duration: 4,
@@ -279,7 +279,7 @@ export function SalesTargetMeter({
 
             {/* Diamonds clipped to fill height */}
             <div
-              className="absolute inset-x-0 bottom-0 overflow-hidden rounded-b-[2.1rem] rounded-t-[1.45rem]"
+              className="absolute inset-x-0 bottom-0 overflow-hidden rounded-b-[2.1rem]"
               style={{ height: `${meterProgress}%` }}
             >
               <div className="absolute inset-x-2 bottom-4 top-0 rounded-[2rem] bg-cyan-400/18 blur-xl dark:bg-cyan-300/18" />
