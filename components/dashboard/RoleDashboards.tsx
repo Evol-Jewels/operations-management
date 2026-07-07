@@ -12,13 +12,15 @@ import {
   Lock,
   MessageSquare,
   Package,
+  PanelRightClose,
+  PanelRightOpen,
   TrendingUp,
   Users,
 } from "lucide-react";
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bar,
   EvilBarChart,
@@ -56,6 +58,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useMyStockSales,
+  useSalesPersonStockSales,
   useStockSalesAnalytics,
   useStockSalesLeaderboard,
 } from "@/hooks/useStockSales";
@@ -65,6 +68,7 @@ import {
   isEnquiryFinalized,
 } from "@/lib/enquiryStatus";
 import { getInitials } from "@/lib/people";
+import { useActivitySidebar } from "@/lib/stores/activity-sidebar-store";
 import {
   cn,
   computeRiskSignal,
@@ -80,6 +84,8 @@ import { type Order, STAGES, type UrgencyLevel } from "@/types";
 import type {
   StockSalesAnalyticsBreakdownRow,
   StockSalesAnalyticsPeriod,
+  StockSalesLeaderboardRow,
+  StockSalesMeResponse,
 } from "@/types/stock-sales-api";
 import { RecentActivities } from "./RecentActivities";
 import { SalesTargetMeter } from "./SalesTargetMeter";
@@ -836,21 +842,20 @@ function SalesAnalyticsValue({
   );
 }
 
-function MySalesAnalyticsCards() {
-  const saleMonth = getCurrentSaleMonth();
-  const salesQuery = useMyStockSales({
-    period: "month",
-    saleMonth,
-  });
-  const analytics = salesQuery.data;
+function SalesPerformanceCards({
+  analytics,
+  isLoading,
+  monthLabel,
+}: {
+  analytics?: StockSalesMeResponse;
+  isLoading: boolean;
+  monthLabel: string;
+}) {
   const target = analytics?.target;
   const revenue = analytics?.revenue ?? "0";
   const earnedIncentiveAmount = analytics?.incentive.earnedAmount ?? "0";
   const payableIncentiveAmount = analytics?.incentive.payableAmount ?? "0";
   const incentiveMultiplier = analytics?.incentive.multiplier ?? "0.00";
-  const monthLabel = formatSaleMonthLabel(analytics?.period ?? saleMonth).split(
-    " ",
-  )[0];
   const progress = getTargetProgress(revenue, target);
   const progressValue = progress?.displayProgress ?? 0;
   const fillHeight = progress?.fillHeight ?? 0;
@@ -900,7 +905,7 @@ function MySalesAnalyticsCards() {
                 Monthly Target
               </p>
               <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
-                {salesQuery.isLoading
+                {isLoading
                   ? "--"
                   : target == null
                     ? "N/A"
@@ -920,11 +925,11 @@ function MySalesAnalyticsCards() {
               </div>
               <div>
                 <SalesAnalyticsValue
-                  isLoading={salesQuery.isLoading}
+                  isLoading={isLoading}
                   value={formatAnalyticsCurrency(payableIncentiveAmount)}
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {salesQuery.isLoading
+                  {isLoading
                     ? "--"
                     : `${formatAnalyticsCurrency(earnedIncentiveAmount)} earned - ${incentiveMultiplier}x`}
                 </p>
@@ -938,7 +943,7 @@ function MySalesAnalyticsCards() {
                 Sales Transactions
               </p>
               <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
-                {salesQuery.isLoading ? "--" : (analytics?.transactions ?? 0)}
+                {isLoading ? "--" : (analytics?.transactions ?? 0)}
               </p>
             </div>
             <div className="flex min-h-24 flex-col justify-between rounded-md border border-border/70 bg-muted/40 p-4">
@@ -947,7 +952,7 @@ function MySalesAnalyticsCards() {
               </p>
               <div>
                 <SalesAnalyticsValue
-                  isLoading={salesQuery.isLoading}
+                  isLoading={isLoading}
                   value={formatAnalyticsCurrency(revenue)}
                 />
               </div>
@@ -965,7 +970,7 @@ function MySalesAnalyticsCards() {
                 </p>
               </div>
               <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
-                {salesQuery.isLoading
+                {isLoading
                   ? "--"
                   : progress == null
                     ? "N/A"
@@ -981,7 +986,7 @@ function MySalesAnalyticsCards() {
                     : "bg-gradient-to-r from-amber-500 to-cyan-500",
                 )}
                 style={{
-                  width: `${salesQuery.isLoading ? 0 : fillHeight}%`,
+                  width: `${isLoading ? 0 : fillHeight}%`,
                 }}
               />
             </div>
@@ -999,12 +1004,116 @@ function MySalesAnalyticsCards() {
           <SalesTargetMeter
             fillHeight={fillHeight}
             isIncentiveEligible={isIncentiveEligible}
-            isLoading={salesQuery.isLoading}
+            isLoading={isLoading}
             progressValue={progressValue}
           />
         </div>
       </div>
     </section>
+  );
+}
+
+function ActivitySidebarToggle({ className }: { className?: string }) {
+  const { isOpen, toggle } = useActivitySidebar();
+  const Icon = isOpen ? PanelRightClose : PanelRightOpen;
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      onClick={toggle}
+      className={cn("size-9 shrink-0", className)}
+      aria-pressed={isOpen}
+      aria-label={isOpen ? "Hide recent activity" : "Show recent activity"}
+      title={isOpen ? "Hide recent activity" : "Show recent activity"}
+    >
+      <Icon className="h-4 w-4" />
+    </Button>
+  );
+}
+
+function RecentActivitiesColumn({ orders }: { orders: Order[] }) {
+  const isActivityOpen = useActivitySidebar((state) => state.isOpen);
+
+  return (
+    <div className="xl:sticky xl:top-5 xl:self-start">
+      <div className="relative">
+        <ActivitySidebarToggle className="absolute top-2 right-2 z-10" />
+        {isActivityOpen ? (
+          <RecentActivities
+            orders={orders}
+            className="xl:max-h-[calc(100vh-2.5rem)]"
+          />
+        ) : (
+          <div className="h-9" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MySalesAnalyticsCards() {
+  const saleMonth = getCurrentSaleMonth();
+  const salesQuery = useMyStockSales({
+    period: "month",
+    saleMonth,
+  });
+  const monthLabel = formatSaleMonthLabel(
+    salesQuery.data?.period ?? saleMonth,
+  ).split(" ")[0];
+
+  return (
+    <SalesPerformanceCards
+      analytics={salesQuery.data}
+      isLoading={salesQuery.isLoading}
+      monthLabel={monthLabel}
+    />
+  );
+}
+
+function AdminSalesPerformanceCards({
+  selectedSalesPersonId,
+}: {
+  selectedSalesPersonId: string;
+}) {
+  const saleMonth = getCurrentSaleMonth();
+  const performanceQuery = useSalesPersonStockSales(
+    {
+      period: "month",
+      saleMonth,
+      salesPersonId: selectedSalesPersonId,
+    },
+    {
+      enabled: Boolean(selectedSalesPersonId),
+    },
+  );
+  const monthLabel = formatSaleMonthLabel(
+    performanceQuery.data?.period ?? saleMonth,
+  ).split(" ")[0];
+
+  if (!selectedSalesPersonId) {
+    return (
+      <div className="flex min-h-80 items-center justify-center rounded-lg border border-dashed border-border/70 bg-card p-8 text-center text-sm text-muted-foreground">
+        Select a salesperson from the leaderboard.
+      </div>
+    );
+  }
+
+  if (performanceQuery.isError) {
+    return (
+      <div className="rounded-lg border border-border/70 bg-card py-10 text-center text-sm text-muted-foreground">
+        Unable to load salesperson performance.
+      </div>
+    );
+  }
+
+  return (
+    <SalesPerformanceCards
+      analytics={performanceQuery.data}
+      isLoading={performanceQuery.isLoading}
+      monthLabel={monthLabel}
+    />
   );
 }
 
@@ -1034,10 +1143,14 @@ function SalespersonCell({ row }: { row: StockSalesAnalyticsBreakdownRow }) {
 function SalesLeaderboardCard({
   className,
   highlightCurrentUser = true,
+  onSelectedSalesPersonChange,
+  selectedSalesPersonId,
   title = "Sales Leaderboard",
 }: {
   className?: string;
   highlightCurrentUser?: boolean;
+  onSelectedSalesPersonChange?: (row: StockSalesLeaderboardRow) => void;
+  selectedSalesPersonId?: string;
   title?: string;
 }) {
   const saleMonth = getCurrentSaleMonth();
@@ -1062,10 +1175,27 @@ function SalesLeaderboardCard({
     leaderboardQuery.data?.period ?? saleMonth,
   );
 
+  useEffect(() => {
+    if (
+      selectedSalesPersonId ||
+      leaderboardQuery.isLoading ||
+      leaderboard.length === 0
+    ) {
+      return;
+    }
+
+    onSelectedSalesPersonChange?.(leaderboard[0]);
+  }, [
+    leaderboard,
+    leaderboardQuery.isLoading,
+    onSelectedSalesPersonChange,
+    selectedSalesPersonId,
+  ]);
+
   return (
     <section
       className={cn(
-        "flex max-w-md flex-col overflow-hidden rounded-lg border border-border/70 bg-card",
+        "flex max-w-md flex-col overflow-hidden rounded-lg border border-border/70 bg-card pb-2",
         className,
       )}
     >
@@ -1122,24 +1252,36 @@ function SalesLeaderboardCard({
                   const person = row.salesPerson;
                   const name = person.name ?? "Unknown";
                   const isLeader = row.rank === 1 && row.totalProductsSold > 0;
+                  const isSelected = person.id === selectedSalesPersonId;
                   const isCurrentPerson =
                     Boolean(currentSalesPersonId) &&
                     person.id === currentSalesPersonId;
-                  const rowHighlightClass = isLeader
-                    ? isCurrentPerson
-                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 shadow-[inset_3px_0_0_rgb(16_185_129)] dark:bg-emerald-500/15 dark:text-emerald-200"
-                      : "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-                    : isCurrentPerson
-                      ? "border-sky-500/35 bg-sky-500/10 text-sky-800 shadow-[inset_3px_0_0_rgb(14_165_233)] dark:bg-sky-500/15 dark:text-sky-200"
-                      : "border-transparent text-muted-foreground";
+                  const rowHighlightClass = isSelected
+                    ? "border-sky-500/45 bg-sky-500/15 text-sky-800 shadow-[inset_3px_0_0_rgb(14_165_233)] dark:bg-sky-500/20 dark:text-sky-100"
+                    : isLeader
+                      ? isCurrentPerson
+                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 shadow-[inset_3px_0_0_rgb(16_185_129)] dark:bg-emerald-500/15 dark:text-emerald-200"
+                        : "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                      : isCurrentPerson
+                        ? "border-sky-500/35 bg-sky-500/10 text-sky-800 shadow-[inset_3px_0_0_rgb(14_165_233)] dark:bg-sky-500/15 dark:text-sky-200"
+                        : "border-transparent text-muted-foreground";
 
                   return (
                     <TableRow
+                      tabIndex={0}
+                      onClick={() => onSelectedSalesPersonChange?.(row)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onSelectedSalesPersonChange?.(row);
+                        }
+                      }}
                       className={cn(
-                        "border transition-colors hover:bg-muted/40",
+                        "cursor-pointer border transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
                         rowHighlightClass,
                       )}
                       key={person.id}
+                      aria-selected={isSelected}
                     >
                       <TableCell className="h-12 rounded-l-md px-3 py-2">
                         <span className="flex justify-center text-sm font-medium tabular-nums">
@@ -1169,24 +1311,28 @@ function SalesLeaderboardCard({
                           <span
                             className={cn(
                               "truncate text-sm",
-                              isLeader || isCurrentPerson
+                              isLeader || isCurrentPerson || isSelected
                                 ? "font-medium text-foreground"
                                 : "text-foreground",
                             )}
                           >
                             {name}
                           </span>
-                          {(isLeader || isCurrentPerson) && (
+                          {(isLeader || isCurrentPerson || isSelected) && (
                             <Badge
                               variant="secondary"
                               className={cn(
                                 "h-5 shrink-0 rounded-md px-1.5 text-[10px] font-medium",
-                                isLeader
-                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                                  : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+                                isSelected
+                                  ? "bg-sky-500/15 text-sky-700 dark:text-sky-200"
+                                  : isLeader
+                                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                    : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
                               )}
                             >
-                              {isLeader && isCurrentPerson
+                              {isSelected
+                                ? "Selected"
+                                : isLeader && isCurrentPerson
                                 ? "Top · You"
                                 : isLeader
                                   ? "Top"
@@ -1279,6 +1425,7 @@ function StockSalesAnalyticsSection() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [selectedSalesPersonId, setSelectedSalesPersonId] = useState("");
   const period = getSalesAnalyticsPeriod(
     new URLSearchParams(searchParams.toString()),
   );
@@ -1327,6 +1474,12 @@ function StockSalesAnalyticsSection() {
     },
     [updateSalesAnalyticsParams],
   );
+  const handleSelectedSalesPersonChange = useCallback(
+    (row: StockSalesLeaderboardRow) => {
+      setSelectedSalesPersonId(row.salesPerson.id);
+    },
+    [],
+  );
   const cards: MetricCardData[] = [
     {
       label: "Sales People",
@@ -1355,7 +1508,7 @@ function StockSalesAnalyticsSection() {
   ];
 
   return (
-    <section className="space-y-5">
+    <section className="space-y-5 pb-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-foreground">
@@ -1529,11 +1682,18 @@ function StockSalesAnalyticsSection() {
           )}
         </div>
 
-        <SalesLeaderboardCard
-          className="max-w-none"
-          highlightCurrentUser={false}
-          title={`Sales Leaderboard for ${formatSaleMonthLabel(getCurrentSaleMonth())}`}
-        />
+        <div className="grid gap-5 xl:grid-cols-[minmax(22rem,0.9fr)_minmax(0,1.35fr)] xl:items-start">
+          <SalesLeaderboardCard
+            className="max-w-none"
+            highlightCurrentUser={false}
+            onSelectedSalesPersonChange={handleSelectedSalesPersonChange}
+            selectedSalesPersonId={selectedSalesPersonId}
+            title={`Sales Leaderboard for ${formatSaleMonthLabel(getCurrentSaleMonth())}`}
+          />
+          <AdminSalesPerformanceCards
+            selectedSalesPersonId={selectedSalesPersonId}
+          />
+        </div>
       </div>
     </section>
   );
@@ -1543,6 +1703,7 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const isActivityOpen = useActivitySidebar((state) => state.isOpen);
   const analytics = useMemo(() => getAdminAnalytics(orders), [orders]);
   const activeTab = getAdminDashboardTab(
     new URLSearchParams(searchParams.toString()),
@@ -1596,15 +1757,24 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
   ];
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div
+      className={cn(
+        "grid gap-5",
+        isActivityOpen
+          ? "xl:grid-cols-[minmax(0,1fr)_360px]"
+          : "xl:grid-cols-[minmax(0,1fr)_44px]",
+      )}
+    >
       <div className="space-y-5">
         <div className="flex flex-col">
-          <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            Admin Dashboard
-          </h1>
-          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            View analytics and get an overview of your ongoing records.
-          </p>
+          <div className="min-w-0">
+            <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              Admin Dashboard
+            </h1>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              View analytics and get an overview of your ongoing records.
+            </p>
+          </div>
         </div>
 
         <Tabs
@@ -1672,17 +1842,13 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
         </Tabs>
       </div>
 
-      <div className="xl:sticky xl:top-5 xl:self-start">
-        <RecentActivities
-          orders={orders}
-          className="xl:max-h-[calc(100vh-2.5rem)]"
-        />
-      </div>
+      <RecentActivitiesColumn orders={orders} />
     </div>
   );
 }
 
 export function OperationsDashboard({ orders }: { orders: Order[] }) {
+  const isActivityOpen = useActivitySidebar((state) => state.isOpen);
   const analytics = useMemo(() => getOpsAnalytics(orders), [orders]);
   const staleCount = analytics.riskItems.filter(
     (r) => r.signal === "stale",
@@ -1692,15 +1858,24 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
   ).length;
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div
+      className={cn(
+        "grid gap-5",
+        isActivityOpen
+          ? "xl:grid-cols-[minmax(0,1fr)_360px]"
+          : "xl:grid-cols-[minmax(0,1fr)_44px]",
+      )}
+    >
       <div className="space-y-5">
         <div className="flex flex-col">
-          <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            Operations Dashboard
-          </h1>
-          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            Get a bird's-eye view of the ongoing records.
-          </p>
+          <div className="min-w-0">
+            <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              Operations Dashboard
+            </h1>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              Get a bird's-eye view of the ongoing records.
+            </p>
+          </div>
         </div>
         <div>
           <MetricsGrid>
@@ -1783,12 +1958,7 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
         />
       </div>
 
-      <div className="xl:sticky xl:top-5 xl:self-start">
-        <RecentActivities
-          orders={orders}
-          className="xl:max-h-[calc(100vh-2.5rem)]"
-        />
-      </div>
+      <RecentActivitiesColumn orders={orders} />
     </div>
   );
 }
