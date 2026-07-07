@@ -126,17 +126,33 @@ function waitForCardImages(card: HTMLElement) {
   return Promise.all(
     images.map((image) => {
       if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+      if (image.complete) return Promise.resolve();
 
-      return new Promise<void>((resolve, reject) => {
-        image.addEventListener("load", () => resolve(), { once: true });
+      return new Promise<void>((resolve) => {
+        const timeout = window.setTimeout(resolve, 3000);
+        image.addEventListener(
+          "load",
+          () => {
+            window.clearTimeout(timeout);
+            resolve();
+          },
+          { once: true },
+        );
         image.addEventListener(
           "error",
-          () => reject(new Error(`Failed to load image: ${image.currentSrc}`)),
+          () => {
+            window.clearTimeout(timeout);
+            resolve();
+          },
           { once: true },
         );
       });
     }),
   );
+}
+
+function isLoadedImage(image: HTMLImageElement) {
+  return image.complete && image.naturalWidth > 0 && image.naturalHeight > 0;
 }
 
 function imageToPngDataUrl(image: HTMLImageElement) {
@@ -154,8 +170,9 @@ function imageToPngDataUrl(image: HTMLImageElement) {
 function inlineDownloadLogos(card: HTMLElement) {
   const logos = Array.from(
     card.querySelectorAll<HTMLImageElement>("[data-download-logo]"),
-  );
+  ).filter(isLoadedImage);
   const originalSources = logos.map((logo) => logo.currentSrc || logo.src);
+  const originalSrcsets = logos.map((logo) => logo.getAttribute("srcset"));
 
   logos.forEach((logo, index) => {
     logo.src = imageToPngDataUrl(logo);
@@ -166,21 +183,14 @@ function inlineDownloadLogos(card: HTMLElement) {
   return () => {
     logos.forEach((logo, index) => {
       logo.src = originalSources[index];
+      if (originalSrcsets[index]) {
+        logo.setAttribute("srcset", originalSrcsets[index]);
+      }
     });
   };
 }
 
 async function saveSummaryImage(blob: Blob, filename: string) {
-  const file = new File([blob], filename, { type: "image/png" });
-
-  if (navigator.canShare?.({ files: [file] })) {
-    await navigator.share({
-      files: [file],
-      title: filename.replace(/\.png$/i, ""),
-    });
-    return;
-  }
-
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -308,12 +318,23 @@ export function EstimationSummaryCard({
           )}
         >
           <img
-            src="/evol-jewels-logo.png"
+            src="/evol-logo.webp"
             alt="Evol"
             width={82}
             height={30}
             className={cn(
-              "w-auto object-contain dark:brightness-0 dark:invert",
+              "w-auto object-contain dark:hidden",
+              compact ? "h-6" : "h-7",
+            )}
+            data-download-logo
+          />
+          <img
+            src="/evol-logo-white.webp"
+            alt="Evol"
+            width={82}
+            height={30}
+            className={cn(
+              "hidden w-auto object-contain dark:block dark:brightness-0 dark:invert",
               compact ? "h-6" : "h-7",
             )}
             data-download-logo
