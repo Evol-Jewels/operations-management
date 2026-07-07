@@ -10,7 +10,7 @@ interface ActivitySidebarStore {
 }
 
 export const useActivitySidebar = create<ActivitySidebarStore>((set) => ({
-  isOpen: false,
+  isOpen: true,
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false }),
   toggle: () => set((state) => ({ isOpen: !state.isOpen })),

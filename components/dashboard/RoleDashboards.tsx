@@ -12,6 +12,8 @@ import {
   Lock,
   MessageSquare,
   Package,
+  PanelRightClose,
+  PanelRightOpen,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -66,6 +68,7 @@ import {
   isEnquiryFinalized,
 } from "@/lib/enquiryStatus";
 import { getInitials } from "@/lib/people";
+import { useActivitySidebar } from "@/lib/stores/activity-sidebar-store";
 import {
   cn,
   computeRiskSignal,
@@ -81,6 +84,7 @@ import { type Order, STAGES, type UrgencyLevel } from "@/types";
 import type {
   StockSalesAnalyticsBreakdownRow,
   StockSalesAnalyticsPeriod,
+  StockSalesLeaderboardRow,
   StockSalesMeResponse,
 } from "@/types/stock-sales-api";
 import { RecentActivities } from "./RecentActivities";
@@ -1009,6 +1013,46 @@ function SalesPerformanceCards({
   );
 }
 
+function ActivitySidebarToggle({ className }: { className?: string }) {
+  const { isOpen, toggle } = useActivitySidebar();
+  const Icon = isOpen ? PanelRightClose : PanelRightOpen;
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      onClick={toggle}
+      className={cn("size-9 shrink-0", className)}
+      aria-pressed={isOpen}
+      aria-label={isOpen ? "Hide recent activity" : "Show recent activity"}
+      title={isOpen ? "Hide recent activity" : "Show recent activity"}
+    >
+      <Icon className="h-4 w-4" />
+    </Button>
+  );
+}
+
+function RecentActivitiesColumn({ orders }: { orders: Order[] }) {
+  const isActivityOpen = useActivitySidebar((state) => state.isOpen);
+
+  return (
+    <div className="xl:sticky xl:top-5 xl:self-start">
+      <div className="relative">
+        <ActivitySidebarToggle className="absolute top-2 right-2 z-10" />
+        {isActivityOpen ? (
+          <RecentActivities
+            orders={orders}
+            className="xl:max-h-[calc(100vh-2.5rem)]"
+          />
+        ) : (
+          <div className="h-9" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MySalesAnalyticsCards() {
   const saleMonth = getCurrentSaleMonth();
   const salesQuery = useMyStockSales({
@@ -1028,17 +1072,12 @@ function MySalesAnalyticsCards() {
   );
 }
 
-function AdminSalesPerformanceCards() {
+function AdminSalesPerformanceCards({
+  selectedSalesPersonId,
+}: {
+  selectedSalesPersonId: string;
+}) {
   const saleMonth = getCurrentSaleMonth();
-  const leaderboardQuery = useStockSalesLeaderboard({
-    period: "month",
-    saleMonth,
-  });
-  const salespeople = leaderboardQuery.data?.leaderboard ?? [];
-  const [selectedSalesPersonId, setSelectedSalesPersonId] = useState("");
-  const selectedSalesPerson = salespeople.find(
-    (row) => row.salesPerson.id === selectedSalesPersonId,
-  )?.salesPerson;
   const performanceQuery = useSalesPersonStockSales(
     {
       period: "month",
@@ -1053,58 +1092,28 @@ function AdminSalesPerformanceCards() {
     performanceQuery.data?.period ?? saleMonth,
   ).split(" ")[0];
 
-  useEffect(() => {
-    if (selectedSalesPersonId || salespeople.length === 0) {
-      return;
-    }
+  if (!selectedSalesPersonId) {
+    return (
+      <div className="flex min-h-80 items-center justify-center rounded-lg border border-dashed border-border/70 bg-card p-8 text-center text-sm text-muted-foreground">
+        Select a salesperson from the leaderboard.
+      </div>
+    );
+  }
 
-    setSelectedSalesPersonId(salespeople[0].salesPerson.id);
-  }, [salespeople, selectedSalesPersonId]);
+  if (performanceQuery.isError) {
+    return (
+      <div className="rounded-lg border border-border/70 bg-card py-10 text-center text-sm text-muted-foreground">
+        Unable to load salesperson performance.
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-foreground">
-            Salesperson Performance
-          </h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {selectedSalesPerson?.name ?? "Select a salesperson"}
-          </p>
-        </div>
-        <Select
-          value={selectedSalesPersonId}
-          onValueChange={setSelectedSalesPersonId}
-          disabled={leaderboardQuery.isLoading || salespeople.length === 0}
-        >
-          <SelectTrigger
-            aria-label="Select salesperson"
-            className="w-full sm:w-64"
-          >
-            <SelectValue placeholder="Select salesperson" />
-          </SelectTrigger>
-          <SelectContent>
-            {salespeople.map((row) => (
-              <SelectItem key={row.salesPerson.id} value={row.salesPerson.id}>
-                {row.salesPerson.name ?? "Unnamed salesperson"}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {leaderboardQuery.isError || performanceQuery.isError ? (
-        <div className="rounded-lg border border-border/70 bg-card py-10 text-center text-sm text-muted-foreground">
-          Unable to load salesperson performance.
-        </div>
-      ) : (
-        <SalesPerformanceCards
-          analytics={performanceQuery.data}
-          isLoading={leaderboardQuery.isLoading || performanceQuery.isLoading}
-          monthLabel={monthLabel}
-        />
-      )}
-    </div>
+    <SalesPerformanceCards
+      analytics={performanceQuery.data}
+      isLoading={performanceQuery.isLoading}
+      monthLabel={monthLabel}
+    />
   );
 }
 
@@ -1134,10 +1143,14 @@ function SalespersonCell({ row }: { row: StockSalesAnalyticsBreakdownRow }) {
 function SalesLeaderboardCard({
   className,
   highlightCurrentUser = true,
+  onSelectedSalesPersonChange,
+  selectedSalesPersonId,
   title = "Sales Leaderboard",
 }: {
   className?: string;
   highlightCurrentUser?: boolean;
+  onSelectedSalesPersonChange?: (row: StockSalesLeaderboardRow) => void;
+  selectedSalesPersonId?: string;
   title?: string;
 }) {
   const saleMonth = getCurrentSaleMonth();
@@ -1162,10 +1175,27 @@ function SalesLeaderboardCard({
     leaderboardQuery.data?.period ?? saleMonth,
   );
 
+  useEffect(() => {
+    if (
+      selectedSalesPersonId ||
+      leaderboardQuery.isLoading ||
+      leaderboard.length === 0
+    ) {
+      return;
+    }
+
+    onSelectedSalesPersonChange?.(leaderboard[0]);
+  }, [
+    leaderboard,
+    leaderboardQuery.isLoading,
+    onSelectedSalesPersonChange,
+    selectedSalesPersonId,
+  ]);
+
   return (
     <section
       className={cn(
-        "flex max-w-md flex-col overflow-hidden rounded-lg border border-border/70 bg-card",
+        "flex max-w-md flex-col overflow-hidden rounded-lg border border-border/70 bg-card pb-2",
         className,
       )}
     >
@@ -1222,24 +1252,36 @@ function SalesLeaderboardCard({
                   const person = row.salesPerson;
                   const name = person.name ?? "Unknown";
                   const isLeader = row.rank === 1 && row.totalProductsSold > 0;
+                  const isSelected = person.id === selectedSalesPersonId;
                   const isCurrentPerson =
                     Boolean(currentSalesPersonId) &&
                     person.id === currentSalesPersonId;
-                  const rowHighlightClass = isLeader
-                    ? isCurrentPerson
-                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 shadow-[inset_3px_0_0_rgb(16_185_129)] dark:bg-emerald-500/15 dark:text-emerald-200"
-                      : "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-                    : isCurrentPerson
-                      ? "border-sky-500/35 bg-sky-500/10 text-sky-800 shadow-[inset_3px_0_0_rgb(14_165_233)] dark:bg-sky-500/15 dark:text-sky-200"
-                      : "border-transparent text-muted-foreground";
+                  const rowHighlightClass = isSelected
+                    ? "border-sky-500/45 bg-sky-500/15 text-sky-800 shadow-[inset_3px_0_0_rgb(14_165_233)] dark:bg-sky-500/20 dark:text-sky-100"
+                    : isLeader
+                      ? isCurrentPerson
+                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 shadow-[inset_3px_0_0_rgb(16_185_129)] dark:bg-emerald-500/15 dark:text-emerald-200"
+                        : "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                      : isCurrentPerson
+                        ? "border-sky-500/35 bg-sky-500/10 text-sky-800 shadow-[inset_3px_0_0_rgb(14_165_233)] dark:bg-sky-500/15 dark:text-sky-200"
+                        : "border-transparent text-muted-foreground";
 
                   return (
                     <TableRow
+                      tabIndex={0}
+                      onClick={() => onSelectedSalesPersonChange?.(row)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onSelectedSalesPersonChange?.(row);
+                        }
+                      }}
                       className={cn(
-                        "border transition-colors hover:bg-muted/40",
+                        "cursor-pointer border transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
                         rowHighlightClass,
                       )}
                       key={person.id}
+                      aria-selected={isSelected}
                     >
                       <TableCell className="h-12 rounded-l-md px-3 py-2">
                         <span className="flex justify-center text-sm font-medium tabular-nums">
@@ -1269,24 +1311,28 @@ function SalesLeaderboardCard({
                           <span
                             className={cn(
                               "truncate text-sm",
-                              isLeader || isCurrentPerson
+                              isLeader || isCurrentPerson || isSelected
                                 ? "font-medium text-foreground"
                                 : "text-foreground",
                             )}
                           >
                             {name}
                           </span>
-                          {(isLeader || isCurrentPerson) && (
+                          {(isLeader || isCurrentPerson || isSelected) && (
                             <Badge
                               variant="secondary"
                               className={cn(
                                 "h-5 shrink-0 rounded-md px-1.5 text-[10px] font-medium",
-                                isLeader
-                                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                                  : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+                                isSelected
+                                  ? "bg-sky-500/15 text-sky-700 dark:text-sky-200"
+                                  : isLeader
+                                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                                    : "bg-sky-500/15 text-sky-700 dark:text-sky-300",
                               )}
                             >
-                              {isLeader && isCurrentPerson
+                              {isSelected
+                                ? "Selected"
+                                : isLeader && isCurrentPerson
                                 ? "Top · You"
                                 : isLeader
                                   ? "Top"
@@ -1379,6 +1425,7 @@ function StockSalesAnalyticsSection() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [selectedSalesPersonId, setSelectedSalesPersonId] = useState("");
   const period = getSalesAnalyticsPeriod(
     new URLSearchParams(searchParams.toString()),
   );
@@ -1427,6 +1474,12 @@ function StockSalesAnalyticsSection() {
     },
     [updateSalesAnalyticsParams],
   );
+  const handleSelectedSalesPersonChange = useCallback(
+    (row: StockSalesLeaderboardRow) => {
+      setSelectedSalesPersonId(row.salesPerson.id);
+    },
+    [],
+  );
   const cards: MetricCardData[] = [
     {
       label: "Sales People",
@@ -1455,7 +1508,7 @@ function StockSalesAnalyticsSection() {
   ];
 
   return (
-    <section className="space-y-5">
+    <section className="space-y-5 pb-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-foreground">
@@ -1629,12 +1682,16 @@ function StockSalesAnalyticsSection() {
           )}
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)] xl:items-start">
-          <AdminSalesPerformanceCards />
+        <div className="grid gap-5 xl:grid-cols-[minmax(22rem,0.9fr)_minmax(0,1.35fr)] xl:items-start">
           <SalesLeaderboardCard
             className="max-w-none"
             highlightCurrentUser={false}
+            onSelectedSalesPersonChange={handleSelectedSalesPersonChange}
+            selectedSalesPersonId={selectedSalesPersonId}
             title={`Sales Leaderboard for ${formatSaleMonthLabel(getCurrentSaleMonth())}`}
+          />
+          <AdminSalesPerformanceCards
+            selectedSalesPersonId={selectedSalesPersonId}
           />
         </div>
       </div>
@@ -1646,6 +1703,7 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const isActivityOpen = useActivitySidebar((state) => state.isOpen);
   const analytics = useMemo(() => getAdminAnalytics(orders), [orders]);
   const activeTab = getAdminDashboardTab(
     new URLSearchParams(searchParams.toString()),
@@ -1699,15 +1757,24 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
   ];
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div
+      className={cn(
+        "grid gap-5",
+        isActivityOpen
+          ? "xl:grid-cols-[minmax(0,1fr)_360px]"
+          : "xl:grid-cols-[minmax(0,1fr)_44px]",
+      )}
+    >
       <div className="space-y-5">
         <div className="flex flex-col">
-          <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            Admin Dashboard
-          </h1>
-          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            View analytics and get an overview of your ongoing records.
-          </p>
+          <div className="min-w-0">
+            <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              Admin Dashboard
+            </h1>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              View analytics and get an overview of your ongoing records.
+            </p>
+          </div>
         </div>
 
         <Tabs
@@ -1775,17 +1842,13 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
         </Tabs>
       </div>
 
-      <div className="xl:sticky xl:top-5 xl:self-start">
-        <RecentActivities
-          orders={orders}
-          className="xl:max-h-[calc(100vh-2.5rem)]"
-        />
-      </div>
+      <RecentActivitiesColumn orders={orders} />
     </div>
   );
 }
 
 export function OperationsDashboard({ orders }: { orders: Order[] }) {
+  const isActivityOpen = useActivitySidebar((state) => state.isOpen);
   const analytics = useMemo(() => getOpsAnalytics(orders), [orders]);
   const staleCount = analytics.riskItems.filter(
     (r) => r.signal === "stale",
@@ -1795,15 +1858,24 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
   ).length;
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div
+      className={cn(
+        "grid gap-5",
+        isActivityOpen
+          ? "xl:grid-cols-[minmax(0,1fr)_360px]"
+          : "xl:grid-cols-[minmax(0,1fr)_44px]",
+      )}
+    >
       <div className="space-y-5">
         <div className="flex flex-col">
-          <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            Operations Dashboard
-          </h1>
-          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            Get a bird's-eye view of the ongoing records.
-          </p>
+          <div className="min-w-0">
+            <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              Operations Dashboard
+            </h1>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              Get a bird's-eye view of the ongoing records.
+            </p>
+          </div>
         </div>
         <div>
           <MetricsGrid>
@@ -1886,12 +1958,7 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
         />
       </div>
 
-      <div className="xl:sticky xl:top-5 xl:self-start">
-        <RecentActivities
-          orders={orders}
-          className="xl:max-h-[calc(100vh-2.5rem)]"
-        />
-      </div>
+      <RecentActivitiesColumn orders={orders} />
     </div>
   );
 }
