@@ -310,6 +310,8 @@ export interface CalculatorFormState {
   netGoldWeight: number;
   purity: MetalPurity;
   stones: CalculatorStoneInput[];
+  gstRate: number;
+  makingCharge: number;
   productName: string;
   productNote: string;
   productImageUrl?: string;
@@ -330,6 +332,7 @@ export interface CalculatorPricingBreakdown {
   totalStoneCost: number;
   subTotal: number;
   gst: number;
+  gstRate: number;
   total: number;
 }
 
@@ -469,6 +472,7 @@ export interface ProductLookupProduct {
   productCode: string;
   productName: string;
   description: string;
+  note: string;
   imageUrl: string | null;
   purity: string;
   netGoldWeight: number;

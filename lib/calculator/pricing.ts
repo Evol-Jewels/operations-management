@@ -67,7 +67,7 @@ export function computeEstimateFromInputs(
   netGoldWeight: number,
   purity: MetalPurity,
   stones: CalculatorStoneInput[],
-  options: { makingCostOverride?: number } = {},
+  options: { makingCostOverride?: number; gstRateOverride?: number } = {},
 ): CalculatorPricingBreakdown {
   const normalizedNetGoldWeight = normalizeWeight(netGoldWeight);
   const goldRateValue = calculateGoldRate(
@@ -117,7 +117,8 @@ export function computeEstimateFromInputs(
     0,
   );
   const subTotal = goldCost + makingCost + totalStoneCost;
-  const gst = subTotal * settings.gstRate;
+  const gstRate = options.gstRateOverride ?? settings.gstRate;
+  const gst = subTotal * gstRate;
   const total = subTotal + gst;
 
   return {
@@ -129,6 +130,7 @@ export function computeEstimateFromInputs(
     totalStoneCost,
     subTotal,
     gst,
+    gstRate,
     total,
   };
 }

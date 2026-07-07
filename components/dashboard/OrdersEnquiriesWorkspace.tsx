@@ -169,12 +169,7 @@ function getDefaultViewMode(tab: TypeTab): ViewMode {
 
 function getInitialViewMode(searchParams: URLSearchParams): ViewMode {
   const tab = getInitialTypeTab(searchParams);
-  if (tab === "purchase") return "table";
   return getViewModeFromSearchParams(searchParams) ?? getDefaultViewMode(tab);
-}
-
-function getViewModeForTab(tab: TypeTab, viewMode: ViewMode): ViewMode {
-  return tab === "purchase" ? "table" : viewMode;
 }
 
 function isWithinDateFilter(date: string, filter: DateFilter) {
@@ -674,12 +669,7 @@ export function OrdersEnquiriesWorkspace() {
     (tab: TypeTab, nextViewMode: ViewMode) => {
       const params = new URLSearchParams(searchParams.toString());
       params.set("type", tab);
-
-      if (tab === "purchase") {
-        params.delete("view");
-      } else {
-        params.set("view", nextViewMode);
-      }
+      params.set("view", nextViewMode);
 
       const queryString = params.toString();
       router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
@@ -693,7 +683,7 @@ export function OrdersEnquiriesWorkspace() {
     const queryTab = getTypeTabFromSearchParams(searchParams);
     if (queryTab && (queryTab !== "purchase" || canViewPurchases)) {
       setTypeTab(queryTab);
-      setViewMode(getViewModeForTab(queryTab, getInitialViewMode(searchParams)));
+      setViewMode(getInitialViewMode(searchParams));
     }
   }, [canViewPurchases, searchParams]);
 
@@ -852,10 +842,9 @@ export function OrdersEnquiriesWorkspace() {
     setDateFilter("all");
   };
   const handleTypeTabChange = (tab: TypeTab) => {
-    const nextViewMode = getViewModeForTab(tab, viewMode);
     setTypeTab(tab);
-    setViewMode(nextViewMode);
-    replaceWorkspaceUrl(tab, nextViewMode);
+    setViewMode(viewMode);
+    replaceWorkspaceUrl(tab, viewMode);
     setStatusFilter("all");
   };
   const handleViewModeChange = (nextViewMode: ViewMode) => {

@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   ArrowLeft,
+  Calculator,
   Columns2,
   Columns3,
   Diamond,
@@ -495,12 +496,33 @@ function ProductEstimationSection({
     () => normalizeInventoryProductEstimate(product, settings),
     [product, settings],
   );
+  const router = useRouter();
+
+  function loadIntoCalculator() {
+    const params = new URLSearchParams({
+      tab: "calculate",
+      productCode: product.productCode,
+    });
+    router.push(`/calculator?${params.toString()}`);
+  }
 
   return (
     <section ref={estimationSectionRef} className="scroll-mt-4">
       <EstimationSummaryCard
         title="Product estimation"
         data={{ kind: "estimate", result: estimateResult }}
+        renderHeaderActions={() => (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0 rounded-md px-2.5 sm:px-3"
+            onClick={loadIntoCalculator}
+          >
+            <Calculator className="h-4 w-4" />
+            <span className="hidden sm:inline">Load in Calculator</span>
+          </Button>
+        )}
       />
     </section>
   );
