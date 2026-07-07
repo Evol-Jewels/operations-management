@@ -111,14 +111,58 @@ export function buildInventoryCalculatorForm(
   product: InventoryProduct,
   settings: CalculatorSettings,
 ): CalculatorFormState {
+  const netGoldWeight = parseInventoryNumber(product.netWeight);
+
   return {
-    netGoldWeight: parseInventoryNumber(product.netWeight),
+    netGoldWeight,
     purity: getInventoryPurity(product),
     stones: buildInventoryCalculatorStones(product, settings),
+    gstRate: estimationGstRate(product, settings),
+    makingCharge: estimationMakingCharge(product, settings, netGoldWeight),
     productName: product.name,
-    productNote: product.description ?? product.notes ?? "",
+    productNote: product.notes ?? "",
     productImageUrl: getInventoryPrimaryImage(product)?.storageKey,
   };
+}
+
+function estimationGstRate(
+  product: InventoryProduct,
+  settings: CalculatorSettings,
+) {
+  const estimation = product.estimation;
+  const fallback =
+    estimation && estimation.subTotal > 0
+      ? estimation.gst / estimation.subTotal
+      : settings.gstRate;
+
+  return estimationGstRateFromPercentage(
+    estimation?.gstPercentage,
+    fallback,
+  );
+}
+
+function estimationGstRateFromPercentage(
+  gstPercentage: number | undefined,
+  fallback: number,
+) {
+  return typeof gstPercentage === "number" && Number.isFinite(gstPercentage)
+    ? gstPercentage / 100
+    : fallback;
+}
+
+function estimationMakingCharge(
+  product: InventoryProduct,
+  settings: CalculatorSettings,
+  netGoldWeight: number,
+) {
+  return (
+    product.estimation?.makingCost ??
+    (netGoldWeight <= 0
+      ? 0
+      : netGoldWeight <= 2
+      ? settings.makingChargeFlat
+      : netGoldWeight * settings.makingChargePerGram)
+  );
 }
 
 function buildBackendPricingBreakdown(
@@ -145,6 +189,12 @@ function buildBackendPricingBreakdown(
     totalStoneCost: estimation?.totalStoneCost ?? 0,
     subTotal: estimation?.subTotal ?? 0,
     gst: estimation?.gst ?? 0,
+    gstRate: estimationGstRateFromPercentage(
+      estimation?.gstPercentage,
+      estimation && estimation.subTotal > 0
+        ? estimation.gst / estimation.subTotal
+        : 0,
+    ),
     total: estimation?.total ?? 0,
   };
 }
@@ -173,7 +223,8 @@ export function normalizeInventoryProductEstimate(
       slug: product.id,
       productCode: product.productCode,
       productName: product.name,
-      description: product.description ?? product.notes ?? "",
+      description: product.description ?? "",
+      note: product.notes ?? "",
       imageUrl: getInventoryPrimaryImage(product)?.storageKey ?? null,
       purity: getInventoryPurity(product),
       netGoldWeight: parseInventoryNumber(product.netWeight),

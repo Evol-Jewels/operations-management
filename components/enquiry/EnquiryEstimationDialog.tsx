@@ -24,6 +24,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  calculateMakingCharge,
   calculateGoldRate,
   computeEstimateFromInputs,
   getStoneType,
@@ -74,8 +75,10 @@ function buildInitialForm(
   defaultPurity: MetalPurity,
   existingEstimation?: ProductEstimation,
 ): CalculatorFormState {
+  const netGoldWeight = existingEstimation?.metalWeight ?? 0;
+
   return {
-    netGoldWeight: existingEstimation?.metalWeight ?? 0,
+    netGoldWeight,
     purity: existingEstimation?.purity ?? defaultPurity,
     stones:
       existingEstimation && existingEstimation.stoneDetails.length > 0
@@ -86,6 +89,14 @@ function buildInitialForm(
             quantity: stone.pieces,
           }))
         : [createStone(settings)],
+    gstRate: settings.gstRate,
+    makingCharge:
+      existingEstimation?.makingCost ??
+      calculateMakingCharge(
+        netGoldWeight,
+        settings.makingChargeFlat,
+        settings.makingChargePerGram,
+      ),
     productName,
     productNote: "",
   };

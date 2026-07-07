@@ -42,6 +42,7 @@ export type InventoryProductEstimation = {
   totalStoneCost: number;
   subTotal: number;
   gst: number;
+  gstPercentage?: number;
   total: number;
   issues: InventoryEstimationIssue[];
 };

@@ -1,10 +1,11 @@
 "use client";
 
-import { toPng } from "html-to-image";
+import { toBlob } from "html-to-image";
 import { Download, ImageIcon, Loader2 } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -35,11 +36,16 @@ interface SharedSummaryData {
 
 interface EstimationSummaryCardProps {
   className?: string;
+  compact?: boolean;
   showDownloadButton?: boolean;
   showHeader?: boolean;
   downloadFilename?: string;
   title?: string;
   renderActions?: (props: {
+    downloadSummary: () => Promise<void>;
+    isDownloading: boolean;
+  }) => ReactNode;
+  renderHeaderActions?: (props: {
     downloadSummary: () => Promise<void>;
     isDownloading: boolean;
   }) => ReactNode;
@@ -97,7 +103,7 @@ function getSummaryData(
   return {
     name: data.result.product.productName,
     code: data.result.product.productCode,
-    note: data.result.product.description?.trim() ?? "",
+    note: data.result.product.note.trim(),
     imageUrl: data.result.product.imageUrl,
     grossWeight: data.result.pricing.grossWeight,
     netGoldWeight: data.result.product.netGoldWeight,
@@ -110,7 +116,7 @@ function getSummaryData(
     subTotal: data.result.pricing.subTotal,
     gst: data.result.pricing.gst,
     total: data.result.pricing.total,
-    gstRate: data.result.pricing.gst / data.result.pricing.subTotal || 0,
+    gstRate: data.result.pricing.gstRate,
   };
 }
 
@@ -164,13 +170,39 @@ function inlineDownloadLogos(card: HTMLElement) {
   };
 }
 
+async function saveSummaryImage(blob: Blob, filename: string) {
+  const file = new File([blob], filename, { type: "image/png" });
+
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({
+      files: [file],
+      title: filename.replace(/\.png$/i, ""),
+    });
+    return;
+  }
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.rel = "noopener";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function EstimationSummaryCard({
   className,
+  compact = false,
   showDownloadButton = true,
   showHeader = true,
   downloadFilename,
   title = "Estimate summary",
   renderActions,
+  renderHeaderActions,
   data,
 }: EstimationSummaryCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -179,6 +211,7 @@ export function EstimationSummaryCard({
   const hasStones = summary.stoneDetails.some((stone) => stone.weight > 0);
   const displayName = summary.name || "";
   const displayCode = summary.code.trim();
+  const displayNote = summary.note.trim();
   const displaySubtotal = summary.subTotal;
   const displayGst = summary.gst;
   const displayTotal = summary.total;
@@ -191,18 +224,28 @@ export function EstimationSummaryCard({
       await waitForCardImages(cardRef.current);
       const restoreLogos = inlineDownloadLogos(cardRef.current);
 
-      const dataUrl = await toPng(cardRef.current, {
+      const blob = await toBlob(cardRef.current, {
         pixelRatio: 2,
         cacheBust: true,
       }).finally(restoreLogos);
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download =
+
+      if (!blob) throw new Error("Unable to create summary image");
+
+      await saveSummaryImage(
+        blob,
         downloadFilename ??
-        `evol-estimate-${makeSlug(displayName)}-${new Date()
-          .toISOString()
-          .slice(0, 10)}.png`;
-      link.click();
+          `evol-estimate-${makeSlug(displayName)}-${new Date()
+            .toISOString()
+            .slice(0, 10)}.png`,
+      );
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to download estimate summary",
+      );
     } finally {
       setIsDownloading(false);
     }
@@ -225,23 +268,28 @@ export function EstimationSummaryCard({
                 download button
               </p>
             </div>
-            {showDownloadButton ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 shrink-0 rounded-md px-2.5 sm:px-3"
-                onClick={downloadSummary}
-                disabled={isDownloading}
-                aria-label="Download summary"
-              >
-                {isDownloading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">Download</span>
-              </Button>
+            {showDownloadButton || renderHeaderActions ? (
+              <div className="flex shrink-0 items-center gap-2">
+                {renderHeaderActions?.({ downloadSummary, isDownloading })}
+                {showDownloadButton ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 shrink-0 rounded-md px-2.5 sm:px-3"
+                    onClick={downloadSummary}
+                    disabled={isDownloading}
+                    aria-label="Download summary"
+                  >
+                    {isDownloading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    <span className="hidden sm:inline">Download</span>
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
           </div>
 
@@ -253,13 +301,21 @@ export function EstimationSummaryCard({
         ref={cardRef}
         className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
       >
-        <div className="flex items-center justify-center border-b border-border py-3">
+        <div
+          className={cn(
+            "flex items-center justify-center border-b border-border",
+            compact ? "py-2" : "py-3",
+          )}
+        >
           <img
             src="/evol-jewels-logo.png"
             alt="Evol"
             width={82}
             height={30}
-            className="h-7 w-auto object-contain dark:brightness-0 dark:invert"
+            className={cn(
+              "w-auto object-contain dark:brightness-0 dark:invert",
+              compact ? "h-6" : "h-7",
+            )}
             data-download-logo
           />
         </div>
@@ -279,14 +335,34 @@ export function EstimationSummaryCard({
             )}
           </div>
 
-          <div className="flex min-h-48 min-w-0 flex-col justify-between border-t border-border px-4 py-4 sm:min-h-0 sm:border-t-0 sm:border-l">
+          <div
+            className={cn(
+              "flex min-h-48 min-w-0 flex-col justify-between border-t border-border px-4 sm:min-h-0 sm:border-t-0 sm:border-l",
+              compact ? "py-3" : "py-4",
+            )}
+          >
             <div className="min-w-0">
               <p className="break-words text-sm font-semibold leading-snug sm:text-base">
                 {displayName}
               </p>
               {displayCode ? (
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                <p
+                  className={cn(
+                    "text-xs leading-5 text-muted-foreground",
+                    compact ? "mt-1" : "mt-2",
+                  )}
+                >
                   {displayCode}
+                </p>
+              ) : null}
+              {displayNote ? (
+                <p
+                  className={cn(
+                    "break-words text-xs leading-5 text-muted-foreground",
+                    compact ? "mt-1" : "mt-2",
+                  )}
+                >
+                  {displayNote}
                 </p>
               ) : null}
             </div>
@@ -294,14 +370,24 @@ export function EstimationSummaryCard({
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                 Total
               </p>
-              <p className="mt-2 text-2xl font-semibold tabular">
+              <p
+                className={cn(
+                  "font-semibold tabular",
+                  compact ? "mt-1 text-xl" : "mt-2 text-2xl",
+                )}
+              >
                 {formatCurrency(displayTotal)}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between bg-muted/35 px-4 py-3">
+        <div
+          className={cn(
+            "flex items-center justify-between bg-muted/35 px-4",
+            compact ? "py-2.5" : "py-3",
+          )}
+        >
           <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             Gross Weight
           </span>
@@ -312,15 +398,20 @@ export function EstimationSummaryCard({
 
         <Separator />
 
-        <div className="px-4 py-4">
+        <div className={cn("px-4", compact ? "py-3" : "py-4")}>
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             Gold
           </p>
-          <p className="mt-3 text-xs text-muted-foreground">
+          <p
+            className={cn(
+              "text-xs text-muted-foreground",
+              compact ? "mt-2" : "mt-3",
+            )}
+          >
             {formatWeight(summary.netGoldWeight, "g")} - {summary.purity} -{" "}
             {formatCurrency(summary.goldRateValue)}/g
           </p>
-          <div className="mt-3 space-y-3">
+          <div className={cn(compact ? "mt-2 space-y-2" : "mt-3 space-y-3")}>
             <div className="flex items-center justify-between gap-4">
               <span className="text-sm text-muted-foreground">Gold Cost</span>
               <span className="text-sm font-semibold tabular">
@@ -341,17 +432,25 @@ export function EstimationSummaryCard({
         {hasStones ? (
           <>
             <Separator />
-            <div className="px-4 py-4">
+            <div className={cn("px-4", compact ? "py-3" : "py-4")}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                 Stones
               </p>
-              <div className="mt-3 divide-y divide-border/70">
+              <div
+                className={cn(
+                  "divide-y divide-border/70",
+                  compact ? "mt-2" : "mt-3",
+                )}
+              >
                 {summary.stoneDetails
                   .filter((stone) => stone.weight > 0)
                   .map((stone) => (
                     <div
                       key={stone.id}
-                      className="flex items-start justify-between gap-4 py-3 first:pt-0"
+                      className={cn(
+                        "flex items-start justify-between gap-4 first:pt-0",
+                        compact ? "py-2" : "py-3",
+                      )}
                     >
                       <div className="min-w-0">
                         <p className="text-sm font-medium">
@@ -375,7 +474,12 @@ export function EstimationSummaryCard({
                     </div>
                   ))}
               </div>
-              <div className="mt-2 flex items-center justify-between border-t border-border pt-3">
+              <div
+                className={cn(
+                  "mt-2 flex items-center justify-between border-t border-border",
+                  compact ? "pt-2" : "pt-3",
+                )}
+              >
                 <span className="text-sm text-muted-foreground">
                   Total Stones
                 </span>
@@ -389,7 +493,12 @@ export function EstimationSummaryCard({
 
         <Separator />
 
-        <div className="space-y-3 px-4 py-4">
+        <div
+          className={cn(
+            "px-4",
+            compact ? "space-y-2 py-3" : "space-y-3 py-4",
+          )}
+        >
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Subtotal</span>
             <span className="text-sm font-medium tabular">
@@ -406,18 +515,38 @@ export function EstimationSummaryCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4 bg-foreground px-4 py-3.5 text-background">
+        <div
+          className={cn(
+            "flex items-center justify-between gap-4 bg-foreground px-4 text-background",
+            compact ? "py-3" : "py-3.5",
+          )}
+        >
           <span className="text-sm font-medium">Total</span>
-          <span className="text-2xl font-semibold tabular">
+          <span
+            className={cn(
+              "font-semibold tabular",
+              compact ? "text-xl" : "text-2xl",
+            )}
+          >
             {formatCurrency(displayTotal)}
           </span>
         </div>
 
-        <div className="border-t border-border bg-muted/20 px-4 py-3">
+        <div
+          className={cn(
+            "border-t border-border bg-muted/20 px-4",
+            compact ? "py-2.5" : "py-3",
+          )}
+        >
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             Terms & Conditions
           </p>
-          <ul className="mt-2 space-y-1 text-[10px] leading-4 text-muted-foreground">
+          <ul
+            className={cn(
+              "mt-2 text-[10px] leading-4 text-muted-foreground",
+              compact ? "space-y-0.5" : "space-y-1",
+            )}
+          >
             <li>
               Gold weight estimated might be slightly higher than actual product
               weight. Invoicing will be as per actuals.
@@ -435,7 +564,7 @@ export function EstimationSummaryCard({
       </div>
 
       {renderActions ? (
-        <div className="mt-4">
+        <div className={cn(compact ? "mt-3" : "mt-4")}>
           {renderActions({ downloadSummary, isDownloading })}
         </div>
       ) : null}

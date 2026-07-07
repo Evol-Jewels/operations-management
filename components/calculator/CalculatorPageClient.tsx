@@ -3,6 +3,7 @@
 import {
   ArrowUpRight,
   Check,
+  ChevronDown,
   ChevronsUpDown,
   CircleDollarSign,
   Diamond,
@@ -15,18 +16,21 @@ import {
   RefreshCcw,
   ScanLine,
   Search,
-  Settings2,
   Trash2,
   X,
 } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import { EstimationSummaryCard } from "@/components/calculator/EstimationSummaryCard";
-import { SettingsView } from "@/components/calculator/SettingsView";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Command,
   CommandEmpty,
@@ -42,13 +46,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
@@ -56,12 +53,14 @@ import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 import {
   calculateGoldRate,
+  calculateMakingCharge,
   computeEstimateFromInputs,
   getStoneType,
   resolveAutoSlab,
 } from "@/lib/calculator/pricing";
 import {
   type CalculatorTab,
+  isCalculatorTab,
   writeCalculatorTabCookie,
 } from "@/lib/calculatorTab";
 import {
@@ -93,6 +92,13 @@ const RECENT_ESTIMATE_SKELETON_IDS = [
 ];
 const segmentTriggerClassName =
   "h-9 rounded-lg text-foreground hover:text-foreground data-[state=active]:bg-zinc-950 data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950";
+const MANUAL_CALCULATOR_STORAGE_KEY = "evol-manual-calculator-form-v1";
+
+interface PersistedManualCalculatorForm {
+  form: CalculatorFormState;
+  isGstEdited: boolean;
+  isMakingChargeEdited: boolean;
+}
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
@@ -116,6 +122,122 @@ function createStone(settings: CalculatorSettings): CalculatorStoneInput {
     weight: 0,
     quantity: 0,
   };
+}
+
+function createDefaultCalculatorForm(
+  settings: CalculatorSettings,
+): CalculatorFormState {
+  return {
+    netGoldWeight: 0,
+    purity: "18K",
+    stones: [createStone(settings)],
+    gstRate: settings.gstRate,
+    makingCharge: calculateMakingCharge(
+      0,
+      settings.makingChargeFlat,
+      settings.makingChargePerGram,
+    ),
+    productName: "",
+    productNote: "",
+  };
+}
+
+function toPersistedNumber(value: unknown, fallback = 0) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallback;
+}
+
+function restoreManualCalculatorForm(
+  settings: CalculatorSettings,
+): PersistedManualCalculatorForm | null {
+  try {
+    const storedValue = localStorage.getItem(MANUAL_CALCULATOR_STORAGE_KEY);
+    if (!storedValue) return null;
+
+    const parsed = JSON.parse(storedValue) as Partial<{
+      form: Partial<CalculatorFormState>;
+      isGstEdited: boolean;
+      isMakingChargeEdited: boolean;
+    }>;
+    const storedForm = parsed.form;
+    if (!storedForm) return null;
+
+    const defaultForm = createDefaultCalculatorForm(settings);
+    const stones =
+      Array.isArray(storedForm.stones) && storedForm.stones.length > 0
+        ? storedForm.stones.map((stone) => ({
+            id: typeof stone.id === "string" ? stone.id : generateId(),
+            stoneTypeId:
+              typeof stone.stoneTypeId === "string"
+                ? stone.stoneTypeId
+                : settings.stoneTypes[0]?.stoneId ?? "",
+            weight: toPersistedNumber(stone.weight),
+            quantity: toPersistedNumber(stone.quantity),
+            fixedRatePerCarat:
+              stone.fixedRatePerCarat === undefined
+                ? undefined
+                : toPersistedNumber(stone.fixedRatePerCarat),
+            sourceStoneName:
+              typeof stone.sourceStoneName === "string"
+                ? stone.sourceStoneName
+                : undefined,
+          }))
+        : defaultForm.stones;
+
+    return {
+      form: {
+        ...defaultForm,
+        netGoldWeight: toPersistedNumber(storedForm.netGoldWeight),
+        purity: normalizeMetalPurity(String(storedForm.purity ?? "18K")),
+        stones,
+        gstRate: toPersistedNumber(storedForm.gstRate, settings.gstRate),
+        makingCharge: toPersistedNumber(storedForm.makingCharge),
+        productName:
+          typeof storedForm.productName === "string"
+            ? storedForm.productName
+            : "",
+        productNote:
+          typeof storedForm.productNote === "string"
+            ? storedForm.productNote
+            : "",
+        productImageUrl:
+          typeof storedForm.productImageUrl === "string" &&
+          !storedForm.productImageUrl.startsWith("blob:")
+            ? storedForm.productImageUrl
+            : undefined,
+      },
+      isGstEdited: Boolean(parsed.isGstEdited),
+      isMakingChargeEdited: Boolean(parsed.isMakingChargeEdited),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistManualCalculatorForm(
+  form: CalculatorFormState,
+  isGstEdited: boolean,
+  isMakingChargeEdited: boolean,
+) {
+  try {
+    const formToPersist: CalculatorFormState = {
+      ...form,
+      productImageUrl: form.productImageUrl?.startsWith("blob:")
+        ? undefined
+        : form.productImageUrl,
+    };
+
+    localStorage.setItem(
+      MANUAL_CALCULATOR_STORAGE_KEY,
+      JSON.stringify({
+        form: formToPersist,
+        isGstEdited,
+        isMakingChargeEdited,
+      }),
+    );
+  } catch {
+    // Persistence is best effort; the calculator should continue to work.
+  }
 }
 
 function formatWeight(value: number, decimals = 3) {
@@ -918,21 +1040,22 @@ function RecentEstimateSummaryDialog({
           </div>
         ) : result ? (
           <>
-            <div className="max-h-[76vh] overflow-y-auto p-4 sm:p-5">
+            <div className="max-h-[76vh] overflow-y-auto p-3 sm:p-4">
               <EstimationSummaryCard
                 data={{ kind: "estimate", result }}
                 downloadFilename={`evol-estimate-${result.product.productCode}-${new Date()
                   .toISOString()
                   .slice(0, 10)}.png`}
+                compact
                 className="border-0 bg-transparent p-0 shadow-none"
                 showHeader={false}
                 showDownloadButton={false}
                 title="Summary"
                 renderActions={({ downloadSummary, isDownloading }) => (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     <Button
                       type="button"
-                      className="h-12 rounded-xl"
+                      className="h-11 rounded-lg"
                       onClick={downloadSummary}
                       disabled={isDownloading}
                       aria-label="Download summary"
@@ -947,7 +1070,7 @@ function RecentEstimateSummaryDialog({
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-12 rounded-xl"
+                      className="h-11 rounded-lg"
                       onClick={loadIntoCalculator}
                     >
                       <ArrowUpRight className="h-4 w-4" />
@@ -1233,13 +1356,15 @@ function CalculatorForm({
   settings,
   form,
   updateForm,
+  updateNetGoldWeight,
   updateStone,
   addStone,
   removeStone,
   resetForm,
   fileInputRef,
   onImageChange,
-  onOpenSettings,
+  onAdvancedGstChange,
+  onAdvancedMakingChange,
 }: {
   settings: CalculatorSettings;
   form: CalculatorFormState;
@@ -1247,14 +1372,18 @@ function CalculatorForm({
     key: K,
     value: CalculatorFormState[K],
   ) => void;
+  updateNetGoldWeight: (value: number) => void;
   updateStone: (stoneId: string, patch: Partial<CalculatorStoneInput>) => void;
   addStone: () => void;
   removeStone: (stoneId: string) => void;
   resetForm: () => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onImageChange: (file: File | null) => void;
-  onOpenSettings: () => void;
+  onAdvancedGstChange: (gstRate: number) => void;
+  onAdvancedMakingChange: (makingCharge: number) => void;
 }) {
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
   return (
     <div className="min-w-0 space-y-4 rounded-lg border border-border bg-background p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1265,16 +1394,6 @@ function CalculatorForm({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="gap-2"
-            onClick={onOpenSettings}
-          >
-            <Settings2 className="h-4 w-4" />
-            Settings
-          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -1298,9 +1417,7 @@ function CalculatorForm({
           </p>
           <NumericLineInput
             value={form.netGoldWeight}
-            onChange={(netGoldWeight) =>
-              updateForm("netGoldWeight", netGoldWeight)
-            }
+            onChange={updateNetGoldWeight}
             placeholder="0.000"
             suffix="g"
           />
@@ -1371,18 +1488,75 @@ function CalculatorForm({
             className="w-full border-b border-border bg-transparent pb-2 text-sm outline-none placeholder:text-muted-foreground/40 focus:border-foreground"
           />
         </div>
-        <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Note
-          </p>
-          <textarea
-            value={form.productNote}
-            onChange={(event) => updateForm("productNote", event.target.value)}
-            placeholder="Any notes for the customer (optional)"
-            rows={2}
-            className="w-full resize-none border-b border-border bg-transparent pb-2 text-sm leading-6 outline-none placeholder:text-muted-foreground/40 focus:border-foreground"
-          />
-        </div>
+      </section>
+
+      <Separator />
+
+      <section>
+        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg text-left text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <span>Advanced</span>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 shrink-0 transition-transform",
+                  advancedOpen && "rotate-180",
+                )}
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-3">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 min-[430px]:gap-5">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    GST
+                  </p>
+                  <NumericLineInput
+                    value={Number((form.gstRate * 100).toFixed(2))}
+                    onChange={(gstPercentage) =>
+                      onAdvancedGstChange(Math.max(0, gstPercentage) / 100)
+                    }
+                    placeholder="0"
+                    suffix="%"
+                    step={0.1}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    Making Charges
+                  </p>
+                  <NumericLineInput
+                    value={form.makingCharge}
+                    onChange={(makingCharge) =>
+                      onAdvancedMakingChange(Math.max(0, makingCharge))
+                    }
+                    placeholder="0"
+                    suffix="Rs."
+                    step={1}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Note
+                </p>
+                <textarea
+                  value={form.productNote}
+                  onChange={(event) =>
+                    updateForm("productNote", event.target.value)
+                  }
+                  placeholder="Any notes for the customer (optional)"
+                  rows={2}
+                  className="w-full resize-none border-b border-border bg-transparent pb-2 text-sm leading-6 outline-none placeholder:text-muted-foreground/40 focus:border-foreground"
+                />
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </section>
     </div>
   );
@@ -1395,29 +1569,27 @@ export function CalculatorPageClient({
 }) {
   const {
     settings,
-    lastSynced,
-    isSyncingSettings,
-    syncError,
-    syncSettings,
-    setLocalSettings,
   } = useCalculatorSettings();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const summaryCardRef = useRef<HTMLDivElement | null>(null);
   const shouldScrollToSummaryRef = useRef(false);
+  const loadedProductCodeRef = useRef<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
   const canUseRecentEstimates = getSessionRole(session) === "SALES";
-  const [activeTab, setActiveTabState] = useState<CalculatorTab>(initialTab);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [form, setForm] = useState<CalculatorFormState>({
-    netGoldWeight: 0,
-    purity: "18K",
-    stones: [createStone(settings)],
-    productName: "",
-    productNote: "",
+  const [activeTab, setActiveTab] = useState<CalculatorTab>(() => {
+    const queryTab = searchParams.get("tab");
+    return isCalculatorTab(queryTab) ? queryTab : initialTab;
   });
+  const [isGstEdited, setIsGstEdited] = useState(false);
+  const [isMakingChargeEdited, setIsMakingChargeEdited] = useState(false);
+  const [hasRestoredPersistedForm, setHasRestoredPersistedForm] =
+    useState(false);
+  const [form, setForm] = useState<CalculatorFormState>(() =>
+    createDefaultCalculatorForm(settings),
+  );
 
   const breakdown = useMemo(() => {
     return computeEstimateFromInputs(
@@ -1425,8 +1597,19 @@ export function CalculatorPageClient({
       form.netGoldWeight,
       form.purity,
       form.stones,
+      {
+        gstRateOverride: form.gstRate,
+        makingCostOverride: form.makingCharge,
+      },
     );
-  }, [settings, form.netGoldWeight, form.purity, form.stones]);
+  }, [
+    settings,
+    form.netGoldWeight,
+    form.purity,
+    form.stones,
+    form.gstRate,
+    form.makingCharge,
+  ]);
   const estimateRequirements = useMemo(() => {
     const hasNetWeight = form.netGoldWeight > 0;
     const hasStoneRows = form.stones.length > 0;
@@ -1459,6 +1642,22 @@ export function CalculatorPageClient({
   );
 
   useEffect(() => {
+    if (hasRestoredPersistedForm) return;
+    const persistedForm = restoreManualCalculatorForm(settings);
+    if (persistedForm) {
+      setForm(persistedForm.form);
+      setIsGstEdited(persistedForm.isGstEdited);
+      setIsMakingChargeEdited(persistedForm.isMakingChargeEdited);
+    }
+    setHasRestoredPersistedForm(true);
+  }, [hasRestoredPersistedForm, settings]);
+
+  useEffect(() => {
+    if (!hasRestoredPersistedForm) return;
+    persistManualCalculatorForm(form, isGstEdited, isMakingChargeEdited);
+  }, [form, hasRestoredPersistedForm, isGstEdited, isMakingChargeEdited]);
+
+  useEffect(() => {
     setForm((current) => {
       if (current.stones.some((stone) => stone.stoneTypeId)) return current;
       return {
@@ -1472,6 +1671,32 @@ export function CalculatorPageClient({
   }, [settings.stoneTypes]);
 
   useEffect(() => {
+    if (!hasRestoredPersistedForm) return;
+    setForm((current) => {
+      const nextMakingCharge = isMakingChargeEdited
+        ? current.makingCharge
+        : calculateMakingCharge(
+            current.netGoldWeight,
+            settings.makingChargeFlat,
+            settings.makingChargePerGram,
+          );
+
+      return {
+        ...current,
+        gstRate: isGstEdited ? current.gstRate : settings.gstRate,
+        makingCharge: nextMakingCharge,
+      };
+    });
+  }, [
+    hasRestoredPersistedForm,
+    settings.gstRate,
+    settings.makingChargeFlat,
+    settings.makingChargePerGram,
+    isGstEdited,
+    isMakingChargeEdited,
+  ]);
+
+  useEffect(() => {
     return () => {
       if (form.productImageUrl?.startsWith("blob:")) {
         URL.revokeObjectURL(form.productImageUrl);
@@ -1479,22 +1704,19 @@ export function CalculatorPageClient({
     };
   }, [form.productImageUrl]);
 
-  const setActiveTab = useCallback(
-    (tab: CalculatorTab) => {
-      setActiveTabState((current) => {
-        if (current === tab) return current;
-        writeCalculatorTabCookie(tab);
-        const next = new URLSearchParams(searchParams?.toString() ?? "");
-        next.set("tab", tab);
-        const query = next.toString();
-        router.replace(query ? `${pathname}?${query}` : pathname, {
-          scroll: false,
-        });
-        return tab;
-      });
-    },
-    [pathname, router, searchParams],
-  );
+  function handleActiveTabChange(tab: CalculatorTab) {
+    if (activeTab === tab) return;
+
+    setActiveTab(tab);
+
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("tab", tab);
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }
+
+  useEffect(() => {
+    writeCalculatorTabCookie(activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab !== "calculate" || !shouldScrollToSummaryRef.current) {
@@ -1520,6 +1742,30 @@ export function CalculatorPageClient({
     value: CalculatorFormState[K],
   ) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateNetGoldWeight(netGoldWeight: number) {
+    setForm((current) => ({
+      ...current,
+      netGoldWeight,
+      makingCharge: isMakingChargeEdited
+        ? current.makingCharge
+        : calculateMakingCharge(
+            netGoldWeight,
+            settings.makingChargeFlat,
+            settings.makingChargePerGram,
+          ),
+    }));
+  }
+
+  function updateAdvancedGst(gstRate: number) {
+    setIsGstEdited(true);
+    updateForm("gstRate", gstRate);
+  }
+
+  function updateAdvancedMakingCharge(makingCharge: number) {
+    setIsMakingChargeEdited(true);
+    updateForm("makingCharge", makingCharge);
   }
 
   function updateStone(stoneId: string, patch: Partial<CalculatorStoneInput>) {
@@ -1553,13 +1799,9 @@ export function CalculatorPageClient({
       URL.revokeObjectURL(form.productImageUrl);
     }
 
-    setForm({
-      netGoldWeight: 0,
-      purity: "18K",
-      stones: [createStone(settings)],
-      productName: "",
-      productNote: "",
-    });
+    setForm(createDefaultCalculatorForm(settings));
+    setIsGstEdited(false);
+    setIsMakingChargeEdited(false);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -1591,13 +1833,42 @@ export function CalculatorPageClient({
               id: stone.id || generateId(),
             }))
           : [createStone(settings)],
+      gstRate: result.pricing.gstRate,
+      makingCharge: result.pricing.makingCost,
       productName: result.product.productName,
-      productNote: result.product.description || "",
+      productNote: result.product.note || "",
       productImageUrl: result.product.imageUrl || undefined,
     });
+    setIsGstEdited(true);
+    setIsMakingChargeEdited(true);
     shouldScrollToSummaryRef.current = true;
-    setActiveTab("calculate");
+    handleActiveTabChange("calculate");
   }
+
+  useEffect(() => {
+    if (!hasRestoredPersistedForm) return;
+
+    const productCode = normalizeDecodedId(searchParams?.get("productCode"));
+    if (!productCode || loadedProductCodeRef.current === productCode) return;
+
+    loadedProductCodeRef.current = productCode;
+    const codeToLoad = productCode;
+
+    async function loadProductFromQuery() {
+      try {
+        const product = await fetchInventoryProductByCode(codeToLoad);
+        if (!product) return;
+
+        loadInventoryProduct(
+          normalizeInventoryProductEstimate(product, settings),
+        );
+      } catch {
+        loadedProductCodeRef.current = null;
+      }
+    }
+
+    loadProductFromQuery();
+  }, [hasRestoredPersistedForm, searchParams, settings]);
 
   return (
     <RequireInternalAuth>
@@ -1612,7 +1883,10 @@ export function CalculatorPageClient({
               estimate.
             </p>
           </div>
-          <TabsSwitcher activeTab={activeTab} onTabChange={setActiveTab} />
+          <TabsSwitcher
+            activeTab={activeTab}
+            onTabChange={handleActiveTabChange}
+          />
         </div>
 
         {activeTab === "search" ? (
@@ -1629,13 +1903,15 @@ export function CalculatorPageClient({
               settings={settings}
               form={form}
               updateForm={updateForm}
+              updateNetGoldWeight={updateNetGoldWeight}
               updateStone={updateStone}
               addStone={addStone}
               removeStone={removeStone}
               resetForm={resetForm}
               fileInputRef={fileInputRef}
               onImageChange={handleImageChange}
-              onOpenSettings={() => setSettingsOpen(true)}
+              onAdvancedGstChange={updateAdvancedGst}
+              onAdvancedMakingChange={updateAdvancedMakingCharge}
             />
             <div ref={summaryCardRef} className="min-w-0 h-full w-full max-w-[760px]">
               {canShowSummary ? (
@@ -1644,7 +1920,7 @@ export function CalculatorPageClient({
                     kind: "calculator",
                     form,
                     breakdown,
-                    gstRate: settings.gstRate,
+                    gstRate: form.gstRate,
                   }}
                   className="lg:sticky lg:top-6 lg:self-start"
                 />
@@ -1658,49 +1934,6 @@ export function CalculatorPageClient({
           </div>
         )}
       </div>
-
-      {/* Settings Drawer */}
-      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <SheetContent
-          side="right"
-          className="h-dvh w-full overflow-y-auto p-0 sm:h-full sm:max-w-xl"
-        >
-          <SheetHeader className="sticky top-0 z-10 border-b border-border bg-background px-4 py-4 sm:px-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-foreground">
-                  <Settings2 className="h-3 w-3 text-background" />
-                </div>
-                <SheetTitle className="text-base font-semibold text-foreground">
-                  Settings
-                </SheetTitle>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSettingsOpen(false)}
-                aria-label="Close settings"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <SheetDescription className="mt-1 max-w-sm text-left text-xs text-muted-foreground">
-              Gold rate is live. Other edits are local until settings sync.
-            </SheetDescription>
-          </SheetHeader>
-
-          <div className="px-4 py-4 sm:px-5">
-            <SettingsView
-              settings={settings}
-              onChange={setLocalSettings}
-              lastSynced={lastSynced}
-              onSyncSettings={syncSettings}
-              isSyncingSettings={isSyncingSettings}
-              syncError={syncError}
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
     </RequireInternalAuth>
   );
 }
