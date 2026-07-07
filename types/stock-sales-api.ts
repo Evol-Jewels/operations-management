@@ -51,6 +51,11 @@ export interface StockSalesAnalyticsQuery {
   saleMonth?: string;
 }
 
+export interface StockSalesPersonAnalyticsQuery
+  extends StockSalesAnalyticsQuery {
+  salesPersonId: string;
+}
+
 export interface StockSalesAnalyticsSalesPerson {
   id: string;
   name: string | null;

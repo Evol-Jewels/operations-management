@@ -18,7 +18,7 @@ import {
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bar,
   EvilBarChart,
@@ -56,6 +56,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useMyStockSales,
+  useSalesPersonStockSales,
   useStockSalesAnalytics,
   useStockSalesLeaderboard,
 } from "@/hooks/useStockSales";
@@ -80,6 +81,7 @@ import { type Order, STAGES, type UrgencyLevel } from "@/types";
 import type {
   StockSalesAnalyticsBreakdownRow,
   StockSalesAnalyticsPeriod,
+  StockSalesMeResponse,
 } from "@/types/stock-sales-api";
 import { RecentActivities } from "./RecentActivities";
 import { SalesTargetMeter } from "./SalesTargetMeter";
@@ -836,21 +838,20 @@ function SalesAnalyticsValue({
   );
 }
 
-function MySalesAnalyticsCards() {
-  const saleMonth = getCurrentSaleMonth();
-  const salesQuery = useMyStockSales({
-    period: "month",
-    saleMonth,
-  });
-  const analytics = salesQuery.data;
+function SalesPerformanceCards({
+  analytics,
+  isLoading,
+  monthLabel,
+}: {
+  analytics?: StockSalesMeResponse;
+  isLoading: boolean;
+  monthLabel: string;
+}) {
   const target = analytics?.target;
   const revenue = analytics?.revenue ?? "0";
   const earnedIncentiveAmount = analytics?.incentive.earnedAmount ?? "0";
   const payableIncentiveAmount = analytics?.incentive.payableAmount ?? "0";
   const incentiveMultiplier = analytics?.incentive.multiplier ?? "0.00";
-  const monthLabel = formatSaleMonthLabel(analytics?.period ?? saleMonth).split(
-    " ",
-  )[0];
   const progress = getTargetProgress(revenue, target);
   const progressValue = progress?.displayProgress ?? 0;
   const fillHeight = progress?.fillHeight ?? 0;
@@ -900,7 +901,7 @@ function MySalesAnalyticsCards() {
                 Monthly Target
               </p>
               <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
-                {salesQuery.isLoading
+                {isLoading
                   ? "--"
                   : target == null
                     ? "N/A"
@@ -920,11 +921,11 @@ function MySalesAnalyticsCards() {
               </div>
               <div>
                 <SalesAnalyticsValue
-                  isLoading={salesQuery.isLoading}
+                  isLoading={isLoading}
                   value={formatAnalyticsCurrency(payableIncentiveAmount)}
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {salesQuery.isLoading
+                  {isLoading
                     ? "--"
                     : `${formatAnalyticsCurrency(earnedIncentiveAmount)} earned - ${incentiveMultiplier}x`}
                 </p>
@@ -938,7 +939,7 @@ function MySalesAnalyticsCards() {
                 Sales Transactions
               </p>
               <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
-                {salesQuery.isLoading ? "--" : (analytics?.transactions ?? 0)}
+                {isLoading ? "--" : (analytics?.transactions ?? 0)}
               </p>
             </div>
             <div className="flex min-h-24 flex-col justify-between rounded-md border border-border/70 bg-muted/40 p-4">
@@ -947,7 +948,7 @@ function MySalesAnalyticsCards() {
               </p>
               <div>
                 <SalesAnalyticsValue
-                  isLoading={salesQuery.isLoading}
+                  isLoading={isLoading}
                   value={formatAnalyticsCurrency(revenue)}
                 />
               </div>
@@ -965,7 +966,7 @@ function MySalesAnalyticsCards() {
                 </p>
               </div>
               <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
-                {salesQuery.isLoading
+                {isLoading
                   ? "--"
                   : progress == null
                     ? "N/A"
@@ -981,7 +982,7 @@ function MySalesAnalyticsCards() {
                     : "bg-gradient-to-r from-amber-500 to-cyan-500",
                 )}
                 style={{
-                  width: `${salesQuery.isLoading ? 0 : fillHeight}%`,
+                  width: `${isLoading ? 0 : fillHeight}%`,
                 }}
               />
             </div>
@@ -999,12 +1000,111 @@ function MySalesAnalyticsCards() {
           <SalesTargetMeter
             fillHeight={fillHeight}
             isIncentiveEligible={isIncentiveEligible}
-            isLoading={salesQuery.isLoading}
+            isLoading={isLoading}
             progressValue={progressValue}
           />
         </div>
       </div>
     </section>
+  );
+}
+
+function MySalesAnalyticsCards() {
+  const saleMonth = getCurrentSaleMonth();
+  const salesQuery = useMyStockSales({
+    period: "month",
+    saleMonth,
+  });
+  const monthLabel = formatSaleMonthLabel(
+    salesQuery.data?.period ?? saleMonth,
+  ).split(" ")[0];
+
+  return (
+    <SalesPerformanceCards
+      analytics={salesQuery.data}
+      isLoading={salesQuery.isLoading}
+      monthLabel={monthLabel}
+    />
+  );
+}
+
+function AdminSalesPerformanceCards() {
+  const saleMonth = getCurrentSaleMonth();
+  const leaderboardQuery = useStockSalesLeaderboard({
+    period: "month",
+    saleMonth,
+  });
+  const salespeople = leaderboardQuery.data?.leaderboard ?? [];
+  const [selectedSalesPersonId, setSelectedSalesPersonId] = useState("");
+  const selectedSalesPerson = salespeople.find(
+    (row) => row.salesPerson.id === selectedSalesPersonId,
+  )?.salesPerson;
+  const performanceQuery = useSalesPersonStockSales(
+    {
+      period: "month",
+      saleMonth,
+      salesPersonId: selectedSalesPersonId,
+    },
+    {
+      enabled: Boolean(selectedSalesPersonId),
+    },
+  );
+  const monthLabel = formatSaleMonthLabel(
+    performanceQuery.data?.period ?? saleMonth,
+  ).split(" ")[0];
+
+  useEffect(() => {
+    if (selectedSalesPersonId || salespeople.length === 0) {
+      return;
+    }
+
+    setSelectedSalesPersonId(salespeople[0].salesPerson.id);
+  }, [salespeople, selectedSalesPersonId]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-foreground">
+            Salesperson Performance
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {selectedSalesPerson?.name ?? "Select a salesperson"}
+          </p>
+        </div>
+        <Select
+          value={selectedSalesPersonId}
+          onValueChange={setSelectedSalesPersonId}
+          disabled={leaderboardQuery.isLoading || salespeople.length === 0}
+        >
+          <SelectTrigger
+            aria-label="Select salesperson"
+            className="w-full sm:w-64"
+          >
+            <SelectValue placeholder="Select salesperson" />
+          </SelectTrigger>
+          <SelectContent>
+            {salespeople.map((row) => (
+              <SelectItem key={row.salesPerson.id} value={row.salesPerson.id}>
+                {row.salesPerson.name ?? "Unnamed salesperson"}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {leaderboardQuery.isError || performanceQuery.isError ? (
+        <div className="rounded-lg border border-border/70 bg-card py-10 text-center text-sm text-muted-foreground">
+          Unable to load salesperson performance.
+        </div>
+      ) : (
+        <SalesPerformanceCards
+          analytics={performanceQuery.data}
+          isLoading={leaderboardQuery.isLoading || performanceQuery.isLoading}
+          monthLabel={monthLabel}
+        />
+      )}
+    </div>
   );
 }
 
@@ -1529,11 +1629,14 @@ function StockSalesAnalyticsSection() {
           )}
         </div>
 
-        <SalesLeaderboardCard
-          className="max-w-none"
-          highlightCurrentUser={false}
-          title={`Sales Leaderboard for ${formatSaleMonthLabel(getCurrentSaleMonth())}`}
-        />
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)] xl:items-start">
+          <AdminSalesPerformanceCards />
+          <SalesLeaderboardCard
+            className="max-w-none"
+            highlightCurrentUser={false}
+            title={`Sales Leaderboard for ${formatSaleMonthLabel(getCurrentSaleMonth())}`}
+          />
+        </div>
       </div>
     </section>
   );

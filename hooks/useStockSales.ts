@@ -7,6 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
+  fetchSalesPersonStockSales,
   fetchMyStockSales,
   fetchStockSales,
   fetchStockSalesAnalytics,
@@ -17,6 +18,7 @@ import {
 import type {
   ListStockSalesQuery,
   StockSalesAnalyticsQuery,
+  StockSalesPersonAnalyticsQuery,
 } from "@/types/stock-sales-api";
 
 export const stockSalesKeys = {
@@ -30,6 +32,8 @@ export const stockSalesKeys = {
     [...stockSalesKeys.all, "leaderboard", query] as const,
   me: (query: StockSalesAnalyticsQuery = {}) =>
     [...stockSalesKeys.all, "me", query] as const,
+  salesperson: (query: StockSalesPersonAnalyticsQuery) =>
+    [...stockSalesKeys.all, "salesperson", query] as const,
 };
 
 export function useStockSales(
@@ -101,6 +105,17 @@ export function useMyStockSales(
   return useQuery({
     queryKey: stockSalesKeys.me(query),
     queryFn: () => fetchMyStockSales(query),
+    enabled: options.enabled,
+  });
+}
+
+export function useSalesPersonStockSales(
+  query: StockSalesPersonAnalyticsQuery,
+  options: { enabled?: boolean } = {},
+) {
+  return useQuery({
+    queryKey: stockSalesKeys.salesperson(query),
+    queryFn: () => fetchSalesPersonStockSales(query),
     enabled: options.enabled,
   });
 }

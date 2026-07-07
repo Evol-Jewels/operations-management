@@ -7,6 +7,7 @@ import type {
   StockSalesLeaderboardResponse,
   StockSalesListResponse,
   StockSalesMeResponse,
+  StockSalesPersonAnalyticsQuery,
   StockSalesSyncSummary,
 } from "@/types/stock-sales-api";
 
@@ -92,6 +93,20 @@ export function fetchMyStockSales(query: StockSalesAnalyticsQuery = {}) {
       period: query.period,
       saleMonth: query.period === "month" ? query.saleMonth : undefined,
     }),
+  );
+}
+
+export function fetchSalesPersonStockSales(
+  query: StockSalesPersonAnalyticsQuery,
+) {
+  return apiFetch<StockSalesMeResponse>(
+    buildUrl(
+      `api/v1/stock-sales/sales-analytics/salesperson/${query.salesPersonId}`,
+      {
+        period: query.period,
+        saleMonth: query.period === "month" ? query.saleMonth : undefined,
+      },
+    ),
   );
 }
 
