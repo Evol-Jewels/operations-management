@@ -2,6 +2,7 @@
 
 import { IndianRupee } from "lucide-react";
 import { motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface SalesTargetMeterProps {
@@ -121,6 +122,8 @@ export function SalesTargetMeter({
   isIncentiveEligible,
   isLoading,
 }: SalesTargetMeterProps) {
+  const artworkHostRef = useRef<HTMLDivElement>(null);
+  const [artworkWidth, setArtworkWidth] = useState(348);
   const meterProgress = Math.min(
     100,
     Math.max(0, progressValue >= 100 ? 100 : fillHeight),
@@ -128,6 +131,19 @@ export function SalesTargetMeter({
   const fillSurfaceBottom =
     meterProgress >= 100 ? "calc(100% - 2px)" : `${meterProgress}%`;
   const meterMarks = [100, 75, 50, 25, 0];
+  const artworkScale = Math.min(1, artworkWidth / 348);
+
+  useEffect(() => {
+    const element = artworkHostRef.current;
+    if (!element) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      setArtworkWidth(entry.contentRect.width);
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   // Irregularly scattered pieces so the pile reads as poured-in diamonds, not rows.
   const diamondPieces = [
@@ -223,25 +239,28 @@ export function SalesTargetMeter({
   return (
     <div className="flex h-full min-h-72 flex-col rounded-md border border-border/50 bg-card/70 p-5 shadow-sm dark:border-white/10 dark:bg-neutral-950 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-foreground dark:text-white">
-            Sales Target Meter
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground dark:text-white/55">
-            Monthly target achieved
-          </p>
-        </div>
+        <p className="text-sm font-semibold text-foreground dark:text-white">
+          Sales Target Meter
+        </p>
         <IndianRupee className="h-5 w-5 text-muted-foreground dark:text-white/70" />
       </div>
 
-      <div className="relative mx-auto mt-4 h-80 w-68">
+      <div
+        className="mx-auto mt-5 w-full max-w-[21.75rem]"
+        ref={artworkHostRef}
+        style={{ height: `${360 * artworkScale}px` }}
+      >
+      <div
+        className="relative h-[22.5rem] w-[21.75rem] origin-top-left"
+        style={{ transform: `scale(${artworkScale})` }}
+      >
         {/* Jar cap */}
-        <div className="absolute left-[40%] top-6 z-30 h-9 w-36 -translate-x-1/2 rounded-md border border-slate-400/50 bg-[linear-gradient(90deg,#e5e7eb,#fafafa_24%,#a3a3a3_50%,#f8fafc_73%,#cbd5e1)] shadow-md dark:border-white/25 dark:bg-[linear-gradient(90deg,rgba(255,255,255,0.66),rgba(255,255,255,0.15)_27%,rgba(255,255,255,0.6)_50%,rgba(255,255,255,0.16)_72%,rgba(255,255,255,0.45))] dark:shadow-[0_10px_22px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.58),inset_0_-10px_18px_rgba(0,0,0,0.24)]" />
+        <div className="absolute left-1/2 top-5 z-30 h-10 w-44 -translate-x-1/2 rounded-md border border-slate-400/50 bg-[linear-gradient(90deg,#e5e7eb,#fafafa_24%,#a3a3a3_50%,#f8fafc_73%,#cbd5e1)] shadow-md dark:border-white/25 dark:bg-[linear-gradient(90deg,rgba(255,255,255,0.66),rgba(255,255,255,0.15)_27%,rgba(255,255,255,0.6)_50%,rgba(255,255,255,0.16)_72%,rgba(255,255,255,0.45))] dark:shadow-[0_10px_22px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.58),inset_0_-10px_18px_rgba(0,0,0,0.24)]" />
 
         {/* Progress badge centered on cap */}
         <span
           className={cn(
-            "absolute left-[40%] top-[2.65rem] z-40 -translate-x-1/2 rounded-md px-2 py-0.5 text-sm font-semibold tabular-nums shadow-sm",
+            "absolute left-1/2 top-[2.7rem] z-40 -translate-x-1/2 rounded-md px-2.5 py-0.5 text-base font-semibold tabular-nums shadow-sm",
             isIncentiveEligible
               ? "bg-emerald-500 text-white"
               : "bg-foreground text-background dark:bg-white dark:text-neutral-950",
@@ -251,10 +270,10 @@ export function SalesTargetMeter({
         </span>
 
         {/* Jar base */}
-        <div className="absolute left-[40%] bottom-4 z-30 h-4 w-36 -translate-x-1/2 rounded-md border border-slate-400/50 bg-[linear-gradient(90deg,#e5e7eb,#fafafa_24%,#a3a3a3_50%,#f8fafc_73%,#cbd5e1)] shadow-md dark:border-white/25 dark:bg-[linear-gradient(90deg,rgba(255,255,255,0.52),rgba(255,255,255,0.13)_30%,rgba(255,255,255,0.5)_56%,rgba(255,255,255,0.18)_78%,rgba(255,255,255,0.42))] dark:shadow-[0_8px_18px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.52),inset_0_-6px_10px_rgba(0,0,0,0.2)]" />
+        <div className="absolute left-1/2 bottom-5 z-30 h-5 w-44 -translate-x-1/2 rounded-md border border-slate-400/50 bg-[linear-gradient(90deg,#e5e7eb,#fafafa_24%,#a3a3a3_50%,#f8fafc_73%,#cbd5e1)] shadow-md dark:border-white/25 dark:bg-[linear-gradient(90deg,rgba(255,255,255,0.52),rgba(255,255,255,0.13)_30%,rgba(255,255,255,0.5)_56%,rgba(255,255,255,0.18)_78%,rgba(255,255,255,0.42))] dark:shadow-[0_8px_18px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.52),inset_0_-6px_10px_rgba(0,0,0,0.2)]" />
 
         {/* Jar body */}
-        <div className="absolute left-[40%] top-[3.85rem] h-[13.9rem] w-40 -translate-x-1/2 rounded-b-[2.2rem] rounded-t-[1.55rem] border-2 border-cyan-900/28 bg-[radial-gradient(circle_at_34%_28%,rgba(255,255,255,0.68),transparent_28%),linear-gradient(90deg,rgba(255,255,255,0.56),rgba(207,250,254,0.24)_42%,rgba(8,145,178,0.14))] shadow-[inset_12px_0_20px_rgba(255,255,255,0.55),inset_-16px_0_22px_rgba(8,47,73,0.12),0_18px_34px_rgba(15,23,42,0.16)] backdrop-blur-sm dark:border-white/45 dark:bg-[radial-gradient(circle_at_34%_35%,rgba(255,255,255,0.14),transparent_30%),linear-gradient(90deg,rgba(255,255,255,0.07),rgba(255,255,255,0.015)_42%,rgba(0,0,0,0.2))] dark:shadow-[inset_16px_0_24px_rgba(255,255,255,0.1),inset_-18px_0_24px_rgba(0,0,0,0.38),0_24px_48px_rgba(0,0,0,0.42)]">
+        <div className="absolute left-1/2 top-[4rem] h-[15.5rem] w-48 -translate-x-1/2 rounded-b-[2.45rem] rounded-t-[1.75rem] border-2 border-cyan-900/28 bg-[radial-gradient(circle_at_34%_28%,rgba(255,255,255,0.68),transparent_28%),linear-gradient(90deg,rgba(255,255,255,0.56),rgba(207,250,254,0.24)_42%,rgba(8,145,178,0.14))] shadow-[inset_12px_0_20px_rgba(255,255,255,0.55),inset_-16px_0_22px_rgba(8,47,73,0.12),0_18px_34px_rgba(15,23,42,0.16)] backdrop-blur-sm dark:border-white/45 dark:bg-[radial-gradient(circle_at_34%_35%,rgba(255,255,255,0.14),transparent_30%),linear-gradient(90deg,rgba(255,255,255,0.07),rgba(255,255,255,0.015)_42%,rgba(0,0,0,0.2))] dark:shadow-[inset_16px_0_24px_rgba(255,255,255,0.1),inset_-18px_0_24px_rgba(0,0,0,0.38),0_24px_48px_rgba(0,0,0,0.42)]">
           {/* Jar opening shadow */}
           <div className="absolute left-4 right-4 top-1 h-5 rounded-b-[1.35rem] border-x-2 border-b-2 border-slate-300/40 bg-gradient-to-b from-slate-200/60 to-slate-300/40 dark:border-white/30 dark:bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(10,10,10,0.44))] dark:shadow-[inset_0_-9px_14px_rgba(0,0,0,0.26),0_1px_0_rgba(255,255,255,0.16)]" />
 
@@ -313,8 +332,8 @@ export function SalesTargetMeter({
         </div>
 
         {/* Side scale */}
-        <div className="absolute right-1 top-[4.85rem] h-[11.65rem] w-20">
-          <div className="absolute bottom-0 left-[1.15rem] top-0 w-px bg-border dark:bg-white/12">
+        <div className="absolute left-[17.1rem] top-[5.25rem] h-[13.15rem] w-[4.5rem]">
+          <div className="absolute bottom-0 left-3 top-0 w-px bg-border dark:bg-white/12">
             <div
               className="absolute bottom-0 left-0 w-px bg-sky-400 shadow-[0_0_10px_rgba(14,165,233,0.5)] transition-all duration-500 dark:bg-cyan-300 dark:shadow-[0_0_16px_rgba(34,211,238,0.7)]"
               style={{ height: `${meterProgress}%` }}
@@ -326,19 +345,19 @@ export function SalesTargetMeter({
 
             return (
               <div
-                className="absolute left-0 flex items-center gap-1.5"
+                className="absolute left-0 flex -translate-y-1/2 items-center gap-1.5"
                 key={mark}
-                style={{ bottom: `${mark}%` }}
+                style={{ top: `${100 - mark}%` }}
               >
                 <span
                   className={cn(
-                    "h-px w-4 bg-border dark:bg-white/45",
+                    "h-px w-3 bg-border dark:bg-white/45",
                     isCurrentMark && "bg-sky-400 dark:bg-cyan-300",
                   )}
                 />
                 <span
                   className={cn(
-                    "rounded-full border border-border/50 bg-muted/50 px-2 py-1 text-[11px] font-semibold tabular-nums text-muted-foreground shadow-sm dark:border-white/12 dark:bg-white/[0.04] dark:text-white/62 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]",
+                    "rounded-full border border-border/50 bg-muted/50 px-1.5 py-1 text-[11px] font-semibold tabular-nums text-muted-foreground shadow-sm dark:border-white/12 dark:bg-white/[0.04] dark:text-white/62 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]",
                     isCurrentMark &&
                       "border-sky-400/40 bg-sky-50 text-sky-700 dark:border-cyan-300/35 dark:bg-cyan-300/12 dark:text-cyan-100",
                   )}
@@ -351,7 +370,8 @@ export function SalesTargetMeter({
         </div>
 
         {/* Ground shadow */}
-        <div className="absolute left-[40%] bottom-1 h-7 w-40 -translate-x-1/2 rounded-[50%] bg-black/15 blur-xl dark:bg-black/45" />
+        <div className="absolute left-1/2 bottom-1 h-7 w-48 -translate-x-1/2 rounded-[50%] bg-black/15 blur-xl dark:bg-black/45" />
+      </div>
       </div>
     </div>
   );

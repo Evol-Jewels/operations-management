@@ -6,6 +6,7 @@ import {
   ArrowUp,
   Award,
   BadgeCheck,
+  Bell,
   ChartNoAxesColumn,
   Inbox,
   IndianRupee,
@@ -13,7 +14,6 @@ import {
   MessageSquare,
   Package,
   PanelRightClose,
-  PanelRightOpen,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -842,12 +842,85 @@ function SalesAnalyticsValue({
   );
 }
 
+function SalesMetricTile({
+  children,
+  muted = false,
+}: {
+  children: React.ReactNode;
+  muted?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-h-24 flex-col justify-between rounded-md border border-border/70 p-4",
+        muted ? "bg-muted/40" : "bg-background/70",
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function TargetCompletionCard({
+  fillHeight,
+  isIncentiveEligible,
+  isLoading,
+  nextMilestone,
+  progress,
+  progressValue,
+}: {
+  fillHeight: number;
+  isIncentiveEligible: boolean;
+  isLoading: boolean;
+  nextMilestone: string;
+  progress: ReturnType<typeof getTargetProgress>;
+  progressValue: number;
+}) {
+  return (
+    <div className="rounded-md border border-border/70 bg-background/70 p-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">
+            Target completion
+          </p>
+          <p className="mt-1 text-sm font-medium text-foreground">
+            {nextMilestone}
+          </p>
+        </div>
+        <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
+          {isLoading ? "--" : progress == null ? "N/A" : `${progressValue}%`}
+        </p>
+      </div>
+      <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-500",
+            isIncentiveEligible
+              ? "bg-emerald-500"
+              : "bg-gradient-to-r from-amber-500 to-cyan-500",
+          )}
+          style={{ width: `${isLoading ? 0 : fillHeight}%` }}
+        />
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <span>0%</span>
+        <span>25%</span>
+        <span>50%</span>
+        <span>75%</span>
+        <span>100%</span>
+      </div>
+    </div>
+  );
+}
+
 function SalesPerformanceCards({
   analytics,
+  compact = false,
   isLoading,
   monthLabel,
 }: {
   analytics?: StockSalesMeResponse;
+  compact?: boolean;
   isLoading: boolean;
   monthLabel: string;
 }) {
@@ -874,33 +947,44 @@ function SalesPerformanceCards({
 
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border/70 bg-card">
-      <div className="grid gap-0 xl:grid-cols-[minmax(0,1.15fr)_minmax(17rem,0.85fr)]">
-        <div className="border-border/70 p-5 lg:border-r">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">
-                Sales Performance this {monthLabel}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Target, sales and incentive progress in one view.
-              </p>
-            </div>
-            <Badge
-              variant="outline"
-              className={cn(
-                "rounded-md px-2 py-1 text-[11px] font-medium",
-                isIncentiveEligible
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                  : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-              )}
-            >
-              {isIncentiveEligible ? "Eligible" : "Target pending"}
-            </Badge>
-          </div>
+    <section className="rounded-lg border border-border/70 bg-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <h2 className="text-sm font-semibold text-foreground">
+          Sales Performance this {monthLabel}
+        </h2>
+        <Badge
+          variant="outline"
+          className={cn(
+            "rounded-md px-2 py-1 text-[11px] font-medium",
+            isIncentiveEligible
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+          )}
+        >
+          {isIncentiveEligible ? "Eligible" : "Target pending"}
+        </Badge>
+      </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            <div className="flex min-h-28 flex-col justify-between rounded-md border border-border/70 bg-background/70 p-4">
+      <div
+        className={cn(
+          "mt-5 grid gap-5",
+          compact
+            ? "lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.82fr)]"
+            : "xl:grid-cols-[minmax(0,1fr)_minmax(19rem,0.78fr)]",
+        )}
+      >
+        <div className="grid min-w-0 gap-3">
+          <TargetCompletionCard
+            fillHeight={fillHeight}
+            isIncentiveEligible={isIncentiveEligible}
+            isLoading={isLoading}
+            nextMilestone={nextMilestone}
+            progress={progress}
+            progressValue={progressValue}
+          />
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SalesMetricTile>
               <p className="text-sm font-medium text-muted-foreground">
                 Monthly Target
               </p>
@@ -911,8 +995,9 @@ function SalesPerformanceCards({
                     ? "N/A"
                     : formatAnalyticsCurrency(target)}
               </p>
-            </div>
-            <div className="flex min-h-28 flex-col justify-between rounded-md border border-border/70 bg-background/70 p-4">
+            </SalesMetricTile>
+
+            <SalesMetricTile>
               <div className="flex items-start justify-between gap-3">
                 <p className="text-sm font-medium text-muted-foreground">
                   Payable Incentive
@@ -934,73 +1019,30 @@ function SalesPerformanceCards({
                     : `${formatAnalyticsCurrency(earnedIncentiveAmount)} earned - ${incentiveMultiplier}x`}
                 </p>
               </div>
-            </div>
-          </div>
+            </SalesMetricTile>
 
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <div className="flex min-h-24 flex-col justify-between rounded-md border border-border/70 bg-muted/40 p-4">
+            <SalesMetricTile muted>
               <p className="text-sm font-medium text-muted-foreground">
                 Sales Transactions
               </p>
               <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
                 {isLoading ? "--" : (analytics?.transactions ?? 0)}
               </p>
-            </div>
-            <div className="flex min-h-24 flex-col justify-between rounded-md border border-border/70 bg-muted/40 p-4">
+            </SalesMetricTile>
+
+            <SalesMetricTile muted>
               <p className="text-sm font-medium text-muted-foreground">
                 Sales Value
               </p>
-              <div>
-                <SalesAnalyticsValue
-                  isLoading={isLoading}
-                  value={formatAnalyticsCurrency(revenue)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-3 rounded-md border border-border/70 bg-background/70 p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">
-                  Target completion
-                </p>
-                <p className="mt-1 text-sm font-medium text-foreground">
-                  {nextMilestone}
-                </p>
-              </div>
-              <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
-                {isLoading
-                  ? "--"
-                  : progress == null
-                    ? "N/A"
-                    : `${progressValue}%`}
-              </p>
-            </div>
-            <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-muted">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-500",
-                  isIncentiveEligible
-                    ? "bg-emerald-500"
-                    : "bg-gradient-to-r from-amber-500 to-cyan-500",
-                )}
-                style={{
-                  width: `${isLoading ? 0 : fillHeight}%`,
-                }}
+              <SalesAnalyticsValue
+                isLoading={isLoading}
+                value={formatAnalyticsCurrency(revenue)}
               />
-            </div>
-            <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-              <span>0%</span>
-              <span>25%</span>
-              <span>50%</span>
-              <span>75%</span>
-              <span>100%</span>
-            </div>
+            </SalesMetricTile>
           </div>
         </div>
 
-        <div className="border-border/70 border-t bg-muted/30 p-5 dark:bg-neutral-950 xl:border-t-0">
+        <div className="min-w-0">
           <SalesTargetMeter
             fillHeight={fillHeight}
             isIncentiveEligible={isIncentiveEligible}
@@ -1015,7 +1057,7 @@ function SalesPerformanceCards({
 
 function ActivitySidebarToggle({ className }: { className?: string }) {
   const { isOpen, toggle } = useActivitySidebar();
-  const Icon = isOpen ? PanelRightClose : PanelRightOpen;
+  const Icon = isOpen ? PanelRightClose : Bell;
 
   return (
     <Button
@@ -1023,7 +1065,10 @@ function ActivitySidebarToggle({ className }: { className?: string }) {
       variant="outline"
       size="icon"
       onClick={toggle}
-      className={cn("size-9 shrink-0", className)}
+      className={cn(
+        "size-9 shrink-0 rounded-lg border-border/70 bg-background/95 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted hover:text-foreground",
+        className,
+      )}
       aria-pressed={isOpen}
       aria-label={isOpen ? "Hide recent activity" : "Show recent activity"}
       title={isOpen ? "Hide recent activity" : "Show recent activity"}
@@ -1036,18 +1081,20 @@ function ActivitySidebarToggle({ className }: { className?: string }) {
 function RecentActivitiesColumn({ orders }: { orders: Order[] }) {
   const isActivityOpen = useActivitySidebar((state) => state.isOpen);
 
+  if (!isActivityOpen) {
+    return (
+      <ActivitySidebarToggle className="fixed top-4 right-4 z-40 print-hide" />
+    );
+  }
+
   return (
     <div className="xl:sticky xl:top-5 xl:self-start">
       <div className="relative">
         <ActivitySidebarToggle className="absolute top-2 right-2 z-10" />
-        {isActivityOpen ? (
-          <RecentActivities
-            orders={orders}
-            className="xl:max-h-[calc(100vh-2.5rem)]"
-          />
-        ) : (
-          <div className="h-9" />
-        )}
+        <RecentActivities
+          orders={orders}
+          className="xl:max-h-[calc(100vh-2.5rem)]"
+        />
       </div>
     </div>
   );
@@ -1073,8 +1120,10 @@ function MySalesAnalyticsCards() {
 }
 
 function AdminSalesPerformanceCards({
+  compact,
   selectedSalesPersonId,
 }: {
+  compact?: boolean;
   selectedSalesPersonId: string;
 }) {
   const saleMonth = getCurrentSaleMonth();
@@ -1111,6 +1160,7 @@ function AdminSalesPerformanceCards({
   return (
     <SalesPerformanceCards
       analytics={performanceQuery.data}
+      compact={compact}
       isLoading={performanceQuery.isLoading}
       monthLabel={monthLabel}
     />
@@ -1421,7 +1471,11 @@ function getOpsAnalytics(orders: Order[]) {
   };
 }
 
-function StockSalesAnalyticsSection() {
+function StockSalesAnalyticsSection({
+  isActivityOpen,
+}: {
+  isActivityOpen: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1682,7 +1736,14 @@ function StockSalesAnalyticsSection() {
           )}
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(22rem,0.9fr)_minmax(0,1.35fr)] xl:items-start">
+        <div
+          className={cn(
+            "grid gap-5 xl:items-start",
+            isActivityOpen
+              ? "grid-cols-1"
+              : "xl:grid-cols-[minmax(22rem,0.9fr)_minmax(0,1.35fr)]",
+          )}
+        >
           <SalesLeaderboardCard
             className="max-w-none"
             highlightCurrentUser={false}
@@ -1691,6 +1752,7 @@ function StockSalesAnalyticsSection() {
             title={`Sales Leaderboard for ${formatSaleMonthLabel(getCurrentSaleMonth())}`}
           />
           <AdminSalesPerformanceCards
+            compact={isActivityOpen}
             selectedSalesPersonId={selectedSalesPersonId}
           />
         </div>
@@ -1704,6 +1766,8 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isActivityOpen = useActivitySidebar((state) => state.isOpen);
+  const openActivity = useActivitySidebar((state) => state.open);
+  const closeActivity = useActivitySidebar((state) => state.close);
   const analytics = useMemo(() => getAdminAnalytics(orders), [orders]);
   const activeTab = getAdminDashboardTab(
     new URLSearchParams(searchParams.toString()),
@@ -1715,12 +1779,25 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
         : "orders-enquiries";
       const nextParams = new URLSearchParams(searchParams.toString());
       nextParams.set("tab", nextTab);
+      if (nextTab === "sales-analytics") {
+        closeActivity();
+      } else {
+        openActivity();
+      }
       router.replace(`${pathname}?${nextParams.toString()}`, {
         scroll: false,
       });
     },
-    [pathname, router, searchParams],
+    [closeActivity, openActivity, pathname, router, searchParams],
   );
+  useEffect(() => {
+    if (activeTab === "sales-analytics") {
+      closeActivity();
+      return;
+    }
+
+    openActivity();
+  }, [activeTab, closeActivity, openActivity]);
   const cards: MetricCardData[] = [
     {
       label: "Total Orders",
@@ -1760,9 +1837,7 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
     <div
       className={cn(
         "grid gap-5",
-        isActivityOpen
-          ? "xl:grid-cols-[minmax(0,1fr)_360px]"
-          : "xl:grid-cols-[minmax(0,1fr)_44px]",
+        isActivityOpen && "xl:grid-cols-[minmax(0,1fr)_360px]",
       )}
     >
       <div className="space-y-5">
@@ -1837,7 +1912,7 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
           </TabsContent>
 
           <TabsContent value="sales-analytics">
-            <StockSalesAnalyticsSection />
+            <StockSalesAnalyticsSection isActivityOpen={isActivityOpen} />
           </TabsContent>
         </Tabs>
       </div>
@@ -1861,9 +1936,7 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
     <div
       className={cn(
         "grid gap-5",
-        isActivityOpen
-          ? "xl:grid-cols-[minmax(0,1fr)_360px]"
-          : "xl:grid-cols-[minmax(0,1fr)_44px]",
+        isActivityOpen && "xl:grid-cols-[minmax(0,1fr)_360px]",
       )}
     >
       <div className="space-y-5">
