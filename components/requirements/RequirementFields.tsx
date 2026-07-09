@@ -1,9 +1,16 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Check } from "lucide-react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { FormField } from "@/components/ui/form-field";
+import { cn } from "@/lib/utils";
 
 export function TextField({
   label,
@@ -52,23 +59,77 @@ export function OptionTextField({
   required?: boolean;
 }) {
   const id = `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-  const listId = `${id}-options`;
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const searchValue = (value ?? "").trim().toLowerCase();
+  const filteredOptions = useMemo(() => {
+    if (!searchValue) return options;
+    return options.filter((option) =>
+      option.toLowerCase().includes(searchValue),
+    );
+  }, [options, searchValue]);
 
   return (
     <FormField label={label} htmlFor={id} required={required}>
-      <Input
-        id={id}
-        list={listId}
-        value={value ?? ""}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-9"
-      />
-      <datalist id={listId}>
-        {options.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverAnchor asChild>
+          <Input
+            ref={inputRef}
+            id={id}
+            value={value ?? ""}
+            placeholder={placeholder}
+            onFocus={() => setOpen(true)}
+            onChange={(event) => {
+              onChange(event.target.value);
+              setOpen(true);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setOpen(false);
+            }}
+            className="h-9"
+            autoComplete="off"
+          />
+        </PopoverAnchor>
+        <PopoverContent
+          align="start"
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          className="max-h-60 w-(--radix-popover-trigger-width) overflow-y-auto p-1"
+        >
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option) => {
+              const selected = option === value;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    onChange(option);
+                    setOpen(false);
+                    inputRef.current?.focus();
+                  }}
+                  className={cn(
+                    "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm",
+                    selected && "bg-accent text-accent-foreground",
+                  )}
+                >
+                  <Check
+                    className={cn(
+                      "size-3.5",
+                      selected ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  <span>{option}</span>
+                </button>
+              );
+            })
+          ) : (
+            <p className="px-2 py-2 text-sm text-muted-foreground">
+              No suggestions found.
+            </p>
+          )}
+        </PopoverContent>
+      </Popover>
     </FormField>
   );
 }

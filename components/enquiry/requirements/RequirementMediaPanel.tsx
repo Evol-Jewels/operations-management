@@ -25,18 +25,20 @@ export function RequirementMediaPanel({
   return (
     <div className="space-y-4">
       <RequirementImageCarousel item={item} />
-      {item.estimation ? <EstimateCard estimation={item.estimation} /> : null}
       {!isFinalized ? (
-        <EnquiryEstimationDialog
-          productId={item.id}
-          productName={item.title}
-          defaultPurity={item.defaultPurity}
-          settings={settings}
-          existingEstimation={item.estimation}
-          onSave={onSaveEstimation}
-          disabled={isSavingEstimation}
-        />
+        <div className="flex justify-center">
+          <EnquiryEstimationDialog
+            productId={item.id}
+            productName={item.title}
+            defaultPurity={item.defaultPurity}
+            settings={settings}
+            existingEstimation={item.estimation}
+            onSave={onSaveEstimation}
+            disabled={isSavingEstimation}
+          />
+        </div>
       ) : null}
+      {item.estimation ? <EstimateCard estimation={item.estimation} /> : null}
     </div>
   );
 }
@@ -68,19 +70,20 @@ function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
 
   return (
     <div className="space-y-2">
-      <div className="relative aspect-square overflow-hidden rounded-xl border border-border bg-muted">
+      <div className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-muted/30">
         <Image
           src={image.url}
           alt={image.name || item.title}
           fill
           sizes="(max-width: 1024px) 100vw, 320px"
-          className="object-cover"
+          className="object-contain"
           unoptimized
         />
         {hasMany ? (
-          <>
+          <div className="absolute right-2 bottom-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
             <ImageButton
-              side="left"
+              icon={ChevronLeft}
+              label="Previous image"
               onClick={() =>
                 setIndex((value) =>
                   value === 0 ? images.length - 1 : value - 1,
@@ -88,31 +91,41 @@ function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
               }
             />
             <ImageButton
-              side="right"
+              icon={ChevronRight}
+              label="Next image"
               onClick={() =>
                 setIndex((value) =>
                   value === images.length - 1 ? 0 : value + 1,
                 )
               }
             />
-          </>
+          </div>
         ) : null}
       </div>
-      {hasMany ? (
-        <div className="flex items-center justify-center gap-1.5">
+      {images.length > 0 ? (
+        <div className="flex gap-2 overflow-x-auto pb-1">
           {images.map((imageItem, imageIndex) => (
             <button
               key={imageItem.id}
               type="button"
               onClick={() => setIndex(imageIndex)}
               className={cn(
-                "h-1.5 rounded-full transition-all",
+                "relative size-12 shrink-0 overflow-hidden rounded-md border transition-all",
                 imageIndex === index
-                  ? "w-5 bg-foreground"
-                  : "w-1.5 bg-muted-foreground/30",
+                  ? "border-foreground"
+                  : "border-border opacity-65 hover:opacity-100",
               )}
               aria-label={`Show image ${imageIndex + 1}`}
-            />
+            >
+              <Image
+                src={imageItem.url}
+                alt={imageItem.name || `Reference ${imageIndex + 1}`}
+                fill
+                sizes="48px"
+                className="object-contain"
+                unoptimized
+              />
+            </button>
           ))}
         </div>
       ) : null}
@@ -121,26 +134,24 @@ function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
 }
 
 function ImageButton({
-  side,
+  icon: Icon,
+  label,
   onClick,
 }: {
-  side: "left" | "right";
+  icon: typeof ChevronLeft;
+  label: string;
   onClick: () => void;
 }) {
-  const Icon = side === "left" ? ChevronLeft : ChevronRight;
   return (
     <Button
       type="button"
       variant="outline"
-      size="icon-sm"
+      size="icon-xs"
       onClick={onClick}
-      className={cn(
-        "absolute top-1/2 -translate-y-1/2 bg-background/85 shadow-sm backdrop-blur",
-        side === "left" ? "left-2" : "right-2",
-      )}
-      aria-label={side === "left" ? "Previous image" : "Next image"}
+      className="size-6 border-transparent bg-transparent text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] shadow-none hover:bg-black/20 hover:text-white"
+      aria-label={label}
     >
-      <Icon className="size-4" />
+      <Icon className="size-3" />
     </Button>
   );
 }

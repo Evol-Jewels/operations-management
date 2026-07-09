@@ -1,12 +1,17 @@
 "use client";
 
-import { ImageIcon, Link2, Upload, X } from "lucide-react";
-import type { KeyboardEventHandler } from "react";
+import { ExternalLink, ImageIcon, Link2, Plus, Upload, X } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import type { ProductReference } from "@/components/enquiries/enquiry-form-types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { SectionShell } from "./RequirementFields";
-import { formatFileSize, generateRequirementId, isValidReferenceLink, normalizeReferenceLink } from "./requirement-form-utils";
+import {
+  formatFileSize,
+  generateRequirementId,
+  isValidReferenceLink,
+  normalizeReferenceLink,
+} from "./requirement-form-utils";
 
 export function RequirementMediaSection({
   references,
@@ -15,6 +20,9 @@ export function RequirementMediaSection({
   references: ProductReference[];
   onChange: (references: ProductReference[]) => void;
 }) {
+  const imageReferences = references.filter((item) => item.type === "image");
+  const linkReferences = references.filter((item) => item.type === "link");
+
   function addLinks(rawValue: string) {
     const links = rawValue
       .split(/[\n,]+/)
@@ -62,70 +70,48 @@ export function RequirementMediaSection({
   }
 
   return (
-    <SectionShell eyebrow="References" title="Images and inspiration links">
-      <div className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
+    <SectionShell eyebrow="References" title="Upload images or add links">
+      <div className="space-y-4">
+        <div className="grid gap-3 lg:grid-cols-[16rem_minmax(0,1fr)]">
+          <ImageUploadBox onAddFiles={addFiles} />
           <LinkInput onAdd={addLinks} />
-          <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-center transition-colors hover:border-primary/40 hover:bg-muted/30">
-            <Upload className="size-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">
-              Upload images
-            </span>
-            <span className="text-xs text-muted-foreground">Multiple files</span>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(event) => {
-                addFiles(event.target.files);
-                event.target.value = "";
-              }}
-            />
-          </label>
         </div>
 
         {references.length > 0 ? (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {references.map((reference) => (
-              <div
-                key={reference.id}
-                className="flex min-w-0 items-center gap-2 rounded-lg border border-border bg-background px-3 py-2"
+          <div className="space-y-4">
+            {imageReferences.length > 0 ? (
+              <ReferenceGroup
+                title={`Images (${imageReferences.length})`}
+                icon={<ImageIcon className="size-3.5" />}
               >
-                {reference.type === "image" ? (
-                  // biome-ignore lint/performance/noImgElement: local preview URLs cannot use next/image.
-                  <img
-                    src={reference.url}
-                    alt={reference.name}
-                    className="size-10 rounded-md border border-border object-cover"
-                  />
-                ) : (
-                  <div className="flex size-10 items-center justify-center rounded-md border border-border bg-muted text-muted-foreground">
-                    <Link2 className="size-4" />
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium text-foreground">
-                    {reference.name}
-                  </p>
-                  <p className="truncate text-[10px] text-muted-foreground">
-                    {reference.type === "link"
-                      ? "Reference link"
-                      : formatFileSize(reference.size)}
-                  </p>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {imageReferences.map((reference) => (
+                    <ImageReferenceCard
+                      key={reference.id}
+                      reference={reference}
+                      onRemove={removeReference}
+                    />
+                  ))}
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => removeReference(reference.id)}
-                  aria-label="Remove reference"
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <X className="size-3.5" />
-                </Button>
-              </div>
-            ))}
+              </ReferenceGroup>
+            ) : null}
+
+            {linkReferences.length > 0 ? (
+              <ReferenceGroup
+                title={`Reference links (${linkReferences.length})`}
+                icon={<Link2 className="size-3.5" />}
+              >
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {linkReferences.map((reference) => (
+                    <LinkReferenceRow
+                      key={reference.id}
+                      reference={reference}
+                      onRemove={removeReference}
+                    />
+                  ))}
+                </div>
+              </ReferenceGroup>
+            ) : null}
           </div>
         ) : (
           <div className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-3 text-sm text-muted-foreground">
@@ -138,23 +124,164 @@ export function RequirementMediaSection({
   );
 }
 
+function ImageUploadBox({
+  onAddFiles,
+}: {
+  onAddFiles: (files: FileList | null) => void;
+}) {
+  return (
+    <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-4 text-center transition-colors hover:border-primary/40 hover:bg-muted/30">
+      <Upload className="size-5 text-muted-foreground" />
+      <span className="text-sm font-medium text-foreground">Upload images</span>
+      <span className="text-xs leading-5 text-muted-foreground">
+        Select one or more image files
+      </span>
+      <input
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(event) => {
+          onAddFiles(event.target.files);
+          event.target.value = "";
+        }}
+      />
+    </label>
+  );
+}
+
 function LinkInput({ onAdd }: { onAdd: (value: string) => void }) {
-  const handleKeyDown: KeyboardEventHandler<HTMLInputElement> = (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    const value = event.currentTarget.value;
+  const [value, setValue] = useState("");
+
+  function submitLinks() {
     onAdd(value);
-    event.currentTarget.value = "";
-  };
+    setValue("");
+  }
 
   return (
-    <div className="relative">
-      <Link2 className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        placeholder="Paste link and press Enter"
-        className="h-10 pl-9"
-        onKeyDown={handleKeyDown}
+    <div className="space-y-2 rounded-lg border border-border p-3">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <Link2 className="size-4 text-muted-foreground" />
+        Add reference links
+      </div>
+      <Textarea
+        value={value}
+        placeholder="Paste one or more links. Use a new line or comma between links."
+        onChange={(event) => setValue(event.target.value)}
+        className="min-h-20 resize-none text-sm"
       />
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={submitLinks}
+          disabled={!value.trim()}
+        >
+          <Plus className="size-3.5" />
+          Add links
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ReferenceGroup({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        {icon}
+        <span>{title}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function ImageReferenceCard({
+  reference,
+  onRemove,
+}: {
+  reference: ProductReference;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="group relative w-36 shrink-0 overflow-hidden rounded-lg border border-border bg-background">
+      {/* biome-ignore lint/performance/noImgElement: local preview URLs cannot use next/image. */}
+      <img
+        src={reference.url}
+        alt={reference.name}
+        className="aspect-square w-full object-cover"
+      />
+      <div className="border-t border-border px-2 py-1.5">
+        <p className="truncate text-xs font-medium text-foreground">
+          {reference.name}
+        </p>
+        <p className="text-[10px] text-muted-foreground">
+          {formatFileSize(reference.size)}
+        </p>
+      </div>
+      <Button
+        type="button"
+        variant="secondary"
+        size="icon-xs"
+        onClick={() => onRemove(reference.id)}
+        aria-label="Remove image reference"
+        className="absolute top-1.5 right-1.5 opacity-90 hover:text-destructive"
+      >
+        <X className="size-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+function LinkReferenceRow({
+  reference,
+  onRemove,
+}: {
+  reference: ProductReference;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="flex w-72 shrink-0 items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+        <Link2 className="size-3.5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-foreground">
+          {reference.name}
+        </p>
+      </div>
+      <Button
+        asChild
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Open link reference"
+        className="text-muted-foreground hover:text-foreground"
+      >
+        <a href={reference.url} target="_blank" rel="noopener noreferrer">
+          <ExternalLink className="size-3.5" />
+        </a>
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        onClick={() => onRemove(reference.id)}
+        aria-label="Remove link reference"
+        className="text-muted-foreground hover:text-destructive"
+      >
+        <X className="size-3.5" />
+      </Button>
     </div>
   );
 }

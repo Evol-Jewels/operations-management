@@ -1,7 +1,8 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Package } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Package } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { EnquiryEstimationPrintView } from "@/components/enquiry/EnquiryEstimationPrintView";
 import { RequirementDetailsPanel } from "@/components/enquiry/requirements/RequirementDetailsPanel";
 import { RequirementMediaPanel } from "@/components/enquiry/requirements/RequirementMediaPanel";
 import {
@@ -34,8 +35,6 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "ALL", label: "All statuses" },
   { value: "PENDING", label: "Pending" },
   { value: "ESTIMATED", label: "Estimated" },
-  { value: "CONVERTED", label: "Converted" },
-  { value: "CLOSED", label: "Closed" },
 ];
 
 interface EnquiryProductListProps {
@@ -134,15 +133,10 @@ function Header({
   onStatusFilterChange: (value: StatusFilter) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <p className="text-[0.75rem] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-          Product requirements
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {totalCount} item{totalCount === 1 ? "" : "s"}
-        </p>
-      </div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm font-semibold text-muted-foreground">
+        Product Requirements ({totalCount} item{totalCount === 1 ? "" : "s"})
+      </p>
       <Select value={statusFilter} onValueChange={onStatusFilterChange}>
         <SelectTrigger className="w-full bg-background sm:w-44">
           <SelectValue />
@@ -182,9 +176,13 @@ function RequirementCarouselCard({
 }) {
   const hasMany = totalCount > 1;
 
+  function handleDownloadPdf() {
+    window.print();
+  }
+
   return (
-    <article className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+    <article className="overflow-hidden rounded-lg border border-border">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
         <p className="text-sm font-medium uppercase tracking-wide text-foreground">
           Item {activeIndex + 1}{" "}
           <span className="font-normal text-muted-foreground">
@@ -192,6 +190,17 @@ function RequirementCarouselCard({
           </span>
         </p>
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadPdf}
+            className="h-8 gap-1.5 text-xs"
+          >
+            <Download className="size-3.5" />
+            <span className="hidden sm:inline">Download PDF</span>
+            <span className="sm:hidden">PDF</span>
+          </Button>
           {hasMany ? (
             <div className="hidden items-center gap-1.5 sm:flex">
               {Array.from({ length: totalCount }).map((_, index) => (
@@ -209,28 +218,30 @@ function RequirementCarouselCard({
           ) : null}
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="icon-sm"
             onClick={onPrevious}
             disabled={!hasMany}
             aria-label="Previous requirement"
+            className="size-7 text-muted-foreground hover:bg-transparent hover:text-foreground"
           >
             <ChevronLeft className="size-4" />
           </Button>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="icon-sm"
             onClick={onNext}
             disabled={!hasMany}
             aria-label="Next requirement"
+            className="size-7 text-muted-foreground hover:bg-transparent hover:text-foreground"
           >
             <ChevronRight className="size-4" />
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 p-4 lg:grid-cols-[minmax(15rem,1fr)_minmax(0,2fr)] lg:p-6">
+      <div className="grid gap-4 p-3 lg:grid-cols-[minmax(15rem,1fr)_minmax(0,2fr)] lg:p-4">
         <RequirementMediaPanel
           item={item}
           settings={settings}
@@ -240,6 +251,7 @@ function RequirementCarouselCard({
         />
         <RequirementDetailsPanel item={item} />
       </div>
+      <EnquiryEstimationPrintView item={item} />
     </article>
   );
 }

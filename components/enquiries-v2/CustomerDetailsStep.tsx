@@ -14,12 +14,14 @@ export interface CustomerDraft {
 export function CustomerDetailsStep({
   customer,
   errors,
+  isNextDisabled,
   onChange,
   onPhoneValidityChange,
   onNext,
 }: {
   customer: CustomerDraft;
   errors: Record<string, string>;
+  isNextDisabled?: boolean;
   onChange: (customer: CustomerDraft) => void;
   onPhoneValidityChange: (isValid: boolean) => void;
   onNext: () => void;
@@ -42,6 +44,7 @@ export function CustomerDetailsStep({
               onChange={(phone) => onChange({ ...customer, phone })}
               onValidityChange={onPhoneValidityChange}
               error={errors.phone}
+              showErrorMessage={false}
             />
           </FormField>
           <FormField label="Customer name" error={errors.name} required>
@@ -59,7 +62,7 @@ export function CustomerDetailsStep({
           </FormField>
         </div>
         <div className="mt-6 flex justify-end">
-          <Button type="button" onClick={onNext}>
+          <Button type="button" onClick={onNext} disabled={isNextDisabled}>
             Add requirements
             <ChevronRight className="size-4" />
           </Button>

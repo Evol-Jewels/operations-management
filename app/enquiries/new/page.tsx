@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import {
+  readDraft,
+  removeDraft,
+  sanitizeReferences,
+  writeDraft,
+} from "@/components/enquiries/form-draft-storage";
+import {
   type CustomerDraft,
   CustomerDetailsStep,
 } from "@/components/enquiries-v2/CustomerDetailsStep";
@@ -20,6 +26,7 @@ import {
   cleanDiamond,
   cleanText,
   createEmptyRequirement,
+  DEFAULT_COLOR_STONE_NATURE,
   generateRequirementId,
   hasRequirementContent,
   mediaFromReference,
@@ -34,6 +41,17 @@ import type {
   BackendEnquiryMedia,
   CreateEnquiryItemInput,
 } from "@/types/enquiry-api";
+
+const NEW_ENQUIRY_V2_DRAFT_KEY = "evol:new-enquiry-v2:draft:v1";
+
+interface NewEnquiryDraft {
+  step: EnquiryCreateStep;
+  customer: CustomerDraft;
+  requirements: RequirementDraft[];
+  requirementDraft: RequirementDraft;
+  editingRequirementId: string | null;
+  isRequirementFormOpen: boolean;
+}
 
 export default function NewEnquiryPage() {
   return (
@@ -68,9 +86,46 @@ function EnquiryCreateForm() {
   const [editingRequirementId, setEditingRequirementId] = useState<string | null>(
     null,
   );
+  const [isRequirementFormOpen, setIsRequirementFormOpen] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [draftHydrated, setDraftHydrated] = useState(false);
+
+  useEffect(() => {
+    const draft = readDraft<NewEnquiryDraft>(NEW_ENQUIRY_V2_DRAFT_KEY);
+    if (draft) {
+      setStep(draft.step);
+      setCustomer(draft.customer);
+      setRequirements(draft.requirements);
+      setRequirementDraft(draft.requirementDraft);
+      setEditingRequirementId(draft.editingRequirementId);
+      setIsRequirementFormOpen(draft.isRequirementFormOpen);
+    }
+    setDraftHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!draftHydrated || submitted) return;
+
+    writeDraft(NEW_ENQUIRY_V2_DRAFT_KEY, {
+      step,
+      customer,
+      requirements: requirements.map(sanitizeRequirementDraft),
+      requirementDraft: sanitizeRequirementDraft(requirementDraft),
+      editingRequirementId,
+      isRequirementFormOpen,
+    } satisfies NewEnquiryDraft);
+  }, [
+    customer,
+    draftHydrated,
+    editingRequirementId,
+    isRequirementFormOpen,
+    requirementDraft,
+    requirements,
+    step,
+    submitted,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -95,13 +150,19 @@ function EnquiryCreateForm() {
     const nextErrors: Record<string, string> = {};
     if (!value.category.trim()) nextErrors.requirement = "Select a product category";
     if (!value.metalType.trim()) nextErrors.requirement = "Select a metal type";
+    if (value.colorStones.some(hasColorStoneDetailsWithoutType)) {
+      nextErrors.requirement = "Select a color stone type";
+    }
     return nextErrors;
   }
 
   function goToRequirements() {
     const nextErrors = validateCustomer();
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length === 0) setStep("requirements");
+    if (Object.keys(nextErrors).length === 0) {
+      setStep("requirements");
+      setIsRequirementFormOpen(requirements.length === 0);
+    }
   }
 
   function addRequirement() {
@@ -122,7 +183,15 @@ function EnquiryCreateForm() {
     });
     setRequirementDraft(createEmptyRequirement());
     setEditingRequirementId(null);
+    setIsRequirementFormOpen(false);
     setErrors({});
+  }
+
+  function addNewRequirement() {
+    setRequirementDraft(createEmptyRequirement());
+    setEditingRequirementId(null);
+    setErrors({});
+    setIsRequirementFormOpen(true);
   }
 
   function editRequirement(id: string) {
@@ -130,7 +199,7 @@ function EnquiryCreateForm() {
     if (!requirement) return;
     setRequirementDraft(requirement);
     setEditingRequirementId(id);
-    setRequirements((prev) => prev.filter((item) => item.id !== id));
+    setIsRequirementFormOpen(true);
     setErrors({});
   }
 
@@ -163,7 +232,9 @@ function EnquiryCreateForm() {
       metalPurity: cleanText(requirement.metalPurity),
       metalWeight: cleanText(requirement.metalWeight),
       diamonds: requirement.diamonds.map(cleanDiamond).filter(hasValues),
-      colorStones: requirement.colorStones.map(cleanColorStone).filter(hasValues),
+      colorStones: requirement.colorStones
+        .map(cleanColorStone)
+        .filter(hasStoneType),
       details: {
         orderType: cleanText(requirement.details.orderType),
         subcategory: cleanText(requirement.details.subcategory),
@@ -213,6 +284,7 @@ function EnquiryCreateForm() {
       });
 
       setSubmitted(true);
+      removeDraft(NEW_ENQUIRY_V2_DRAFT_KEY);
       setTimeout(() => router.push(`/enquiries/${created.enquiry.refCode}`), 900);
     } catch (error) {
       setErrors({
@@ -238,67 +310,140 @@ function EnquiryCreateForm() {
         <CustomerDetailsStep
           customer={customer}
           errors={errors}
+          isNextDisabled={!customer.phone.trim() || !customer.name.trim()}
           onChange={setCustomer}
           onPhoneValidityChange={setIsPhoneValid}
           onNext={goToRequirements}
         />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="space-y-4">
+        <RequirementStepPanel
+          errors={errors}
+          isFormOpen={isRequirementFormOpen || requirements.length === 0}
+          isSubmitting={isSubmitting}
+          requirementDraft={requirementDraft}
+          requirements={requirements}
+          editingRequirementId={editingRequirementId}
+          onBack={() => {
+            if (isRequirementFormOpen && requirements.length > 0) {
+              setRequirementDraft(createEmptyRequirement());
+              setEditingRequirementId(null);
+              setErrors({});
+              setIsRequirementFormOpen(false);
+              return;
+            }
+            setStep("customer");
+          }}
+          onAddRequirement={addRequirement}
+          onAddNewRequirement={addNewRequirement}
+          onChangeRequirement={setRequirementDraft}
+          onCreate={handleSubmit}
+          onEdit={editRequirement}
+          onRemove={removeRequirement}
+        />
+      )}
+    </div>
+  );
+}
+
+function RequirementStepPanel({
+  errors,
+  isFormOpen,
+  isSubmitting,
+  requirementDraft,
+  requirements,
+  editingRequirementId,
+  onBack,
+  onAddRequirement,
+  onAddNewRequirement,
+  onChangeRequirement,
+  onCreate,
+  onEdit,
+  onRemove,
+}: {
+  errors: Record<string, string>;
+  isFormOpen: boolean;
+  isSubmitting: boolean;
+  requirementDraft: RequirementDraft;
+  requirements: RequirementDraft[];
+  editingRequirementId: string | null;
+  onBack: () => void;
+  onAddRequirement: () => void;
+  onAddNewRequirement: () => void;
+  onChangeRequirement: (value: RequirementDraft) => void;
+  onCreate: () => void;
+  onEdit: (id: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const isRequirementActionDisabled =
+    isFormOpen &&
+    (!requirementDraft.category.trim() || !requirementDraft.metalType.trim());
+
+  return (
+    <div className="mx-auto flex h-[calc(100vh-13rem)] min-h-[34rem] max-w-3xl flex-col rounded-lg border border-border">
+      <div className="border-b border-border p-5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          Step 2 of 2
+        </p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
+          What does the customer interested in?
+        </h1>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        {isFormOpen ? (
+          <div className="space-y-3">
             <CustomProductForm
               value={requirementDraft}
-              onChange={setRequirementDraft}
-              onSubmit={addRequirement}
+              onChange={onChangeRequirement}
+              onSubmit={onAddRequirement}
               submitLabel={
                 editingRequirementId ? "Update requirement" : "Add requirement"
               }
+              showActions={false}
+              className="border-0 bg-transparent p-0 shadow-none sm:p-0"
             />
             {errors.requirement ? (
               <p className="text-sm text-destructive">{errors.requirement}</p>
             ) : null}
           </div>
-
-          <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+        ) : (
+          <div className="mx-auto max-w-xl space-y-5 py-4">
             <RequirementSummaryList
               requirements={requirements}
-              onEdit={editRequirement}
-              onRemove={removeRequirement}
+              onAdd={onAddNewRequirement}
+              onEdit={onEdit}
+              onRemove={onRemove}
             />
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-sm font-semibold text-foreground">
-                Ready to create?
-              </p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Images upload on save. Add every open requirement before
-                creating the enquiry.
-              </p>
-              {errors.submit ? (
-                <p className="mt-3 text-xs text-destructive">{errors.submit}</p>
-              ) : null}
-              <div className="mt-4 flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setStep("customer")}
-                >
-                  <ChevronLeft className="size-4" />
-                  Customer
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || requirements.length === 0}
-                  className="ml-auto"
-                >
-                  {isSubmitting ? "Saving..." : "Create enquiry"}
-                </Button>
-              </div>
-            </div>
-          </aside>
-        </div>
-      )}
+            {errors.submit ? (
+              <p className="text-sm text-destructive">{errors.submit}</p>
+            ) : null}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-3 border-t border-border p-5">
+        <Button type="button" variant="outline" onClick={onBack}>
+          <ChevronLeft className="size-4" />
+          Back
+        </Button>
+        <Button
+          type="button"
+          onClick={isFormOpen ? onAddRequirement : onCreate}
+          disabled={
+            isRequirementActionDisabled ||
+            (!isFormOpen && (isSubmitting || requirements.length === 0))
+          }
+          className="ml-auto"
+        >
+          {isFormOpen
+            ? editingRequirementId
+              ? "Update requirement"
+              : "Add requirement"
+            : isSubmitting
+              ? "Saving..."
+              : "Create enquiry"}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -325,4 +470,29 @@ function hasValues(item: Record<string, unknown>) {
   return Object.entries(item).some(
     ([key, value]) => key !== "id" && String(value ?? "").trim(),
   );
+}
+
+function hasStoneType(item: { stoneType?: string }) {
+  return Boolean(item.stoneType?.trim());
+}
+
+function hasColorStoneDetailsWithoutType(
+  stone: RequirementDraft["colorStones"][number],
+) {
+  if (stone.stoneType?.trim()) return false;
+
+  return Boolean(
+    (stone.nature && stone.nature !== DEFAULT_COLOR_STONE_NATURE) ||
+      stone.origin?.trim() ||
+      stone.treatment?.trim() ||
+      stone.weight?.trim() ||
+      stone.notes?.trim(),
+  );
+}
+
+function sanitizeRequirementDraft(requirement: RequirementDraft): RequirementDraft {
+  return {
+    ...requirement,
+    references: sanitizeReferences(requirement.references),
+  };
 }

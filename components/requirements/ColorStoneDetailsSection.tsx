@@ -7,7 +7,8 @@ import {
   COLOR_STONE_ORIGINS,
   COLOR_STONE_TREATMENTS,
   COLOR_STONE_TYPES,
-  DIAMOND_SHAPES,
+} from "./requirement-options";
+import {
   type RequirementColorStone,
   type RequirementDraft,
 } from "./requirement-form-types";
@@ -33,16 +34,34 @@ export function ColorStoneDetailsSection({
   function removeStone(id: string) {
     onChange({
       ...value,
-      colorStones:
-        value.colorStones.length > 1
-          ? value.colorStones.filter((stone) => stone.id !== id)
-          : value.colorStones,
+      colorStones: value.colorStones.filter((stone) => stone.id !== id),
     });
   }
 
   return (
     <SectionShell eyebrow="Color Stones" title="Colour stone details">
       <div className="space-y-3">
+        {value.colorStones.length === 0 ? (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border px-3 py-3">
+            <p className="text-sm text-muted-foreground">
+              No colour stones added.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                onChange({
+                  ...value,
+                  colorStones: [createEmptyColorStone()],
+                })
+              }
+            >
+              <Plus className="size-3.5" />
+              Add colour stone
+            </Button>
+          </div>
+        ) : null}
         {value.colorStones.map((stone, index) => (
           <div
             key={stone.id}
@@ -57,7 +76,6 @@ export function ColorStoneDetailsSection({
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => removeStone(stone.id)}
-                disabled={value.colorStones.length === 1}
                 aria-label={`Remove colour stone ${index + 1}`}
                 className="text-muted-foreground hover:text-destructive"
               >
@@ -70,6 +88,7 @@ export function ColorStoneDetailsSection({
                 value={stone.stoneType}
                 options={COLOR_STONE_TYPES}
                 onChange={(stoneType) => updateStone(stone.id, { stoneType })}
+                required
               />
               <OptionTextField
                 label="Color stone nature"
@@ -89,32 +108,8 @@ export function ColorStoneDetailsSection({
                 options={COLOR_STONE_TREATMENTS}
                 onChange={(treatment) => updateStone(stone.id, { treatment })}
               />
-              <OptionTextField
-                label="Shape"
-                value={stone.shape}
-                options={DIAMOND_SHAPES}
-                onChange={(shape) => updateStone(stone.id, { shape })}
-              />
               <TextField
-                label="Colour"
-                value={stone.colour}
-                placeholder="Green, blue..."
-                onChange={(colour) => updateStone(stone.id, { colour })}
-              />
-              <TextField
-                label="Size"
-                value={stone.size}
-                placeholder="2 mm, calibrated..."
-                onChange={(size) => updateStone(stone.id, { size })}
-              />
-              <TextField
-                label="Pieces"
-                value={stone.pieces}
-                placeholder="10"
-                onChange={(pieces) => updateStone(stone.id, { pieces })}
-              />
-              <TextField
-                label="Color stone wt"
+                label="Color stone wt (in cts)"
                 value={stone.weight}
                 placeholder="1.20"
                 onChange={(weight) => updateStone(stone.id, { weight })}
@@ -127,20 +122,22 @@ export function ColorStoneDetailsSection({
             </div>
           </div>
         ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            onChange({
-              ...value,
-              colorStones: [...value.colorStones, createEmptyColorStone()],
-            })
-          }
-        >
-          <Plus className="size-3.5" />
-          Add colour stone
-        </Button>
+        {value.colorStones.length > 0 ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              onChange({
+                ...value,
+                colorStones: [...value.colorStones, createEmptyColorStone()],
+              })
+            }
+          >
+            <Plus className="size-3.5" />
+            Add colour stone
+          </Button>
+        ) : null}
       </div>
     </SectionShell>
   );

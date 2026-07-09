@@ -4,7 +4,7 @@ import type { RequirementDraft } from "./requirement-form-types";
 import {
   ORDER_TYPES,
   PRODUCT_CATEGORIES,
-} from "./requirement-form-types";
+} from "./requirement-options";
 import { OptionTextField, SectionShell, TextField } from "./RequirementFields";
 
 export function RequirementBasicsSection({

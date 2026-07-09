@@ -6,6 +6,14 @@ import type {
   RequirementDraft,
 } from "./requirement-form-types";
 
+export const DEFAULT_ORDER_TYPE = "Client";
+export const DEFAULT_METAL_TYPE = "Gold";
+export const DEFAULT_DIAMOND_TYPE = "Lab Grown";
+export const DEFAULT_DIAMOND_METHOD = "CVD";
+export const DEFAULT_DIAMOND_CLARITY = "VVS/ES";
+export const DEFAULT_DIAMOND_COLOUR = "EF";
+export const DEFAULT_COLOR_STONE_NATURE = "Lab Grown";
+
 export function generateRequirementId() {
   return Math.random().toString(36).slice(2, 9);
 }
@@ -13,11 +21,11 @@ export function generateRequirementId() {
 export function createEmptyDiamond(): RequirementDiamond {
   return {
     id: generateRequirementId(),
-    type: "",
-    growthMethod: "",
+    type: DEFAULT_DIAMOND_TYPE,
+    growthMethod: DEFAULT_DIAMOND_METHOD,
     shape: "",
-    clarity: "",
-    colour: "",
+    clarity: DEFAULT_DIAMOND_CLARITY,
+    colour: DEFAULT_DIAMOND_COLOUR,
     size: "",
     pieces: "",
     weight: "",
@@ -29,13 +37,9 @@ export function createEmptyColorStone(): RequirementColorStone {
   return {
     id: generateRequirementId(),
     stoneType: "",
-    nature: "",
+    nature: DEFAULT_COLOR_STONE_NATURE,
     origin: "",
     treatment: "",
-    shape: "",
-    colour: "",
-    size: "",
-    pieces: "",
     weight: "",
     notes: "",
   };
@@ -45,15 +49,42 @@ export function createEmptyRequirement(): RequirementDraft {
   return {
     id: "",
     category: "",
-    metalType: "",
+    metalType: DEFAULT_METAL_TYPE,
     metalPurity: "",
     metalWeight: "",
     diamonds: [createEmptyDiamond()],
-    colorStones: [createEmptyColorStone()],
-    details: {},
+    colorStones: [],
+    details: {
+      orderType: DEFAULT_ORDER_TYPE,
+    },
     references: [],
     notes: "",
   };
+}
+
+function isDefaultDiamond(diamond: RequirementDiamond) {
+  return (
+    diamond.type === DEFAULT_DIAMOND_TYPE &&
+    diamond.growthMethod === DEFAULT_DIAMOND_METHOD &&
+    diamond.clarity === DEFAULT_DIAMOND_CLARITY &&
+    diamond.colour === DEFAULT_DIAMOND_COLOUR &&
+    !diamond.shape?.trim() &&
+    !diamond.size?.trim() &&
+    !diamond.pieces?.trim() &&
+    !diamond.weight?.trim() &&
+    !diamond.notes?.trim()
+  );
+}
+
+function isDefaultColorStone(stone: RequirementColorStone) {
+  return (
+    !stone.stoneType?.trim() &&
+    stone.nature === DEFAULT_COLOR_STONE_NATURE &&
+    !stone.origin?.trim() &&
+    !stone.treatment?.trim() &&
+    !stone.weight?.trim() &&
+    !stone.notes?.trim()
+  );
 }
 
 export function normalizeReferenceLink(value: string): string {
@@ -88,20 +119,39 @@ export function revokeReferenceUrls(references: ProductReference[]) {
 }
 
 export function hasRequirementContent(requirement: RequirementDraft) {
+  const details = requirement.details;
+
   return Boolean(
     requirement.category.trim() ||
-      requirement.metalType.trim() ||
+      (requirement.metalType && requirement.metalType !== DEFAULT_METAL_TYPE) ||
       requirement.metalPurity.trim() ||
+      requirement.metalWeight.trim() ||
       requirement.references.length ||
+      requirement.notes.trim() ||
+      (details.orderType && details.orderType !== DEFAULT_ORDER_TYPE) ||
+      details.productSize?.trim() ||
+      details.subcategory?.trim() ||
+      details.polish?.trim() ||
+      details.certification?.trim() ||
+      details.metalColor?.trim() ||
+      details.settingType?.trim() ||
+      details.findingType?.trim() ||
+      details.budgetRange?.trim() ||
+      details.deliveryDate?.trim() ||
+      details.specialNotes?.trim() ||
       requirement.diamonds.some((diamond) =>
-        Object.entries(diamond).some(
-          ([key, value]) => key !== "id" && String(value ?? "").trim(),
-        ),
+        isDefaultDiamond(diamond)
+          ? false
+          : Object.entries(diamond).some(
+              ([key, value]) => key !== "id" && String(value ?? "").trim(),
+            ),
       ) ||
       requirement.colorStones.some((stone) =>
-        Object.entries(stone).some(
-          ([key, value]) => key !== "id" && String(value ?? "").trim(),
-        ),
+        isDefaultColorStone(stone)
+          ? false
+          : Object.entries(stone).some(
+              ([key, value]) => key !== "id" && String(value ?? "").trim(),
+            ),
       ),
   );
 }
@@ -133,10 +183,6 @@ export function cleanColorStone(stone: RequirementColorStone) {
     nature: cleanText(stone.nature),
     origin: cleanText(stone.origin),
     treatment: cleanText(stone.treatment),
-    shape: cleanText(stone.shape),
-    colour: cleanText(stone.colour),
-    size: cleanText(stone.size),
-    pieces: cleanText(stone.pieces),
     weight: cleanText(stone.weight),
     notes: cleanText(stone.notes),
   };

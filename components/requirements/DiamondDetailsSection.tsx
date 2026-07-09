@@ -8,6 +8,8 @@ import {
   DIAMOND_METHODS,
   DIAMOND_SHAPES,
   DIAMOND_TYPES,
+} from "./requirement-options";
+import {
   type RequirementDiamond,
   type RequirementDraft,
 } from "./requirement-form-types";
@@ -33,16 +35,32 @@ export function DiamondDetailsSection({
   function removeDiamond(id: string) {
     onChange({
       ...value,
-      diamonds:
-        value.diamonds.length > 1
-          ? value.diamonds.filter((diamond) => diamond.id !== id)
-          : value.diamonds,
+      diamonds: value.diamonds.filter((diamond) => diamond.id !== id),
     });
   }
 
   return (
     <SectionShell eyebrow="Diamonds" title="Diamond details">
       <div className="space-y-3">
+        {value.diamonds.length === 0 ? (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border px-3 py-3">
+            <p className="text-sm text-muted-foreground">No diamonds added.</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                onChange({
+                  ...value,
+                  diamonds: [createEmptyDiamond()],
+                })
+              }
+            >
+              <Plus className="size-3.5" />
+              Add diamond
+            </Button>
+          </div>
+        ) : null}
         {value.diamonds.map((diamond, index) => (
           <div
             key={diamond.id}
@@ -57,7 +75,6 @@ export function DiamondDetailsSection({
                 variant="ghost"
                 size="icon-xs"
                 onClick={() => removeDiamond(diamond.id)}
-                disabled={value.diamonds.length === 1}
                 aria-label={`Remove diamond ${index + 1}`}
                 className="text-muted-foreground hover:text-destructive"
               >
@@ -110,9 +127,9 @@ export function DiamondDetailsSection({
                 onChange={(pieces) => updateDiamond(diamond.id, { pieces })}
               />
               <TextField
-                label="Diamond wt"
+                label="Diamond wt (in cts)"
                 value={diamond.weight}
-                placeholder="Not sure, 5.80..."
+                placeholder="5.80..."
                 onChange={(weight) => updateDiamond(diamond.id, { weight })}
               />
               <NotesField
@@ -123,17 +140,22 @@ export function DiamondDetailsSection({
             </div>
           </div>
         ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            onChange({ ...value, diamonds: [...value.diamonds, createEmptyDiamond()] })
-          }
-        >
-          <Plus className="size-3.5" />
-          Add diamond
-        </Button>
+        {value.diamonds.length > 0 ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              onChange({
+                ...value,
+                diamonds: [...value.diamonds, createEmptyDiamond()],
+              })
+            }
+          >
+            <Plus className="size-3.5" />
+            Add diamond
+          </Button>
+        ) : null}
       </div>
     </SectionShell>
   );

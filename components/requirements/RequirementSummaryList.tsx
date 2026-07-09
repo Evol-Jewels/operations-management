@@ -1,29 +1,35 @@
 "use client";
 
-import { Gem, ImageIcon, Pencil, Trash2 } from "lucide-react";
+import { Gem, ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { RequirementDraft } from "./requirement-form-types";
 
 export function RequirementSummaryList({
   requirements,
+  onAdd,
   onEdit,
   onRemove,
 }: {
   requirements: RequirementDraft[];
+  onAdd?: () => void;
   onEdit: (id: string) => void;
   onRemove: (id: string) => void;
 }) {
   if (requirements.length === 0) return null;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-          Added requirements
+        <p className="text-sm font-semibold text-foreground">
+          Added Requirements ({requirements.length}{" "}
+          {requirements.length === 1 ? "item" : "items"})
         </p>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-          {requirements.length}
-        </span>
+        {onAdd ? (
+          <Button type="button" variant="outline" size="sm" onClick={onAdd}>
+            <Plus className="size-4" />
+            Add new requirement
+          </Button>
+        ) : null}
       </div>
       <div className="divide-y divide-border rounded-xl border border-border bg-card">
         {requirements.map((requirement, index) => (
