@@ -13,6 +13,7 @@ interface PhoneInputProps {
   id?: string;
   className?: string;
   disabled?: boolean;
+  showErrorMessage?: boolean;
   onKeyDown?: (e: KeyboardEvent) => void;
   onValidityChange?: (isValid: boolean) => void;
 }
@@ -24,6 +25,7 @@ export function PhoneInput({
   id,
   className,
   disabled = false,
+  showErrorMessage = true,
   onKeyDown,
   onValidityChange,
 }: PhoneInputProps) {
@@ -63,7 +65,9 @@ export function PhoneInput({
           className: cn("text-base", error && "border-destructive"),
         }}
       />
-      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+      {showErrorMessage && error ? (
+        <p className="mt-2 text-sm text-destructive">{error}</p>
+      ) : null}
     </div>
   );
 }

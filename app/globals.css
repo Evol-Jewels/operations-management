@@ -422,16 +422,6 @@
 
 /* ─── Print styles ──────────────────────────────────────────────────────────── */
 @media print {
-  /* Hide everything by default */
-  body > * {
-    display: none !important;
-  }
-
-  /* Show only the print view */
-  #order-print-view {
-    display: block !important;
-  }
-
   /* Reset page chrome */
   body {
     background: white !important;
@@ -446,6 +436,30 @@
   /* Remove dot-grid background */
   body::before {
     display: none !important;
+  }
+
+  /* Hide app UI while preserving the Next root so nested print views can render. */
+  body * {
+    visibility: hidden !important;
+  }
+
+  #order-print-view,
+  #order-print-view *,
+  #enquiry-estimation-print-view,
+  #enquiry-estimation-print-view * {
+    visibility: visible !important;
+  }
+
+  #order-print-view,
+  #enquiry-estimation-print-view {
+    display: block !important;
+    inset: 0;
+    position: absolute;
+    width: 100%;
+  }
+
+  #enquiry-estimation-print-view {
+    position: static !important;
   }
 
   /* Page margins */

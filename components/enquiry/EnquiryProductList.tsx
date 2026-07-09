@@ -1,13 +1,15 @@
 "use client";
 
+import { ChevronLeft, ChevronRight, Download, Package } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { EnquiryEstimationPrintView } from "@/components/enquiry/EnquiryEstimationPrintView";
+import { RequirementDetailsPanel } from "@/components/enquiry/requirements/RequirementDetailsPanel";
+import { RequirementMediaPanel } from "@/components/enquiry/requirements/RequirementMediaPanel";
 import {
-  ChevronDown,
-  Package,
-  Palette,
-} from "lucide-react";
-import Image from "next/image";
-import { useMemo, useState } from "react";
-import { EnquiryEstimationDialog } from "@/components/enquiry/EnquiryEstimationDialog";
+  normalizeRequirementItems,
+  type RequirementDisplayItem,
+} from "@/components/enquiry/requirements/requirement-display-utils";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -17,90 +19,260 @@ import {
 } from "@/components/ui/select";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type {
   CalculatorSettings,
   CalculatorStoneInput,
   EnquiryCustomProduct,
   EnquiryItemStatus,
   EnquirySelectedProduct,
-  MetalPurity,
   ProductEstimation,
 } from "@/types";
 
-type ItemKind = "existing" | "custom";
-type VisibleStatus = EnquiryItemStatus;
-type StatusFilter = "ALL" | VisibleStatus;
+type StatusFilter = "ALL" | EnquiryItemStatus;
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "ALL", label: "All statuses" },
   { value: "PENDING", label: "Pending" },
   { value: "ESTIMATED", label: "Estimated" },
-  { value: "CONVERTED", label: "Converted" },
-  { value: "CLOSED", label: "Closed" },
 ];
 
-const STATUS_LABELS: Record<EnquiryItemStatus, string> = {
-  PENDING: "Pending",
-  ESTIMATED: "Estimated",
-  CONVERTED: "Converted",
-  CLOSED: "Closed",
-};
+interface EnquiryProductListProps {
+  enquiryRefCode: number;
+  selectedProducts: EnquirySelectedProduct[];
+  customProducts: EnquiryCustomProduct[];
+  estimations: ProductEstimation[];
+  isFinalized: boolean;
+  isSavingEstimation?: boolean;
+  onSaveEstimation: (estimation: ProductEstimation) => void;
+}
 
-function DetailRow({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | number | null;
-}) {
-  if (value === null || value === undefined || value === "") return null;
+export function EnquiryProductList({
+  enquiryRefCode,
+  selectedProducts,
+  customProducts,
+  estimations,
+  isFinalized,
+  isSavingEstimation,
+  onSaveEstimation,
+}: EnquiryProductListProps) {
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const { settings } = useCalculatorSettings();
+
+  const items = useMemo(() => {
+    const recomputedEstimations = estimations
+      .map((estimation) => recomputeEstimationTotal(estimation, settings))
+      .filter((item): item is ProductEstimation => Boolean(item));
+
+    return normalizeRequirementItems({
+      selectedProducts,
+      customProducts,
+      estimations: recomputedEstimations,
+    });
+  }, [customProducts, estimations, selectedProducts, settings]);
+
+  const filteredItems =
+    statusFilter === "ALL"
+      ? items
+      : items.filter((item) => item.status === statusFilter);
+  const activeItem = filteredItems[activeIndex];
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [statusFilter]);
+
+  useEffect(() => {
+    if (activeIndex > Math.max(filteredItems.length - 1, 0)) {
+      setActiveIndex(0);
+    }
+  }, [activeIndex, filteredItems.length]);
 
   return (
-    <div className="grid grid-cols-[6.5rem_1fr] gap-3">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words text-xs text-foreground">{value}</dd>
+    <div className="space-y-4">
+      <Header
+        totalCount={items.length}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+      />
+
+      {items.length === 0 ? (
+        <EmptyState label="No products added to this enquiry." />
+      ) : filteredItems.length === 0 ? (
+        <EmptyState label="No products match this status." dashed />
+      ) : activeItem ? (
+        <RequirementCarouselCard
+          item={activeItem}
+          enquiryRefCode={enquiryRefCode}
+          activeIndex={activeIndex}
+          totalCount={filteredItems.length}
+          settings={settings}
+          isFinalized={isFinalized}
+          isSavingEstimation={isSavingEstimation}
+          onSaveEstimation={onSaveEstimation}
+          onPrevious={() =>
+            setActiveIndex((value) =>
+              value === 0 ? filteredItems.length - 1 : value - 1,
+            )
+          }
+          onNext={() =>
+            setActiveIndex((value) =>
+              value === filteredItems.length - 1 ? 0 : value + 1,
+            )
+          }
+        />
+      ) : null}
     </div>
   );
 }
 
-function getItemStatus(
-  explicitStatus: EnquiryItemStatus | undefined,
-): VisibleStatus {
-  return explicitStatus ?? "PENDING";
+function Header({
+  totalCount,
+  statusFilter,
+  onStatusFilterChange,
+}: {
+  totalCount: number;
+  statusFilter: StatusFilter;
+  onStatusFilterChange: (value: StatusFilter) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm font-semibold text-muted-foreground">
+        Product Requirements ({totalCount} item{totalCount === 1 ? "" : "s"})
+      </p>
+      <Select value={statusFilter} onValueChange={onStatusFilterChange}>
+        <SelectTrigger className="w-full bg-background sm:w-44">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {STATUS_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 }
 
-function getDefaultPurity(value: string): MetalPurity {
-  return ["14K", "18K", "22K", "24K"].includes(value)
-    ? (value as MetalPurity)
-    : "22K";
+function RequirementCarouselCard({
+  item,
+  enquiryRefCode,
+  activeIndex,
+  totalCount,
+  settings,
+  isFinalized,
+  isSavingEstimation,
+  onSaveEstimation,
+  onPrevious,
+  onNext,
+}: {
+  item: RequirementDisplayItem;
+  enquiryRefCode: number;
+  activeIndex: number;
+  totalCount: number;
+  settings: CalculatorSettings;
+  isFinalized: boolean;
+  isSavingEstimation?: boolean;
+  onSaveEstimation: (estimation: ProductEstimation) => void;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  const hasMany = totalCount > 1;
+
+  function handleDownloadPdf() {
+    window.print();
+  }
+
+  return (
+    <article className="overflow-hidden rounded-lg border border-border">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
+        <p className="text-sm font-medium uppercase tracking-wide text-foreground">
+          Item {activeIndex + 1}{" "}
+          <span className="font-normal text-muted-foreground">
+            of {totalCount}
+          </span>
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadPdf}
+            className="h-8 gap-1.5 text-xs"
+          >
+            <Download className="size-3.5" />
+            <span className="hidden sm:inline">Download PDF</span>
+            <span className="sm:hidden">PDF</span>
+          </Button>
+          {hasMany ? (
+            <div className="hidden items-center gap-1.5 sm:flex">
+              {Array.from({ length: totalCount }).map((_, index) => (
+                <span
+                  key={index}
+                  className={cn(
+                    "h-1.5 rounded-full",
+                    index === activeIndex
+                      ? "w-6 bg-foreground"
+                      : "w-1.5 bg-muted-foreground/30",
+                  )}
+                />
+              ))}
+            </div>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onPrevious}
+            disabled={!hasMany}
+            aria-label="Previous requirement"
+            className="size-7 text-muted-foreground hover:bg-transparent hover:text-foreground"
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onNext}
+            disabled={!hasMany}
+            aria-label="Next requirement"
+            className="size-7 text-muted-foreground hover:bg-transparent hover:text-foreground"
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 p-3 lg:grid-cols-[minmax(15rem,1fr)_minmax(0,2fr)] lg:p-4">
+        <RequirementMediaPanel
+          item={item}
+          settings={settings}
+          isFinalized={isFinalized}
+          isSavingEstimation={isSavingEstimation}
+          onSaveEstimation={onSaveEstimation}
+        />
+        <RequirementDetailsPanel item={item} />
+      </div>
+      <EnquiryEstimationPrintView item={item} enquiryRefCode={enquiryRefCode} />
+    </article>
+  );
 }
 
-function getCustomProductStones(product: EnquiryCustomProduct) {
-  if (product.stones.length > 0) return product.stones;
-  if (!product.stoneDescription) return [];
-
-  return [
-    {
-      id: `${product.id}-legacy-stone`,
-      stoneType: product.stoneDescription,
-      weight: product.stoneCaratEstimate,
-    },
-  ];
-}
-
-function formatCustomStoneSummary(product: EnquiryCustomProduct) {
-  return getCustomProductStones(product)
-    .map((stone) => {
-      const meta = [
-        stone.pieces ? `${stone.pieces} pcs` : null,
-        stone.weight ? `~${stone.weight} ct` : null,
-      ]
-        .filter(Boolean)
-        .join(", ");
-      return meta ? `${stone.stoneType} (${meta})` : stone.stoneType;
-    })
-    .join(" · ");
+function EmptyState({ label, dashed }: { label: string; dashed?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "rounded-xl border px-5 py-10 text-center",
+        dashed ? "border-dashed border-border" : "border-border bg-card",
+      )}
+    >
+      <Package className="mx-auto mb-3 size-6 text-muted-foreground/40" />
+      <p className="text-sm text-muted-foreground">{label}</p>
+    </div>
+  );
 }
 
 function getStoneTypeIdByName(settings: CalculatorSettings, name: string) {
@@ -144,374 +316,4 @@ function recomputeEstimationTotal(
     ...estimation,
     finalAmount: Math.round(breakdown.total),
   };
-}
-
-function StatusBadge({ status }: { status: VisibleStatus }) {
-  return (
-    <span
-      className={cn(
-        "rounded-full border px-2 py-0.5 text-xs font-medium",
-        status === "ESTIMATED" && "border-border bg-muted text-foreground",
-        status === "CONVERTED" &&
-          "border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-        status === "CLOSED" &&
-          "border-muted-foreground/20 bg-muted text-foreground",
-        status === "PENDING" &&
-          "border-border bg-background text-muted-foreground",
-      )}
-    >
-      {STATUS_LABELS[status]}
-    </span>
-  );
-}
-
-function ProductVisual({
-  imageUrl,
-  title,
-  kind,
-}: {
-  imageUrl?: string;
-  title: string;
-  kind: ItemKind;
-}) {
-  if (imageUrl) {
-    return (
-      <Image
-        src={imageUrl}
-        alt={title}
-        width={320}
-        height={220}
-        className="h-36 w-full rounded-xl border border-border bg-muted object-cover"
-        unoptimized
-      />
-    );
-  }
-
-  const Icon = kind === "custom" ? Palette : Package;
-  return (
-    <div className="flex h-36 w-full items-center justify-center rounded-xl border border-border bg-muted/40">
-      <Icon className="size-8 text-muted-foreground/50" />
-    </div>
-  );
-}
-
-function EstimationSummary({ estimation }: { estimation: ProductEstimation }) {
-  return (
-    <div className="rounded-xl border border-border bg-muted/25 px-3 py-2.5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Estimate
-          </p>
-          <p className="mt-0.5 text-sm font-semibold text-foreground">
-            {formatCurrency(estimation.finalAmount)}
-          </p>
-        </div>
-        <div className="text-right text-xs text-muted-foreground">
-          <p>
-            {estimation.metalWeight}g {estimation.purity}
-          </p>
-          <p>{formatDate(estimation.createdAt)}</p>
-        </div>
-      </div>
-      {estimation.vendorName || estimation.notes ? (
-        <dl className="mt-2 grid gap-1 border-t border-border pt-2">
-          <DetailRow label="Vendor" value={estimation.vendorName} />
-          <DetailRow label="Notes" value={estimation.notes} />
-        </dl>
-      ) : null}
-    </div>
-  );
-}
-
-interface NormalizedItem {
-  id: string;
-  kind: ItemKind;
-  title: string;
-  subtitle: string;
-  imageUrl?: string;
-  status: VisibleStatus;
-  estimation?: ProductEstimation;
-  defaultPurity: MetalPurity;
-  product: EnquirySelectedProduct | EnquiryCustomProduct;
-}
-
-function ProductCard({
-  item,
-  settings,
-  isFinalized,
-  isSavingEstimation,
-  onSaveEstimation,
-}: {
-  item: NormalizedItem;
-  settings: CalculatorSettings;
-  isFinalized: boolean;
-  isSavingEstimation?: boolean;
-  onSaveEstimation: (estimation: ProductEstimation) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const isExisting = item.kind === "existing";
-  const selectedProduct = isExisting
-    ? (item.product as EnquirySelectedProduct)
-    : null;
-  const customProduct = !isExisting
-    ? (item.product as EnquiryCustomProduct)
-    : null;
-
-  return (
-    <article className="flex min-h-full flex-col rounded-xl border border-border bg-card p-3.5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
-      <ProductVisual
-        imageUrl={item.imageUrl}
-        title={item.title}
-        kind={item.kind}
-      />
-
-      <div className="flex flex-1 flex-col pt-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="line-clamp-2 text-base font-semibold leading-snug text-foreground">
-              {item.title}
-            </h3>
-            <p className="mt-1 line-clamp-2 text-sm leading-5 text-muted-foreground">
-              {item.subtitle}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setExpanded((value) => !value)}
-            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label={
-              expanded ? "Hide product details" : "Show product details"
-            }
-          >
-            <ChevronDown
-              className={cn(
-                "size-4 transition-transform",
-                expanded && "rotate-180",
-              )}
-            />
-          </button>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-border bg-background px-2 py-0.5 text-xs text-muted-foreground">
-            {isExisting ? "Existing" : "Custom"}
-          </span>
-          <StatusBadge status={item.status} />
-        </div>
-
-        {item.estimation ? (
-          <div className="mt-3">
-            <EstimationSummary estimation={item.estimation} />
-          </div>
-        ) : null}
-
-        {expanded ? (
-          <dl className="mt-3 grid gap-2 border-t border-border pt-3">
-            {selectedProduct ? (
-              <>
-                <DetailRow label="Code" value={selectedProduct.productCode} />
-                <DetailRow label="Category" value={selectedProduct.category} />
-                <DetailRow
-                  label="Metal"
-                  value={`${selectedProduct.metalType === "Gold" ? "Yellow Gold" : selectedProduct.metalType} ${selectedProduct.metalPurity}`}
-                />
-                <DetailRow
-                  label="Description"
-                  value={selectedProduct.description}
-                />
-                {selectedProduct.basePrice ? (
-                  <DetailRow
-                    label="Base Price"
-                    value={formatCurrency(selectedProduct.basePrice)}
-                  />
-                ) : null}
-              </>
-            ) : null}
-
-            {customProduct ? (
-              <>
-                <DetailRow label="Category" value={customProduct.category} />
-                <DetailRow
-                  label="Metal"
-                  value={[customProduct.metalType, customProduct.metalPurity]
-                    .filter(Boolean)
-                    .join(" ")}
-                />
-                <DetailRow label="Polish" value={customProduct.polish} />
-                {getCustomProductStones(customProduct).map((stone, index) => (
-                  <DetailRow
-                    key={stone.id}
-                    label={index === 0 ? "Stone" : `Stone ${index + 1}`}
-                    value={[
-                      stone.stoneType,
-                      stone.pieces ? `${stone.pieces} pcs` : null,
-                      stone.weight ? `~${stone.weight} ct` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  />
-                ))}
-              </>
-            ) : null}
-          </dl>
-        ) : null}
-
-        {!isFinalized ? (
-          <div className="mt-auto pt-4">
-            <EnquiryEstimationDialog
-              productId={item.id}
-              productName={item.title}
-              defaultPurity={item.defaultPurity}
-              settings={settings}
-              existingEstimation={item.estimation}
-              onSave={onSaveEstimation}
-              disabled={isSavingEstimation}
-            />
-          </div>
-        ) : null}
-      </div>
-    </article>
-  );
-}
-
-interface EnquiryProductListProps {
-  selectedProducts: EnquirySelectedProduct[];
-  customProducts: EnquiryCustomProduct[];
-  estimations: ProductEstimation[];
-  isFinalized: boolean;
-  isSavingEstimation?: boolean;
-  onSaveEstimation: (estimation: ProductEstimation) => void;
-}
-
-export function EnquiryProductList({
-  selectedProducts,
-  customProducts,
-  estimations,
-  isFinalized,
-  isSavingEstimation,
-  onSaveEstimation,
-}: EnquiryProductListProps) {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
-  const { settings } = useCalculatorSettings();
-
-  const items = useMemo<NormalizedItem[]>(() => {
-    const selectedItems = selectedProducts.map((product) => {
-      const estimation = recomputeEstimationTotal(
-        estimations.find((item) => item.productId === product.id),
-        settings,
-      );
-      const metalLabel = `${product.metalType === "Gold" ? "Yellow Gold" : product.metalType} ${product.metalPurity}`;
-
-      return {
-        id: product.id,
-        kind: "existing" as const,
-        title: product.name,
-        subtitle: [product.productCode, product.category, metalLabel]
-          .filter(Boolean)
-          .join(" · "),
-        imageUrl: product.imageUrl,
-        status: getItemStatus(product.status),
-        estimation,
-        defaultPurity: product.metalPurity,
-        product,
-      };
-    });
-
-    const customItems = customProducts.map((product) => {
-      const estimation = recomputeEstimationTotal(
-        estimations.find((item) => item.productId === product.id),
-        settings,
-      );
-      const title = [
-        product.category || "Custom",
-        product.metalType,
-        product.metalPurity,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-      const subtitle =
-        [product.polish, formatCustomStoneSummary(product)]
-          .filter(Boolean)
-          .join(" · ") || "Custom design";
-
-      return {
-        id: product.id,
-        kind: "custom" as const,
-        title,
-        subtitle,
-        status: getItemStatus(product.status),
-        estimation,
-        defaultPurity: getDefaultPurity(product.metalPurity),
-        product,
-      };
-    });
-
-    return [...selectedItems, ...customItems];
-  }, [customProducts, estimations, selectedProducts, settings]);
-
-  const filteredItems =
-    statusFilter === "ALL"
-      ? items
-      : items.filter((item) => item.status === statusFilter);
-
-  return (
-    <div className="grid gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-[0.75rem] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-            Products
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {items.length} item{items.length === 1 ? "" : "s"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-          >
-            <SelectTrigger className="w-full bg-background sm:w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {items.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card px-5 py-10 text-center">
-          <Package className="mx-auto mb-3 size-6 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">
-            No products added to this enquiry.
-          </p>
-        </div>
-      ) : filteredItems.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border px-5 py-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            No products match this status.
-          </p>
-        </div>
-      ) : (
-        <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredItems.map((item) => (
-            <ProductCard
-              key={item.id}
-              item={item}
-              settings={settings}
-              isFinalized={isFinalized}
-              isSavingEstimation={isSavingEstimation}
-              onSaveEstimation={onSaveEstimation}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
