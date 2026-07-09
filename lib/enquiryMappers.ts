@@ -52,8 +52,11 @@ function mapReferences(
   return media.map((item, index) => ({
     id: `${item.type.toLowerCase()}-${index}-${item.url}`,
     type: item.type.toLowerCase() as EnquiryReference["type"],
-    name: item.url,
+    name: item.name || item.url,
     url: item.url,
+    publicId: item.publicId,
+    mimeType: item.mimeType,
+    size: item.size,
   }));
 }
 
@@ -93,6 +96,10 @@ function mapBackendItemToSelectedProduct(
     metalPurity: normalizeMetalPurity(item.metalPurity),
     description: item.notes ?? undefined,
     imageUrl: firstImage(item.media),
+    references: mapReferences(item.media),
+    diamonds: item.diamonds,
+    colorStones: item.colorStones,
+    details: item.details,
     status: item.status,
   };
 }
@@ -108,10 +115,11 @@ function mapBackendItemToCustomProduct(
 
   return {
     id: item.id,
-    category: "Custom",
+    category: item.category ?? "Custom",
     metalType: item.metalType ?? "",
     metalPurity: item.metalPurity ?? "",
-    polish: "",
+    metalWeight: item.metalWeight ?? undefined,
+    polish: item.details?.polish ?? "",
     stones,
     stoneDescription: item.stones.map((stone) => stone.stoneType).join(", "),
     stoneCut: "",
@@ -120,6 +128,10 @@ function mapBackendItemToCustomProduct(
       ? Number(item.stones[0].weight)
       : undefined,
     references: mapReferences(item.media),
+    diamonds: item.diamonds,
+    colorStones: item.colorStones,
+    details: item.details,
+    notes: item.notes ?? undefined,
     status: item.status,
   };
 }

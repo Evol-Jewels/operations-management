@@ -189,9 +189,51 @@ export interface EnquiryReference {
   type: EnquiryReferenceType;
   name: string;
   url?: string;
+  publicId?: string;
   mediaId?: string;
   mimeType?: string;
   size?: number;
+}
+
+export interface EnquiryDiamond {
+  id?: string;
+  type?: string;
+  growthMethod?: string;
+  shape?: string;
+  clarity?: string;
+  colour?: string;
+  size?: string;
+  pieces?: string;
+  weight?: string;
+  notes?: string;
+}
+
+export interface EnquiryColorStone {
+  id?: string;
+  stoneType?: string;
+  nature?: string;
+  origin?: string;
+  treatment?: string;
+  shape?: string;
+  colour?: string;
+  size?: string;
+  pieces?: string;
+  weight?: string;
+  notes?: string;
+}
+
+export interface EnquiryItemDetails {
+  orderType?: string;
+  subcategory?: string;
+  productSize?: string;
+  polish?: string;
+  certification?: string;
+  metalColor?: string;
+  settingType?: string;
+  findingType?: string;
+  budgetRange?: string;
+  deliveryDate?: string;
+  specialNotes?: string;
 }
 
 export interface EnquirySelectedProduct {
@@ -204,6 +246,10 @@ export interface EnquirySelectedProduct {
   description?: string;
   imageUrl?: string;
   basePrice?: number;
+  references?: EnquiryReference[];
+  diamonds?: EnquiryDiamond[];
+  colorStones?: EnquiryColorStone[];
+  details?: EnquiryItemDetails;
   status?: EnquiryItemStatus;
 }
 
@@ -219,6 +265,7 @@ export interface EnquiryCustomProduct {
   category: string;
   metalType: string;
   metalPurity: string;
+  metalWeight?: string;
   polish: string;
   stones: EnquiryCustomStone[];
   stoneDescription: string;
@@ -226,6 +273,10 @@ export interface EnquiryCustomProduct {
   stoneQuality: string;
   stoneCaratEstimate?: number;
   references: EnquiryReference[];
+  diamonds?: EnquiryDiamond[];
+  colorStones?: EnquiryColorStone[];
+  details?: EnquiryItemDetails;
+  notes?: string;
   status?: EnquiryItemStatus;
 }
 

@@ -1,6 +1,7 @@
 import type {
   BackendEnquiryDetails,
   BackendEnquiryListItem,
+  BackendEnquiryMedia,
   BackendEstimationRow,
   CreateEnquiryInput,
   CreateEstimationInput,
@@ -84,6 +85,19 @@ export function createEnquiry(input: CreateEnquiryInput) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
+}
+
+export async function uploadEnquiryImage(file: File) {
+  const body = new FormData();
+  body.set("file", file);
+
+  return apiFetch<BackendEnquiryMedia>(
+    buildUrl("api/v1/uploads/enquiry-image"),
+    {
+      method: "POST",
+      body,
+    },
+  );
 }
 
 export function updateEnquiry(id: string, input: UpdateEnquiryInput) {

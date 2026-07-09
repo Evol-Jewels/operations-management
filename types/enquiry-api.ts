@@ -16,9 +16,54 @@ export interface BackendEnquiryStone {
   weight?: string;
 }
 
+export interface BackendEnquiryDiamond {
+  id?: string;
+  type?: string;
+  growthMethod?: string;
+  shape?: string;
+  clarity?: string;
+  colour?: string;
+  size?: string;
+  pieces?: string;
+  weight?: string;
+  notes?: string;
+}
+
+export interface BackendEnquiryColorStone {
+  id?: string;
+  stoneType?: string;
+  nature?: string;
+  origin?: string;
+  treatment?: string;
+  shape?: string;
+  colour?: string;
+  size?: string;
+  pieces?: string;
+  weight?: string;
+  notes?: string;
+}
+
+export interface BackendEnquiryItemDetails {
+  orderType?: string;
+  subcategory?: string;
+  productSize?: string;
+  polish?: string;
+  certification?: string;
+  metalColor?: string;
+  settingType?: string;
+  findingType?: string;
+  budgetRange?: string;
+  deliveryDate?: string;
+  specialNotes?: string;
+}
+
 export interface BackendEnquiryMedia {
   type: "IMAGE" | "VIDEO" | "LINK";
   url: string;
+  publicId?: string;
+  name?: string;
+  mimeType?: string;
+  size?: number;
 }
 
 export interface BackendUserSummary {
@@ -69,11 +114,15 @@ export interface BackendEnquiryItemRow {
   id: string;
   enquiryId: string;
   type: BackendEnquiryItemType;
+  category: string | null;
   productCode: string | null;
   metalType: string | null;
   metalPurity: string | null;
   metalWeight: string | null;
   stones: BackendEnquiryStone[];
+  diamonds: BackendEnquiryDiamond[];
+  colorStones: BackendEnquiryColorStone[];
+  details: BackendEnquiryItemDetails;
   media: BackendEnquiryMedia[];
   notes: string | null;
   status: BackendEnquiryItemStatus;
@@ -101,11 +150,15 @@ export interface ListEnquiriesQuery {
 
 export interface CreateEnquiryItemInput {
   type?: BackendEnquiryItemType;
+  category?: string;
   productCode?: string;
   metalType?: string;
   metalPurity?: string;
   metalWeight?: string;
   stones?: BackendEnquiryStone[];
+  diamonds?: BackendEnquiryDiamond[];
+  colorStones?: BackendEnquiryColorStone[];
+  details?: BackendEnquiryItemDetails;
   media?: BackendEnquiryMedia[];
   notes?: string;
   status?: BackendEnquiryItemStatus;
