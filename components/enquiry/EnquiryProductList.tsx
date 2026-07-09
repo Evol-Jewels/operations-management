@@ -38,6 +38,7 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
 ];
 
 interface EnquiryProductListProps {
+  enquiryRefCode: number;
   selectedProducts: EnquirySelectedProduct[];
   customProducts: EnquiryCustomProduct[];
   estimations: ProductEstimation[];
@@ -47,6 +48,7 @@ interface EnquiryProductListProps {
 }
 
 export function EnquiryProductList({
+  enquiryRefCode,
   selectedProducts,
   customProducts,
   estimations,
@@ -101,6 +103,7 @@ export function EnquiryProductList({
       ) : activeItem ? (
         <RequirementCarouselCard
           item={activeItem}
+          enquiryRefCode={enquiryRefCode}
           activeIndex={activeIndex}
           totalCount={filteredItems.length}
           settings={settings}
@@ -155,6 +158,7 @@ function Header({
 
 function RequirementCarouselCard({
   item,
+  enquiryRefCode,
   activeIndex,
   totalCount,
   settings,
@@ -165,6 +169,7 @@ function RequirementCarouselCard({
   onNext,
 }: {
   item: RequirementDisplayItem;
+  enquiryRefCode: number;
   activeIndex: number;
   totalCount: number;
   settings: CalculatorSettings;
@@ -251,7 +256,7 @@ function RequirementCarouselCard({
         />
         <RequirementDetailsPanel item={item} />
       </div>
-      <EnquiryEstimationPrintView item={item} />
+      <EnquiryEstimationPrintView item={item} enquiryRefCode={enquiryRefCode} />
     </article>
   );
 }
