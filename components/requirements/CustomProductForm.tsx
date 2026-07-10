@@ -17,6 +17,7 @@ export function CustomProductForm({
   submitLabel = "Add requirement",
   disabled,
   showActions = true,
+  hideDeliveryDate = false,
   className,
 }: {
   value: RequirementDraft;
@@ -25,6 +26,7 @@ export function CustomProductForm({
   submitLabel?: string;
   disabled?: boolean;
   showActions?: boolean;
+  hideDeliveryDate?: boolean;
   className?: string;
 }) {
   return (
@@ -38,7 +40,11 @@ export function CustomProductForm({
         references={value.references}
         onChange={(references) => onChange({ ...value, references })}
       />
-      <RequirementBasicsSection value={value} onChange={onChange} />
+      <RequirementBasicsSection
+        value={value}
+        onChange={onChange}
+        hideDeliveryDate={hideDeliveryDate}
+      />
       <DiamondDetailsSection value={value} onChange={onChange} />
       <ColorStoneDetailsSection value={value} onChange={onChange} />
       <MetalDetailsSection value={value} onChange={onChange} />

@@ -3,6 +3,7 @@ import {
   type RequirementDisplayItem,
 } from "@/components/enquiry/requirements/requirement-display-utils";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { forwardRef } from "react";
 import type {
   EnquiryColorStone,
   EnquiryDiamond,
@@ -454,13 +455,15 @@ function ColorStoneDetails({ stones }: { stones: EnquiryColorStone[] }) {
   );
 }
 
-export function EnquiryEstimationPrintView({
-  item,
-  enquiryRefCode,
-}: {
+interface EnquiryEstimationPrintViewProps {
   item: RequirementDisplayItem;
   enquiryRefCode: number;
-}) {
+}
+
+export const EnquiryEstimationPrintView = forwardRef<
+  HTMLDivElement,
+  EnquiryEstimationPrintViewProps
+>(function EnquiryEstimationPrintView({ item, enquiryRefCode }, ref) {
   const metal = joinValues([item.metalType, item.metalPurity]);
   const printDate = formatPrintDate(new Date());
   const visibleDiamonds = item.diamonds.filter(hasRecordValues);
@@ -468,6 +471,7 @@ export function EnquiryEstimationPrintView({
 
   return (
     <div
+      ref={ref}
       id="enquiry-estimation-print-view"
       style={{
         background: "#ffffff",
@@ -636,4 +640,4 @@ export function EnquiryEstimationPrintView({
       </article>
     </div>
   );
-}
+});

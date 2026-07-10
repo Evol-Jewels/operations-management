@@ -7,7 +7,6 @@ import {
   ChevronsUpDown,
   CircleDollarSign,
   Diamond,
-  Download,
   ImageIcon,
   Loader2,
   MapPin,
@@ -24,7 +23,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
-import { EstimationSummaryCard } from "@/components/calculator/EstimationSummaryCard";
+import {
+  EstimationSummaryCard,
+  EstimationSummaryDownloadButton,
+  EstimationSummaryShareButton,
+} from "@/components/calculator/EstimationSummaryCard";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -1051,22 +1054,26 @@ function RecentEstimateSummaryDialog({
                 showHeader={false}
                 showDownloadButton={false}
                 title="Summary"
-                renderActions={({ downloadSummary, isDownloading }) => (
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                    <Button
-                      type="button"
-                      className="h-11 rounded-lg"
-                      onClick={downloadSummary}
-                      disabled={isDownloading}
-                      aria-label="Download summary"
-                    >
-                      {isDownloading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
-                      Download
-                    </Button>
+                renderActions={({
+                  downloadSummaryPdf,
+                  downloadSummaryPng,
+                  shareSummaryPng,
+                  isDownloading,
+                  isSharing,
+                }) => (
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                    <EstimationSummaryShareButton
+                      shareSummaryPng={shareSummaryPng}
+                      isSharing={isSharing}
+                      isDownloading={isDownloading}
+                      className="h-11 justify-center rounded-lg"
+                    />
+                    <EstimationSummaryDownloadButton
+                      downloadSummaryPdf={downloadSummaryPdf}
+                      downloadSummaryPng={downloadSummaryPng}
+                      isDownloading={isDownloading}
+                      className="h-11 justify-center rounded-lg"
+                    />
                     <Button
                       type="button"
                       variant="outline"

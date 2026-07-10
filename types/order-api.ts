@@ -51,6 +51,21 @@ export interface BackendCustomProductDetails {
   metalNetWeight: string;
   metalGrossWeight?: string;
   stones: BackendOrderStone[];
+  requirementSpecification?: CustomProductRequirementSpecification | null;
+}
+
+export interface CustomProductRequirementSpecification {
+  references: Array<{
+    type: "IMAGE" | "VIDEO" | "LINK";
+    url: string;
+    name?: string;
+    mimeType?: string;
+    size?: number;
+  }>;
+  diamonds: Array<Record<string, string | undefined>>;
+  colorStones: Array<Record<string, string | undefined>>;
+  details: Record<string, string | undefined>;
+  notes?: string;
 }
 
 export interface BackendProductDetails {
@@ -83,6 +98,7 @@ export interface BackendOrderRow {
   id: string;
   refCode: number;
   sourceEnquiry: number | null;
+  sourceEnquiryItemId?: string | null;
   name: string;
   phoneNumber: string;
   customerAddress?: string | null;
@@ -112,6 +128,7 @@ export interface BackendOrderDetails extends BackendOrderRow {}
 
 export interface CreateExistingOrderItemInput {
   productType: "EXISTING";
+  sourceEnquiryItemId?: string;
   productCode: string;
   notes?: string;
   isCadRequired?: boolean;
@@ -121,7 +138,9 @@ export interface CreateExistingOrderItemInput {
 
 export interface CreateCustomOrderItemInput {
   productType: "CUSTOM";
+  sourceEnquiryItemId?: string;
   customProduct: BackendCustomProductDetails;
+  requirementSpecification?: CustomProductRequirementSpecification;
   notes?: string;
   isCadRequired?: boolean;
   estimatedDeliveryDate?: string;
