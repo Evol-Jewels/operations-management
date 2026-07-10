@@ -1,12 +1,26 @@
 "use client";
 
 import { toBlob } from "html-to-image";
-import { Download, ImageIcon, Loader2 } from "lucide-react";
+import {
+  ChevronDown,
+  Check,
+  Download,
+  FileImage,
+  FileText,
+  ImageIcon,
+  Loader2,
+  Share2,
+} from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
@@ -43,11 +57,19 @@ interface EstimationSummaryCardProps {
   title?: string;
   renderActions?: (props: {
     downloadSummary: () => Promise<void>;
+    downloadSummaryPdf: () => Promise<void>;
+    downloadSummaryPng: () => Promise<void>;
+    shareSummaryPng: () => Promise<void>;
     isDownloading: boolean;
+    isSharing: boolean;
   }) => ReactNode;
   renderHeaderActions?: (props: {
     downloadSummary: () => Promise<void>;
+    downloadSummaryPdf: () => Promise<void>;
+    downloadSummaryPng: () => Promise<void>;
+    shareSummaryPng: () => Promise<void>;
     isDownloading: boolean;
+    isSharing: boolean;
   }) => ReactNode;
   data:
     | {
@@ -151,6 +173,24 @@ function waitForCardImages(card: HTMLElement) {
   );
 }
 
+function waitForAnimationFrame() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
+async function waitForPrintLayout(card: HTMLElement) {
+  await waitForCardImages(card);
+  await document.fonts?.ready;
+  await waitForAnimationFrame();
+  await waitForAnimationFrame();
+}
+
+type DownloadFormat = "pdf" | "png";
+
+const ESTIMATION_SUMMARY_DOWNLOAD_FORMAT_KEY =
+  "evol:estimation-summary-download-format";
+
 function isLoadedImage(image: HTMLImageElement) {
   return image.complete && image.naturalWidth > 0 && image.naturalHeight > 0;
 }
@@ -204,6 +244,163 @@ async function saveSummaryImage(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+async function shareImageFile(blob: Blob, filename: string, title: string) {
+  const file = new File([blob], filename, { type: "image/png" });
+  const shareData = {
+    files: [file],
+    title,
+  };
+
+  if (!navigator.canShare?.(shareData)) {
+    throw new Error("File sharing is not supported on this device.");
+  }
+
+  await navigator.share(shareData);
+}
+
+export function EstimationSummaryShareButton({
+  shareSummaryPng,
+  isSharing,
+  isDownloading,
+  className,
+}: {
+  shareSummaryPng: () => Promise<void>;
+  isSharing: boolean;
+  isDownloading?: boolean;
+  className?: string;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className={cn(
+        "h-8 shrink-0 rounded-md px-2.5 sm:hidden",
+        className,
+      )}
+      onClick={() => void shareSummaryPng()}
+      disabled={isSharing || isDownloading}
+      aria-label="Share summary PNG"
+    >
+      {isSharing ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Share2 className="h-4 w-4" />
+      )}
+      <span className="hidden sm:inline">Share PNG</span>
+    </Button>
+  );
+}
+
+export function EstimationSummaryDownloadButton({
+  downloadSummaryPdf,
+  downloadSummaryPng,
+  isDownloading,
+  className,
+}: {
+  downloadSummaryPdf: () => Promise<void>;
+  downloadSummaryPng: () => Promise<void>;
+  isDownloading: boolean;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>("png");
+
+  useEffect(() => {
+    const storedFormat = localStorage.getItem(
+      ESTIMATION_SUMMARY_DOWNLOAD_FORMAT_KEY,
+    );
+    if (storedFormat === "pdf" || storedFormat === "png") {
+      setDownloadFormat(storedFormat);
+    }
+  }, []);
+
+  function selectDownloadFormat(format: DownloadFormat) {
+    setDownloadFormat(format);
+    localStorage.setItem(ESTIMATION_SUMMARY_DOWNLOAD_FORMAT_KEY, format);
+  }
+
+  function downloadSelectedFormat() {
+    if (downloadFormat === "pdf") {
+      void downloadSummaryPdf();
+      return;
+    }
+
+    void downloadSummaryPng();
+  }
+
+  function downloadFormatOption(format: DownloadFormat) {
+    setOpen(false);
+    selectDownloadFormat(format);
+
+    if (format === "pdf") {
+      void downloadSummaryPdf();
+      return;
+    }
+
+    void downloadSummaryPng();
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <div className="inline-flex overflow-hidden rounded-md border border-input shadow-xs">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "h-8 shrink-0 rounded-none border-0 px-2.5 shadow-none hover:bg-accent sm:px-3",
+            className,
+          )}
+          onClick={downloadSelectedFormat}
+          disabled={isDownloading}
+          aria-label="Download summary"
+        >
+          {isDownloading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          <span className="hidden sm:inline">Download .{downloadFormat}</span>
+          <span className="sm:hidden">.{downloadFormat}</span>
+        </Button>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="h-8 w-7 rounded-none border-0 border-l border-input shadow-none hover:bg-accent"
+            disabled={isDownloading}
+            aria-label="Choose download format"
+          >
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          </Button>
+        </PopoverTrigger>
+      </div>
+      <PopoverContent align="end" className="w-48 p-1">
+        <button
+          type="button"
+          onClick={() => downloadFormatOption("pdf")}
+          className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+        >
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          <span className="flex-1">Download as .pdf</span>
+          {downloadFormat === "pdf" ? <Check className="h-4 w-4" /> : null}
+        </button>
+        <button
+          type="button"
+          onClick={() => downloadFormatOption("png")}
+          className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+        >
+          <FileImage className="h-4 w-4 text-muted-foreground" />
+          <span className="flex-1">Download as .png</span>
+          {downloadFormat === "png" ? <Check className="h-4 w-4" /> : null}
+        </button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function EstimationSummaryCard({
   className,
   compact = false,
@@ -217,6 +414,7 @@ export function EstimationSummaryCard({
 }: EstimationSummaryCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const summary = getSummaryData(data);
   const hasStones = summary.stoneDetails.some((stone) => stone.weight > 0);
   const displayName = summary.name || "";
@@ -226,28 +424,61 @@ export function EstimationSummaryCard({
   const displayGst = summary.gst;
   const displayTotal = summary.total;
 
-  async function downloadSummary() {
+  async function downloadSummaryPdf() {
     if (!cardRef.current) return;
 
     setIsDownloading(true);
+    cardRef.current.setAttribute("data-estimation-summary-printing", "true");
+
+    const cleanup = () => {
+      cardRef.current?.removeAttribute("data-estimation-summary-printing");
+      setIsDownloading(false);
+    };
+
     try {
-      await waitForCardImages(cardRef.current);
-      const restoreLogos = inlineDownloadLogos(cardRef.current);
-
-      const blob = await toBlob(cardRef.current, {
-        pixelRatio: 2,
-        cacheBust: true,
-      }).finally(restoreLogos);
-
-      if (!blob) throw new Error("Unable to create summary image");
-
-      await saveSummaryImage(
-        blob,
-        downloadFilename ??
-          `evol-estimate-${makeSlug(displayName)}-${new Date()
-            .toISOString()
-            .slice(0, 10)}.png`,
+      await waitForPrintLayout(cardRef.current);
+      window.addEventListener("afterprint", cleanup, { once: true });
+      window.print();
+      window.setTimeout(cleanup, 30000);
+    } catch (error) {
+      cleanup();
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to prepare estimate summary PDF",
       );
+    }
+  }
+
+  async function createSummaryPngBlob() {
+    if (!cardRef.current) throw new Error("Unable to prepare summary image");
+
+    await waitForCardImages(cardRef.current);
+    const restoreLogos = inlineDownloadLogos(cardRef.current);
+
+    const blob = await toBlob(cardRef.current, {
+      pixelRatio: 2,
+      cacheBust: true,
+    }).finally(restoreLogos);
+
+    if (!blob) throw new Error("Unable to create summary image");
+    return blob;
+  }
+
+  function getSummaryPngFilename() {
+    return (
+      downloadFilename ??
+      `evol-estimate-${makeSlug(displayName)}-${new Date()
+        .toISOString()
+        .slice(0, 10)}.png`
+    );
+  }
+
+  async function downloadSummaryPng() {
+    setIsDownloading(true);
+    try {
+      const blob = await createSummaryPngBlob();
+      await saveSummaryImage(blob, getSummaryPngFilename());
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
 
@@ -260,6 +491,37 @@ export function EstimationSummaryCard({
       setIsDownloading(false);
     }
   }
+
+  async function shareSummaryPng() {
+    setIsSharing(true);
+    try {
+      const blob = await createSummaryPngBlob();
+      await shareImageFile(
+        blob,
+        getSummaryPngFilename(),
+        displayName || "Estimate summary",
+      );
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to share estimate summary",
+      );
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
+  const downloadProps = {
+    downloadSummary: downloadSummaryPng,
+    downloadSummaryPdf,
+    downloadSummaryPng,
+    shareSummaryPng,
+    isDownloading,
+    isSharing,
+  };
 
   return (
     <section
@@ -280,24 +542,12 @@ export function EstimationSummaryCard({
             </div>
             {showDownloadButton || renderHeaderActions ? (
               <div className="flex shrink-0 items-center gap-2">
-                {renderHeaderActions?.({ downloadSummary, isDownloading })}
+                {renderHeaderActions?.(downloadProps)}
                 {showDownloadButton ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 shrink-0 rounded-md px-2.5 sm:px-3"
-                    onClick={downloadSummary}
-                    disabled={isDownloading}
-                    aria-label="Download summary"
-                  >
-                    {isDownloading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                    <span className="hidden sm:inline">Download</span>
-                  </Button>
+                  <>
+                    <EstimationSummaryShareButton {...downloadProps} />
+                    <EstimationSummaryDownloadButton {...downloadProps} />
+                  </>
                 ) : null}
               </div>
             ) : null}
@@ -310,12 +560,14 @@ export function EstimationSummaryCard({
       <div
         ref={cardRef}
         className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
+        data-estimation-summary-card
       >
         <div
           className={cn(
             "flex items-center justify-center border-b border-border",
             compact ? "py-2" : "py-3",
           )}
+          data-estimation-summary-logo
         >
           <img
             src="/evol-logo.webp"
@@ -327,6 +579,7 @@ export function EstimationSummaryCard({
               compact ? "h-6" : "h-7",
             )}
             data-download-logo
+            data-estimation-summary-logo-tone="light"
           />
           <img
             src="/evol-logo-white.webp"
@@ -338,11 +591,18 @@ export function EstimationSummaryCard({
               compact ? "h-6" : "h-7",
             )}
             data-download-logo
+            data-estimation-summary-logo-tone="dark"
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr]">
-          <div className="relative flex min-h-48 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-[4/3] sm:min-h-0">
+        <div
+          className="grid grid-cols-1 sm:grid-cols-[3fr_2fr]"
+          data-estimation-summary-hero
+        >
+          <div
+            className="relative flex min-h-48 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-[4/3] sm:min-h-0"
+            data-estimation-summary-media
+          >
             {summary.imageUrl ? (
               <Image
                 src={summary.imageUrl}
@@ -361,6 +621,7 @@ export function EstimationSummaryCard({
               "flex min-h-48 min-w-0 flex-col justify-between border-t border-border px-4 sm:min-h-0 sm:border-t-0 sm:border-l",
               compact ? "py-3" : "py-4",
             )}
+            data-estimation-summary-intro
           >
             <div className="min-w-0">
               <p className="break-words text-sm font-semibold leading-snug sm:text-base">
@@ -408,6 +669,7 @@ export function EstimationSummaryCard({
             "flex items-center justify-between bg-muted/35 px-4",
             compact ? "py-2.5" : "py-3",
           )}
+          data-estimation-summary-strip
         >
           <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             Gross Weight
@@ -419,7 +681,10 @@ export function EstimationSummaryCard({
 
         <Separator />
 
-        <div className={cn("px-4", compact ? "py-3" : "py-4")}>
+        <div
+          className={cn("px-4", compact ? "py-3" : "py-4")}
+          data-estimation-summary-section
+        >
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             Gold
           </p>
@@ -453,7 +718,10 @@ export function EstimationSummaryCard({
         {hasStones ? (
           <>
             <Separator />
-            <div className={cn("px-4", compact ? "py-3" : "py-4")}>
+            <div
+              className={cn("px-4", compact ? "py-3" : "py-4")}
+              data-estimation-summary-section
+            >
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                 Stones
               </p>
@@ -519,6 +787,7 @@ export function EstimationSummaryCard({
             "px-4",
             compact ? "space-y-2 py-3" : "space-y-3 py-4",
           )}
+          data-estimation-summary-section
         >
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Subtotal</span>
@@ -541,6 +810,7 @@ export function EstimationSummaryCard({
             "flex items-center justify-between gap-4 bg-foreground px-4 text-background",
             compact ? "py-3" : "py-3.5",
           )}
+          data-estimation-summary-total
         >
           <span className="text-sm font-medium">Total</span>
           <span
@@ -558,6 +828,7 @@ export function EstimationSummaryCard({
             "border-t border-border bg-muted/20 px-4",
             compact ? "py-2.5" : "py-3",
           )}
+          data-estimation-summary-terms
         >
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
             Terms & Conditions
@@ -586,7 +857,7 @@ export function EstimationSummaryCard({
 
       {renderActions ? (
         <div className={cn(compact ? "mt-3" : "mt-4")}>
-          {renderActions({ downloadSummary, isDownloading })}
+          {renderActions(downloadProps)}
         </div>
       ) : null}
     </section>

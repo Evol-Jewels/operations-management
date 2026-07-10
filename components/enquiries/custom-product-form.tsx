@@ -39,6 +39,8 @@ interface CustomProductFormProps {
   onCancel: () => void;
   submitLabel?: string;
   canSubmit?: (draft: NewProduct) => boolean;
+  showActions?: boolean;
+  showBackButton?: boolean;
 }
 
 export function CustomProductForm({
@@ -55,6 +57,8 @@ export function CustomProductForm({
   onCancel,
   submitLabel = "Add product",
   canSubmit = hasValidCustomProductRequirement,
+  showActions = true,
+  showBackButton = true,
 }: CustomProductFormProps) {
   const stoneTypesQuery = useStoneTypes({ limit: 1000 });
 
@@ -104,7 +108,11 @@ export function CustomProductForm({
 
   return (
     <div className="space-y-4">
-      <ModeHeader label="Describe a custom product" onBack={onCancel} />
+      <ModeHeader
+        label="Describe a custom product"
+        onBack={onCancel}
+        showBackButton={showBackButton}
+      />
       <div className="space-y-4 rounded-xl border border-border bg-card p-4">
         <ReferenceInputPanel
           references={draft.references}
@@ -279,21 +287,23 @@ export function CustomProductForm({
         </FormField>
       </div>
 
-      <div className="flex gap-2 pt-1">
-        <Button
-          type="button"
-          size="sm"
-          onClick={addNewProduct}
-          disabled={!canSubmit(draft)}
-          className="gap-2 px-5"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {submitLabel}
-        </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
+      {showActions && (
+        <div className="flex gap-2 pt-1">
+          <Button
+            type="button"
+            size="sm"
+            onClick={addNewProduct}
+            disabled={!canSubmit(draft)}
+            className="gap-2 px-5"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {submitLabel}
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -529,20 +539,30 @@ function ReferenceItem({
   );
 }
 
-function ModeHeader({ label, onBack }: { label: string; onBack: () => void }) {
+function ModeHeader({
+  label,
+  onBack,
+  showBackButton = true,
+}: {
+  label: string;
+  onBack: () => void;
+  showBackButton?: boolean;
+}) {
   return (
     <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={onBack}
-        className={cn(
-          "flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md",
-          "text-muted-foreground transition-colors hover:bg-muted",
-        )}
-        aria-label="Back to product options"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-      </button>
+      {showBackButton && (
+        <button
+          type="button"
+          onClick={onBack}
+          className={cn(
+            "flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md",
+            "text-muted-foreground transition-colors hover:bg-muted",
+          )}
+          aria-label="Back to product options"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+        </button>
+      )}
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
     </div>
   );

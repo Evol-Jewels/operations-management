@@ -438,33 +438,217 @@
     display: none !important;
   }
 
-  /* Hide app UI while preserving the Next root so nested print views can render. */
-  body * {
+  body:has(> #enquiry-print-root) > :not(#enquiry-print-root) {
+    display: none !important;
+  }
+
+  body:has(> #enquiry-print-root) #enquiry-print-root {
+    display: block !important;
+    position: static !important;
+    width: 100%;
+  }
+
+  body:not(:has(> #enquiry-print-root)) * {
     visibility: hidden !important;
   }
 
-  #order-print-view,
-  #order-print-view *,
-  #enquiry-estimation-print-view,
-  #enquiry-estimation-print-view * {
+  body:not(:has(> #enquiry-print-root)) #order-print-view,
+  body:not(:has(> #enquiry-print-root)) #order-print-view *,
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-printing],
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-printing] * {
     visibility: visible !important;
   }
 
-  #order-print-view,
-  #enquiry-estimation-print-view {
+  body:not(:has(> #enquiry-print-root)) #order-print-view {
     display: block !important;
     inset: 0;
     position: absolute;
     width: 100%;
   }
 
-  #enquiry-estimation-print-view {
-    position: static !important;
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-printing] {
+    background: white !important;
+    color: black !important;
+    display: block !important;
+    inset: 0;
+    margin: 0 auto;
+    max-width: 170mm;
+    position: absolute;
+    width: 100%;
+  }
+
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-card] {
+    border: 1px solid #d7d7d7 !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    overflow: hidden !important;
+  }
+
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-card],
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-card] * {
+    background-color: #ffffff !important;
+    border-color: #d7d7d7 !important;
+    color: #111111 !important;
+    font-size: 10px !important;
+    line-height: 1.35 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-card]
+    p,
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-card]
+    span,
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-card]
+    li {
+    color: #111111 !important;
+  }
+
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-logo] {
+    align-items: center !important;
+    border-bottom: 1px solid #d7d7d7 !important;
+    display: flex !important;
+    height: 12mm !important;
+    justify-content: center !important;
+    padding: 0 !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-logo]
+    img {
+    display: none !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-logo]
+    [data-estimation-summary-logo-tone="light"] {
+    display: block !important;
+    filter: none !important;
+    height: 7mm !important;
+    width: auto !important;
+  }
+
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-hero] {
+    display: grid !important;
+    grid-template-columns: 3fr 2fr !important;
+  }
+
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-media] {
+    aspect-ratio: 4 / 3 !important;
+    background-color: #f5f5f5 !important;
+    min-height: 0 !important;
+  }
+
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-media] img {
+    object-fit: cover !important;
+  }
+
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-intro] {
+    border-left: 1px solid #d7d7d7 !important;
+    border-top: 0 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    min-height: 0 !important;
+    padding: 6mm !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-intro]
+    p:first-child {
+    font-size: 14px !important;
+    line-height: 1.25 !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-intro]
+    p:last-child {
+    font-size: 22px !important;
+    line-height: 1.1 !important;
+  }
+
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-strip] {
+    background-color: #f6f6f6 !important;
+    border-top: 1px solid #d7d7d7 !important;
+    padding: 3mm 5mm !important;
+  }
+
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-section] {
+    break-inside: avoid !important;
+    padding: 4mm 5mm !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-section]
+    > p:first-child,
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-strip]
+    > span:first-child,
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-terms]
+    > p:first-child {
+    font-size: 9px !important;
+    letter-spacing: 0.18em !important;
+  }
+
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-total] {
+    background-color: #ffffff !important;
+    border-top: 2px solid #111111 !important;
+    padding: 3.5mm 5mm !important;
+  }
+
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-total],
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-total] * {
+    background-color: #ffffff !important;
+    color: #111111 !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-total]
+    span:last-child {
+    font-size: 22px !important;
+    line-height: 1.1 !important;
+  }
+
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-terms] {
+    background-color: #ffffff !important;
+    border-top: 1px solid #d7d7d7 !important;
+    break-inside: avoid !important;
+    padding: 3.5mm 5mm !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-terms]
+    ul {
+    margin-top: 2mm !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-terms]
+    li {
+    color: #333333 !important;
+    font-size: 8.5px !important;
+    line-height: 1.4 !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-printing]
+    .dark\:hidden {
+    display: block !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-printing]
+    .dark\:block {
+    display: none !important;
   }
 
   /* Page margins */
   @page {
-    margin: 18mm 16mm;
+    margin: 8mm 14mm;
     size: A4 portrait;
   }
 

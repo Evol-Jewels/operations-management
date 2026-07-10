@@ -10,9 +10,11 @@ import { OptionTextField, SectionShell, TextField } from "./RequirementFields";
 export function RequirementBasicsSection({
   value,
   onChange,
+  hideDeliveryDate = false,
 }: {
   value: RequirementDraft;
   onChange: (value: RequirementDraft) => void;
+  hideDeliveryDate?: boolean;
 }) {
   const updateDetails = (patch: Partial<RequirementDraft["details"]>) =>
     onChange({ ...value, details: { ...value.details, ...patch } });
@@ -63,12 +65,14 @@ export function RequirementBasicsSection({
           placeholder="2.2L - 2.6L"
           onChange={(budgetRange) => updateDetails({ budgetRange })}
         />
-        <TextField
-          label="Delivery date"
-          type="date"
-          value={value.details.deliveryDate}
-          onChange={(deliveryDate) => updateDetails({ deliveryDate })}
-        />
+        {!hideDeliveryDate && (
+          <TextField
+            label="Delivery date"
+            type="date"
+            value={value.details.deliveryDate}
+            onChange={(deliveryDate) => updateDetails({ deliveryDate })}
+          />
+        )}
       </div>
     </SectionShell>
   );

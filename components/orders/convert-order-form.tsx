@@ -16,7 +16,10 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
-import { CustomProductForm } from "@/components/enquiries/custom-product-form";
+import { CustomProductForm as LegacyCustomProductForm } from "@/components/enquiries/custom-product-form";
+import { CustomProductForm as V2CustomProductForm } from "@/components/requirements/CustomProductForm";
+import type { RequirementDraft } from "@/components/requirements/requirement-form-types";
+import { createEmptyRequirement, generateRequirementId } from "@/components/requirements/requirement-form-utils";
 import {
   createEmptyNewProduct,
   hasValidCustomProductRequirement,
@@ -41,12 +44,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { enquiryKeys, useEnquiryDetails } from "@/hooks/useEnquiries";
 import { useCreateOrders } from "@/hooks/useOrders";
 import { authClient } from "@/lib/auth-client";
+import { uploadEnquiryImage } from "@/lib/enquiriesApi";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import { fetchInventoryProducts } from "@/lib/inventoryApi";
 import { mapInventoryProductToEnquiryProduct } from "@/lib/inventoryProductMapping";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { CreateOrdersInput } from "@/types/order-api";
-import { addDaysDateString, customProductDetails } from "./order-form-utils";
+import type { CreateOrdersInput, CustomProductRequirementSpecification } from "@/types/order-api";
+import { addDaysDateString, mapCategoryToBackend, mapMetalColorToBackend } from "./order-form-utils";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -68,11 +72,19 @@ interface OrderItem {
   metalGrossWeight?: string;
   metalColor?: string;
   size?: string;
+  stones?: NewProduct["stones"];
+  stoneDescription?: string;
+  stoneCaratEstimate?: string;
   imageUrl?: string;
   basePrice?: number;
   // Custom product fields
   references?: ProductReference[];
   notes?: string;
+  polish?: string;
+  stoneCut?: string;
+  stoneQuality?: string;
+  interestLevel?: string;
+  requirement?: RequirementDraft;
   // Order fields
   vendor: string;
   cadApprovalRequired: boolean;
@@ -125,11 +137,41 @@ function createOrderItemFromNewCustom(
     metalGrossWeight: product.metalGrossWeight,
     metalColor: product.metalColor,
     size: product.size,
+    polish: product.polish,
+    stones: product.stones,
     references: product.references,
     notes: product.notes,
+    stoneDescription: product.stoneDescription,
+    stoneCut: product.stoneCut,
+    stoneQuality: product.stoneQuality,
+    stoneCaratEstimate: product.stoneCaratEstimate,
+    interestLevel: product.interestLevel,
     vendor: "",
     cadApprovalRequired: false,
     estimatedDelivery: addDaysDateString(createdAt, 17),
+  };
+}
+
+function orderItemToCustomRequirement(item: OrderItem): NewProduct {
+  return {
+    ...createEmptyNewProduct(),
+    id: item.id,
+    category: item.category ?? "",
+    metalType: item.metalType ?? "",
+    metalPurity: item.metalPurity ?? "",
+    metalNetWeight: item.metalNetWeight ?? "",
+    metalGrossWeight: item.metalGrossWeight ?? "",
+    metalColor: item.metalColor ?? "",
+    size: item.size ?? "",
+    polish: item.polish ?? "",
+    stones: item.stones ?? createEmptyNewProduct().stones,
+    stoneDescription: item.stoneDescription ?? "",
+    stoneCut: item.stoneCut ?? "",
+    stoneQuality: item.stoneQuality ?? "",
+    stoneCaratEstimate: item.stoneCaratEstimate ?? "",
+    references: item.references ?? [],
+    notes: item.notes ?? "",
+    interestLevel: item.interestLevel ?? "",
   };
 }
 
@@ -161,6 +203,15 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     customerPhone: "",
     customerAddress: "",
   });
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [activeRequirementId, setActiveRequirementId] = useState<string | null>(
+    null,
+  );
+  const [confirmedRequirementIds, setConfirmedRequirementIds] = useState<
+    string[]
+  >([]);
+  const [customReferenceLinkInput, setCustomReferenceLinkInput] = useState("");
+  const [customReferenceError, setCustomReferenceError] = useState("");
 
   // Product search state
   const [productSearch, setProductSearch] = useState("");
@@ -180,13 +231,34 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
   const [referenceError, setReferenceError] = useState("");
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const steps = ["products", "customer"];
+  const steps = ["requirements", "details", "customer", "review"];
   const safeStep = Math.min(currentStep, steps.length - 1);
   const stepId = steps[safeStep];
   const progress = ((safeStep + 1) / steps.length) * 100;
   const isFirstStep = safeStep === 0;
   const isLastStep = safeStep === steps.length - 1;
-  const hasItems = form.items.length > 0;
+  const selectedItems = form.items.filter((item) =>
+    selectedItemIds.includes(item.id),
+  );
+  const hasItems = selectedItems.length > 0;
+  const selectedCustomItems = selectedItems.filter(
+    (item) => item.source === "enquiry-custom" || item.source === "new-custom",
+  );
+  const activeCustomItem = selectedCustomItems.find(
+    (item) => item.id === activeRequirementId,
+  );
+  const hasNextCustomRequirement = selectedCustomItems.some(
+    (item) => !confirmedRequirementIds.includes(item.id),
+  );
+
+  useEffect(() => {
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("app-content")
+        ?.scrollTo({ top: 0, behavior: "auto" });
+      window.scrollTo({ top: 0, behavior: "auto" });
+    });
+  }, [safeStep, activeRequirementId]);
 
   // Pre-fill enquiry data
   useEffect(() => {
@@ -214,15 +286,57 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
         });
       } else {
         const stoneDesc = item.stones.map((s) => s.stoneType).join(", ");
+        const requirement: RequirementDraft = {
+          id: item.id,
+          category: item.category || "",
+          metalType: item.metalType || "",
+          metalPurity: item.metalPurity || "",
+          metalWeight: item.metalWeight || "",
+          diamonds: item.diamonds.map((diamond, index) => ({
+            ...diamond,
+            id: diamond.id || `${item.id}-diamond-${index}`,
+          })),
+          colorStones: item.colorStones.map((stone, index) => ({
+            ...stone,
+            id: stone.id || `${item.id}-colour-stone-${index}`,
+          })),
+          details: { ...item.details },
+          references: item.media.map((media, index) => ({
+            id: `${item.id}-reference-${index}`,
+            type:
+              media.type === "LINK"
+                ? "link"
+                : media.type === "VIDEO"
+                  ? "video"
+                  : "image",
+            url: media.url,
+            name: media.name || `Reference ${index + 1}`,
+            mimeType: media.mimeType,
+            size: media.size,
+          })),
+          notes: item.notes || "",
+        };
         orderItems.push({
           id: item.id,
           source: "enquiry-custom",
-          name: item.productCode || "Custom product",
-          category: "Custom",
+          name: item.category || "Custom product",
+          category: item.category || "Custom",
           metalType: item.metalType || undefined,
           metalPurity: item.metalPurity || undefined,
           metalNetWeight: item.metalWeight || undefined,
-          notes: stoneDesc || undefined,
+          metalColor: item.details.metalColor || undefined,
+          size: item.details.productSize || undefined,
+          stones: item.stones.map((stone, index) => ({
+            id: `${item.id}-stone-${index}`,
+            stoneType: stone.stoneType,
+            pieces: "1",
+            weight: stone.weight || "",
+          })),
+          stoneDescription: stoneDesc,
+          stoneCaratEstimate: item.stones[0]?.weight || "",
+          references: requirement.references,
+          notes: item.notes || stoneDesc || undefined,
+          requirement,
           vendor: "",
           cadApprovalRequired: false,
           estimatedDelivery: defaultEstimatedDelivery,
@@ -236,6 +350,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
       customerPhone: enquiryDetails.enquiry.phoneNumber || "",
       customerAddress: "",
     });
+    setSelectedItemIds(orderItems.map((item) => item.id));
   }, [enquiryDetails]);
 
   // Cleanup object URLs
@@ -266,6 +381,135 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
         createdAtRef.current,
         cadApprovalRequired ? 20 : 17,
       ),
+    });
+  }
+
+  function itemToCustomRequirement(item: OrderItem): NewProduct {
+    return {
+      ...createEmptyNewProduct(),
+      id: item.id,
+      category: item.category ?? "",
+      metalType: item.metalType ?? "",
+      metalPurity: item.metalPurity ?? "",
+      metalNetWeight: item.metalNetWeight ?? "",
+      metalGrossWeight: item.metalGrossWeight ?? "",
+      metalColor: item.metalColor ?? "",
+      size: item.size ?? "",
+      polish: item.polish ?? "",
+      stones: item.stones ?? createEmptyNewProduct().stones,
+      stoneDescription: item.stoneDescription ?? "",
+      stoneCut: item.stoneCut ?? "",
+      stoneQuality: item.stoneQuality ?? "",
+      stoneCaratEstimate: item.stoneCaratEstimate ?? "",
+      references: item.references ?? [],
+      notes: item.notes ?? "",
+      interestLevel: item.interestLevel ?? "",
+    };
+  }
+
+  function updateCustomRequirement(itemId: string, draft: NewProduct) {
+    setForm((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              name:
+                draft.category ||
+                `${formatMetalTypeLabel(draft.metalType)} ${draft.metalPurity}`.trim() ||
+                "Custom product",
+              category: draft.category,
+              metalType: draft.metalType,
+              metalPurity: draft.metalPurity,
+              metalNetWeight: draft.metalNetWeight,
+              metalGrossWeight: draft.metalGrossWeight,
+              metalColor: draft.metalColor,
+              size: draft.size,
+              polish: draft.polish,
+              stones: draft.stones,
+              stoneDescription: draft.stoneDescription,
+              stoneCut: draft.stoneCut,
+              stoneQuality: draft.stoneQuality,
+              stoneCaratEstimate: draft.stoneCaratEstimate,
+              references: draft.references,
+              notes: draft.notes,
+              interestLevel: draft.interestLevel,
+            }
+          : item,
+      ),
+    }));
+  }
+
+  function updateCustomRequirementDraft(
+    itemId: string,
+    updater: React.SetStateAction<NewProduct>,
+  ) {
+    const item = form.items.find((candidate) => candidate.id === itemId);
+    if (!item) return;
+    const current = orderItemToCustomRequirement(item);
+    updateCustomRequirement(
+      itemId,
+      typeof updater === "function" ? updater(current) : updater,
+    );
+  }
+
+  function addCustomReferenceLink(itemId: string) {
+    const normalized = normalizeReferenceLink(customReferenceLinkInput);
+    if (!normalized) return;
+    if (!isValidReferenceLink(normalized)) {
+      setCustomReferenceError("Enter a valid product or inspiration link");
+      return;
+    }
+    updateCustomRequirementDraft(itemId, (draft) => ({
+      ...draft,
+      references: [
+        ...draft.references,
+        { id: generateId(), type: "link", url: normalized, name: normalized },
+      ],
+    }));
+    setCustomReferenceLinkInput("");
+    setCustomReferenceError("");
+  }
+
+  function addCustomReferenceFiles(itemId: string, files: FileList | null) {
+    if (!files?.length) return;
+    const references: ProductReference[] = [];
+    for (const file of Array.from(files)) {
+      const type = file.type.startsWith("image/")
+        ? "image"
+        : file.type.startsWith("video/")
+          ? "video"
+          : null;
+      if (!type) {
+        setCustomReferenceError("Only image and video files are supported");
+        continue;
+      }
+      references.push({
+        id: generateId(),
+        type,
+        url: URL.createObjectURL(file),
+        name: file.name,
+        mimeType: file.type,
+        size: file.size,
+        file,
+      });
+    }
+    if (!references.length) return;
+    updateCustomRequirementDraft(itemId, (draft) => ({
+      ...draft,
+      references: [...draft.references, ...references],
+    }));
+    setCustomReferenceError("");
+  }
+
+  function removeCustomReference(itemId: string, referenceId: string) {
+    updateCustomRequirementDraft(itemId, (draft) => {
+      const reference = draft.references.find((item) => item.id === referenceId);
+      if (reference && reference.type !== "link") URL.revokeObjectURL(reference.url);
+      return {
+        ...draft,
+        references: draft.references.filter((item) => item.id !== referenceId),
+      };
     });
   }
 
@@ -407,12 +651,12 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
 
   function validateStep(): Record<string, string> {
     const nextErrors: Record<string, string> = {};
-    if (stepId === "products") {
-      if (form.items.length === 0) {
-        nextErrors.items = "Add at least one product";
+    if (stepId === "requirements") {
+      if (selectedItemIds.length === 0) {
+        nextErrors.items = "Select at least one converted requirement";
       }
       if (
-        form.items.some(
+        selectedItems.some(
           (item) =>
             (item.source === "enquiry-existing" ||
               item.source === "new-existing") &&
@@ -421,12 +665,23 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
       ) {
         nextErrors.items = "Every existing product needs a product code";
       }
-      if (form.items.some((item) => !item.estimatedDelivery)) {
+      if (selectedItems.some((item) => !item.estimatedDelivery)) {
         nextErrors.estimatedDelivery =
           "Estimated delivery date is required for every product";
       }
     }
-    if (stepId === "customer") {
+    if (stepId === "details") {
+      if (
+        activeCustomItem &&
+        (!activeCustomItem.requirement?.category.trim() ||
+          !activeCustomItem.requirement.metalType.trim() ||
+          !activeCustomItem.requirement.metalWeight.trim())
+      ) {
+        nextErrors.requirements =
+          "Each custom requirement needs a category, metal type, and metal weight";
+      }
+    }
+    if (stepId === "customer" || stepId === "review") {
       if (!form.customerName.trim()) {
         nextErrors.customerName = "Name is required";
       }
@@ -448,7 +703,28 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
       return;
     }
     if (!isLastStep) {
+      if (stepId === "details" && activeCustomItem) {
+        const confirmedIds = new Set([
+          ...confirmedRequirementIds,
+          activeCustomItem.id,
+        ]);
+        const nextRequirement = selectedCustomItems.find(
+          (item) => !confirmedIds.has(item.id),
+        );
+
+        setConfirmedRequirementIds([...confirmedIds]);
+        if (nextRequirement) {
+          setActiveRequirementId(nextRequirement.id);
+          return;
+        }
+      }
       setAnimDir("forward");
+      if (stepId === "requirements") {
+        setActiveRequirementId(selectedCustomItems[0]?.id ?? null);
+        setConfirmedRequirementIds([]);
+        setCustomReferenceLinkInput("");
+        setCustomReferenceError("");
+      }
       setCurrentStep((prev) => prev + 1);
     }
   }
@@ -463,40 +739,82 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     setCurrentStep((prev) => prev - 1);
   }
 
-  function mapItemToOrderProduct(
+  async function mapItemToOrderProduct(
     item: OrderItem,
-  ): CreateOrdersInput["orders"][number] {
+  ): Promise<CreateOrdersInput["orders"][number]> {
     if (item.source === "enquiry-existing" || item.source === "new-existing") {
       return {
         productType: "EXISTING",
+        sourceEnquiryItemId: item.id,
         productCode: item.productCode ?? "",
         notes: item.notes,
-        vendor: item.vendor.trim() || undefined,
         isCadRequired: item.cadApprovalRequired,
         estimatedDeliveryDate: item.estimatedDelivery,
       };
     }
 
+    const requirement = item.requirement;
+    if (!requirement) throw new Error("Custom requirement details are missing.");
+    const references = await Promise.all(
+      requirement.references.map(async (reference) => {
+        if (reference.type === "image" && reference.file) {
+          return uploadEnquiryImage(reference.file);
+        }
+        if (reference.url.startsWith("blob:")) {
+          throw new Error("Upload the reference before converting this order.");
+        }
+        return {
+          type: reference.type.toUpperCase() as "IMAGE" | "VIDEO" | "LINK",
+          url: reference.url,
+          name: reference.name,
+          mimeType: reference.mimeType,
+          size: reference.size,
+        };
+      }),
+    );
+    const specification: CustomProductRequirementSpecification = {
+      references,
+      diamonds: requirement.diamonds.map(({ id: _id, ...diamond }) => diamond),
+      colorStones: requirement.colorStones.map(({ id: _id, ...stone }) => stone),
+      details: { ...requirement.details },
+      notes: requirement.notes || undefined,
+    };
+    const productSize = Number(requirement.details.productSize);
+    const stoneRows = [
+      ...requirement.diamonds.map((diamond) => ({
+        stoneType: `Diamond - ${diamond.type || "Unspecified"}`,
+        approxPieces: Number(diamond.pieces) || 1,
+        netWeight: diamond.weight || undefined,
+      })),
+      ...requirement.colorStones
+        .filter((stone) => stone.stoneType?.trim())
+        .map((stone) => ({
+          stoneType: stone.stoneType?.trim() || "Colour stone",
+          approxPieces: Number(stone.pieces) || 1,
+          netWeight: stone.weight || undefined,
+        })),
+    ];
+
     return {
       productType: "CUSTOM",
-      customProduct: customProductDetails({
-        ...createEmptyNewProduct(),
-        category: item.category ?? "Other",
-        metalType: item.metalType ?? "",
-        metalPurity: item.metalPurity ?? "",
-        metalNetWeight: item.metalNetWeight ?? "",
-        metalGrossWeight: item.metalGrossWeight ?? "",
-        metalColor: item.metalColor ?? "",
-        size: item.size ?? "",
-      }),
-      notes: item.notes,
-      vendor: item.vendor.trim() || undefined,
+      sourceEnquiryItemId: item.id,
+      customProduct: {
+        category: mapCategoryToBackend(requirement.category),
+        metalType: requirement.metalType,
+        metalPurity: requirement.metalPurity || undefined,
+        metalColor: mapMetalColorToBackend(requirement.details.metalColor || ""),
+        size: Number.isInteger(productSize) ? productSize : undefined,
+        metalNetWeight: requirement.metalWeight,
+        stones: stoneRows,
+      },
+      requirementSpecification: specification,
+      notes: requirement.notes || undefined,
       isCadRequired: item.cadApprovalRequired,
       estimatedDeliveryDate: item.estimatedDelivery,
     };
   }
 
-  function buildPayload(): CreateOrdersInput {
+  async function buildPayload(): Promise<CreateOrdersInput> {
     const createdBy = session?.user?.id;
     if (!createdBy) throw new Error("Unable to determine creator.");
     if (!enquiryDetails?.enquiry.refCode) {
@@ -509,15 +827,17 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
       phoneNumber: form.customerPhone.trim(),
       customerAddress: form.customerAddress.trim() || undefined,
       salesPerson: createdBy,
-      orders: form.items.map(mapItemToOrderProduct),
+      orders: await Promise.all(selectedItems.map(mapItemToOrderProduct)),
     };
   }
 
   async function handleSubmit() {
     const nextErrors = {
       ...validateStep(),
-      ...(form.items.length === 0 ? { items: "Add at least one product" } : {}),
-      ...(form.items.some((item) => !item.estimatedDelivery)
+      ...(selectedItems.length === 0
+        ? { items: "Select at least one converted requirement" }
+        : {}),
+      ...(selectedItems.some((item) => !item.estimatedDelivery)
         ? {
             estimatedDelivery:
               "Estimated delivery date is required for every product",
@@ -537,7 +857,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
         throw new Error("Unable to load source enquiry.");
       }
       const sourceRefCode = enquiryDetails.enquiry.refCode;
-      const response = await createOrdersMutation.mutateAsync(buildPayload());
+      const response = await createOrdersMutation.mutateAsync(await buildPayload());
       void queryClient.invalidateQueries({
         queryKey: enquiryKeys.detail(enquiryId),
       });
@@ -634,43 +954,72 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
             : "slide-in-from-top-3",
         )}
       >
-        {stepId === "products" && (
-          <ProductsStep
+        {stepId === "requirements" && (
+          <RequirementConfirmationStep
             form={form}
-            productAddMode={productAddMode}
-            setProductAddMode={setProductAddMode}
-            productSearch={productSearch}
-            setProductSearch={setProductSearch}
-            searchResults={searchResults}
-            searchInputRef={searchInputRef}
-            productLookupLoading={productLookupLoading}
-            productLookupError={productLookupError}
-            notFoundCode={notFoundCode}
-            isScannerOpen={isScannerOpen}
-            setIsScannerOpen={setIsScannerOpen}
-            newProductDraft={newProductDraft}
-            setNewProductDraft={setNewProductDraft}
-            referenceLinkInput={referenceLinkInput}
-            setReferenceLinkInput={setReferenceLinkInput}
-            referenceError={referenceError}
-            setReferenceError={setReferenceError}
+            selectedItemIds={selectedItemIds}
+            setSelectedItemIds={setSelectedItemIds}
             errors={errors}
             submitError={submitError}
             updateItem={updateItem}
             updateItemCadApproval={updateItemCadApproval}
-            removeItem={removeItem}
-            addInventoryProduct={addInventoryProduct}
-            searchInventoryProducts={searchInventoryProducts}
-            addNewCustomProduct={addNewCustomProduct}
-            cancelNewCustomProduct={cancelNewCustomProduct}
-            addReferenceLink={addReferenceLink}
-            addReferenceFiles={addReferenceFiles}
-            removeDraftReference={removeDraftReference}
           />
         )}
 
         {stepId === "customer" && (
           <CustomerStep form={form} setForm={setForm} errors={errors} />
+        )}
+
+        {stepId === "details" && (
+          <RequirementDetailsStep
+            items={selectedItems}
+            activeRequirementId={activeRequirementId}
+            setActiveRequirementId={setActiveRequirementId}
+            updateRequirement={(itemId, requirement) =>
+              setForm((prev) => ({
+                ...prev,
+                items: prev.items.map((item) =>
+                  item.id === itemId
+                    ? {
+                        ...item,
+                        name: requirement.category || "Custom product",
+                        category: requirement.category,
+                        metalType: requirement.metalType,
+                        metalPurity: requirement.metalPurity,
+                        metalNetWeight: requirement.metalWeight,
+                        notes: requirement.notes,
+                        requirement,
+                      }
+                    : item,
+                ),
+              }))
+            }
+            errors={errors}
+          />
+        )}
+
+        {stepId === "review" && (
+          <ReviewStep
+            form={form}
+            items={selectedItems}
+            canEditSelection={form.items.length > 1}
+            submitError={submitError}
+            errors={errors}
+            onEditRequirements={() => {
+              setAnimDir("backward");
+              setCurrentStep(0);
+            }}
+            onEditDetails={(itemId) => {
+              setActiveRequirementId(itemId);
+              setConfirmedRequirementIds([]);
+              setAnimDir("backward");
+              setCurrentStep(1);
+            }}
+            onEditCustomer={() => {
+              setAnimDir("backward");
+              setCurrentStep(2);
+            }}
+          />
         )}
       </div>
 
@@ -710,7 +1059,9 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
               disabled={isSubmitting || !hasItems}
               className="pointer-events-auto ml-auto gap-2 px-5 shadow-md"
             >
-              Save & Next
+              {stepId === "details" && hasNextCustomRequirement
+                ? "Save & Next requirement"
+                : "Save & Next"}
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -722,7 +1073,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
               disabled={isSubmitting || !hasItems}
               className="pointer-events-auto ml-auto gap-2 px-5 shadow-md"
             >
-              {isSubmitting ? "Creating..." : "Create Order"}
+              {isSubmitting ? "Converting..." : "Confirm & Convert"}
             </Button>
           )}
         </div>
@@ -732,6 +1083,367 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
 }
 
 // ─── Products Step ──────────────────────────────────────────────────────────
+
+function RequirementConfirmationStep({
+  form,
+  selectedItemIds,
+  setSelectedItemIds,
+  errors,
+  submitError,
+  updateItem,
+  updateItemCadApproval,
+}: {
+  form: ConvertFormData;
+  selectedItemIds: string[];
+  setSelectedItemIds: React.Dispatch<React.SetStateAction<string[]>>;
+  errors: Record<string, string>;
+  submitError: string;
+  updateItem: (
+    id: string,
+    patch: Partial<
+      Pick<OrderItem, "vendor" | "estimatedDelivery" | "cadApprovalRequired">
+    >,
+  ) => void;
+  updateItemCadApproval: (itemId: string, cadApprovalRequired: boolean) => void;
+}) {
+  const isSingleRequirement = form.items.length === 1;
+  const areAllRequirementsSelected =
+    form.items.length > 0 && selectedItemIds.length === form.items.length;
+
+  function toggleItem(itemId: string, checked: boolean) {
+    if (isSingleRequirement) return;
+    setSelectedItemIds((prev) =>
+      checked
+        ? [...new Set([...prev, itemId])]
+        : prev.filter((id) => id !== itemId),
+    );
+  }
+
+  function toggleAllRequirements() {
+    setSelectedItemIds(
+      areAllRequirementsSelected ? [] : form.items.map((item) => item.id),
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+            Confirm converted requirements
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Select final requirements and add delivery date and CAD details.
+          </p>
+        </div>
+        {!isSingleRequirement && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={toggleAllRequirements}
+            className="shrink-0"
+          >
+            {areAllRequirementsSelected ? "Clear all" : "Select all"}
+          </Button>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        {form.items.map((item, index) => {
+          const isSelected = selectedItemIds.includes(item.id);
+
+          return (
+            <RequirementConversionCard
+              key={item.id}
+              item={item}
+              index={index}
+              isSelected={isSelected}
+              isSelectionLocked={isSingleRequirement}
+              onSelectionChange={(checked) => toggleItem(item.id, checked)}
+              updateItem={updateItem}
+              updateItemCadApproval={updateItemCadApproval}
+            />
+          );
+        })}
+      </div>
+
+      {errors.items && (
+        <p className="text-sm text-destructive">{errors.items}</p>
+      )}
+      {errors.estimatedDelivery && (
+        <p className="text-sm text-destructive">{errors.estimatedDelivery}</p>
+      )}
+      {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+    </div>
+  );
+}
+
+function RequirementDetailsStep({
+  items,
+  activeRequirementId,
+  setActiveRequirementId,
+  updateRequirement,
+  errors,
+}: {
+  items: OrderItem[];
+  activeRequirementId: string | null;
+  setActiveRequirementId: (id: string) => void;
+  updateRequirement: (itemId: string, requirement: RequirementDraft) => void;
+  errors: Record<string, string>;
+}) {
+  const customItems = items.filter(
+    (item) => item.source === "enquiry-custom" || item.source === "new-custom",
+  );
+  const activeItem =
+    customItems.find((item) => item.id === activeRequirementId) ?? customItems[0];
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-5">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+          Edit requirement details
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Confirm the custom details for every selected requirement.
+        </p>
+      </div>
+
+      {customItems.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {customItems.map((item, index) => (
+            <Button
+              key={item.id}
+              type="button"
+              variant={activeItem?.id === item.id ? "default" : "outline"}
+              size="sm"
+              onClick={() => setActiveRequirementId(item.id)}
+              className="shrink-0"
+            >
+              Requirement {items.findIndex((candidate) => candidate.id === item.id) + 1}
+              {item.category ? `: ${item.category}` : ` ${index + 1}`}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {activeItem ? (
+        <V2CustomProductForm
+          value={activeItem.requirement ?? createEmptyRequirement()}
+          onChange={(requirement) => updateRequirement(activeItem.id, requirement)}
+          onSubmit={() => undefined}
+          showActions={false}
+          hideDeliveryDate
+        />
+      ) : (
+        <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+          The selected requirements are existing inventory products. Their product
+          codes stay linked to the original enquiry.
+        </div>
+      )}
+
+      {errors.requirements && (
+        <p className="text-sm text-destructive">{errors.requirements}</p>
+      )}
+    </div>
+  );
+}
+
+function RequirementConversionCard({
+  item,
+  index,
+  isSelected = true,
+  isSelectionLocked = false,
+  onSelectionChange,
+  updateItem,
+  updateItemCadApproval,
+}: {
+  item: OrderItem;
+  index: number;
+  isSelected?: boolean;
+  isSelectionLocked?: boolean;
+  onSelectionChange?: (checked: boolean) => void;
+  updateItem: (
+    id: string,
+    patch: Partial<
+      Pick<OrderItem, "vendor" | "estimatedDelivery" | "cadApprovalRequired">
+    >,
+  ) => void;
+  updateItemCadApproval: (itemId: string, cadApprovalRequired: boolean) => void;
+}) {
+  const deliveryOptions = [
+    { label: "Standard", days: 17 },
+    { label: "CAD", days: 20 },
+    { label: "Extended", days: 30 },
+  ];
+
+  return (
+    <div
+      role={isSelectionLocked ? undefined : "checkbox"}
+      aria-checked={isSelectionLocked ? undefined : isSelected}
+      tabIndex={isSelectionLocked ? undefined : 0}
+      onClick={() => {
+        if (!isSelectionLocked) onSelectionChange?.(!isSelected);
+      }}
+      onKeyDown={(event) => {
+        if (
+          !isSelectionLocked &&
+          (event.key === "Enter" || event.key === " ")
+        ) {
+          event.preventDefault();
+          onSelectionChange?.(!isSelected);
+        }
+      }}
+      className={cn(
+        "space-y-4 rounded-lg border bg-card p-4 transition-opacity",
+        !isSelectionLocked && "cursor-pointer",
+        isSelected ? "border-primary/50" : "border-border opacity-45",
+      )}
+    >
+      <div className="flex gap-3">
+        {!isSelectionLocked && (
+          <div onClick={(event) => event.stopPropagation()}>
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={(checked) =>
+                onSelectionChange?.(checked === true)
+              }
+              aria-label={`Select requirement ${index + 1}`}
+              className="mt-1"
+            />
+          </div>
+        )}
+        <RequirementSnapshot item={item} index={index} />
+      </div>
+
+      {isSelected && (
+        <div
+          className="grid gap-4 border-t border-border pt-4 md:grid-cols-[minmax(0,1fr)_220px]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium text-foreground">CAD approval</p>
+            <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 text-sm transition-colors hover:bg-muted/35">
+              <Checkbox
+                checked={item.cadApprovalRequired}
+                onCheckedChange={(checked) =>
+                  updateItemCadApproval(item.id, checked === true)
+                }
+              />
+              <span className="font-medium text-foreground">
+                Customer requires CAD
+              </span>
+            </label>
+          </div>
+          <FormField label="Estimated delivery date" required>
+            <Input
+              type="date"
+              value={item.estimatedDelivery}
+              onChange={(event) =>
+                updateItem(item.id, { estimatedDelivery: event.target.value })
+              }
+              className="h-10 w-full"
+            />
+          </FormField>
+          <div className="space-y-1.5 md:col-span-2">
+            <p className="text-sm font-medium text-foreground">Delivery target</p>
+            <div className="flex flex-wrap gap-2">
+              {deliveryOptions.map((option) => {
+                const date = addDaysDateString(new Date(), option.days);
+                const isOptionSelected = item.estimatedDelivery === date;
+
+                return (
+                  <Button
+                    key={option.days}
+                    type="button"
+                    variant={isOptionSelected ? "default" : "outline"}
+                    size="sm"
+                    onClick={() =>
+                      updateItem(item.id, { estimatedDelivery: date })
+                    }
+                    className="h-8 text-xs"
+                  >
+                    {option.label} ({option.days} days)
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+function RequirementSnapshot({
+  item,
+  index,
+}: {
+  item: OrderItem;
+  index: number;
+}) {
+  const metal = [formatMetalTypeLabel(item.metalType || ""), item.metalPurity]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className="min-w-0 flex-1 space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">
+            Requirement {index + 1}: {item.name}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {item.source === "enquiry-existing" || item.source === "new-existing"
+              ? "Existing product"
+              : "Custom product"}
+            {item.productCode ? ` · ${item.productCode}` : ""}
+          </p>
+        </div>
+        {item.imageUrl ? (
+          // biome-ignore lint/performance/noImgElement: enquiry media URL
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            className="h-12 w-12 shrink-0 rounded-md border border-border bg-muted object-cover"
+          />
+        ) : null}
+      </div>
+
+      <div className="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+        <RequirementFact label="Category" value={item.category} />
+        <RequirementFact label="Metal" value={metal} />
+        <RequirementFact label="Net weight" value={item.metalNetWeight} />
+        <RequirementFact label="Size" value={item.size} />
+      </div>
+
+      {item.notes ? (
+        <p className="whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
+          <span className="font-medium text-foreground">Notes:</span>{" "}
+          {item.notes}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function RequirementFact({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string;
+}) {
+  if (!value?.trim()) return null;
+
+  return (
+    <div className="rounded-md border border-border/70 bg-muted/20 px-2.5 py-2">
+      <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 truncate font-medium text-foreground">{value}</p>
+    </div>
+  );
+}
 
 function ProductsStep({
   form,
@@ -804,7 +1516,7 @@ function ProductsStep({
   if (productAddMode === "custom") {
     return (
       <div className="mx-auto w-full max-w-2xl space-y-6">
-        <CustomProductForm
+        <LegacyCustomProductForm
           draft={newProductDraft}
           setDraft={setNewProductDraft}
           referenceLinkInput={referenceLinkInput}
@@ -899,6 +1611,11 @@ function OrderItemCard({
   removeItem: (id: string) => void;
 }) {
   const isNew = item.source === "new-existing" || item.source === "new-custom";
+  const deliveryOptions = [
+    { label: "Standard", days: 17 },
+    { label: "CAD", days: 20 },
+    { label: "Extended", days: 30 },
+  ];
 
   return (
     <div className="space-y-4 rounded-lg border border-border bg-card p-4">
@@ -977,6 +1694,27 @@ function OrderItemCard({
           />
         </FormField>
       </div>
+      <div className="flex flex-wrap gap-2">
+        {deliveryOptions.map((option) => {
+          const date = addDaysDateString(new Date(), option.days);
+          const isSelected = item.estimatedDelivery === date;
+
+          return (
+            <Button
+              key={option.days}
+              type="button"
+              variant={isSelected ? "default" : "outline"}
+              size="sm"
+              onClick={() =>
+                updateItem(item.id, { estimatedDelivery: date })
+              }
+              className="h-8 text-xs"
+            >
+              {option.label} ({option.days} days)
+            </Button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1053,6 +1791,160 @@ function CustomerStep({
           )}
         </FormField>
       </div>
+    </div>
+  );
+}
+
+function ReviewStep({
+  form,
+  items,
+  submitError,
+  errors,
+  canEditSelection,
+  onEditRequirements,
+  onEditDetails,
+  onEditCustomer,
+}: {
+  form: ConvertFormData;
+  items: OrderItem[];
+  submitError: string;
+  errors: Record<string, string>;
+  canEditSelection: boolean;
+  onEditRequirements: () => void;
+  onEditDetails: (itemId: string) => void;
+  onEditCustomer: () => void;
+}) {
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-6">
+      <div className="text-center">
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+          Confirm order details
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Review the fields that will be sent to the order API.
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-foreground">Customer details</p>
+          <Button type="button" variant="outline" size="sm" onClick={onEditCustomer} className="gap-1.5">
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
+          </Button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <ReviewField label="Customer" value={form.customerName} />
+          <ReviewField label="Phone" value={form.customerPhone} />
+          <ReviewField label="Address" value={form.customerAddress} />
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-foreground">Requirements to convert</p>
+          {canEditSelection && (
+            <Button type="button" variant="outline" size="sm" onClick={onEditRequirements} className="gap-1.5">
+              <Pencil className="h-3.5 w-3.5" />
+              Selection
+            </Button>
+          )}
+        </div>
+        {items.map((item, index) => (
+          <div
+            key={item.id}
+            className="space-y-3 rounded-md border border-border bg-muted/10 p-4"
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {index + 1}. {item.name}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {item.source === "enquiry-existing" ||
+                  item.source === "new-existing"
+                    ? "Existing product"
+                    : "Custom product"}
+                  {item.productCode ? ` · ${item.productCode}` : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {item.source === "enquiry-custom" || item.source === "new-custom" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEditDetails(item.id)}
+                    className="gap-1.5"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Details
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <ReviewField
+                label="Delivery date"
+                value={item.estimatedDelivery}
+              />
+              <ReviewField
+                label="Metal"
+                value={
+                  [formatMetalTypeLabel(item.metalType || ""), item.metalPurity]
+                    .filter(Boolean)
+                    .join(" ") || "Not set"
+                }
+              />
+              <ReviewField
+                label="Net weight"
+                value={item.metalNetWeight || "Not set"}
+              />
+              <div className="flex items-end justify-start lg:justify-end">
+                <span className="w-fit rounded-md border border-border bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                  {item.cadApprovalRequired ? "CAD required" : "No CAD required"}
+                </span>
+              </div>
+            </div>
+            {item.notes && (
+              <ReviewField label="Notes" value={item.notes} multiline />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {Object.values(errors).length > 0 && (
+        <p className="text-sm text-destructive">
+          Resolve the highlighted fields before converting.
+        </p>
+      )}
+      {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+    </div>
+  );
+}
+
+function ReviewField({
+  label,
+  value,
+  multiline = false,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-1 text-sm text-foreground",
+          multiline ? "whitespace-pre-wrap" : "truncate",
+        )}
+      >
+        {value || "Not set"}
+      </p>
     </div>
   );
 }
