@@ -648,7 +648,6 @@ export function OrdersEnquiriesWorkspace() {
   const updateOrderStatusMutation = useUpdateAnyOrderStatus();
   const [search, setSearch] = useState("");
   const sessionRole = session ? getSessionRole(session) : "";
-  const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const canViewPurchases = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const canSyncPurchases = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const stockSalesQuery = useStockSales(
@@ -909,14 +908,12 @@ export function OrdersEnquiriesWorkspace() {
                   New enquiry
                 </Link>
               </Button>
-              {canCreateOrder ? (
-                <Button asChild size="sm" variant="secondary">
-                  <Link href="/orders/new">
-                    <PackagePlus className="h-4 w-4" />
-                    New order
-                  </Link>
-                </Button>
-              ) : null}
+              <Button asChild size="sm" variant="secondary">
+                <Link href="/orders/new">
+                  <PackagePlus className="h-4 w-4" />
+                  New order
+                </Link>
+              </Button>
             </div>
           </div>
           <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
@@ -931,14 +928,12 @@ export function OrdersEnquiriesWorkspace() {
               New enquiry
             </Link>
           </Button>
-          {canCreateOrder ? (
-            <Button asChild variant="secondary">
-              <Link href="/orders/new">
-                <PackagePlus className="h-4 w-4" />
-                New order
-              </Link>
-            </Button>
-          ) : null}
+          <Button asChild variant="secondary">
+            <Link href="/orders/new">
+              <PackagePlus className="h-4 w-4" />
+              New order
+            </Link>
+          </Button>
         </div>
       </div>
 
