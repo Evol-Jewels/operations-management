@@ -18,11 +18,13 @@ function DetailRow({
 }) {
   if (!value && value !== 0) return null;
   return (
-    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-4">
-      <dt className="w-full text-xs text-muted-foreground sm:w-36 sm:flex-shrink-0">
+    <div className="grid min-w-0 gap-1">
+      <dt className="min-w-0 text-xs leading-5 text-muted-foreground">
         {label}
       </dt>
-      <dd className="text-sm text-foreground">{value}</dd>
+      <dd className="min-w-0 break-words text-sm font-medium leading-5 text-foreground">
+        {value}
+      </dd>
     </div>
   );
 }
@@ -293,17 +295,19 @@ function ActorsStrip({ order }: { order: Order }) {
   ].filter((a) => a.value);
 
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+    <div className="grid gap-2 sm:grid-cols-2">
       {actors.map(({ label, value }) => (
-        <div key={label} className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">{label}</span>
-          <span className="text-sm font-medium text-foreground">{value}</span>
+        <div key={label} className="min-w-0">
+          <span className="block text-xs text-muted-foreground">{label}</span>
+          <span className="block truncate text-sm font-medium text-foreground">
+            {value}
+          </span>
         </div>
       ))}
       {order.deliveryDate && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Delivery</span>
-          <span className="text-sm font-medium text-foreground">
+        <div className="min-w-0">
+          <span className="block text-xs text-muted-foreground">Delivery</span>
+          <span className="block text-sm font-medium text-foreground">
             {formatDate(order.deliveryDate)}
           </span>
         </div>
@@ -376,7 +380,7 @@ export function OrderDetails({
       {/* Expandable content */}
       {open && (
         <div className="border-t border-border px-5 pb-5 pt-4">
-          <div className="grid gap-7 sm:grid-cols-2">
+          <div className="grid gap-y-8">
             <Section title="Customer">
               <DetailRow label="Name" value={order.customerName} />
               <DetailRow label="Phone" value={order.customerPhone} />
@@ -471,7 +475,6 @@ export function OrderDetails({
               </div>
             )}
 
-            <EnquiryReferences order={order} />
           </div>
         </div>
       )}

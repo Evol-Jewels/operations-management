@@ -2,8 +2,6 @@
 
 import {
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Check,
   Download,
   FileImage,
@@ -128,16 +126,7 @@ export function EnquiryProductList({
           isFinalized={isFinalized}
           isSavingEstimation={isSavingEstimation}
           onSaveEstimation={onSaveEstimation}
-          onPrevious={() =>
-            setActiveIndex((value) =>
-              value === 0 ? filteredItems.length - 1 : value - 1,
-            )
-          }
-          onNext={() =>
-            setActiveIndex((value) =>
-              value === filteredItems.length - 1 ? 0 : value + 1,
-            )
-          }
+          onSelectItem={setActiveIndex}
         />
       ) : null}
     </div>
@@ -183,8 +172,7 @@ function RequirementCarouselCard({
   isFinalized,
   isSavingEstimation,
   onSaveEstimation,
-  onPrevious,
-  onNext,
+  onSelectItem,
 }: {
   item: RequirementDisplayItem;
   enquiryRefCode: number;
@@ -194,8 +182,7 @@ function RequirementCarouselCard({
   isFinalized: boolean;
   isSavingEstimation?: boolean;
   onSaveEstimation: (estimation: ProductEstimation) => void;
-  onPrevious: () => void;
-  onNext: () => void;
+  onSelectItem: (index: number) => void;
 }) {
   const hasMany = totalCount > 1;
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
@@ -417,40 +404,21 @@ function RequirementCarouselCard({
           {hasMany ? (
             <div className="hidden items-center gap-1.5 sm:flex">
               {Array.from({ length: totalCount }).map((_, index) => (
-                <span
+                <button
+                  type="button"
                   key={index}
+                  onClick={() => onSelectItem(index)}
+                  aria-label={`Show requirement ${index + 1}`}
                   className={cn(
-                    "h-1.5 rounded-full",
+                    "h-1.5 rounded-full transition-colors",
                     index === activeIndex
                       ? "w-6 bg-foreground"
-                      : "w-1.5 bg-muted-foreground/30",
+                      : "w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground/60",
                   )}
                 />
               ))}
             </div>
           ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={onPrevious}
-            disabled={!hasMany}
-            aria-label="Previous requirement"
-            className="size-7 text-muted-foreground hover:bg-transparent hover:text-foreground"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={onNext}
-            disabled={!hasMany}
-            aria-label="Next requirement"
-            className="size-7 text-muted-foreground hover:bg-transparent hover:text-foreground"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
         </div>
       </div>
 
