@@ -152,6 +152,25 @@ function createOrderItemFromNewCustom(
   };
 }
 
+function createDirectOrderItem(createdAt: Date): OrderItem {
+  const id = generateId();
+  const requirement = { ...createEmptyRequirement(), id };
+
+  return {
+    id,
+    source: "new-custom",
+    name: "Custom product",
+    requirement,
+    category: requirement.category,
+    metalType: requirement.metalType,
+    metalPurity: requirement.metalPurity,
+    metalNetWeight: requirement.metalWeight,
+    vendor: "",
+    cadApprovalRequired: false,
+    estimatedDelivery: addDaysDateString(createdAt, 17),
+  };
+}
+
 function orderItemToCustomRequirement(item: OrderItem): NewProduct {
   return {
     ...createEmptyNewProduct(),
@@ -177,17 +196,27 @@ function orderItemToCustomRequirement(item: OrderItem): NewProduct {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
+export function ConvertOrderForm({
+  enquiryId,
+  mode = "convert",
+}: {
+  enquiryId?: string;
+  mode?: "convert" | "create";
+}) {
+  const isConversion = mode === "convert";
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
   const createOrdersMutation = useCreateOrders();
   const createdAtRef = useRef(new Date());
+  const directItemRef = useRef<OrderItem | null>(
+    isConversion ? null : createDirectOrderItem(createdAtRef.current),
+  );
   const {
     data: enquiryDetails,
     isLoading,
     isError,
-  } = useEnquiryDetails(enquiryId);
+  } = useEnquiryDetails(enquiryId ?? "");
 
   const [currentStep, setCurrentStep] = useState(0);
   const [animDir, setAnimDir] = useState<"forward" | "backward">("forward");
@@ -197,13 +226,18 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
   const [submitError, setSubmitError] = useState("");
 
   // Form state
-  const [form, setForm] = useState<ConvertFormData>({
-    items: [],
-    customerName: "",
-    customerPhone: "",
-    customerAddress: "",
+  const [form, setForm] = useState<ConvertFormData>(() => {
+    const item = directItemRef.current;
+    return {
+      items: item ? [item] : [],
+      customerName: "",
+      customerPhone: "",
+      customerAddress: "",
+    };
   });
-  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>(() =>
+    directItemRef.current ? [directItemRef.current.id] : [],
+  );
   const [activeRequirementId, setActiveRequirementId] = useState<string | null>(
     null,
   );
@@ -231,7 +265,9 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
   const [referenceError, setReferenceError] = useState("");
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const steps = ["requirements", "details", "customer", "review"];
+  const steps = isConversion
+    ? ["requirements", "details", "customer", "review"]
+    : ["requirements", "customer", "review"];
   const safeStep = Math.min(currentStep, steps.length - 1);
   const stepId = steps[safeStep];
   const progress = ((safeStep + 1) / steps.length) * 100;
@@ -246,7 +282,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
   );
   const activeCustomItem = selectedCustomItems.find(
     (item) => item.id === activeRequirementId,
-  );
+  ) ?? (!isConversion ? selectedCustomItems[0] : undefined);
   const hasNextCustomRequirement = selectedCustomItems.some(
     (item) => !confirmedRequirementIds.includes(item.id),
   );
@@ -260,8 +296,9 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     });
   }, [safeStep, activeRequirementId]);
 
-  // Pre-fill enquiry data
+  // Pre-fill only conversion orders. Direct orders begin with an empty list.
   useEffect(() => {
+    if (!isConversion) return;
     if (!enquiryDetails) return;
 
     const orderItems: OrderItem[] = [];
@@ -351,7 +388,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
       customerAddress: "",
     });
     setSelectedItemIds(orderItems.map((item) => item.id));
-  }, [enquiryDetails]);
+  }, [enquiryDetails, isConversion]);
 
   // Cleanup object URLs
   useEffect(() => {
@@ -529,6 +566,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
       ...prev,
       items: [...prev.items, newItem],
     }));
+    setSelectedItemIds((prev) => [...new Set([...prev, newItem.id])]);
     setProductSearch("");
     setSearchResults([]);
     setProductLookupError("");
@@ -563,17 +601,29 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
   }
 
   function addNewCustomProduct() {
-    if (!hasValidCustomProductRequirement(newProductDraft)) return;
-    const product = { ...newProductDraft, id: generateId() };
-    const newItem = createOrderItemFromNewCustom(product, createdAtRef.current);
+    const id = generateId();
+    const requirement = { ...createEmptyRequirement(), id };
+    const newItem: OrderItem = {
+      id,
+      source: "new-custom",
+      name: "Custom product",
+      requirement,
+      category: requirement.category,
+      metalType: requirement.metalType,
+      metalPurity: requirement.metalPurity,
+      metalNetWeight: requirement.metalWeight,
+      vendor: "",
+      cadApprovalRequired: false,
+      estimatedDelivery: addDaysDateString(createdAtRef.current, 17),
+    };
     setForm((prev) => ({
       ...prev,
       items: [...prev.items, newItem],
     }));
-    setNewProductDraft(createEmptyNewProduct());
-    setReferenceLinkInput("");
-    setReferenceError("");
-    setProductAddMode("choose");
+    setSelectedItemIds((prev) => [...new Set([...prev, id])]);
+    setActiveRequirementId(id);
+    setConfirmedRequirementIds([]);
+    setCurrentStep(1);
   }
 
   function cancelNewCustomProduct() {
@@ -653,7 +703,9 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     const nextErrors: Record<string, string> = {};
     if (stepId === "requirements") {
       if (selectedItemIds.length === 0) {
-        nextErrors.items = "Select at least one converted requirement";
+        nextErrors.items = isConversion
+          ? "Select at least one converted requirement"
+          : "Add at least one product";
       }
       if (
         selectedItems.some(
@@ -670,7 +722,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
           "Estimated delivery date is required for every product";
       }
     }
-    if (stepId === "details") {
+    if (stepId === "details" || !isConversion) {
       if (
         activeCustomItem &&
         (!activeCustomItem.requirement?.category.trim() ||
@@ -719,7 +771,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
         }
       }
       setAnimDir("forward");
-      if (stepId === "requirements") {
+      if (stepId === "requirements" && isConversion) {
         setActiveRequirementId(selectedCustomItems[0]?.id ?? null);
         setConfirmedRequirementIds([]);
         setCustomReferenceLinkInput("");
@@ -745,11 +797,12 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     if (item.source === "enquiry-existing" || item.source === "new-existing") {
       return {
         productType: "EXISTING",
-        sourceEnquiryItemId: item.id,
+        ...(isConversion ? { sourceEnquiryItemId: item.id } : {}),
         productCode: item.productCode ?? "",
         notes: item.notes,
         isCadRequired: item.cadApprovalRequired,
         estimatedDeliveryDate: item.estimatedDelivery,
+        vendor: item.vendor.trim() || undefined,
       };
     }
 
@@ -797,7 +850,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
 
     return {
       productType: "CUSTOM",
-      sourceEnquiryItemId: item.id,
+      ...(isConversion ? { sourceEnquiryItemId: item.id } : {}),
       customProduct: {
         category: mapCategoryToBackend(requirement.category),
         metalType: requirement.metalType,
@@ -811,18 +864,19 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
       notes: requirement.notes || undefined,
       isCadRequired: item.cadApprovalRequired,
       estimatedDeliveryDate: item.estimatedDelivery,
+      vendor: item.vendor.trim() || undefined,
     };
   }
 
   async function buildPayload(): Promise<CreateOrdersInput> {
     const createdBy = session?.user?.id;
     if (!createdBy) throw new Error("Unable to determine creator.");
-    if (!enquiryDetails?.enquiry.refCode) {
+    if (isConversion && !enquiryDetails?.enquiry.refCode) {
       throw new Error("Unable to determine source enquiry.");
     }
 
     return {
-      sourceEnquiry: enquiryDetails.enquiry.refCode,
+      ...(isConversion ? { sourceEnquiry: enquiryDetails!.enquiry.refCode } : {}),
       name: form.customerName.trim(),
       phoneNumber: form.customerPhone.trim(),
       customerAddress: form.customerAddress.trim() || undefined,
@@ -835,7 +889,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     const nextErrors = {
       ...validateStep(),
       ...(selectedItems.length === 0
-        ? { items: "Select at least one converted requirement" }
+        ? { items: isConversion ? "Select at least one converted requirement" : "Add at least one product" }
         : {}),
       ...(selectedItems.some((item) => !item.estimatedDelivery)
         ? {
@@ -853,17 +907,15 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     setSubmitError("");
 
     try {
-      if (!enquiryDetails) {
+      if (isConversion && !enquiryDetails) {
         throw new Error("Unable to load source enquiry.");
       }
-      const sourceRefCode = enquiryDetails.enquiry.refCode;
+      const sourceRefCode = enquiryDetails?.enquiry.refCode;
       const response = await createOrdersMutation.mutateAsync(await buildPayload());
-      void queryClient.invalidateQueries({
-        queryKey: enquiryKeys.detail(enquiryId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: enquiryKeys.detailByRefCode(sourceRefCode),
-      });
+      if (isConversion && enquiryId && sourceRefCode) {
+        void queryClient.invalidateQueries({ queryKey: enquiryKeys.detail(enquiryId) });
+        void queryClient.invalidateQueries({ queryKey: enquiryKeys.detailByRefCode(sourceRefCode) });
+      }
       setSubmitted(true);
       setTimeout(() => {
         const refCode = response.refCodes?.length === 1 && response.refCodes[0];
@@ -882,7 +934,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     }
   }
 
-  if (isLoading) {
+  if (isConversion && isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <p className="text-sm text-muted-foreground">Loading enquiry...</p>
@@ -890,7 +942,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
     );
   }
 
-  if (isError || !enquiryDetails) {
+  if (isConversion && (isError || !enquiryDetails)) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <p className="text-sm text-muted-foreground">
@@ -911,7 +963,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
             Order created
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Redirecting you back to enquiries...
+            Redirecting you to the order workspace...
           </p>
         </div>
       </div>
@@ -939,7 +991,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
           className="-ml-2 gap-1.5 text-muted-foreground"
         >
           <ArrowLeft className="size-3.5" />
-          Back to enquiry
+          {isConversion ? "Back to enquiry" : "Back to orders"}
         </Button>
       </div>
 
@@ -955,7 +1007,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
         )}
       >
         {stepId === "requirements" && (
-          <RequirementConfirmationStep
+          isConversion ? <RequirementConfirmationStep
             form={form}
             selectedItemIds={selectedItemIds}
             setSelectedItemIds={setSelectedItemIds}
@@ -963,6 +1015,31 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
             submitError={submitError}
             updateItem={updateItem}
             updateItemCadApproval={updateItemCadApproval}
+          /> : <RequirementDetailsStep
+            items={selectedItems}
+            isConversion={false}
+            activeRequirementId={activeRequirementId}
+            setActiveRequirementId={setActiveRequirementId}
+            updateRequirement={(itemId, requirement) =>
+              setForm((prev) => ({
+                ...prev,
+                items: prev.items.map((item) =>
+                  item.id === itemId
+                    ? {
+                        ...item,
+                        name: requirement.category || "Custom product",
+                        category: requirement.category,
+                        metalType: requirement.metalType,
+                        metalPurity: requirement.metalPurity,
+                        metalNetWeight: requirement.metalWeight,
+                        notes: requirement.notes,
+                        requirement,
+                      }
+                    : item,
+                ),
+              }))
+            }
+            errors={errors}
           />
         )}
 
@@ -973,6 +1050,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
         {stepId === "details" && (
           <RequirementDetailsStep
             items={selectedItems}
+            isConversion={isConversion}
             activeRequirementId={activeRequirementId}
             setActiveRequirementId={setActiveRequirementId}
             updateRequirement={(itemId, requirement) =>
@@ -1002,7 +1080,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
           <ReviewStep
             form={form}
             items={selectedItems}
-            canEditSelection={form.items.length > 1}
+            canEditSelection={!isConversion || form.items.length > 1}
             submitError={submitError}
             errors={errors}
             onEditRequirements={() => {
@@ -1013,11 +1091,11 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
               setActiveRequirementId(itemId);
               setConfirmedRequirementIds([]);
               setAnimDir("backward");
-              setCurrentStep(1);
+              setCurrentStep(isConversion ? 1 : 0);
             }}
             onEditCustomer={() => {
               setAnimDir("backward");
-              setCurrentStep(2);
+              setCurrentStep(isConversion ? 2 : 1);
             }}
           />
         )}
@@ -1073,7 +1151,7 @@ export function ConvertOrderForm({ enquiryId }: { enquiryId: string }) {
               disabled={isSubmitting || !hasItems}
               className="pointer-events-auto ml-auto gap-2 px-5 shadow-md"
             >
-              {isSubmitting ? "Converting..." : "Confirm & Convert"}
+              {isSubmitting ? (isConversion ? "Converting..." : "Creating...") : (isConversion ? "Confirm & Convert" : "Create order")}
             </Button>
           )}
         </div>
@@ -1181,12 +1259,14 @@ function RequirementConfirmationStep({
 
 function RequirementDetailsStep({
   items,
+  isConversion,
   activeRequirementId,
   setActiveRequirementId,
   updateRequirement,
   errors,
 }: {
   items: OrderItem[];
+  isConversion: boolean;
   activeRequirementId: string | null;
   setActiveRequirementId: (id: string) => void;
   updateRequirement: (itemId: string, requirement: RequirementDraft) => void;
@@ -1237,8 +1317,9 @@ function RequirementDetailsStep({
         />
       ) : (
         <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-          The selected requirements are existing inventory products. Their product
-          codes stay linked to the original enquiry.
+          {isConversion
+            ? "The selected requirements are existing inventory products. Their product codes stay linked to the original enquiry."
+            : "This order currently contains existing inventory products. Their product codes will be preserved."}
         </div>
       )}
 
@@ -1513,28 +1594,16 @@ function ProductsStep({
   addReferenceFiles: (files: FileList | null) => void;
   removeDraftReference: (id: string) => void;
 }) {
-  if (productAddMode === "custom") {
-    return (
-      <div className="mx-auto w-full max-w-2xl space-y-6">
-        <LegacyCustomProductForm
-          draft={newProductDraft}
-          setDraft={setNewProductDraft}
-          referenceLinkInput={referenceLinkInput}
-          setReferenceLinkInput={setReferenceLinkInput}
-          referenceError={referenceError}
-          setReferenceError={setReferenceError}
-          addReferenceLink={addReferenceLink}
-          addReferenceFiles={addReferenceFiles}
-          removeDraftReference={removeDraftReference}
-          addNewProduct={addNewCustomProduct}
-          onCancel={cancelNewCustomProduct}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto w-full space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+          Build the order
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Add inventory products or capture a complete custom requirement.
+        </p>
+      </div>
       {/* Existing products */}
       {form.items.length > 0 && (
         <div className="space-y-3">
@@ -1585,8 +1654,8 @@ function ProductsStep({
           <ProductModeButton
             icon={<Pencil className="h-4 w-4 text-primary" />}
             title="Add custom product"
-            description="Describe the product requirement"
-            onClick={() => setProductAddMode("custom")}
+            description="Add complete product requirements"
+            onClick={addNewCustomProduct}
           />
         </div>
       </div>
