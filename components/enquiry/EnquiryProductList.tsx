@@ -60,6 +60,7 @@ interface EnquiryProductListProps {
   estimations: ProductEstimation[];
   isFinalized: boolean;
   isSavingEstimation?: boolean;
+  showHeader?: boolean;
   onSaveEstimation: (estimation: ProductEstimation) => void;
 }
 
@@ -70,6 +71,7 @@ export function EnquiryProductList({
   estimations,
   isFinalized,
   isSavingEstimation,
+  showHeader = true,
   onSaveEstimation,
 }: EnquiryProductListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -106,11 +108,13 @@ export function EnquiryProductList({
 
   return (
     <div className="space-y-4">
-      <Header
-        totalCount={items.length}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-      />
+      {showHeader ? (
+        <Header
+          totalCount={items.length}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+        />
+      ) : null}
 
       {items.length === 0 ? (
         <EmptyState label="No products added to this enquiry." />

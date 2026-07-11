@@ -227,6 +227,7 @@ function EnquiryCreateForm() {
 
     return {
       type: "CUSTOM",
+      referenceProductCode: cleanText(requirement.referenceProductCode),
       category: cleanText(requirement.category),
       metalType: cleanText(requirement.metalType),
       metalPurity: cleanText(requirement.metalPurity),

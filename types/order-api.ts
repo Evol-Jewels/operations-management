@@ -33,6 +33,8 @@ export interface BackendOrderStone {
 }
 
 export interface BackendCustomProductDetails {
+  id?: string;
+  orderId?: string;
   category:
     | "RING"
     | "NECKLACE"
@@ -50,21 +52,25 @@ export interface BackendCustomProductDetails {
   size?: number;
   metalNetWeight: string;
   metalGrossWeight?: string;
+  referenceProductCode?: string | null;
   stones: BackendOrderStone[];
   requirementSpecification?: CustomProductRequirementSpecification | null;
+  updatedAt?: string;
+  createdAt?: string;
+  kind?: string;
 }
 
 export interface CustomProductRequirementSpecification {
-  references: Array<{
+  references?: Array<{
     type: "IMAGE" | "VIDEO" | "LINK";
     url: string;
     name?: string;
     mimeType?: string;
     size?: number;
   }>;
-  diamonds: Array<Record<string, string | undefined>>;
-  colorStones: Array<Record<string, string | undefined>>;
-  details: Record<string, string | undefined>;
+  diamonds?: Array<Record<string, string | undefined>>;
+  colorStones?: Array<Record<string, string | undefined>>;
+  details?: Record<string, string | undefined>;
   notes?: string;
 }
 
@@ -111,7 +117,7 @@ export interface BackendOrderRow {
   customProductId?: string | null;
   existingProduct?: BackendExistingProductDetails | null;
   customProduct?: BackendCustomProductDetails | null;
-  productDetails?: BackendProductDetails | null;
+  productDetails?: BackendProductDetails | BackendCustomProductDetails | null;
   isCadRequired: boolean;
   estimatedDeliveryDate: string | null;
   vendor: string | null;

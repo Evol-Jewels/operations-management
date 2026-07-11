@@ -10,7 +10,6 @@ import { ActivityTimeline } from "@/components/order/ActivityTimeline";
 import { CloseEnquiryDialog } from "@/components/order/CloseEnquiryDialog";
 import { ComposeBox } from "@/components/order/ComposeBox";
 import { EnquiryProductList } from "@/components/enquiry/EnquiryProductList";
-import { OrderDetails } from "@/components/order/OrderDetails";
 import { OrderPrintView } from "@/components/order/OrderPrintView";
 import { ProductionSpecCard } from "@/components/order/ProductionSpecCard";
 import { StageBar } from "@/components/order/StageBar";
@@ -365,24 +364,23 @@ export default function OrderPage() {
         </div>
       )}
 
-      {/* ── Production Spec Card — vendor-facing work order summary ─────── */}
+      {/* Product requirements and order details */}
       <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_370px]">
         <main className="space-y-5">
-          {order.type === "order" && <ProductionSpecCard order={order} />}
 
-      {/* ── Order Details (collapsible, default open) ────────────────── */}
           <EnquiryProductList
             enquiryRefCode={order.refCode ?? 0}
             selectedProducts={order.selectedProducts ?? []}
             customProducts={order.customProducts ?? []}
             estimations={order.estimations ?? []}
             isFinalized
+            showHeader={false}
             onSaveEstimation={() => undefined}
           />
         </main>
 
         <aside className="lg:sticky lg:top-6 lg:self-start">
-          <OrderDetails order={order} defaultOpen />
+          {order.type === "order" && <ProductionSpecCard order={order} />}
         </aside>
       </div>
 

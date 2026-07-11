@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ColorStoneDetailsSection } from "./ColorStoneDetailsSection";
+import { ExistingProductReferenceField } from "./ExistingProductReferenceField";
 import { DiamondDetailsSection } from "./DiamondDetailsSection";
 import { MetalDetailsSection } from "./MetalDetailsSection";
 import { RequirementBasicsSection } from "./RequirementBasicsSection";
@@ -36,6 +37,12 @@ export function CustomProductForm({
         className,
       )}
     >
+      <ExistingProductReferenceField
+        value={value.referenceProductCode}
+        onChange={(referenceProductCode) =>
+          onChange({ ...value, referenceProductCode })
+        }
+      />
       <RequirementMediaSection
         references={value.references}
         onChange={(references) => onChange({ ...value, references })}

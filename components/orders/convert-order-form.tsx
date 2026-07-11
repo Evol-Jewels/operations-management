@@ -65,6 +65,7 @@ interface OrderItem {
   source: OrderItemSource;
   name: string;
   productCode?: string;
+  referenceProductCode?: string;
   category?: string;
   metalType?: string;
   metalPurity?: string;
@@ -127,6 +128,7 @@ function createOrderItemFromNewCustom(
   return {
     id: product.id || generateId(),
     source: "new-custom",
+    referenceProductCode: product.referenceProductCode || undefined,
     name: product.category
       ? `${product.category} - ${formatMetalTypeLabel(product.metalType)} ${product.metalPurity}`
       : `${formatMetalTypeLabel(product.metalType)} ${product.metalPurity}`,
@@ -175,6 +177,7 @@ function orderItemToCustomRequirement(item: OrderItem): NewProduct {
   return {
     ...createEmptyNewProduct(),
     id: item.id,
+    referenceProductCode: item.referenceProductCode ?? "",
     category: item.category ?? "",
     metalType: item.metalType ?? "",
     metalPurity: item.metalPurity ?? "",
@@ -325,6 +328,7 @@ export function ConvertOrderForm({
         const stoneDesc = item.stones.map((s) => s.stoneType).join(", ");
         const requirement: RequirementDraft = {
           id: item.id,
+          referenceProductCode: item.referenceProductCode || "",
           category: item.category || "",
           metalType: item.metalType || "",
           metalPurity: item.metalPurity || "",
@@ -358,6 +362,7 @@ export function ConvertOrderForm({
           source: "enquiry-custom",
           name: item.category || "Custom product",
           category: item.category || "Custom",
+          referenceProductCode: item.referenceProductCode || undefined,
           metalType: item.metalType || undefined,
           metalPurity: item.metalPurity || undefined,
           metalNetWeight: item.metalWeight || undefined,
@@ -425,6 +430,7 @@ export function ConvertOrderForm({
     return {
       ...createEmptyNewProduct(),
       id: item.id,
+      referenceProductCode: item.referenceProductCode ?? "",
       category: item.category ?? "",
       metalType: item.metalType ?? "",
       metalPurity: item.metalPurity ?? "",
@@ -456,6 +462,7 @@ export function ConvertOrderForm({
                 `${formatMetalTypeLabel(draft.metalType)} ${draft.metalPurity}`.trim() ||
                 "Custom product",
               category: draft.category,
+              referenceProductCode: draft.referenceProductCode || undefined,
               metalType: draft.metalType,
               metalPurity: draft.metalPurity,
               metalNetWeight: draft.metalNetWeight,
@@ -853,6 +860,7 @@ export function ConvertOrderForm({
       ...(isConversion ? { sourceEnquiryItemId: item.id } : {}),
       customProduct: {
         category: mapCategoryToBackend(requirement.category),
+        referenceProductCode: requirement.referenceProductCode || undefined,
         metalType: requirement.metalType,
         metalPurity: requirement.metalPurity || undefined,
         metalColor: mapMetalColorToBackend(requirement.details.metalColor || ""),

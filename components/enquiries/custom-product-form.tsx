@@ -22,6 +22,7 @@ import {
   type ProductReference,
 } from "./enquiry-form-types";
 import { formatFileSize, getReferenceIcon } from "./enquiry-form-utils";
+import { ExistingProductReferenceField } from "@/components/requirements/ExistingProductReferenceField";
 
 const STONE_TYPE_FALLBACK = ["Others"];
 
@@ -114,6 +115,12 @@ export function CustomProductForm({
         showBackButton={showBackButton}
       />
       <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+        <ExistingProductReferenceField
+          value={draft.referenceProductCode}
+          onChange={(referenceProductCode) =>
+            setDraft((prev) => ({ ...prev, referenceProductCode }))
+          }
+        />
         <ReferenceInputPanel
           references={draft.references}
           referenceLinkInput={referenceLinkInput}

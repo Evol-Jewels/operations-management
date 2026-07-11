@@ -48,6 +48,7 @@ export function createEmptyColorStone(): RequirementColorStone {
 export function createEmptyRequirement(): RequirementDraft {
   return {
     id: "",
+    referenceProductCode: "",
     category: "",
     metalType: DEFAULT_METAL_TYPE,
     metalPurity: "",

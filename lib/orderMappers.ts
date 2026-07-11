@@ -80,7 +80,7 @@ export function mapBackendOrderStatusToStage(
 }
 
 function mapProductDetailsCategory(
-  category?: BackendProductDetails["category"],
+  category?: string,
 ): JewelleryCategory {
   const map: Record<string, JewelleryCategory> = {
     RING: "Ring",
@@ -131,8 +131,31 @@ function mapOrderReferences(
   }));
 }
 
+function isBackendProductDetails(
+  product: BackendOrderRow["productDetails"],
+): product is BackendProductDetails {
+  return Boolean(product && "productCode" in product);
+}
+
+function isBackendCustomProductDetails(
+  product: BackendOrderRow["productDetails"],
+): product is BackendCustomProductDetails {
+  return Boolean(product && "metalNetWeight" in product);
+}
+
+function getOrderCustomProduct(
+  order: BackendOrderRow,
+): BackendCustomProductDetails | null {
+  if (order.productType !== "CUSTOM") return null;
+  if (order.customProduct) return order.customProduct;
+  if (isBackendCustomProductDetails(order.productDetails)) {
+    return order.productDetails;
+  }
+  return null;
+}
+
 function mapOrderCustomProduct(order: BackendOrderRow): EnquiryCustomProduct | null {
-  const product = order.customProduct;
+  const product = getOrderCustomProduct(order);
   if (!product) return null;
 
   const specification = product.requirementSpecification;
@@ -143,14 +166,16 @@ function mapOrderCustomProduct(order: BackendOrderRow): EnquiryCustomProduct | n
     metalType: normalizeMetalType(product.metalType),
     metalPurity: normalizeMetalPurity(product.metalPurity),
     metalWeight: product.metalNetWeight,
-    polish: specification?.details.polish ?? "",
-    stones: product.stones.map((stone, index) => ({
+    polish: specification?.details?.polish ?? "",
+    stones: (product.stones ?? []).map((stone, index) => ({
       id: order.id + "-stone-" + index,
       stoneType: stone.stoneType,
       pieces: stone.approxPieces,
       weight: stone.netWeight ? Number(stone.netWeight) : undefined,
     })),
-    stoneDescription: product.stones.map((stone) => stone.stoneType).join(", "),
+    stoneDescription: (product.stones ?? [])
+      .map((stone) => stone.stoneType)
+      .join(", "),
     stoneCut: "",
     stoneQuality: "",
     stoneCaratEstimate: product.stones[0]?.netWeight
@@ -172,8 +197,9 @@ function mapOrderCustomProduct(order: BackendOrderRow): EnquiryCustomProduct | n
 }
 
 function mapOrderSelectedProduct(order: BackendOrderRow): EnquirySelectedProduct | null {
+  if (order.productType !== "EXISTING") return null;
   const product = order.productDetails;
-  if (!product) return null;
+  if (!isBackendProductDetails(product)) return null;
 
   return {
     id: order.id,
@@ -189,8 +215,11 @@ function mapOrderSelectedProduct(order: BackendOrderRow): EnquirySelectedProduct
 
 function baseOrderFromBackend(order: BackendOrderRow): Order {
   const isExisting = order.productType === "EXISTING";
-  const productDetails = isExisting ? order.productDetails : undefined;
-  const custom = isExisting ? undefined : order.customProduct;
+  const productDetails =
+    isExisting && isBackendProductDetails(order.productDetails)
+      ? order.productDetails
+      : undefined;
+  const custom = getOrderCustomProduct(order);
   const firstStone = custom?.stones[0];
   const customDetails = custom?.requirementSpecification?.details;
 

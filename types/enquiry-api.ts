@@ -116,6 +116,7 @@ export interface BackendEnquiryItemRow {
   type: BackendEnquiryItemType;
   category: string | null;
   productCode: string | null;
+  referenceProductCode: string | null;
   metalType: string | null;
   metalPurity: string | null;
   metalWeight: string | null;
@@ -152,6 +153,7 @@ export interface CreateEnquiryItemInput {
   type?: BackendEnquiryItemType;
   category?: string;
   productCode?: string;
+  referenceProductCode?: string;
   metalType?: string;
   metalPurity?: string;
   metalWeight?: string;
