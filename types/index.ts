@@ -262,6 +262,7 @@ export interface EnquiryCustomStone {
 
 export interface EnquiryCustomProduct {
   id: string;
+  referenceProductCode?: string;
   category: string;
   metalType: string;
   metalPurity: string;

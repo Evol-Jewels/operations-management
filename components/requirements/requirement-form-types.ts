@@ -10,6 +10,7 @@ export type RequirementColorStone = BackendEnquiryColorStone & { id: string };
 
 export interface RequirementDraft {
   id: string;
+  referenceProductCode: string;
   category: string;
   metalType: string;
   metalPurity: string;

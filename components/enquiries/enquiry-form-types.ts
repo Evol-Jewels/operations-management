@@ -136,6 +136,7 @@ export interface NewProductStone {
 
 export interface NewProduct {
   id: string;
+  referenceProductCode: string;
   category: string;
   metalType: string;
   metalPurity: string;
@@ -208,6 +209,7 @@ export function hasValidCustomProductRequirement(product: NewProduct) {
 export function createEmptyNewProduct(): NewProduct {
   return {
     id: "",
+    referenceProductCode: "",
     category: "",
     metalType: "",
     metalPurity: "",

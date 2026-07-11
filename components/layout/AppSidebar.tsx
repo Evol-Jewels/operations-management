@@ -156,7 +156,6 @@ export function AppSidebar() {
   const { theme, setTheme } = useTheme();
 
   const sessionRole = session ? getSessionRole(session) : "";
-  const canCreateOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const canOpenSystemConfig = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const isActive = (href: string) => {
     if (href === "/inventory") return pathname === href;
@@ -277,26 +276,24 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {canCreateOrder && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === "/orders/new"}
-                    tooltip="Create New Order"
-                    className="my-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-secondary-foreground data-[active=true]:bg-secondary data-[active=true]:text-secondary-foreground data-[active=true]:shadow-none"
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === "/orders/new"}
+                  tooltip="Create New Order"
+                  className="my-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-secondary-foreground data-[active=true]:bg-secondary data-[active=true]:text-secondary-foreground data-[active=true]:shadow-none"
+                >
+                  <Link
+                    href="/orders/new"
+                    className="flex w-full min-w-0 items-center gap-2 overflow-hidden"
                   >
-                    <Link
-                      href="/orders/new"
-                      className="flex w-full min-w-0 items-center gap-2 overflow-hidden"
-                    >
-                      <PackagePlus className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate group-data-[collapsible=icon]:hidden">
-                        Create New Order
-                      </span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
+                    <PackagePlus className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">
+                      Create New Order
+                    </span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

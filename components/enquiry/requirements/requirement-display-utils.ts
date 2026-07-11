@@ -87,7 +87,14 @@ export function normalizeRequirementItems({
       kind: "custom" as const,
       title,
       subtitle:
-        [details.subcategory, metal, details.productSize]
+        [
+          product.referenceProductCode
+            ? `Ref ${product.referenceProductCode}`
+            : null,
+          details.subcategory,
+          metal,
+          details.productSize,
+        ]
           .filter(Boolean)
           .join(" · ") || "Custom design",
       status: getItemStatus(product.status),

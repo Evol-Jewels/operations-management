@@ -1,6 +1,10 @@
 import { mergeActivityFeed } from "@/lib/enquiryMappers";
 import { normalizePerson } from "@/lib/people";
 import type {
+  EnquiryCustomProduct,
+  CertificationType,
+  EnquiryReference,
+  EnquirySelectedProduct,
   JewelleryCategory,
   MetalPurity,
   MetalType,
@@ -57,6 +61,18 @@ function normalizeMetalPurity(value?: string | number | null): MetalPurity {
   return "Other";
 }
 
+function normalizeCertification(value?: string | null): CertificationType {
+  if (!value) return "None";
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "GIA") return "GIA";
+  if (normalized === "IGI") return "IGI";
+  if (normalized === "SGL") return "SGL";
+  if (normalized === "JEWELLERY" || normalized === "JEWELRY") {
+    return "Jewellery";
+  }
+  return "None";
+}
+
 export function mapBackendOrderStatusToStage(
   status: BackendOrderStatus,
 ): Stage {
@@ -64,7 +80,7 @@ export function mapBackendOrderStatusToStage(
 }
 
 function mapProductDetailsCategory(
-  category?: BackendProductDetails["category"],
+  category?: string,
 ): JewelleryCategory {
   const map: Record<string, JewelleryCategory> = {
     RING: "Ring",
@@ -102,11 +118,110 @@ function normalizeCategory(
   return category ? map[category] : "Other";
 }
 
+function mapOrderReferences(
+  specification: BackendCustomProductDetails["requirementSpecification"],
+): EnquiryReference[] {
+  return (specification?.references ?? []).map((reference, index) => ({
+    id: "requirement-" + index + "-" + reference.url,
+    type: reference.type.toLowerCase() as EnquiryReference["type"],
+    name: reference.name || reference.url,
+    url: reference.url,
+    mimeType: reference.mimeType,
+    size: reference.size,
+  }));
+}
+
+function isBackendProductDetails(
+  product: BackendOrderRow["productDetails"],
+): product is BackendProductDetails {
+  return Boolean(product && "productCode" in product);
+}
+
+function isBackendCustomProductDetails(
+  product: BackendOrderRow["productDetails"],
+): product is BackendCustomProductDetails {
+  return Boolean(product && "metalNetWeight" in product);
+}
+
+function getOrderCustomProduct(
+  order: BackendOrderRow,
+): BackendCustomProductDetails | null {
+  if (order.productType !== "CUSTOM") return null;
+  if (order.customProduct) return order.customProduct;
+  if (isBackendCustomProductDetails(order.productDetails)) {
+    return order.productDetails;
+  }
+  return null;
+}
+
+function mapOrderCustomProduct(order: BackendOrderRow): EnquiryCustomProduct | null {
+  const product = getOrderCustomProduct(order);
+  if (!product) return null;
+
+  const specification = product.requirementSpecification;
+
+  return {
+    id: order.id,
+    category: normalizeCategory(product.category),
+    metalType: normalizeMetalType(product.metalType),
+    metalPurity: normalizeMetalPurity(product.metalPurity),
+    metalWeight: product.metalNetWeight,
+    polish: specification?.details?.polish ?? "",
+    stones: (product.stones ?? []).map((stone, index) => ({
+      id: order.id + "-stone-" + index,
+      stoneType: stone.stoneType,
+      pieces: stone.approxPieces,
+      weight: stone.netWeight ? Number(stone.netWeight) : undefined,
+    })),
+    stoneDescription: (product.stones ?? [])
+      .map((stone) => stone.stoneType)
+      .join(", "),
+    stoneCut: "",
+    stoneQuality: "",
+    stoneCaratEstimate: product.stones[0]?.netWeight
+      ? Number(product.stones[0].netWeight)
+      : undefined,
+    references: mapOrderReferences(specification),
+    diamonds: (specification?.diamonds ?? []).map((diamond, index) => ({
+      id: order.id + "-diamond-" + index,
+      ...diamond,
+    })),
+    colorStones: (specification?.colorStones ?? []).map((stone, index) => ({
+      id: order.id + "-color-stone-" + index,
+      ...stone,
+    })),
+    details: specification?.details,
+    notes: specification?.notes ?? order.notes ?? undefined,
+    status: "CONVERTED",
+  };
+}
+
+function mapOrderSelectedProduct(order: BackendOrderRow): EnquirySelectedProduct | null {
+  if (order.productType !== "EXISTING") return null;
+  const product = order.productDetails;
+  if (!isBackendProductDetails(product)) return null;
+
+  return {
+    id: order.id,
+    productCode: product.productCode,
+    name: product.name,
+    category: mapProductDetailsCategory(product.category),
+    metalType: normalizeMetalType(product.color),
+    metalPurity: normalizeMetalPurity(product.purity),
+    description: product.description || product.notes || undefined,
+    status: "CONVERTED",
+  };
+}
+
 function baseOrderFromBackend(order: BackendOrderRow): Order {
   const isExisting = order.productType === "EXISTING";
-  const productDetails = isExisting ? order.productDetails : undefined;
-  const custom = isExisting ? undefined : order.customProduct;
+  const productDetails =
+    isExisting && isBackendProductDetails(order.productDetails)
+      ? order.productDetails
+      : undefined;
+  const custom = getOrderCustomProduct(order);
   const firstStone = custom?.stones[0];
+  const customDetails = custom?.requirementSpecification?.details;
 
   if (isExisting && productDetails) {
     return {
@@ -172,9 +287,10 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
     stoneCaratEstimate: firstStone?.netWeight
       ? Number(firstStone.netWeight)
       : undefined,
-    certification: "None",
+    certification: normalizeCertification(customDetails?.certification),
     cadDesignRequired: order.isCadRequired,
-    deliveryDate: order.estimatedDeliveryDate ?? undefined,
+    deliveryDate:
+      order.estimatedDeliveryDate ?? customDetails?.deliveryDate ?? undefined,
     currentStage: mapBackendOrderStatusToStage(order.status),
     createdAt: order.createdAt,
     lastUpdatedAt: order.updatedAt,
@@ -195,8 +311,13 @@ export function mapBackendOrderDetailsToOrder(
   details: BackendOrderDetailsResponse,
   comments: BackendComment[] = [],
 ): Order {
+  const customProduct = mapOrderCustomProduct(details.order);
+  const selectedProduct = mapOrderSelectedProduct(details.order);
+
   return {
     ...baseOrderFromBackend(details.order),
+    customProducts: customProduct ? [customProduct] : undefined,
+    selectedProducts: selectedProduct ? [selectedProduct] : undefined,
     activityFeed: mergeActivityFeed(comments, details.activityLogs),
   };
 }

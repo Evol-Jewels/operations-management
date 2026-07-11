@@ -51,6 +51,9 @@ export function RequirementSummaryList({
                     .join(" "),
                   `${filledCount(requirement.diamonds)} diamond`,
                   `${filledCount(requirement.colorStones)} stone`,
+                  requirement.referenceProductCode
+                    ? `Ref ${requirement.referenceProductCode}`
+                    : null,
                   requirement.references.length
                     ? `${requirement.references.length} ref`
                     : null,

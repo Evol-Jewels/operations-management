@@ -30,8 +30,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getSessionRole } from "@/lib/auth";
-import { authClient } from "@/lib/auth-client";
 import {
   type EnquiryUiStatus,
   getOrderEnquiryUiStatus,
@@ -276,9 +274,6 @@ export function EnquiryDetailPage({
   const estimations = order.estimations ?? [];
   const productCount = selectedProducts.length + customProducts.length;
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
-  const { data: session } = authClient.useSession();
-  const sessionRole = session ? getSessionRole(session) : "";
-  const canConvertToOrder = ["ADMIN", "OPERATIONS"].includes(sessionRole);
 
   function handleSaveEstimation(estimation: ProductEstimation) {
     onSaveEstimation(estimation.productId, estimation);
@@ -355,7 +350,7 @@ export function EnquiryDetailPage({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            {!isFinalized && canConvertToOrder ? (
+            {!isFinalized ? (
               <Button
                 size="sm"
                 asChild

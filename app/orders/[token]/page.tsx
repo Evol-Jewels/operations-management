@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Check, Copy } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useState } from "react";
@@ -9,8 +9,7 @@ import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
 import { ActivityTimeline } from "@/components/order/ActivityTimeline";
 import { CloseEnquiryDialog } from "@/components/order/CloseEnquiryDialog";
 import { ComposeBox } from "@/components/order/ComposeBox";
-import { DownloadPDFButton } from "@/components/order/DownloadPDFButton";
-import { OrderDetails } from "@/components/order/OrderDetails";
+import { EnquiryProductList } from "@/components/enquiry/EnquiryProductList";
 import { OrderPrintView } from "@/components/order/OrderPrintView";
 import { ProductionSpecCard } from "@/components/order/ProductionSpecCard";
 import { StageBar } from "@/components/order/StageBar";
@@ -42,7 +41,7 @@ import {
 import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
 import { mapBackendOrderDetailsToOrder } from "@/lib/orderMappers";
 import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
-import type { ActorRole, Order } from "@/types";
+import type { Order } from "@/types";
 import type { BackendOrderStatus } from "@/types/order-api";
 
 const ORDER_STATUS_OPTIONS: Array<{
@@ -82,35 +81,6 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 // ─── Copy link button ─────────────────────────────────────────────────────────
-
-function CopyLinkButton() {
-  const [copied, setCopied] = useState(false);
-  function handleCopy() {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={handleCopy}
-      className="h-8 gap-1.5 text-xs"
-    >
-      {copied ? (
-        <>
-          <Check className="h-3.5 w-3.5 text-emerald-600" />
-          Copied
-        </>
-      ) : (
-        <>
-          <Copy className="h-3.5 w-3.5" />
-          Copy link
-        </>
-      )}
-    </Button>
-  );
-}
 
 function OrderStatusControl({
   refCode,
@@ -255,59 +225,6 @@ function OrderStatusControl({
 
 // ─── Actors bar — who is involved in this order ───────────────────────────────
 
-function ActorsBar({ order }: { order: Order }) {
-  const actors = [
-    { role: "sales" as ActorRole, label: "Sales", name: order.salespersonName },
-    ...(order.vendorName
-      ? [
-          {
-            role: "vendor" as ActorRole,
-            label: "Vendor",
-            name: order.vendorName,
-          },
-        ]
-      : []),
-    {
-      role: "customer" as ActorRole,
-      label: "Customer",
-      name: order.customerName,
-    },
-  ];
-
-  const roleColors: Record<ActorRole, string> = {
-    sales:
-      "bg-blue-500/10 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
-    vendor:
-      "bg-amber-500/10 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
-    owner:
-      "bg-purple-500/10 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400",
-    customer:
-      "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
-  };
-
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      {actors.map(({ role, label, name }) => (
-        <div
-          key={role}
-          className="flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1"
-        >
-          <div
-            className={cn(
-              "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold",
-              roleColors[role],
-            )}
-          >
-            {name?.slice(0, 2).toUpperCase()}
-          </div>
-          <span className="text-xs text-muted-foreground">{label}:</span>
-          <span className="text-xs font-medium text-foreground">{name}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function OrderPage() {
@@ -355,7 +272,7 @@ export default function OrderPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-6xl">
       {/* ── Back nav ─────────────────────────────────────────────────── */}
       <div className="mb-5">
         <Button
@@ -426,13 +343,10 @@ export default function OrderPage() {
             {order.type === "enquiry" && order.status !== "closed" && (
               <CloseEnquiryDialog orderId={order.id} />
             )}
-            <CopyLinkButton />
-            <DownloadPDFButton />
           </div>
         </div>
 
         {/* Actors bar */}
-        <ActorsBar order={order} />
       </div>
 
       {/* ── Stage hint — contextual next step for this stage ─────────── */}
@@ -442,7 +356,7 @@ export default function OrderPage() {
 
       {/* ── Stage Bar ────────────────────────────────────────────────── */}
       {order.orderStatus !== "CANCELLED" && (
-        <div className="mb-5 rounded-xl border border-border bg-card px-5 py-4">
+        <div className="mb-5 px-5 py-4">
           <StageBar
             currentStage={order.currentStage}
             cadDesignRequired={order.cadDesignRequired}
@@ -450,20 +364,28 @@ export default function OrderPage() {
         </div>
       )}
 
-      {/* ── Production Spec Card — vendor-facing work order summary ─────── */}
-      {order.type === "order" && (
-        <div className="mb-5">
-          <ProductionSpecCard order={order} />
-        </div>
-      )}
+      {/* Product requirements and order details */}
+      <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_370px]">
+        <main className="space-y-5">
 
-      {/* ── Order Details (collapsible, default open) ────────────────── */}
-      <div className="mb-5">
-        <OrderDetails order={order} defaultOpen={false} />
+          <EnquiryProductList
+            enquiryRefCode={order.refCode ?? 0}
+            selectedProducts={order.selectedProducts ?? []}
+            customProducts={order.customProducts ?? []}
+            estimations={order.estimations ?? []}
+            isFinalized
+            showHeader={false}
+            onSaveEstimation={() => undefined}
+          />
+        </main>
+
+        <aside className="lg:sticky lg:top-6 lg:self-start">
+          {order.type === "order" && <ProductionSpecCard order={order} />}
+        </aside>
       </div>
 
       {/* ── Timeline ─────────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="mt-8 overflow-hidden rounded-xl border border-border bg-card">
         {/* Timeline header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
           <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">

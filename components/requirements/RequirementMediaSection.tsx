@@ -4,7 +4,7 @@ import { ExternalLink, ImageIcon, Link2, Plus, Upload, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import type { ProductReference } from "@/components/enquiries/enquiry-form-types";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { SectionShell } from "./RequirementFields";
 import {
   formatFileSize,
@@ -70,7 +70,7 @@ export function RequirementMediaSection({
   }
 
   return (
-    <SectionShell eyebrow="References" title="Upload images or add links">
+    <SectionShell eyebrow="More references" title="Upload images or add links">
       <div className="space-y-4">
         <div className="grid gap-3 lg:grid-cols-[16rem_minmax(0,1fr)]">
           <ImageUploadBox onAddFiles={addFiles} />
@@ -164,22 +164,27 @@ function LinkInput({ onAdd }: { onAdd: (value: string) => void }) {
         <Link2 className="size-4 text-muted-foreground" />
         Add reference links
       </div>
-      <Textarea
-        value={value}
-        placeholder="Paste one or more links. Use a new line or comma between links."
-        onChange={(event) => setValue(event.target.value)}
-        className="min-h-20 resize-none text-sm"
-      />
-      <div className="flex justify-end">
+      <div className="flex gap-2">
+        <Input
+          value={value}
+          placeholder="Paste a reference link"
+          onChange={(event) => setValue(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              submitLinks();
+            }
+          }}
+          className="h-10 flex-1"
+        />
         <Button
           type="button"
           variant="outline"
-          size="sm"
           onClick={submitLinks}
           disabled={!value.trim()}
         >
           <Plus className="size-3.5" />
-          Add links
+          Add link
         </Button>
       </div>
     </div>

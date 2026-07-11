@@ -115,6 +115,7 @@ function mapBackendItemToCustomProduct(
 
   return {
     id: item.id,
+    referenceProductCode: item.referenceProductCode ?? undefined,
     category: item.category ?? "Custom",
     metalType: item.metalType ?? "",
     metalPurity: item.metalPurity ?? "",
