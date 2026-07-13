@@ -448,7 +448,22 @@
     width: 100%;
   }
 
-  body:not(:has(> #enquiry-print-root)) * {
+  body:has(> #estimation-summary-print-root)
+    > :not(#estimation-summary-print-root) {
+    display: none !important;
+  }
+
+  body:has(> #estimation-summary-print-root)
+    #estimation-summary-print-root {
+    display: block !important;
+    position: static !important;
+    width: 100%;
+  }
+
+  body:not(:has(> #enquiry-print-root)):not(
+      :has(> #estimation-summary-print-root)
+    )
+    * {
     visibility: hidden !important;
   }
 
@@ -477,21 +492,25 @@
     width: 100%;
   }
 
+  body:has(> #estimation-summary-print-root)
+    [data-estimation-summary-printing] {
+    inset: auto !important;
+    position: static !important;
+  }
+
   body:not(:has(> #enquiry-print-root)) [data-estimation-summary-card] {
+    background-color: #ffffff !important;
     border: 1px solid #d7d7d7 !important;
     border-radius: 10px !important;
     box-shadow: none !important;
-    font-family: Arial, Helvetica, sans-serif !important;
-    overflow: hidden !important;
+    color: #111111 !important;
+    font-family: var(--font-geist-sans), "Segoe UI", sans-serif !important;
+    overflow: visible !important;
   }
 
   body:not(:has(> #enquiry-print-root)) [data-estimation-summary-card],
   body:not(:has(> #enquiry-print-root)) [data-estimation-summary-card] * {
-    background-color: #ffffff !important;
     border-color: #d7d7d7 !important;
-    color: #111111 !important;
-    font-size: 10px !important;
-    line-height: 1.35 !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
@@ -505,7 +524,7 @@
   body:not(:has(> #enquiry-print-root))
     [data-estimation-summary-card]
     li {
-    color: #111111 !important;
+    color: #525252 !important;
   }
 
   body:not(:has(> #enquiry-print-root)) [data-estimation-summary-logo] {
@@ -534,17 +553,29 @@
 
   body:not(:has(> #enquiry-print-root)) [data-estimation-summary-hero] {
     display: grid !important;
-    grid-template-columns: 3fr 2fr !important;
+    grid-template-columns: 1fr 1fr !important;
   }
 
   body:not(:has(> #enquiry-print-root)) [data-estimation-summary-media] {
-    aspect-ratio: 4 / 3 !important;
-    background-color: #f5f5f5 !important;
+    aspect-ratio: 1 / 1 !important;
+    background-color: #eeeeec !important;
     min-height: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
   }
 
-  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-media] img {
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-media-product] {
+    object-fit: contain !important;
+    padding: 0 !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-media-backdrop] {
+    filter: blur(4mm) !important;
     object-fit: cover !important;
+    opacity: 0.3 !important;
+    transform: scale(1.1) !important;
   }
 
   body:not(:has(> #enquiry-print-root)) [data-estimation-summary-intro] {
@@ -559,14 +590,14 @@
   body:not(:has(> #enquiry-print-root))
     [data-estimation-summary-intro]
     p:first-child {
-    font-size: 14px !important;
+    font-size: 16px !important;
     line-height: 1.25 !important;
   }
 
   body:not(:has(> #enquiry-print-root))
     [data-estimation-summary-intro]
     p:last-child {
-    font-size: 22px !important;
+    font-size: 24px !important;
     line-height: 1.1 !important;
   }
 
@@ -581,6 +612,18 @@
     padding: 4mm 5mm !important;
   }
 
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-stones] {
+    break-inside: auto !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-stone-row],
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-stones-total] {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
   body:not(:has(> #enquiry-print-root))
     [data-estimation-summary-section]
     > p:first-child,
@@ -590,26 +633,33 @@
   body:not(:has(> #enquiry-print-root))
     [data-estimation-summary-terms]
     > p:first-child {
-    font-size: 9px !important;
-    letter-spacing: 0.18em !important;
+    font-size: 11px !important;
+    letter-spacing: 0.22em !important;
   }
 
   body:not(:has(> #enquiry-print-root)) [data-estimation-summary-total] {
-    background-color: #ffffff !important;
+    background-color: #111111 !important;
     border-top: 2px solid #111111 !important;
     padding: 3.5mm 5mm !important;
   }
 
   body:not(:has(> #enquiry-print-root)) [data-estimation-summary-total],
   body:not(:has(> #enquiry-print-root)) [data-estimation-summary-total] * {
-    background-color: #ffffff !important;
-    color: #111111 !important;
+    background-color: #111111 !important;
+    color: #ffffff !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-card]
+    [data-estimation-summary-total]
+    span {
+    color: #ffffff !important;
   }
 
   body:not(:has(> #enquiry-print-root))
     [data-estimation-summary-total]
     span:last-child {
-    font-size: 22px !important;
+    font-size: 24px !important;
     line-height: 1.1 !important;
   }
 
@@ -630,8 +680,8 @@
     [data-estimation-summary-terms]
     li {
     color: #333333 !important;
-    font-size: 8.5px !important;
-    line-height: 1.4 !important;
+    font-size: 10px !important;
+    line-height: 1.6 !important;
   }
 
   body:not(:has(> #enquiry-print-root))

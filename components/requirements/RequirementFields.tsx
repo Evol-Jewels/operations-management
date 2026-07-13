@@ -1,8 +1,9 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Popover,
   PopoverAnchor,
@@ -31,14 +32,23 @@ export function TextField({
 
   return (
     <FormField label={label} htmlFor={id} required={required}>
-      <Input
-        id={id}
-        type={type}
-        value={value ?? ""}
-        placeholder={placeholder}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-9"
-      />
+      {type === "date" ? (
+        <DatePicker
+          id={id}
+          value={value}
+          placeholder={placeholder}
+          onChange={onChange}
+        />
+      ) : (
+        <Input
+          id={id}
+          type={type}
+          value={value ?? ""}
+          placeholder={placeholder}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-9"
+        />
+      )}
     </FormField>
   );
 }
@@ -60,14 +70,41 @@ export function OptionTextField({
 }) {
   const id = `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const searchValue = (value ?? "").trim().toLowerCase();
-  const filteredOptions = useMemo(() => {
+  const searchValue = (value ?? "").trim();
+  const rankedOptions = useMemo(() => {
     if (!searchValue) return options;
-    return options.filter((option) =>
-      option.toLowerCase().includes(searchValue),
-    );
+    const normalizedSearch = searchValue.toLocaleLowerCase();
+
+    const getMatchRank = (option: string) => {
+      const normalizedOption = option.toLocaleLowerCase();
+      if (normalizedOption === normalizedSearch) return 0;
+      if (normalizedOption.startsWith(normalizedSearch)) return 1;
+      if (
+        normalizedOption
+          .split(/\s+/)
+          .some((word) => word.startsWith(normalizedSearch))
+      ) {
+        return 2;
+      }
+      if (normalizedOption.includes(normalizedSearch)) return 3;
+      return 4;
+    };
+
+    return options
+      .map((option, index) => ({ option, index, rank: getMatchRank(option) }))
+      .sort((a, b) => a.rank - b.rank || a.index - b.index)
+      .map(({ option }) => option);
   }, [options, searchValue]);
+
+  useEffect(() => setActiveIndex(0), [searchValue]);
+
+  const selectOption = (option: string) => {
+    onChange(option);
+    setOpen(false);
+    inputRef.current?.focus();
+  };
 
   return (
     <FormField label={label} htmlFor={id} required={required}>
@@ -84,33 +121,56 @@ export function OptionTextField({
               setOpen(true);
             }}
             onKeyDown={(event) => {
-              if (event.key === "Escape") setOpen(false);
+              if (event.key === "Escape") {
+                setOpen(false);
+                return;
+              }
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setOpen(true);
+                setActiveIndex((current) =>
+                  Math.min(current + 1, rankedOptions.length - 1),
+                );
+              }
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setActiveIndex((current) => Math.max(current - 1, 0));
+              }
+              if (event.key === "Enter" && open && rankedOptions[activeIndex]) {
+                event.preventDefault();
+                selectOption(rankedOptions[activeIndex]);
+              }
             }}
             className="h-9"
             autoComplete="off"
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={`${id}-suggestions`}
           />
         </PopoverAnchor>
         <PopoverContent
           align="start"
           onOpenAutoFocus={(event) => event.preventDefault()}
           className="max-h-60 w-(--radix-popover-trigger-width) overflow-y-auto p-1"
+          id={`${id}-suggestions`}
+          role="listbox"
         >
-          {filteredOptions.length > 0 ? (
-            filteredOptions.map((option) => {
+          {rankedOptions.length > 0 ? (
+            rankedOptions.map((option, index) => {
               const selected = option === value;
               return (
                 <button
                   key={option}
                   type="button"
+                  role="option"
+                  aria-selected={selected}
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    onChange(option);
-                    setOpen(false);
-                    inputRef.current?.focus();
-                  }}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => selectOption(option)}
                   className={cn(
-                    "hover:bg-accent hover:text-accent-foreground flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm",
-                    selected && "bg-accent text-accent-foreground",
+                    "flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm transition-colors",
+                    (selected || index === activeIndex) &&
+                      "bg-accent text-accent-foreground",
                   )}
                 >
                   <Check

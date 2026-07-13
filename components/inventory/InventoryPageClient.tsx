@@ -30,6 +30,7 @@ import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import { EstimationSummaryCard } from "@/components/calculator/EstimationSummaryCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -293,10 +294,12 @@ function InventoryStat({
 function ProductListItem({
   product,
   selected,
+  compact = false,
   onSelect,
 }: {
   product: InventoryProduct;
   selected: boolean;
+  compact?: boolean;
   onSelect: () => void;
 }) {
   const image = getInventoryPrimaryImage(product);
@@ -310,12 +313,18 @@ function ProductListItem({
       onClick={onSelect}
       className={cn(
         "flex w-full items-start gap-3 rounded-xl border bg-card p-3 text-left shadow-sm transition-colors cursor-pointer hover:border-foreground/25 hover:bg-muted/20",
+        compact && "gap-2.5 p-2.5",
         selected
           ? "border-foreground/60 ring-1 ring-foreground/10"
           : "border-border",
       )}
     >
-      <div className="relative h-[5.5rem] w-[5.5rem] shrink-0 overflow-hidden rounded-xl border border-border bg-muted sm:h-24 sm:w-24">
+      <div
+        className={cn(
+          "relative h-[5.5rem] w-[5.5rem] shrink-0 overflow-hidden rounded-xl border border-border bg-muted/60 sm:h-24 sm:w-24",
+          compact && "h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20",
+        )}
+      >
         {image ? (
           <Image
             src={image.storageKey}
@@ -323,12 +332,17 @@ function ProductListItem({
             fill
             unoptimized
             sizes="96px"
-            className="object-cover"
+            className="object-contain p-1.5"
           />
         ) : null}
       </div>
 
-      <div className="min-w-0 flex-1 space-y-2">
+      <div
+        className={cn(
+          "min-w-0 flex-1 space-y-2",
+          compact && "space-y-1.5",
+        )}
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-base font-semibold text-foreground">
@@ -338,34 +352,38 @@ function ProductListItem({
               {product.productCode}
             </p>
           </div>
-          <Badge
-            variant={product.isCustomerProduct ? "default" : "outline"}
-            className="shrink-0"
-          >
-            {product.isCustomerProduct ? "Customer" : "Stock"}
-          </Badge>
+          {!compact ? (
+            <Badge
+              variant={product.isCustomerProduct ? "default" : "outline"}
+              className="shrink-0"
+            >
+              {product.isCustomerProduct ? "Customer" : "Stock"}
+            </Badge>
+          ) : null}
         </div>
 
         <p className="line-clamp-1 text-sm text-muted-foreground">
           {getMetalLabel(product)}
         </p>
 
-        <div className="flex flex-wrap gap-1.5">
-          <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground">
-            Net {formatWeight(product.netWeight, "g")}
-          </span>
-          <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
-            Gross {formatWeight(product.grossWeight, "g")}
-          </span>
-          {hasStoneInfo ? (
-            <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
-              Stones{" "}
-              {stoneCarat > 0
-                ? formatWeight(stoneCarat, "ct")
-                : `${stonePieces.toLocaleString("en-IN")} pcs`}
+        {!compact ? (
+          <div className="flex flex-wrap gap-1.5">
+            <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground">
+              Net {formatWeight(product.netWeight, "g")}
             </span>
-          ) : null}
-        </div>
+            <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
+              Gross {formatWeight(product.grossWeight, "g")}
+            </span>
+            {hasStoneInfo ? (
+              <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
+                Stones{" "}
+                {stoneCarat > 0
+                  ? formatWeight(stoneCarat, "ct")
+                  : `${stonePieces.toLocaleString("en-IN")} pcs`}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
           <MapPin className="h-3.5 w-3.5 shrink-0" />
@@ -1333,36 +1351,38 @@ export function InventoryPageClient() {
               </Badge>
             ) : null}
           </Button>
-          <div className="hidden h-10 shrink-0 items-center rounded-md border border-border bg-background p-1 lg:flex">
-            <Button
-              type="button"
-              variant={gridColumns === 2 ? "secondary" : "ghost"}
-              size="icon"
-              aria-label="Show 2 columns"
-              aria-pressed={gridColumns === 2}
-              onClick={() => {
-                setGridColumns(2);
-                updateQueryParam(QUERY_PARAM_KEYS.columns, "2", "3");
-              }}
-              className="size-8"
-            >
-              <Columns2 className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant={gridColumns === 3 ? "secondary" : "ghost"}
-              size="icon"
-              aria-label="Show 3 columns"
-              aria-pressed={gridColumns === 3}
-              onClick={() => {
-                setGridColumns(3);
-                updateQueryParam(QUERY_PARAM_KEYS.columns, "3", "3");
-              }}
-              className="size-8"
-            >
-              <Columns3 className="size-4" />
-            </Button>
-          </div>
+          {!hasSelectedProduct ? (
+            <div className="hidden h-10 shrink-0 items-center rounded-md border border-border bg-background p-1 lg:flex">
+              <Button
+                type="button"
+                variant={gridColumns === 2 ? "secondary" : "ghost"}
+                size="icon"
+                aria-label="Show 2 columns"
+                aria-pressed={gridColumns === 2}
+                onClick={() => {
+                  setGridColumns(2);
+                  updateQueryParam(QUERY_PARAM_KEYS.columns, "2", "3");
+                }}
+                className="size-8"
+              >
+                <Columns2 className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant={gridColumns === 3 ? "secondary" : "ghost"}
+                size="icon"
+                aria-label="Show 3 columns"
+                aria-pressed={gridColumns === 3}
+                onClick={() => {
+                  setGridColumns(3);
+                  updateQueryParam(QUERY_PARAM_KEYS.columns, "3", "3");
+                }}
+                className="size-8"
+              >
+                <Columns3 className="size-4" />
+              </Button>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -1456,11 +1476,10 @@ export function InventoryPageClient() {
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Source created at</Label>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Input
-                    type="date"
+                  <DatePicker
                     value={sourceCreatedFrom}
-                    onChange={(event) => {
-                      const { value } = event.target;
+                    placeholder="From date"
+                    onChange={(value) => {
                       setSourceCreatedFrom(value);
                       updateQueryParam(
                         QUERY_PARAM_KEYS.sourceCreatedFrom,
@@ -1469,11 +1488,10 @@ export function InventoryPageClient() {
                       );
                     }}
                   />
-                  <Input
-                    type="date"
+                  <DatePicker
                     value={sourceCreatedTo}
-                    onChange={(event) => {
-                      const { value } = event.target;
+                    placeholder="To date"
+                    onChange={(value) => {
                       setSourceCreatedTo(value);
                       updateQueryParam(
                         QUERY_PARAM_KEYS.sourceCreatedTo,
@@ -1503,7 +1521,7 @@ export function InventoryPageClient() {
         className={cn(
           "grid min-h-0 w-full flex-1 gap-3",
           hasSelectedProduct
-            ? "lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)] lg:overflow-hidden"
+            ? "lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)] lg:overflow-hidden"
             : "overflow-hidden",
         )}
       >
@@ -1541,6 +1559,7 @@ export function InventoryPageClient() {
                   key={product.id}
                   product={product}
                   selected={product.productCode === selectedProductCode}
+                  compact={hasSelectedProduct}
                   onSelect={() => selectProduct(product.productCode)}
                 />
               ))}

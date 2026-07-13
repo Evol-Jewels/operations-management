@@ -230,6 +230,28 @@ function inlineDownloadLogos(card: HTMLElement) {
   };
 }
 
+function inlineBlobImages(card: HTMLElement) {
+  const images = Array.from(card.querySelectorAll<HTMLImageElement>("img"))
+    .filter(isLoadedImage)
+    .filter((image) => (image.currentSrc || image.src).startsWith("blob:"));
+  const originalSources = images.map((image) => image.src);
+  const originalSrcsets = images.map((image) => image.getAttribute("srcset"));
+
+  images.forEach((image) => {
+    image.src = imageToPngDataUrl(image);
+    image.removeAttribute("srcset");
+  });
+
+  return () => {
+    images.forEach((image, index) => {
+      image.src = originalSources[index];
+      if (originalSrcsets[index]) {
+        image.setAttribute("srcset", originalSrcsets[index]);
+      }
+    });
+  };
+}
+
 async function saveSummaryImage(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -428,15 +450,22 @@ export function EstimationSummaryCard({
     if (!cardRef.current) return;
 
     setIsDownloading(true);
-    cardRef.current.setAttribute("data-estimation-summary-printing", "true");
+    document.getElementById("estimation-summary-print-root")?.remove();
+
+    const printRoot = document.createElement("div");
+    printRoot.id = "estimation-summary-print-root";
+    const printableCard = cardRef.current.cloneNode(true) as HTMLElement;
+    printableCard.setAttribute("data-estimation-summary-printing", "true");
+    printRoot.appendChild(printableCard);
+    document.body.appendChild(printRoot);
 
     const cleanup = () => {
-      cardRef.current?.removeAttribute("data-estimation-summary-printing");
+      printRoot.remove();
       setIsDownloading(false);
     };
 
     try {
-      await waitForPrintLayout(cardRef.current);
+      await waitForPrintLayout(printableCard);
       window.addEventListener("afterprint", cleanup, { once: true });
       window.print();
       window.setTimeout(cleanup, 30000);
@@ -454,12 +483,16 @@ export function EstimationSummaryCard({
     if (!cardRef.current) throw new Error("Unable to prepare summary image");
 
     await waitForCardImages(cardRef.current);
+    const restoreBlobImages = inlineBlobImages(cardRef.current);
     const restoreLogos = inlineDownloadLogos(cardRef.current);
 
     const blob = await toBlob(cardRef.current, {
       pixelRatio: 2,
       cacheBust: true,
-    }).finally(restoreLogos);
+    }).finally(() => {
+      restoreLogos();
+      restoreBlobImages();
+    });
 
     if (!blob) throw new Error("Unable to create summary image");
     return blob;
@@ -532,8 +565,8 @@ export function EstimationSummaryCard({
     >
       {showHeader ? (
         <>
-          <div className="mb-4 flex items-start justify-between gap-4">
-            <div>
+          <div className="mb-4 flex flex-wrap items-start gap-4">
+            <div className="min-w-0 flex-1">
               <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 Estimation as per values, share with customers using the
@@ -541,7 +574,7 @@ export function EstimationSummaryCard({
               </p>
             </div>
             {showDownloadButton || renderHeaderActions ? (
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                 {renderHeaderActions?.(downloadProps)}
                 {showDownloadButton ? (
                   <>
@@ -596,21 +629,34 @@ export function EstimationSummaryCard({
         </div>
 
         <div
-          className="grid grid-cols-1 sm:grid-cols-[3fr_2fr]"
+          className="grid grid-cols-1 sm:grid-cols-2"
           data-estimation-summary-hero
         >
           <div
-            className="relative flex min-h-48 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-[4/3] sm:min-h-0"
+            className="relative flex min-h-48 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0"
             data-estimation-summary-media
           >
             {summary.imageUrl ? (
-              <Image
-                src={summary.imageUrl}
-                alt={displayName}
-                fill
-                className="object-cover"
-                unoptimized
-              />
+              <>
+                <Image
+                  src={summary.imageUrl}
+                  alt=""
+                  fill
+                  aria-hidden="true"
+                  className="scale-110 object-cover opacity-30 blur-md"
+                  data-estimation-summary-media-backdrop
+                  unoptimized
+                />
+                <div className="absolute inset-0 bg-black/5" aria-hidden="true" />
+                <Image
+                  src={summary.imageUrl}
+                  alt={displayName}
+                  fill
+                  className="object-contain"
+                  data-estimation-summary-media-product
+                  unoptimized
+                />
+              </>
             ) : (
               <ImageIcon className="h-9 w-9 text-muted-foreground/35" />
             )}
@@ -721,6 +767,7 @@ export function EstimationSummaryCard({
             <div
               className={cn("px-4", compact ? "py-3" : "py-4")}
               data-estimation-summary-section
+              data-estimation-summary-stones
             >
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                 Stones
@@ -736,6 +783,7 @@ export function EstimationSummaryCard({
                   .map((stone) => (
                     <div
                       key={stone.id}
+                      data-estimation-summary-stone-row
                       className={cn(
                         "flex items-start justify-between gap-4 first:pt-0",
                         compact ? "py-2" : "py-3",
@@ -764,6 +812,7 @@ export function EstimationSummaryCard({
                   ))}
               </div>
               <div
+                data-estimation-summary-stones-total
                 className={cn(
                   "mt-2 flex items-center justify-between border-t border-border",
                   compact ? "pt-2" : "pt-3",

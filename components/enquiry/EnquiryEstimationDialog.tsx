@@ -3,6 +3,7 @@
 import { Calculator, Diamond, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { StoneTypeCombobox } from "@/components/stone-type-combobox";
 import {
   Dialog,
   DialogContent,
@@ -380,30 +381,19 @@ export function EnquiryEstimationDialog({
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-[1fr_8rem_7rem]">
-                      <Select
+                      <StoneTypeCombobox
+                        options={settings.stoneTypes.map((item) => ({
+                          value: item.stoneId,
+                          label: item.name,
+                          category: item.category,
+                        }))}
                         value={stone.stoneTypeId}
                         onValueChange={(stoneTypeId) =>
                           updateStone(stone.id, { stoneTypeId })
                         }
-                      >
-                        <SelectTrigger className="w-full bg-background">
-                          <SelectValue placeholder="Select stone" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {settings.stoneTypes.map((item) => (
-                            <SelectItem key={item.stoneId} value={item.stoneId}>
-                              <span className="flex items-center gap-2">
-                                {item.category === "Diamond" ? (
-                                  <Diamond className="size-3.5 text-muted-foreground" />
-                                ) : (
-                                  <span className="size-3 rounded-full bg-muted-foreground/40" />
-                                )}
-                                {item.name}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder="Select stone"
+                        className="bg-background"
+                      />
                       <Input
                         type="number"
                         inputMode="decimal"

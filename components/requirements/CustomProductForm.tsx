@@ -4,11 +4,10 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ColorStoneDetailsSection } from "./ColorStoneDetailsSection";
-import { ExistingProductReferenceField } from "./ExistingProductReferenceField";
 import { DiamondDetailsSection } from "./DiamondDetailsSection";
 import { MetalDetailsSection } from "./MetalDetailsSection";
 import { RequirementBasicsSection } from "./RequirementBasicsSection";
-import { RequirementMediaSection } from "./RequirementMediaSection";
+import { RequirementReferencesSection } from "./RequirementReferencesSection";
 import type { RequirementDraft } from "./requirement-form-types";
 
 export function CustomProductForm({
@@ -37,15 +36,13 @@ export function CustomProductForm({
         className,
       )}
     >
-      <ExistingProductReferenceField
-        value={value.referenceProductCode}
-        onChange={(referenceProductCode) =>
+      <RequirementReferencesSection
+        productCode={value.referenceProductCode}
+        references={value.references}
+        onProductChange={(referenceProductCode) =>
           onChange({ ...value, referenceProductCode })
         }
-      />
-      <RequirementMediaSection
-        references={value.references}
-        onChange={(references) => onChange({ ...value, references })}
+        onReferencesChange={(references) => onChange({ ...value, references })}
       />
       <RequirementBasicsSection
         value={value}

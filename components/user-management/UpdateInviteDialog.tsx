@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -139,12 +140,12 @@ export function UpdateInviteDialog({
 
           <div className="space-y-2">
             <Label htmlFor="update-invite-expiration">Expiration</Label>
-            <Input
+            <DatePicker
               id="update-invite-expiration"
-              type="datetime-local"
               value={expiration}
-              onChange={(event) => setExpiration(event.target.value)}
+              onChange={setExpiration}
               disabled={isSubmitting}
+              includeTime
             />
             <p className="text-xs text-muted-foreground">
               Leave blank to keep current expiration.

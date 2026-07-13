@@ -4,7 +4,6 @@ import {
   ArrowUpRight,
   Check,
   ChevronDown,
-  ChevronsUpDown,
   CircleDollarSign,
   Diamond,
   ImageIcon,
@@ -22,6 +21,7 @@ import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
+import { StoneTypeCombobox as SharedStoneTypeCombobox } from "@/components/stone-type-combobox";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import {
   EstimationSummaryCard,
@@ -262,16 +262,37 @@ function NumericLineInput({
   min?: number;
   step?: number;
 }) {
+  const [inputValue, setInputValue] = useState(value ? String(value) : "");
+
+  useEffect(() => {
+    const parsedInput = inputValue === "" ? 0 : Number(inputValue);
+
+    if (parsedInput !== value) {
+      setInputValue(value ? String(value) : "");
+    }
+  }, [inputValue, value]);
+
+  function handleChange(nextValue: string) {
+    if (!/^\d*(?:\.\d*)?$/.test(nextValue)) return;
+
+    setInputValue(nextValue);
+    const numericValue = nextValue === "" ? 0 : Number(nextValue);
+
+    if (Number.isFinite(numericValue)) {
+      onChange(numericValue);
+    }
+  }
+
   return (
     <div className="flex h-9 items-end gap-2 border-b border-border pb-1.5 focus-within:border-foreground">
       <input
-        type="number"
+        type="text"
         inputMode="decimal"
-        min={min}
-        step={step}
-        value={value || ""}
-        onChange={(event) => onChange(Number(event.target.value) || 0)}
+        value={inputValue}
+        onChange={(event) => handleChange(event.target.value)}
         placeholder={placeholder}
+        aria-valuemin={min}
+        data-step={step}
         className="min-w-0 flex-1 bg-transparent px-0 text-sm outline-none placeholder:text-muted-foreground/35"
       />
       {suffix ? (
@@ -283,19 +304,6 @@ function NumericLineInput({
   );
 }
 
-function getStoneSearchValue(item: CalculatorSettings["stoneTypes"][number]) {
-  return [
-    item.name,
-    item.stoneId,
-    item.category,
-    item.clarity,
-    item.color,
-    ...item.slabs.map((slab) => slab.code),
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
 function StoneTypeCombobox({
   stoneTypes,
   value,
@@ -305,82 +313,20 @@ function StoneTypeCombobox({
   value: string;
   onChange: (stoneTypeId: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const selectedStone = stoneTypes.find((stone) => stone.stoneId === value);
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="h-9 w-full justify-between border-0 border-b bg-transparent px-0 text-sm shadow-none hover:bg-transparent"
-        >
-          <span className="flex min-w-0 items-center gap-2">
-            {!selectedStone || selectedStone.category === "Diamond" ? (
-              <Diamond className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            ) : (
-              <span className="h-3 w-3 shrink-0 rounded-full bg-muted-foreground/40" />
-            )}
-            <span
-              className={cn(
-                "truncate",
-                !selectedStone && "text-muted-foreground/60",
-              )}
-            >
-              {selectedStone?.name ?? "Select stone type..."}
-            </span>
-          </span>
-          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className="w-[min(360px,var(--radix-popover-trigger-width))] p-0"
-      >
-        <Command>
-          <CommandInput placeholder="Search stone shape or type..." />
-          <CommandList>
-            <CommandEmpty>No stone types found.</CommandEmpty>
-            <CommandGroup heading="Stone types">
-              {stoneTypes.map((item) => (
-                <CommandItem
-                  key={item.stoneId}
-                  value={`${item.stoneId} ${getStoneSearchValue(item)}`}
-                  onSelect={() => {
-                    onChange(item.stoneId);
-                    setOpen(false);
-                  }}
-                  className="items-start gap-2 py-2"
-                >
-                  {item.category === "Diamond" ? (
-                    <Diamond className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  ) : (
-                    <span className="mt-1 h-3 w-3 shrink-0 rounded-full bg-muted-foreground/40" />
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {item.name}
-                    </span>
-                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                      {item.category} · {item.slabs.length} slabs
-                    </span>
-                  </span>
-                  <Check
-                    className={cn(
-                      "mt-0.5 h-4 w-4 shrink-0",
-                      value === item.stoneId ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <SharedStoneTypeCombobox
+      options={stoneTypes.map((item) => ({
+        value: item.stoneId,
+        label: item.name,
+        category: item.category,
+        metadata: `${item.category} · ${item.slabs.length} slabs`,
+        searchText: [item.clarity, item.color, ...item.slabs.map((slab) => slab.code)].filter(Boolean).join(" "),
+      }))}
+      value={value}
+      onValueChange={onChange}
+      showMetadata
+      className="border-0 border-b bg-transparent px-0 shadow-none hover:bg-transparent"
+    />
   );
 }
 
@@ -1061,7 +1007,7 @@ function RecentEstimateSummaryDialog({
                   isDownloading,
                   isSharing,
                 }) => (
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                  <div className="flex flex-wrap items-center justify-end gap-2.5">
                     <EstimationSummaryShareButton
                       shareSummaryPng={shareSummaryPng}
                       isSharing={isSharing}

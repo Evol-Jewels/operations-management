@@ -38,6 +38,7 @@ import {
 } from "@/components/enquiries/enquiry-form-utils";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -1425,13 +1426,12 @@ function RequirementConversionCard({
             </label>
           </div>
           <FormField label="Estimated delivery date" required>
-            <Input
-              type="date"
+            <DatePicker
               value={item.estimatedDelivery}
-              onChange={(event) =>
-                updateItem(item.id, { estimatedDelivery: event.target.value })
+              onChange={(estimatedDelivery) =>
+                updateItem(item.id, { estimatedDelivery })
               }
-              className="h-10 w-full"
+              className="w-full"
             />
           </FormField>
           <div className="space-y-1.5 md:col-span-2">
@@ -1761,13 +1761,12 @@ function OrderItemCard({
           />
         </FormField>
         <FormField label="Estimated delivery date" required>
-          <Input
-            type="date"
+          <DatePicker
             value={item.estimatedDelivery}
-            onChange={(e) =>
-              updateItem(item.id, { estimatedDelivery: e.target.value })
+            onChange={(estimatedDelivery) =>
+              updateItem(item.id, { estimatedDelivery })
             }
-            className="h-10 w-full"
+            className="w-full"
           />
         </FormField>
       </div>

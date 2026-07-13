@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Collapsible,
   CollapsibleContent,
@@ -236,11 +237,11 @@ export function SendInviteDialog({
 
               <div className="space-y-2">
                 <Label htmlFor="invite-expiration">Invite Expiration</Label>
-                <Input
+                <DatePicker
                   id="invite-expiration"
-                  type="datetime-local"
                   value={expiration}
-                  onChange={(event) => setExpiration(event.target.value)}
+                  onChange={setExpiration}
+                  includeTime
                 />
               </div>
 

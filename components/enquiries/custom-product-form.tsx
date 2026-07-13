@@ -1,5 +1,6 @@
 import { ArrowLeft, Link2, Plus, Trash2, Upload, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StoneTypeCombobox } from "@/components/stone-type-combobox";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import {
@@ -214,29 +215,18 @@ export function CustomProductForm({
                   label={index === 0 ? "Stone type" : `Stone ${index + 1}`}
                   required
                 >
-                  <Select
+                  <StoneTypeCombobox
+                    options={stoneTypeOptions.map((stoneType) => ({
+                      value: stoneType,
+                      label: stoneType,
+                    }))}
                     value={stone.stoneType}
                     onValueChange={(stoneType) =>
                       updateStone(stone.id, { stoneType })
                     }
-                  >
-                    <SelectTrigger className="h-9 w-full text-sm">
-                      <SelectValue placeholder="Select stone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {showStoneLoadingState ? (
-                        <SelectItem value="__loading" disabled>
-                          Loading...
-                        </SelectItem>
-                      ) : (
-                        stoneTypeOptions.map((stoneType) => (
-                          <SelectItem key={stoneType} value={stoneType}>
-                            {stoneType}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                    loading={showStoneLoadingState}
+                    placeholder="Select stone"
+                  />
                 </FormField>
                 <FormField label="Pieces" optional>
                   <Input

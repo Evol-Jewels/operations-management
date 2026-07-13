@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { StoneTypeCombobox } from "@/components/stone-type-combobox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useOrdersStore } from "@/lib/stores/orders-store";
+import { useStoneTypes } from "@/hooks/useManageProducts";
 import { calculateEstimationAmount } from "@/lib/utils";
 import type {
   MetalPurity,
@@ -54,6 +56,13 @@ export function EstimationForm({
   productId,
   initialPurity,
 }: EstimationFormProps) {
+  const stoneTypesQuery = useStoneTypes({ limit: 1000 });
+  const stoneTypeOptions = (stoneTypesQuery.data?.data ?? [])
+    .filter((stone) => !stone.isDeleted)
+    .map((stone) => ({ value: stone.name, label: stone.name }));
+  const availableStoneTypes = stoneTypeOptions.length > 0
+    ? stoneTypeOptions
+    : STONE_TYPES.map((stone) => ({ value: stone, label: stone }));
   const [open, setOpen] = useState(false);
   const [metalWeight, setMetalWeight] = useState("");
   const [purity, setPurity] = useState<MetalPurity>(initialPurity);
@@ -205,21 +214,14 @@ export function EstimationForm({
                 <div className="grid grid-cols-3 gap-2">
                   <div className="space-y-1">
                     <Label className="text-xs">Type</Label>
-                    <Select
+                    <StoneTypeCombobox
+                      options={availableStoneTypes}
                       value={stone.type || ""}
-                      onValueChange={(v) => updateStone(index, "type", v)}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STONE_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onValueChange={(value) => updateStone(index, "type", value)}
+                      loading={stoneTypesQuery.isLoading}
+                      placeholder="Select"
+                      className="h-8 text-xs"
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Net Weight (g)</Label>

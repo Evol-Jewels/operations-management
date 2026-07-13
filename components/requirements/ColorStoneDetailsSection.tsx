@@ -2,6 +2,9 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StoneTypeCombobox } from "@/components/stone-type-combobox";
+import { FormField } from "@/components/ui/form-field";
+import { useStoneTypes } from "@/hooks/useManageProducts";
 import {
   COLOR_STONE_NATURES,
   COLOR_STONE_ORIGINS,
@@ -22,6 +25,14 @@ export function ColorStoneDetailsSection({
   value: RequirementDraft;
   onChange: (value: RequirementDraft) => void;
 }) {
+  const stoneTypesQuery = useStoneTypes({ limit: 1000 });
+  const apiStoneTypes = (stoneTypesQuery.data?.data ?? [])
+    .filter((stone) => !stone.isDeleted)
+    .map((stone) => stone.name);
+  const stoneTypeOptions = Array.from(
+    new Set(apiStoneTypes.length > 0 ? apiStoneTypes : COLOR_STONE_TYPES),
+  ).map((stoneType) => ({ value: stoneType, label: stoneType }));
+
   function updateStone(id: string, patch: Partial<RequirementColorStone>) {
     onChange({
       ...value,
@@ -83,13 +94,16 @@ export function ColorStoneDetailsSection({
               </Button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <OptionTextField
-                label="Color stone type"
-                value={stone.stoneType}
-                options={COLOR_STONE_TYPES}
-                onChange={(stoneType) => updateStone(stone.id, { stoneType })}
-                required
-              />
+              <FormField label="Color stone type" required>
+                <StoneTypeCombobox
+                  options={stoneTypeOptions}
+                  value={stone.stoneType}
+                  onValueChange={(stoneType) =>
+                    updateStone(stone.id, { stoneType })
+                  }
+                  loading={stoneTypesQuery.isLoading}
+                />
+              </FormField>
               <OptionTextField
                 label="Color stone nature"
                 value={stone.nature}

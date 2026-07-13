@@ -1,11 +1,12 @@
 "use client";
 
-import { ExternalLink, ImageIcon, Link2, Plus, Upload, X } from "lucide-react";
+import { Expand, ExternalLink, ImageIcon, Link2, Plus, Upload, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import type { ProductReference } from "@/components/enquiries/enquiry-form-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SectionShell } from "./RequirementFields";
+import { ImagePreviewDialog } from "./ImagePreviewDialog";
 import {
   formatFileSize,
   generateRequirementId,
@@ -220,12 +221,23 @@ function ImageReferenceCard({
 }) {
   return (
     <div className="group relative w-36 shrink-0 overflow-hidden rounded-lg border border-border bg-background">
-      {/* biome-ignore lint/performance/noImgElement: local preview URLs cannot use next/image. */}
-      <img
-        src={reference.url}
-        alt={reference.name}
-        className="aspect-square w-full object-cover"
-      />
+      <ImagePreviewDialog src={reference.url} alt={reference.name}>
+        <button
+          type="button"
+          aria-label={`View ${reference.name} in detail`}
+          className="group/preview relative block aspect-square w-full cursor-zoom-in overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        >
+          {/* biome-ignore lint/performance/noImgElement: local preview URLs cannot use next/image. */}
+          <img
+            src={reference.url}
+            alt=""
+            className="size-full object-cover"
+          />
+          <span className="absolute inset-0 flex items-end bg-black/0 p-2 text-white opacity-0 transition-all group-hover/preview:bg-black/25 group-hover/preview:opacity-100 group-focus-visible/preview:bg-black/25 group-focus-visible/preview:opacity-100">
+            <Expand className="size-4" />
+          </span>
+        </button>
+      </ImagePreviewDialog>
       <div className="border-t border-border px-2 py-1.5">
         <p className="truncate text-xs font-medium text-foreground">
           {reference.name}
