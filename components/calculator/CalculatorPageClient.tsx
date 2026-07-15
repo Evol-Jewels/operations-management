@@ -66,6 +66,7 @@ import {
   isCalculatorTab,
   writeCalculatorTabCookie,
 } from "@/lib/calculatorTab";
+import { captureProductEvent } from "@/lib/analytics";
 import {
   fetchInventoryProductByCode,
   fetchInventoryProducts,
@@ -1068,6 +1069,11 @@ function SearchPanel({
   >(async () => {});
 
   async function loadInventoryProduct(product: InventoryProduct) {
+    captureProductEvent("calculator_inventory_product_load_started", {
+      product_code: product.productCode,
+      category: product.category,
+      product_source: product.isCustomerProduct ? "customer" : "stock",
+    });
     setIsLoading(true);
     setError(null);
     setBlockedResult(null);
@@ -1101,7 +1107,15 @@ function SearchPanel({
       }
 
       onLoadProduct(normalized);
+      captureProductEvent("calculator_inventory_product_loaded", {
+        product_code: normalized.product.productCode,
+        category: normalized.product.categoryLabel,
+        location: normalized.product.location,
+      });
     } catch (err) {
+      captureProductEvent("calculator_inventory_product_load_failed", {
+        product_code: product.productCode,
+      });
       setError(err instanceof Error ? err.message : "Failed to load product");
     } finally {
       setIsLoading(false);
@@ -1115,6 +1129,10 @@ function SearchPanel({
     const code = normalizeDecodedId(rawCode);
     if (!code) return;
 
+    captureProductEvent("calculator_inventory_search_started", {
+      product_code: code,
+      auto_load_exact: autoLoadExact,
+    });
     const requestId = searchRequestRef.current + 1;
     searchRequestRef.current = requestId;
     setSearchedCode(code);
@@ -1129,6 +1147,11 @@ function SearchPanel({
       if (requestId !== searchRequestRef.current) return;
 
       if (products.data.length === 0) {
+        captureProductEvent("calculator_inventory_search_completed", {
+          product_code: code,
+          result_count: 0,
+          exact_match: false,
+        });
         setNotFoundCode(code);
         return;
       }
@@ -1138,12 +1161,27 @@ function SearchPanel({
       );
 
       if (autoLoadExact && (products.data.length === 1 || exactMatch)) {
+        captureProductEvent("calculator_inventory_search_completed", {
+          product_code: code,
+          result_count: products.data.length,
+          exact_match: Boolean(exactMatch),
+          auto_loaded: true,
+        });
         loadInventoryProduct(exactMatch ?? products.data[0]);
         return;
       }
 
+      captureProductEvent("calculator_inventory_search_completed", {
+        product_code: code,
+        result_count: products.data.length,
+        exact_match: Boolean(exactMatch),
+        auto_loaded: false,
+      });
       setSearchResults(products.data);
     } catch (err) {
+      captureProductEvent("calculator_inventory_search_failed", {
+        product_code: code,
+      });
       setError(err instanceof Error ? err.message : "Search failed");
     } finally {
       if (requestId === searchRequestRef.current) setIsLoading(false);
@@ -1211,6 +1249,9 @@ function SearchPanel({
         onDecoded={(code) => {
           const normalizedCode = normalizeDecodedId(code);
           if (!normalizedCode) return;
+          captureProductEvent("calculator_barcode_scanned", {
+            product_code: normalizedCode,
+          });
           skipNextDebouncedSearchRef.current = true;
           setSearchInput(normalizedCode);
           searchInventoryProducts(normalizedCode, true);
@@ -1289,7 +1330,12 @@ function SearchPanel({
 
       <RecentEstimatesList
         refreshKey={recentRefreshKey}
-        onOpen={setSelectedRecent}
+        onOpen={(estimate) => {
+          setSelectedRecent(estimate);
+          captureProductEvent("calculator_recent_estimate_opened", {
+            product_code: estimate.productCode,
+          });
+        }}
       />
 
       <RecentEstimateSummaryDialog
@@ -1731,6 +1777,9 @@ export function CalculatorPageClient({
   }
 
   function addStone() {
+    captureProductEvent("calculator_stone_added", {
+      stone_count_before: form.stones.length,
+    });
     setForm((current) => ({
       ...current,
       stones: [...current.stones, createStone(settings)],
@@ -1738,6 +1787,9 @@ export function CalculatorPageClient({
   }
 
   function removeStone(stoneId: string) {
+    captureProductEvent("calculator_stone_removed", {
+      stone_count_before: form.stones.length,
+    });
     setForm((current) => ({
       ...current,
       stones:
@@ -1748,6 +1800,11 @@ export function CalculatorPageClient({
   }
 
   function resetForm() {
+    captureProductEvent("calculator_form_reset", {
+      stone_count: form.stones.length,
+      has_product_name: Boolean(form.productName.trim()),
+      has_image: Boolean(form.productImageUrl),
+    });
     if (form.productImageUrl?.startsWith("blob:")) {
       URL.revokeObjectURL(form.productImageUrl);
     }
@@ -1764,6 +1821,10 @@ export function CalculatorPageClient({
   function handleImageChange(file: File | null) {
     if (!file || !file.type.startsWith("image/")) return;
 
+    captureProductEvent("calculator_product_image_added", {
+      file_type: file.type,
+      file_size_kb: Math.round(file.size / 1024),
+    });
     if (form.productImageUrl?.startsWith("blob:")) {
       URL.revokeObjectURL(form.productImageUrl);
     }
@@ -1772,6 +1833,11 @@ export function CalculatorPageClient({
   }
 
   function loadInventoryProduct(result: ProductEstimateResult) {
+    captureProductEvent("calculator_estimate_loaded", {
+      product_code: result.product.productCode,
+      category: result.product.categoryLabel,
+      stone_count: result.stones.length,
+    });
     if (form.productImageUrl?.startsWith("blob:")) {
       URL.revokeObjectURL(form.productImageUrl);
     }
