@@ -34,9 +34,10 @@ import {
 } from "@/components/requirements/requirement-form-utils";
 import { Button } from "@/components/ui/button";
 import { validatePhone } from "@/components/ui/phone-input";
+import { useCreateEnquiry } from "@/hooks/useEnquiries";
+import { captureProductEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { uploadEnquiryImage } from "@/lib/enquiriesApi";
-import { useCreateEnquiry } from "@/hooks/useEnquiries";
 import type {
   BackendEnquiryMedia,
   CreateEnquiryItemInput,
@@ -284,10 +285,18 @@ function EnquiryCreateForm() {
         items,
       });
 
+      captureProductEvent("enquiry_created", {
+        requirement_count: items.length,
+        has_requirement_media: items.some((item) => item.media.length > 0),
+      });
+
       setSubmitted(true);
       removeDraft(NEW_ENQUIRY_V2_DRAFT_KEY);
       setTimeout(() => router.push(`/enquiries/${created.enquiry.refCode}`), 900);
     } catch (error) {
+      captureProductEvent("enquiry_creation_failed", {
+        requirement_count: requirements.length,
+      });
       setErrors({
         submit:
           error instanceof Error

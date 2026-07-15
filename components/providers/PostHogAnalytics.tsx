@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import posthog from "posthog-js";
 import { useEffect } from "react";
 import { getSessionRole, getUserRole } from "@/lib/auth";
@@ -16,28 +16,21 @@ type AnalyticsUser = {
   } | null;
 };
 
-type SearchParamsLike = {
-  toString: () => string;
-};
-
-function getCurrentUrl(pathname: string, searchParams: SearchParamsLike) {
-  const queryString = searchParams.toString();
-  return `${window.location.origin}${pathname}${queryString ? `?${queryString}` : ""}`;
-}
-
 export function PostHogAnalytics() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { data: session, isPending } = authClient.useSession();
 
   useEffect(() => {
     if (!pathname || !process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) return;
 
     posthog.capture("$pageview", {
-      $current_url: getCurrentUrl(pathname, searchParams),
+      // Query parameters can contain product codes, searches, and record IDs.
+      // Keep page analytics useful without copying that business data to PostHog.
+      $current_url: `${window.location.origin}${pathname}`,
+      $pathname: pathname,
       app_area: pathname.split("/").filter(Boolean)[0] || "dashboard",
     });
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   useEffect(() => {
     if (isPending || !process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) return;

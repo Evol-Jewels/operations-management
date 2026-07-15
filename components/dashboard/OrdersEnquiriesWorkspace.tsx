@@ -899,6 +899,11 @@ export function OrdersEnquiriesWorkspace() {
         refCode: record.refCode,
         input: { status: ORDER_STAGE_TO_STATUS[newColumnId] },
       });
+      captureProductEvent("order_status_changed", {
+        from_status: record.currentStage,
+        to_status: newColumnId,
+        surface: "kanban",
+      });
       toast.success(`Order moved to ${newColumnId}`);
     } catch (error) {
       toast.error(getErrorMessage(error, "Could not update order status"));
@@ -979,7 +984,7 @@ export function OrdersEnquiriesWorkspace() {
           <button
             type="button"
             onClick={() => {
-              setViewMode("table");
+              handleViewModeChange("table");
               captureProductEvent("workspace_view_changed", {
                 record_type: typeTab,
                 view_mode: "table",
@@ -999,7 +1004,7 @@ export function OrdersEnquiriesWorkspace() {
           <button
             type="button"
             onClick={() => {
-              setViewMode("kanban");
+              handleViewModeChange("kanban");
               captureProductEvent("workspace_view_changed", {
                 record_type: typeTab,
                 view_mode: "kanban",
@@ -1128,7 +1133,7 @@ export function OrdersEnquiriesWorkspace() {
               <button
                 type="button"
                 onClick={() => {
-                  setViewMode("table");
+                  handleViewModeChange("table");
                   captureProductEvent("workspace_view_changed", {
                     record_type: typeTab,
                     view_mode: "table",
@@ -1148,7 +1153,7 @@ export function OrdersEnquiriesWorkspace() {
               <button
                 type="button"
                 onClick={() => {
-                  setViewMode("kanban");
+                  handleViewModeChange("kanban");
                   captureProductEvent("workspace_view_changed", {
                     record_type: typeTab,
                     view_mode: "kanban",
