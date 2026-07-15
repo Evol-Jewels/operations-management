@@ -99,7 +99,7 @@ function initials(name: string): string {
 }
 
 function GoldRateSidebarItem({ canOpenConfig }: { canOpenConfig: boolean }) {
-  const goldRateQuery = useGoldRate(canOpenConfig);
+  const goldRateQuery = useGoldRate(true);
   const goldRate = goldRateQuery.data?.goldRate24k;
   const value =
     typeof goldRate === "number" && Number.isFinite(goldRate)
@@ -107,8 +107,6 @@ function GoldRateSidebarItem({ canOpenConfig }: { canOpenConfig: boolean }) {
       : goldRateQuery.isLoading || goldRateQuery.isFetching
         ? "Loading..."
         : "Unavailable";
-
-  if (!canOpenConfig) return null;
 
   const content = (
     <>
@@ -121,7 +119,9 @@ function GoldRateSidebarItem({ canOpenConfig }: { canOpenConfig: boolean }) {
           {value}
         </span>
       </span>
-      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden" />
+      {canOpenConfig ? (
+        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden" />
+      ) : null}
     </>
   );
 
@@ -129,20 +129,25 @@ function GoldRateSidebarItem({ canOpenConfig }: { canOpenConfig: boolean }) {
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton
-          asChild
+          asChild={canOpenConfig}
           tooltip={`Gold Rate (24k): ${value}`}
           className={cn(
-            "h-auto bg-sidebar-accent/45 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground",
+            "h-auto bg-sidebar-accent/45 py-2 text-sidebar-foreground",
+            canOpenConfig &&
+              "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground",
             "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2",
           )}
         >
-          <Link
-            href="/manage-products-and-price?tab=system#system-config"
-            className="flex w-full min-w-0 items-center gap-2 overflow-hidden group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
-          >
-            {content}
-          </Link>
+          {canOpenConfig ? (
+            <Link
+              href="/manage-products-and-price?tab=system#system-config"
+              className="flex w-full min-w-0 items-center gap-2 overflow-hidden group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
+            >
+              {content}
+            </Link>
+          ) : (
+            content
+          )}
         </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>
