@@ -114,7 +114,7 @@ function ChartTooltipContent({
       <div className="grid gap-1.5">
         {payload
           .filter((item) => item.type !== "none")
-          .map((item) => {
+          .map((item, index) => {
             // For pie charts, item.name contains the sector name (e.g., "chrome")
             // For radial charts, the name is in item.payload[nameKey]
             // For other charts, item.name or item.dataKey contains the series name

@@ -419,7 +419,7 @@ export function EnquiryDetailPage({
 
           <section className="my-8">
             <EnquiryProductList
-              enquiryRefCode={order.refCode}
+              enquiryRefCode={order.refCode ?? 0}
               selectedProducts={selectedProducts}
               customProducts={customProducts}
               estimations={estimations}

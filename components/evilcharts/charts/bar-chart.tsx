@@ -734,7 +734,7 @@ const CustomBar = (props: CustomBarProps) => {
         if (!isClickable || !onClick) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onClick(props);
+          onClick();
         }
       }}
     >
