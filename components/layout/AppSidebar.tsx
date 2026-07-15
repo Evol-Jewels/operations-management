@@ -21,6 +21,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/providers/ThemeProvider";
+import { GoldRatesDialog } from "@/components/layout/GoldRatesDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -98,8 +99,10 @@ function initials(name: string): string {
     .join("");
 }
 
-function GoldRateSidebarItem({ canOpenConfig }: { canOpenConfig: boolean }) {
+function GoldRateSidebarItem({ role }: { role: string }) {
   const goldRateQuery = useGoldRate(true);
+  const canOpenConfig = ["ADMIN", "OPERATIONS"].includes(role);
+  const canOpenRates = role === "SALES";
   const goldRate = goldRateQuery.data?.goldRate24k;
   const value =
     typeof goldRate === "number" && Number.isFinite(goldRate)
@@ -119,36 +122,44 @@ function GoldRateSidebarItem({ canOpenConfig }: { canOpenConfig: boolean }) {
           {value}
         </span>
       </span>
-      {canOpenConfig ? (
+      {canOpenConfig || canOpenRates ? (
         <ArrowRight className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden" />
       ) : null}
     </>
   );
 
+  const menuButton = (
+    <SidebarMenuButton
+      asChild={canOpenConfig}
+      tooltip={`Gold Rate (24k): ${value}`}
+      className={cn(
+        "h-auto bg-sidebar-accent/45 py-2 text-sidebar-foreground",
+        (canOpenConfig || canOpenRates) &&
+          "cursor-pointer hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground",
+        "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2",
+      )}
+    >
+      {canOpenConfig ? (
+        <Link
+          href="/manage-products-and-price?tab=system#system-config"
+          className="flex w-full min-w-0 items-center gap-2 overflow-hidden group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
+        >
+          {content}
+        </Link>
+      ) : (
+        content
+      )}
+    </SidebarMenuButton>
+  );
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton
-          asChild={canOpenConfig}
-          tooltip={`Gold Rate (24k): ${value}`}
-          className={cn(
-            "h-auto bg-sidebar-accent/45 py-2 text-sidebar-foreground",
-            canOpenConfig &&
-              "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground",
-            "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2",
-          )}
-        >
-          {canOpenConfig ? (
-            <Link
-              href="/manage-products-and-price?tab=system#system-config"
-              className="flex w-full min-w-0 items-center gap-2 overflow-hidden group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
-            >
-              {content}
-            </Link>
-          ) : (
-            content
-          )}
-        </SidebarMenuButton>
+        {canOpenRates ? (
+          <GoldRatesDialog trigger={menuButton} />
+        ) : (
+          menuButton
+        )}
       </SidebarMenuItem>
     </SidebarMenu>
   );
@@ -161,7 +172,6 @@ export function AppSidebar() {
   const { theme, setTheme } = useTheme();
 
   const sessionRole = session ? getSessionRole(session) : "";
-  const canOpenSystemConfig = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const isActive = (href: string) => {
     if (href === "/inventory") return pathname === href;
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -307,7 +317,7 @@ export function AppSidebar() {
       <SidebarSeparator className="mx-3" />
 
       <SidebarFooter>
-        <GoldRateSidebarItem canOpenConfig={canOpenSystemConfig} />
+        <GoldRateSidebarItem role={sessionRole} />
 
         <div className="group-data-[collapsible=icon]:px-0">
           <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/40 p-1 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:w-fit">

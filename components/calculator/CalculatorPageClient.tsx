@@ -414,7 +414,7 @@ function PurityCards({
             <span className="text-sm font-semibold">{card.purity}</span>
             <span
               className={cn(
-                "mt-0.5 hidden text-[10px] sm:block",
+                "mt-0.5 text-[10px] leading-none",
                 "text-muted-foreground",
               )}
             >
