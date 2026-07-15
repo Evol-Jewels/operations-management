@@ -39,6 +39,7 @@ import {
   useUpdateOrderStatus,
 } from "@/hooks/useOrders";
 import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
+import { captureProductEvent } from "@/lib/analytics";
 import { mapBackendOrderDetailsToOrder } from "@/lib/orderMappers";
 import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
 import type { Order } from "@/types";
@@ -112,6 +113,11 @@ function OrderStatusControl({
   async function handleStatusChange(nextStatus: BackendOrderStatus) {
     try {
       await updateStatus.mutateAsync({ status: nextStatus });
+      captureProductEvent("order_status_changed", {
+        from_status: status,
+        to_status: nextStatus,
+        surface: "order_detail",
+      });
       toast.success(
         `Order status changed to ${getOrderStatusLabel(nextStatus)}`,
       );
@@ -127,6 +133,12 @@ function OrderStatusControl({
     try {
       await updateStatus.mutateAsync({ status: pendingStatus });
       await createCommentMutation.mutateAsync(note);
+      captureProductEvent("order_status_changed", {
+        from_status: status,
+        to_status: pendingStatus,
+        surface: "order_detail",
+        note_required: true,
+      });
       toast.success(`Order status changed to ${pendingStatusLabel}`);
       setPendingStatus(null);
       setStatusNote("");

@@ -58,6 +58,7 @@ import {
   useSyncInventoryProducts,
 } from "@/hooks/useInventoryProducts";
 import { useLocations } from "@/hooks/useManageProducts";
+import { captureProductEvent } from "@/lib/analytics";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
   getInventoryPrimaryImage,
@@ -413,6 +414,11 @@ function ProductDetail({
   );
 
   function scrollToEstimation() {
+    captureProductEvent("inventory_estimation_viewed", {
+      product_code: product.productCode,
+      category: product.category,
+      product_source: product.isCustomerProduct ? "customer" : "stock",
+    });
     estimationSectionRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "start",
@@ -913,10 +919,13 @@ export function InventoryPageClient() {
   );
 
   const handleSyncProducts = useCallback(async () => {
+    captureProductEvent("inventory_sync_started");
     try {
       await syncInventoryMutation.mutateAsync();
+      captureProductEvent("inventory_sync_completed");
       toast.success("Product sync completed");
     } catch (error) {
+      captureProductEvent("inventory_sync_failed");
       toast.error(getErrorMessage(error));
     }
   }, [syncInventoryMutation]);
@@ -942,18 +951,36 @@ export function InventoryPageClient() {
   }, [searchParams]);
 
   function selectProduct(productCode: string) {
+    const product = products.find((item) => item.productCode === productCode);
+
+    captureProductEvent("inventory_product_selected", {
+      product_code: productCode,
+      category: product?.category,
+      product_source: product
+        ? product.isCustomerProduct
+          ? "customer"
+          : "stock"
+        : "unknown",
+      location_city: product?.location.city,
+    });
     updateSearchParams((params) => {
       params.set("productCode", productCode);
     }, "push");
   }
 
   function closeProductDetails() {
+    captureProductEvent("inventory_product_details_closed", {
+      product_code: selectedProductCode,
+    });
     updateSearchParams((params) => {
       params.delete("productCode");
     }, "push");
   }
 
   function resetDialogFilters() {
+    captureProductEvent("inventory_filters_cleared", {
+      active_filter_count: activeDialogFilterCount,
+    });
     setCategoryFilter("ALL");
     setColorFilter("ALL");
     setPurityFilter("ALL");
@@ -980,6 +1007,9 @@ export function InventoryPageClient() {
     const code = normalizeDecodedId(rawCode);
     if (!code) return;
 
+    captureProductEvent("inventory_barcode_scanned", {
+      product_code: code,
+    });
     setSearchInput(code);
     setIsScannerOpen(false);
     updateSearchParams((params) => {
@@ -1161,6 +1191,13 @@ export function InventoryPageClient() {
     sourceFilter,
   ]);
 
+  function trackFilterChange(filterKey: string, value: string) {
+    captureProductEvent("inventory_filter_changed", {
+      filter_key: filterKey,
+      filter_state: value === "ALL" || !value ? "cleared" : "applied",
+    });
+  }
+
   const filterControls = (
     <>
       <Select
@@ -1168,6 +1205,7 @@ export function InventoryPageClient() {
         onValueChange={(value) => {
           setCategoryFilter(value as InventoryCategory | "ALL");
           updateQueryParam(QUERY_PARAM_KEYS.category, value);
+          trackFilterChange(QUERY_PARAM_KEYS.category, value);
         }}
       >
         <SelectTrigger className="h-10 w-full">
@@ -1188,6 +1226,7 @@ export function InventoryPageClient() {
         onValueChange={(value) => {
           setColorFilter(value as ColorFilter);
           updateQueryParam(QUERY_PARAM_KEYS.color, value);
+          trackFilterChange(QUERY_PARAM_KEYS.color, value);
         }}
       >
         <SelectTrigger className="h-10 w-full">
@@ -1208,6 +1247,7 @@ export function InventoryPageClient() {
         onValueChange={(value) => {
           setPurityFilter(value as PurityFilter);
           updateQueryParam(QUERY_PARAM_KEYS.purity, value);
+          trackFilterChange(QUERY_PARAM_KEYS.purity, value);
         }}
       >
         <SelectTrigger className="h-10 w-full">
@@ -1230,6 +1270,7 @@ export function InventoryPageClient() {
         onValueChange={(value) => {
           setSourceFilter(value as SourceFilter);
           updateQueryParam(QUERY_PARAM_KEYS.source, value);
+          trackFilterChange(QUERY_PARAM_KEYS.source, value);
         }}
       >
         <SelectTrigger className="h-10 w-full">
@@ -1247,6 +1288,7 @@ export function InventoryPageClient() {
         onValueChange={(value) => {
           setLocationFilter(value);
           updateQueryParam(QUERY_PARAM_KEYS.location, value);
+          trackFilterChange(QUERY_PARAM_KEYS.location, value);
         }}
       >
         <SelectTrigger className="h-10 w-full">
@@ -1322,6 +1364,13 @@ export function InventoryPageClient() {
                 setSearchInput(value);
                 updateQueryParam(QUERY_PARAM_KEYS.search, value.trim(), "");
               }}
+              onBlur={() => {
+                const query = searchInput.trim();
+                if (!query) return;
+                captureProductEvent("inventory_search_used", {
+                  query_length: query.length,
+                });
+              }}
               placeholder="Search code, vendor, location, category"
               className="h-10 pl-9"
             />
@@ -1340,7 +1389,12 @@ export function InventoryPageClient() {
           <Button
             type="button"
             variant={hasActiveDialogFilters ? "default" : "outline"}
-            onClick={() => setIsAdvancedFiltersOpen(true)}
+            onClick={() => {
+              setIsAdvancedFiltersOpen(true);
+              captureProductEvent("inventory_filters_opened", {
+                active_filter_count: activeDialogFilterCount,
+              });
+            }}
             className="h-10 shrink-0 gap-2"
           >
             <SlidersHorizontal className="h-4 w-4" />

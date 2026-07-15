@@ -45,7 +45,9 @@ export function RequirementMediaPanel({
 
 function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
   const [index, setIndex] = useState(0);
-  const images = item.images.filter((image) => image.url);
+  const images = item.images.filter(
+    (image): image is typeof image & { url: string } => Boolean(image.url),
+  );
   const hasMany = images.length > 1;
   const image = images[index];
 

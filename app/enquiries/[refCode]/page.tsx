@@ -11,6 +11,7 @@ import {
   useUpdateEstimation,
 } from "@/hooks/useEnquiries";
 import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
+import { captureProductEvent } from "@/lib/analytics";
 import { mapBackendEnquiryDetailsToOrder } from "@/lib/enquiryMappers";
 import type { ProductEstimation } from "@/types";
 
@@ -103,6 +104,10 @@ function EnquiryPageContent() {
     notes: string;
   }) {
     await updateEnquiry.mutateAsync({ status: "CLOSED" });
+    captureProductEvent("enquiry_closed", {
+      close_reason: reason,
+      has_notes: Boolean(notes.trim()),
+    });
 
     const closeNote = [reason, notes.trim()].filter(Boolean).join(" - ");
     if (closeNote) {

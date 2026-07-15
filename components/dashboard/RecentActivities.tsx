@@ -66,7 +66,7 @@ function getActionText(activity: EnrichedActivity): ReactNode {
         );
       }
       return activity.message || "changed status";
-    case "note":
+    case "comment":
       return "added a note";
     case "file_upload":
       return "uploaded a file";

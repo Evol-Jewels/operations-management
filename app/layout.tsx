@@ -3,7 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Suspense } from "react";
 import { AppShell } from "@/components/layout/AppShell";
+import { PostHogAnalytics } from "@/components/providers/PostHogAnalytics";
 import { ReactQueryProvider } from "@/components/providers/ReactQueryProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
@@ -71,6 +73,9 @@ export default function RootLayout({
         <ThemeProvider>
           <TooltipProvider>
             <ReactQueryProvider>
+              <Suspense fallback={null}>
+                <PostHogAnalytics />
+              </Suspense>
               <AppShell>{children}</AppShell>
             </ReactQueryProvider>
           </TooltipProvider>

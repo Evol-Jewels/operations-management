@@ -44,6 +44,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { enquiryKeys, useEnquiryDetails } from "@/hooks/useEnquiries";
 import { useCreateOrders } from "@/hooks/useOrders";
+import { captureProductEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { uploadEnquiryImage } from "@/lib/enquiriesApi";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
@@ -921,6 +922,11 @@ export function ConvertOrderForm({
       }
       const sourceRefCode = enquiryDetails?.enquiry.refCode;
       const response = await createOrdersMutation.mutateAsync(await buildPayload());
+      captureProductEvent("order_created", {
+        order_count: response.refCodes?.length ?? selectedItems.length,
+        product_count: selectedItems.length,
+        source: isConversion ? "enquiry_conversion" : "direct",
+      });
       if (isConversion && enquiryId && sourceRefCode) {
         void queryClient.invalidateQueries({ queryKey: enquiryKeys.detail(enquiryId) });
         void queryClient.invalidateQueries({ queryKey: enquiryKeys.detailByRefCode(sourceRefCode) });
@@ -933,6 +939,10 @@ export function ConvertOrderForm({
         );
       }, 1200);
     } catch (error) {
+      captureProductEvent("order_creation_failed", {
+        product_count: selectedItems.length,
+        source: isConversion ? "enquiry_conversion" : "direct",
+      });
       setSubmitError(
         error instanceof Error
           ? error.message

@@ -56,6 +56,7 @@ import { useOrders, useUpdateAnyOrderStatus } from "@/hooks/useOrders";
 import { useStockSales, useSyncStockSales } from "@/hooks/useStockSales";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
+import { captureProductEvent } from "@/lib/analytics";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
 import { ENQUIRY_STATUS_LABELS, getRecordStatus } from "@/lib/enquiryStatus";
 import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
@@ -839,24 +840,37 @@ export function OrdersEnquiriesWorkspace() {
     setSearch("");
     setStatusFilter("all");
     setDateFilter("all");
+    captureProductEvent("workspace_filters_cleared", {
+      record_type: typeTab,
+      active_filter_count: activeFilterCount,
+    });
   };
   const handleTypeTabChange = (tab: TypeTab) => {
     setTypeTab(tab);
     setViewMode(viewMode);
     replaceWorkspaceUrl(tab, viewMode);
     setStatusFilter("all");
+    captureProductEvent("workspace_tab_changed", {
+      from_tab: typeTab,
+      to_tab: tab,
+    });
   };
   const handleViewModeChange = (nextViewMode: ViewMode) => {
     setViewMode(nextViewMode);
     replaceWorkspaceUrl(typeTab, nextViewMode);
   };
   const handleSyncPurchases = async () => {
+    captureProductEvent("purchase_sync_started");
     try {
       const summary = await syncStockSalesMutation.mutateAsync();
+      captureProductEvent("purchase_sync_completed", {
+        transactions_inserted: summary.transactionsInserted,
+      });
       toast.success(
         `Purchase sync completed: ${summary.transactionsInserted} purchases imported`,
       );
     } catch (error) {
+      captureProductEvent("purchase_sync_failed");
       toast.error(getErrorMessage(error, "Could not sync purchases"));
     }
   };
@@ -884,6 +898,11 @@ export function OrdersEnquiriesWorkspace() {
       await updateOrderStatusMutation.mutateAsync({
         refCode: record.refCode,
         input: { status: ORDER_STAGE_TO_STATUS[newColumnId] },
+      });
+      captureProductEvent("order_status_changed", {
+        from_status: record.currentStage,
+        to_status: newColumnId,
+        surface: "kanban",
       });
       toast.success(`Order moved to ${newColumnId}`);
     } catch (error) {
@@ -964,7 +983,14 @@ export function OrdersEnquiriesWorkspace() {
         >
           <button
             type="button"
-            onClick={() => handleViewModeChange("table")}
+            onClick={() => {
+              handleViewModeChange("table");
+              captureProductEvent("workspace_view_changed", {
+                record_type: typeTab,
+                view_mode: "table",
+                surface: "desktop",
+              });
+            }}
             className={cn(
               "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors sm:flex-none",
               viewMode === "table"
@@ -977,7 +1003,14 @@ export function OrdersEnquiriesWorkspace() {
           </button>
           <button
             type="button"
-            onClick={() => handleViewModeChange("kanban")}
+            onClick={() => {
+              handleViewModeChange("kanban");
+              captureProductEvent("workspace_view_changed", {
+                record_type: typeTab,
+                view_mode: "kanban",
+                surface: "desktop",
+              });
+            }}
             className={cn(
               "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors sm:flex-none",
               viewMode === "kanban"
@@ -1031,6 +1064,15 @@ export function OrdersEnquiriesWorkspace() {
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
+                onBlur={() => {
+                  const query = search.trim();
+                  if (!query) return;
+                  captureProductEvent("workspace_search_used", {
+                    record_type: typeTab,
+                    query_length: query.length,
+                    surface: "purchase_search",
+                  });
+                }}
                 placeholder="Search customer, product code, or salesperson"
                 className="h-10 pl-9"
                 aria-label="Search purchases"
@@ -1073,6 +1115,15 @@ export function OrdersEnquiriesWorkspace() {
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
+                onBlur={() => {
+                  const query = search.trim();
+                  if (!query) return;
+                  captureProductEvent("workspace_search_used", {
+                    record_type: typeTab,
+                    query_length: query.length,
+                    surface: "mobile_filters",
+                  });
+                }}
                 placeholder="Search customer or ID"
                 className="pl-9"
                 disabled={isFilterDisabled}
@@ -1081,7 +1132,14 @@ export function OrdersEnquiriesWorkspace() {
             <div className="flex w-full items-center gap-1 rounded-lg border border-border bg-background p-1">
               <button
                 type="button"
-                onClick={() => handleViewModeChange("table")}
+                onClick={() => {
+                  handleViewModeChange("table");
+                  captureProductEvent("workspace_view_changed", {
+                    record_type: typeTab,
+                    view_mode: "table",
+                    surface: "mobile_filters",
+                  });
+                }}
                 className={cn(
                   "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
                   viewMode === "table"
@@ -1094,7 +1152,14 @@ export function OrdersEnquiriesWorkspace() {
               </button>
               <button
                 type="button"
-                onClick={() => handleViewModeChange("kanban")}
+                onClick={() => {
+                  handleViewModeChange("kanban");
+                  captureProductEvent("workspace_view_changed", {
+                    record_type: typeTab,
+                    view_mode: "kanban",
+                    surface: "mobile_filters",
+                  });
+                }}
                 className={cn(
                   "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
                   viewMode === "kanban"
