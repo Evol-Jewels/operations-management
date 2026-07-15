@@ -9,6 +9,7 @@ import {
   Coins,
   House,
   LogOut,
+  MessageSquareWarning,
   MoonStar,
   PackagePlus,
   PanelLeftClose,
@@ -314,9 +315,29 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarSeparator className="mx-3" />
-
       <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              tooltip="Report bug/suggest feature"
+              className="bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <Link
+                href="https://internalevoljewels.featurebase.app/"
+                className="flex w-full min-w-0 items-center gap-2 overflow-hidden"
+              >
+                <MessageSquareWarning className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate group-data-[collapsible=icon]:hidden">
+                  Report bug or features
+                </span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+
+        <SidebarSeparator className="mx-3" />
+
         <GoldRateSidebarItem role={sessionRole} />
 
         <div className="group-data-[collapsible=icon]:px-0">
