@@ -14,7 +14,6 @@ import {
   ACTOR_ROLE_LABELS,
   type ActivityEntry,
   type ActorRole,
-  type Order,
 } from "@/types";
 import type { ActivityLogType, BackendActivityLog } from "@/types/activity-api";
 
@@ -159,24 +158,14 @@ const LOADING_PLACEHOLDERS = [
 ];
 
 interface RecentActivitiesProps {
-  orders: Order[];
   className?: string;
 }
 
-export function RecentActivities({ orders, className }: RecentActivitiesProps) {
+export function RecentActivities({ className }: RecentActivitiesProps) {
   const [sentinelRef, setSentinelRef] = useState<HTMLDivElement | null>(null);
   const activityLogsQuery = useInfiniteActivityLogs({
     limit: ITEMS_PER_BATCH,
   });
-
-  const recordsBySource = useMemo(() => {
-    const records = new Map<string, Order>();
-    for (const order of orders) {
-      const sourceType = order.type === "enquiry" ? "ENQUIRY" : "ORDER";
-      records.set(`${sourceType}:${order.refCode}`, order);
-    }
-    return records;
-  }, [orders]);
 
   const allLogs = useMemo(
     () => activityLogsQuery.data?.pages.flat() ?? [],
@@ -186,7 +175,6 @@ export function RecentActivities({ orders, className }: RecentActivitiesProps) {
   const allActivities = useMemo(() => {
     const enriched = allLogs.map((log: BackendActivityLog) => {
       const entry = mapBackendActivityLogToActivityEntry(log);
-      const record = recordsBySource.get(`${log.sourceType}:${log.sourceCode}`);
       const fallbackName = `${log.sourceType === "ENQUIRY" ? "Enquiry" : "Order"} #${log.sourceCode}`;
       const href =
         log.sourceType === "ENQUIRY"
@@ -195,12 +183,8 @@ export function RecentActivities({ orders, className }: RecentActivitiesProps) {
 
       return {
         ...entry,
-        customerName: record?.customerName ?? fallbackName,
-        href: record
-          ? record.type === "enquiry"
-            ? `/enquiries/${record.refCode}`
-            : `/orders/${record.refCode}`
-          : href,
+        customerName: fallbackName,
+        href,
         logType: log.type,
         message: log.message || undefined,
       };
@@ -210,7 +194,7 @@ export function RecentActivities({ orders, className }: RecentActivitiesProps) {
       (a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
-  }, [allLogs, recordsBySource]);
+  }, [allLogs]);
 
   const { items: groupedItems, groups } = useMemo(() => {
     const now = new Date();

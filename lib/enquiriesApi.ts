@@ -69,6 +69,10 @@ export function fetchEnquiries(query: ListEnquiriesQuery = {}) {
   );
 }
 
+export function fetchMyEnquiries() {
+  return apiFetch<BackendEnquiryListItem[]>(buildUrl("api/v1/enquiries/me"));
+}
+
 export function fetchEnquiryDetails(id: string) {
   return apiFetch<BackendEnquiryDetails>(buildUrl(`api/v1/enquiries/${id}`));
 }

@@ -171,6 +171,7 @@ export interface ListOrdersQuery {
   phoneNumber?: string;
   name?: string;
   createdBy?: string;
+  salesPerson?: string;
   createdFrom?: string;
   createdTo?: string;
   limit?: number;

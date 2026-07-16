@@ -5,6 +5,7 @@ import {
   createEnquiry,
   createEstimation,
   fetchEnquiries,
+  fetchMyEnquiries,
   fetchEnquiryDetails,
   fetchEnquiryDetailsByRefCode,
   updateEnquiry,
@@ -23,11 +24,20 @@ export const enquiryKeys = {
   lists: () => [...enquiryKeys.all, "list"] as const,
   list: (query: ListEnquiriesQuery = {}) =>
     [...enquiryKeys.lists(), query] as const,
+  mine: () => [...enquiryKeys.all, "me"] as const,
   details: () => [...enquiryKeys.all, "detail"] as const,
   detail: (id: string) => [...enquiryKeys.details(), id] as const,
   detailByRefCode: (refCode: number) =>
     [...enquiryKeys.all, "detail", "ref", refCode] as const,
 };
+
+export function useMyEnquiries(options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: enquiryKeys.mine(),
+    queryFn: fetchMyEnquiries,
+    enabled: options.enabled,
+  });
+}
 
 export function useEnquiries(
   query: ListEnquiriesQuery = {},

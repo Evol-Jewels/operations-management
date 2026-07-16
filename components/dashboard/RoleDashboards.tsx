@@ -9,12 +9,10 @@ import {
   Bell,
   ChartNoAxesColumn,
   Inbox,
-  IndianRupee,
   Lock,
   MessageSquare,
   Package,
   PanelRightClose,
-  TrendingUp,
   Users,
 } from "lucide-react";
 
@@ -24,6 +22,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bar,
   EvilBarChart,
+  Legend as EvilBarLegend,
   Tooltip as EvilBarTooltip,
   Grid,
   XAxis,
@@ -71,16 +70,14 @@ import { getInitials } from "@/lib/people";
 import { useActivitySidebar } from "@/lib/stores/activity-sidebar-store";
 import {
   cn,
-  computeRiskSignal,
   formatCurrency,
   formatDaysRemaining,
   formatRelativeTime,
-  getDaysInCurrentStage,
-  getDaysSinceLastActivity,
   getUrgencyLevel,
-  isTerminalRecord,
 } from "@/lib/utils";
-import { type Order, STAGES, type UrgencyLevel } from "@/types";
+import { type Order, type UrgencyLevel } from "@/types";
+import type { BackendOrderStatus } from "@/types/order-api";
+import type { OrdersEnquiriesAnalyticsResponse } from "@/types/orders-enquiries-analytics-api";
 import type {
   StockSalesAnalyticsBreakdownRow,
   StockSalesAnalyticsPeriod,
@@ -90,9 +87,15 @@ import type {
 import { RecentActivities } from "./RecentActivities";
 import { SalesTargetMeter } from "./SalesTargetMeter";
 
-type RiskItem = { order: Order; signal: "stale" | "stuck" };
 type SalesTab = "orders" | "enquiries";
 type AdminDashboardTab = "orders-enquiries" | "sales-analytics";
+
+interface AnalyticsDashboardProps {
+  analytics?: OrdersEnquiriesAnalyticsResponse;
+  analyticsError: Error | null;
+  analyticsLoading: boolean;
+  onRetryAnalytics: () => void;
+}
 
 interface MetricCardData {
   label: string;
@@ -155,6 +158,35 @@ const STAGE_CHART_CONFIG = {
   },
 } satisfies ChartConfig;
 
+const TREND_CHART_CONFIG = {
+  enquiriesCreated: {
+    label: "Enquiries",
+    colors: {
+      light: ["oklch(0.68 0.16 72)"],
+      dark: ["oklch(0.76 0.15 72)"],
+    },
+  },
+  ordersCreated: {
+    label: "Orders",
+    colors: {
+      light: ["oklch(0.58 0.14 155)"],
+      dark: ["oklch(0.68 0.14 155)"],
+    },
+  },
+} satisfies ChartConfig;
+
+const ORDER_STATUS_LABELS: Record<BackendOrderStatus, string> = {
+  NEW: "New",
+  IN_PRODUCTION: "In Production",
+  CAD_DESIGN: "CAD Design",
+  IN_TRANSIT: "In Transit",
+  CERTIFICATION: "Certification",
+  AT_STORE: "At Store",
+  DELIVERED: "Delivered",
+  CLOSED: "Closed",
+  CANCELLED: "Cancelled",
+};
+
 const URGENCY_COLORS: Record<UrgencyLevel, string> = {
   overdue: "oklch(0.62 0.22 25)",
   "due-soon": "oklch(0.76 0.17 72)",
@@ -199,56 +231,71 @@ function buildUrgencyData(urgency: Record<UrgencyLevel, number>): ChartDatum[] {
   }));
 }
 
-function buildStatusData(status: {
-  open: number;
-  converted: number;
-  closed: number;
-}): ChartDatum[] {
+function buildFunnelData(
+  funnel: OrdersEnquiriesAnalyticsResponse["periodActivity"]["enquiryFunnel"],
+): ChartDatum[] {
   return [
-    { label: "Open", value: status.open, color: "oklch(0.55 0.13 178)" },
+    { label: "New", value: funnel.NEW, color: "oklch(0.55 0.13 178)" },
+    {
+      label: "Estimated",
+      value: funnel.ESTIMATED,
+      color: "oklch(0.68 0.16 72)",
+    },
     {
       label: "Converted",
-      value: status.converted,
+      value: funnel.CONVERTED,
       color: "oklch(0.68 0.19 46)",
     },
-    { label: "Closed", value: status.closed, color: "oklch(0.38 0.09 225)" },
+    {
+      label: "Closed",
+      value: funnel.CLOSED,
+      color: "oklch(0.38 0.09 225)",
+    },
   ];
+}
+
+function buildSnapshotUrgency(
+  snapshot: OrdersEnquiriesAnalyticsResponse["currentSnapshot"],
+): Record<UrgencyLevel, number> {
+  return {
+    overdue: snapshot.overdueOrders,
+    "due-soon": snapshot.dueSoonOrders,
+    "on-track": Math.max(
+      0,
+      snapshot.activeOrders -
+        snapshot.overdueOrders -
+        snapshot.dueSoonOrders -
+        snapshot.noDeliveryDateOrders,
+    ),
+    none: snapshot.noDeliveryDateOrders,
+  };
+}
+
+function buildStageData(
+  stages: OrdersEnquiriesAnalyticsResponse["currentSnapshot"]["orderStages"],
+): ChartDatum[] {
+  return stages.map(({ status, count }) => ({
+    label: ORDER_STATUS_LABELS[status],
+    value: count,
+    color: "",
+  }));
+}
+
+function formatAnalyticsPeriod(
+  period: OrdersEnquiriesAnalyticsResponse["period"],
+) {
+  return `${period.from} to ${period.to}`;
+}
+
+function formatTrendDate(date: string) {
+  const [, month, day] = date.split("-");
+  return `${day}/${month}`;
 }
 
 function getRecordHref(order: Order) {
   return order.type === "enquiry"
     ? `/enquiries/${order.refCode}`
     : `/orders/${order.refCode}`;
-}
-
-function sortRiskItems(items: RiskItem[]) {
-  const urgencyOrder: Record<UrgencyLevel, number> = {
-    overdue: 0,
-    "due-soon": 1,
-    "on-track": 2,
-    none: 3,
-  };
-
-  return [...items].sort((a, b) => {
-    if (a.signal === "stale" && b.signal !== "stale") return -1;
-    if (b.signal === "stale" && a.signal !== "stale") return 1;
-    return (
-      urgencyOrder[getUrgencyLevel(a.order.deliveryDate)] -
-      urgencyOrder[getUrgencyLevel(b.order.deliveryDate)]
-    );
-  });
-}
-
-function getRiskItems(orders: Order[]) {
-  return sortRiskItems(
-    orders
-      .filter((order) => !isTerminalRecord(order))
-      .map((order) => ({ order, signal: computeRiskSignal(order) }))
-      .filter(
-        (item): item is RiskItem =>
-          item.signal === "stale" || item.signal === "stuck",
-      ),
-  );
 }
 
 function MetricCard({ card }: { card: MetricCardData }) {
@@ -421,6 +468,35 @@ function EvilDonutChart({
   );
 }
 
+function ActivityTrendChart({
+  trends,
+}: {
+  trends: OrdersEnquiriesAnalyticsResponse["periodActivity"]["trends"];
+}) {
+  const data = trends.map((item) => ({
+    ...item,
+    label: formatTrendDate(item.date),
+  }));
+
+  return (
+    <EvilBarChart
+      data={data}
+      config={TREND_CHART_CONFIG}
+      className="h-64 w-full p-1"
+      barRadius={3}
+      chartProps={{ margin: { top: 4, right: 8, bottom: 4, left: -16 } }}
+    >
+      <Grid vertical={false} />
+      <XAxis dataKey="label" minTickGap={24} />
+      <YAxis allowDecimals={false} />
+      <EvilBarTooltip variant="frosted-glass" />
+      <EvilBarLegend variant="circle" align="center" isClickable />
+      <Bar dataKey="enquiriesCreated" enableHoverHighlight />
+      <Bar dataKey="ordersCreated" enableHoverHighlight />
+    </EvilBarChart>
+  );
+}
+
 function StageAndBreakdownCharts({
   stageTitle,
   stageCounts,
@@ -451,7 +527,7 @@ function StageAndBreakdownCharts({
         </Panel>
 
         <Panel
-          title="Status breakdown"
+          title="Enquiry funnel"
           className="xl:flex xl:min-h-0 xl:flex-col"
         >
           <div className="rounded-lg border border-border/70 bg-card p-4 xl:flex xl:flex-1 xl:flex-col">
@@ -463,101 +539,69 @@ function StageAndBreakdownCharts({
   );
 }
 
-function SignalBadge({ signal }: { signal: "stale" | "stuck" }) {
-  const isStale = signal === "stale";
-
+function AnalyticsCharts({
+  analytics,
+}: {
+  analytics: OrdersEnquiriesAnalyticsResponse;
+}) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 text-xs font-medium",
-        isStale
-          ? "text-orange-700 dark:text-orange-300"
-          : "text-amber-700 dark:text-amber-300",
-      )}
-    >
-      <span
-        className={cn(
-          "h-1.5 w-1.5 rounded-full",
-          isStale ? "bg-orange-500" : "bg-amber-500",
+    <>
+      <StageAndBreakdownCharts
+        stageTitle="Orders by stage"
+        stageCounts={buildStageData(analytics.currentSnapshot.orderStages)}
+        urgencyData={buildUrgencyData(
+          buildSnapshotUrgency(analytics.currentSnapshot),
+        )}
+        statusData={buildFunnelData(
+          analytics.periodActivity.enquiryFunnel,
         )}
       />
-      {isStale ? "Stale" : "Stuck"}
-    </span>
+      <Panel title="Orders and enquiries created">
+        <div className="rounded-lg border border-border/70 bg-card p-4">
+          <ActivityTrendChart trends={analytics.periodActivity.trends} />
+        </div>
+      </Panel>
+    </>
   );
 }
 
-function ActionItemRow({
-  order,
-  signal,
-  showUrgency,
+function AnalyticsState({
+  error,
+  isLoading,
+  onRetry,
 }: {
-  order: Order;
-  signal: "stale" | "stuck";
-  showUrgency?: boolean;
+  error: Error | null;
+  isLoading: boolean;
+  onRetry: () => void;
 }) {
-  const urgency = getUrgencyLevel(order.deliveryDate);
-  const timingLabel =
-    signal === "stale"
-      ? `${getDaysSinceLastActivity(order) ?? 0}d silent`
-      : `${getDaysInCurrentStage(order)}d in stage`;
-  const isStuckEnquiry = order.type === "enquiry" && signal === "stuck";
+  if (isLoading) {
+    return (
+      <div className="space-y-5" aria-label="Loading order and enquiry analytics">
+        <MetricsGrid>
+          {["one", "two", "three", "four"].map((item) => (
+            <div key={item} className="rounded-lg border border-border/70 bg-card p-4">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="mt-3 h-8 w-16" />
+            </div>
+          ))}
+        </MetricsGrid>
+        <Skeleton className="h-80 w-full rounded-lg" />
+      </div>
+    );
+  }
 
   return (
-    <Link
-      href={getRecordHref(order)}
-      className={cn(
-        "group flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-        isStuckEnquiry &&
-          "border-l-2 border-l-amber-500/35 bg-amber-500/[0.025] hover:bg-amber-500/[0.06]",
-      )}
-    >
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="truncate text-base font-medium text-foreground">
-            {order.customerName}
-          </p>
-          <Badge
-            variant="outline"
-            className={cn(
-              "h-5 rounded-sm px-1.5 text-[10px] font-medium uppercase tracking-normal",
-              order.type === "enquiry"
-                ? "border-amber-500/25 bg-amber-500/5 text-amber-700 dark:text-amber-300"
-                : "border-blue-500/25 bg-blue-500/5 text-blue-700 dark:text-blue-300",
-            )}
-          >
-            {order.type}
-          </Badge>
-          <SignalBadge signal={signal} />
-        </div>
-        <div>
-          <p className="truncate text-sm text-muted-foreground">
-            {order.orderNumber ?? "Enquiry"} - {order.category} - {timingLabel}
-          </p>
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center gap-3 text-right">
-        <div>
-          {showUrgency && (
-            <p
-              className={cn(
-                "text-sm font-medium",
-                urgency === "overdue" && "text-red-600 dark:text-red-400",
-                urgency === "due-soon" && "text-amber-600 dark:text-amber-400",
-                urgency === "on-track" &&
-                  "text-emerald-600 dark:text-emerald-400",
-                urgency === "none" && "text-muted-foreground",
-              )}
-            >
-              {formatDaysRemaining(order.deliveryDate)}
-            </p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            {formatRelativeTime(order.lastUpdatedAt)}
-          </p>
-        </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground/35 transition-colors group-hover:text-muted-foreground" />
-      </div>
-    </Link>
+    <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-5 py-6">
+      <p className="font-medium text-foreground">
+        Order and enquiry analytics could not be loaded.
+      </p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {error?.message ?? "Please try again."}
+      </p>
+      <Button className="mt-4" variant="outline" size="sm" onClick={onRetry}>
+        Try again
+      </Button>
+    </div>
   );
 }
 
@@ -663,52 +707,6 @@ function EmptyRows({
       <p className="mt-1 text-xs text-muted-foreground/70">{description}</p>
     </div>
   );
-}
-
-function getAdminAnalytics(orders: Order[]) {
-  const allOrders = orders.filter((order) => order.type === "order");
-  const allEnquiries = orders.filter((order) => order.type === "enquiry");
-  const openEnquiries = allEnquiries.filter(
-    (order) => !isEnquiryFinalized(order),
-  );
-  const closedEnquiries = allEnquiries.filter(isEnquiryClosed);
-  const revenue = allOrders.reduce(
-    (sum, order) => sum + (order.totalEstimate ?? 0),
-    0,
-  );
-  const averageOrderValue =
-    allOrders.length > 0 ? Math.round(revenue / allOrders.length) : 0;
-  const stageCounts = STAGES.map((stage) => ({
-    label: stage,
-    value: allOrders.filter((order) => order.currentStage === stage).length,
-    color: "",
-  }));
-  const urgency: Record<UrgencyLevel, number> = {
-    overdue: 0,
-    "due-soon": 0,
-    "on-track": 0,
-    none: 0,
-  };
-  for (const order of allOrders) {
-    urgency[getUrgencyLevel(order.deliveryDate)] += 1;
-  }
-  const status = {
-    open: openEnquiries.length,
-    converted: allOrders.filter((order) => order.sourceEnquiryId).length,
-    closed: closedEnquiries.length,
-  };
-
-  return {
-    allOrders,
-    openEnquiries,
-    closedEnquiries,
-    revenue,
-    averageOrderValue,
-    stageCounts,
-    urgency,
-    status,
-    riskItems: getRiskItems(orders),
-  };
 }
 
 function getCurrentSaleMonth() {
@@ -1078,7 +1076,7 @@ function ActivitySidebarToggle({ className }: { className?: string }) {
   );
 }
 
-function RecentActivitiesColumn({ orders }: { orders: Order[] }) {
+function RecentActivitiesColumn() {
   const isActivityOpen = useActivitySidebar((state) => state.isOpen);
 
   if (!isActivityOpen) {
@@ -1091,10 +1089,7 @@ function RecentActivitiesColumn({ orders }: { orders: Order[] }) {
     <div className="xl:sticky xl:top-5 xl:self-start">
       <div className="relative">
         <ActivitySidebarToggle className="absolute top-2 right-2 z-10" />
-        <RecentActivities
-          orders={orders}
-          className="xl:max-h-[calc(100vh-2.5rem)]"
-        />
+        <RecentActivities className="xl:max-h-[calc(100vh-2.5rem)]" />
       </div>
     </div>
   );
@@ -1423,54 +1418,6 @@ function RevenueShareCell({ value }: { value: string }) {
   );
 }
 
-function getOpsAnalytics(orders: Order[]) {
-  const activeOrders = orders.filter(
-    (order) =>
-      order.type === "order" &&
-      order.currentStage !== "Delivered" &&
-      order.currentStage !== "Closed" &&
-      order.currentStage !== "Cancelled",
-  );
-  const openEnquiries = orders.filter(
-    (order) => order.type === "enquiry" && !isEnquiryFinalized(order),
-  );
-  const activeRecords = [...activeOrders, ...openEnquiries];
-  const urgency: Record<UrgencyLevel, number> = {
-    overdue: 0,
-    "due-soon": 0,
-    "on-track": 0,
-    none: 0,
-  };
-
-  for (const order of activeOrders) {
-    urgency[getUrgencyLevel(order.deliveryDate)] += 1;
-  }
-
-  const status = {
-    open: openEnquiries.length,
-    converted: activeOrders.filter((order) => order.sourceEnquiryId).length,
-    closed: 0,
-  };
-
-  return {
-    activeOrders,
-    openEnquiries,
-    revenue: activeOrders.reduce(
-      (sum, order) => sum + (order.totalEstimate ?? 0),
-      0,
-    ),
-    stageCounts: STAGES.map((stage) => ({
-      label: stage,
-      value: activeRecords.filter((order) => order.currentStage === stage)
-        .length,
-      color: "",
-    })),
-    urgency,
-    status,
-    riskItems: getRiskItems(activeRecords),
-  };
-}
-
 function StockSalesAnalyticsSection({
   isActivityOpen,
 }: {
@@ -1761,14 +1708,18 @@ function StockSalesAnalyticsSection({
   );
 }
 
-export function AdminDashboard({ orders }: { orders: Order[] }) {
+export function AdminDashboard({
+  analytics,
+  analyticsError,
+  analyticsLoading,
+  onRetryAnalytics,
+}: AnalyticsDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isActivityOpen = useActivitySidebar((state) => state.isOpen);
   const openActivity = useActivitySidebar((state) => state.open);
   const closeActivity = useActivitySidebar((state) => state.close);
-  const analytics = useMemo(() => getAdminAnalytics(orders), [orders]);
   const activeTab = getAdminDashboardTab(
     new URLSearchParams(searchParams.toString()),
   );
@@ -1798,17 +1749,18 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
 
     openActivity();
   }, [activeTab, closeActivity, openActivity]);
-  const cards: MetricCardData[] = [
+  const cards: MetricCardData[] = analytics
+    ? [
     {
-      label: "Total Orders",
-      value: String(analytics.allOrders.length),
+      label: "Active Orders",
+      value: String(analytics.currentSnapshot.activeOrders),
       href: "/orders-workspace?type=order",
       icon: <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />,
       accent: "bg-blue-500/10 dark:bg-blue-500/10",
     },
     {
-      label: "Active Enquiries",
-      value: String(analytics.openEnquiries.length),
+      label: "Open Enquiries",
+      value: String(analytics.currentSnapshot.openEnquiries),
       href: "/orders-workspace?type=enquiry",
       icon: (
         <MessageSquare className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -1816,22 +1768,21 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
       accent: "bg-amber-500/10 dark:bg-amber-500/10",
     },
     {
-      label: "Revenue Pipeline",
-      value: formatCurrency(analytics.revenue),
-      icon: (
-        <IndianRupee className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-      ),
+      label: "Orders Created",
+      value: String(analytics.periodActivity.ordersCreated),
+      helper: formatAnalyticsPeriod(analytics.period),
+      icon: <Award className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />,
       accent: "bg-emerald-500/10 dark:bg-emerald-500/10",
     },
     {
-      label: "Avg Order Value",
-      value: formatCurrency(analytics.averageOrderValue),
-      icon: (
-        <TrendingUp className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-      ),
+      label: "Enquiry to Order",
+      value: `${analytics.periodActivity.conversion.enquiryToOrderRate}%`,
+      helper: `${analytics.periodActivity.conversion.enquiriesWithOrders} enquiries converted`,
+      icon: <ChartNoAxesColumn className="h-5 w-5 text-violet-600 dark:text-violet-400" />,
       accent: "bg-violet-500/10 dark:bg-violet-500/10",
     },
-  ];
+  ]
+    : [];
 
   return (
     <div
@@ -1875,40 +1826,22 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
           </TabsList>
 
           <TabsContent value="orders-enquiries" className="space-y-5">
-            <MetricsGrid>
-              {cards.map((card) => (
-                <MetricCard key={card.label} card={card} />
-              ))}
-            </MetricsGrid>
-
-            <Panel title="Needs attention">
-              <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
-                {analytics.riskItems.slice(0, 6).map(({ order, signal }) => (
-                  <ActionItemRow key={order.id} order={order} signal={signal} />
-                ))}
-                {analytics.riskItems.length === 0 && (
-                  <div className="py-10 text-center text-sm text-muted-foreground">
-                    No stale or stuck records right now.
-                  </div>
-                )}
-                {analytics.riskItems.length > 6 && (
-                  <div className="flex justify-center px-4 py-3">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href="/orders-workspace">
-                        View all {analytics.riskItems.length} items
-                      </Link>
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </Panel>
-
-            <StageAndBreakdownCharts
-              stageTitle="Orders by stage"
-              stageCounts={analytics.stageCounts}
-              urgencyData={buildUrgencyData(analytics.urgency)}
-              statusData={buildStatusData(analytics.status)}
-            />
+            {analytics ? (
+              <>
+                <MetricsGrid>
+                  {cards.map((card) => (
+                    <MetricCard key={card.label} card={card} />
+                  ))}
+                </MetricsGrid>
+                <AnalyticsCharts analytics={analytics} />
+              </>
+            ) : (
+              <AnalyticsState
+                error={analyticsError}
+                isLoading={analyticsLoading}
+                onRetry={onRetryAnalytics}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="sales-analytics">
@@ -1917,20 +1850,18 @@ export function AdminDashboard({ orders }: { orders: Order[] }) {
         </Tabs>
       </div>
 
-      <RecentActivitiesColumn orders={orders} />
+      <RecentActivitiesColumn />
     </div>
   );
 }
 
-export function OperationsDashboard({ orders }: { orders: Order[] }) {
+export function OperationsDashboard({
+  analytics,
+  analyticsError,
+  analyticsLoading,
+  onRetryAnalytics,
+}: AnalyticsDashboardProps) {
   const isActivityOpen = useActivitySidebar((state) => state.isOpen);
-  const analytics = useMemo(() => getOpsAnalytics(orders), [orders]);
-  const staleCount = analytics.riskItems.filter(
-    (r) => r.signal === "stale",
-  ).length;
-  const stuckCount = analytics.riskItems.filter(
-    (r) => r.signal === "stuck",
-  ).length;
 
   return (
     <div
@@ -1950,96 +1881,61 @@ export function OperationsDashboard({ orders }: { orders: Order[] }) {
             </p>
           </div>
         </div>
-        <div>
-          <MetricsGrid>
-            <MetricCard
-              card={{
-                label: "Active Orders",
-                value: String(analytics.activeOrders.length),
-                href: "/orders-workspace?type=order",
-              }}
-            />
-            <MetricCard
-              card={{
-                label: "Open Enquiries",
-                value: String(analytics.openEnquiries.length),
-                href: "/orders-workspace?type=enquiry",
-              }}
-            />
-            <MetricCard
-              card={{
-                label: "Overdue",
-                value: String(analytics.urgency.overdue),
-              }}
-            />
-            <MetricCard
-              card={{
-                label: "Pipeline Value",
-                value: formatCurrency(analytics.revenue),
-              }}
-            />
-          </MetricsGrid>
-        </div>
-
-        {analytics.riskItems.length > 0 && (
-          <Panel
-            title="Records needing intervention"
-            action={
-              <div className="flex flex-wrap items-center justify-end gap-1.5">
-                {staleCount > 0 && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 dark:text-orange-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                    {staleCount} stale
-                  </span>
-                )}
-                {stuckCount > 0 && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                    {stuckCount} stuck
-                  </span>
-                )}
-              </div>
-            }
-          >
-            <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
-              {analytics.riskItems.slice(0, 5).map(({ order, signal }) => (
-                <ActionItemRow
-                  key={order.id}
-                  order={order}
-                  signal={signal}
-                  showUrgency
-                />
-              ))}
-              {analytics.riskItems.length > 5 && (
-                <div className="flex justify-center px-4 py-3">
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href="/orders-workspace">
-                      View all {analytics.riskItems.length} items
-                    </Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          </Panel>
+        {analytics ? (
+          <>
+            <MetricsGrid>
+              <MetricCard
+                card={{
+                  label: "Active Orders",
+                  value: String(analytics.currentSnapshot.activeOrders),
+                  href: "/orders-workspace?type=order",
+                }}
+              />
+              <MetricCard
+                card={{
+                  label: "Open Enquiries",
+                  value: String(analytics.currentSnapshot.openEnquiries),
+                  href: "/orders-workspace?type=enquiry",
+                }}
+              />
+              <MetricCard
+                card={{
+                  label: "Overdue",
+                  value: String(analytics.currentSnapshot.overdueOrders),
+                }}
+              />
+              <MetricCard
+                card={{
+                  label: "Due Soon",
+                  value: String(analytics.currentSnapshot.dueSoonOrders),
+                }}
+              />
+            </MetricsGrid>
+            <AnalyticsCharts analytics={analytics} />
+          </>
+        ) : (
+          <AnalyticsState
+            error={analyticsError}
+            isLoading={analyticsLoading}
+            onRetry={onRetryAnalytics}
+          />
         )}
-
-        <StageAndBreakdownCharts
-          stageTitle="Records by stage"
-          stageCounts={analytics.stageCounts}
-          urgencyData={buildUrgencyData(analytics.urgency)}
-          statusData={buildStatusData(analytics.status)}
-        />
       </div>
 
-      <RecentActivitiesColumn orders={orders} />
+      <RecentActivitiesColumn />
     </div>
   );
 }
 
-export function SalesDashboard({ orders }: { orders: Order[] }) {
+export function SalesDashboard({
+  analytics,
+  analyticsError,
+  analyticsLoading,
+  onRetryAnalytics,
+  orders,
+}: AnalyticsDashboardProps & { orders: Order[] }) {
   const [activeTab, setActiveTab] = useState<SalesTab>("orders");
   const data = useMemo(() => {
-    const actionItems = getRiskItems(orders);
     const openOrders = orders
       .filter(
         (o) =>
@@ -2060,28 +1956,11 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
           new Date(b.lastUpdatedAt).getTime() -
           new Date(a.lastUpdatedAt).getTime(),
       );
-    const totalPipeline = openOrders.reduce(
-      (sum, o) => sum + (o.totalEstimate ?? 0),
-      0,
-    );
-    const overdueCount = openOrders.filter(
-      (o) => getUrgencyLevel(o.deliveryDate) === "overdue",
-    ).length;
-
     return {
-      actionItems,
       openOrders,
       openEnquiries,
-      totalPipeline,
-      overdueCount,
     };
   }, [orders]);
-  const staleCount = data.actionItems.filter(
-    (r) => r.signal === "stale",
-  ).length;
-  const stuckCount = data.actionItems.filter(
-    (r) => r.signal === "stuck",
-  ).length;
 
   return (
     <div className="space-y-5">
@@ -2095,25 +1974,43 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
       </div>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(22rem,2fr)] lg:items-stretch">
         <div className="space-y-5">
-          <MetricsGrid className="xl:grid-cols-3">
-            <MetricCard
-              card={{
-                label: "Open Orders",
-                value: String(data.openOrders.length),
-                href: "/orders-workspace?type=order",
-              }}
+          {analytics ? (
+            <MetricsGrid className="xl:grid-cols-2">
+              <MetricCard
+                card={{
+                  label: "Active Orders",
+                  value: String(analytics.currentSnapshot.activeOrders),
+                  href: "/orders-workspace?type=order",
+                }}
+              />
+              <MetricCard
+                card={{
+                  label: "Open Enquiries",
+                  value: String(analytics.currentSnapshot.openEnquiries),
+                  href: "/orders-workspace?type=enquiry",
+                }}
+              />
+              <MetricCard
+                card={{
+                  label: "Overdue",
+                  value: String(analytics.currentSnapshot.overdueOrders),
+                }}
+              />
+              <MetricCard
+                card={{
+                  label: "Enquiry to Order",
+                  value: `${analytics.periodActivity.conversion.enquiryToOrderRate}%`,
+                  helper: formatAnalyticsPeriod(analytics.period),
+                }}
+              />
+            </MetricsGrid>
+          ) : (
+            <AnalyticsState
+              error={analyticsError}
+              isLoading={analyticsLoading}
+              onRetry={onRetryAnalytics}
             />
-            <MetricCard
-              card={{
-                label: "Open Enquiries",
-                value: String(data.openEnquiries.length),
-                href: "/orders-workspace?type=enquiry",
-              }}
-            />
-            <MetricCard
-              card={{ label: "Overdue", value: String(data.overdueCount) }}
-            />
-          </MetricsGrid>
+          )}
 
           <MySalesAnalyticsCards />
         </div>
@@ -2121,38 +2018,7 @@ export function SalesDashboard({ orders }: { orders: Order[] }) {
         <SalesLeaderboardCard className="w-full max-w-none" />
       </div>
 
-      {data.actionItems.length > 0 && (
-        <Panel
-          title="Records that need follow-up"
-          action={
-            <div className="flex flex-wrap items-center justify-end gap-1.5">
-              {staleCount > 0 && (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-700 dark:text-orange-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                  {staleCount} stale
-                </span>
-              )}
-              {stuckCount > 0 && (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                  {stuckCount} stuck
-                </span>
-              )}
-            </div>
-          }
-        >
-          <div className="overflow-hidden rounded-lg border border-border/70 bg-card">
-            {data.actionItems.slice(0, 5).map(({ order, signal }) => (
-              <ActionItemRow
-                key={order.id}
-                order={order}
-                signal={signal}
-                showUrgency
-              />
-            ))}
-          </div>
-        </Panel>
-      )}
+      {analytics && <AnalyticsCharts analytics={analytics} />}
 
       <div>
         <div className="flex items-center gap-1 border-b border-border">
