@@ -750,14 +750,15 @@ export function OrdersEnquiriesWorkspace() {
     () => stockSalesQuery.data?.pages.flatMap((page) => page.data) ?? [],
     [stockSalesQuery.data],
   );
+  const stockSalesTotal = stockSalesQuery.data?.pages[0]?.total;
 
   const tabCounts = useMemo(
     () => ({
       order: typeTab === "order" ? records.length : undefined,
       enquiry: typeTab === "enquiry" ? records.length : undefined,
-      purchase: typeTab === "purchase" ? stockSales.length : undefined,
+      purchase: typeTab === "purchase" ? stockSalesTotal : undefined,
     }),
-    [records.length, stockSales.length, typeTab],
+    [records.length, stockSalesTotal, typeTab],
   );
   const typeTabs = useMemo(
     () => [
