@@ -225,6 +225,56 @@ function getTotalStoneCarat(product: InventoryProduct) {
   );
 }
 
+function InventoryProductImage({
+  image,
+  sizes,
+  className,
+  showLabel = false,
+}: {
+  image: ReturnType<typeof getInventoryPrimaryImage>;
+  sizes: string;
+  className: string;
+  showLabel?: boolean;
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [image?.storageKey]);
+
+  if (!image || hasError) {
+    return (
+      <div
+        role="img"
+        aria-label="Product image unavailable"
+        className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_35%,color-mix(in_oklab,var(--muted-foreground)_10%,transparent),transparent_58%)] text-muted-foreground"
+      >
+        <div className="absolute inset-3 rounded-[inherit] border border-dashed border-current/10" />
+        <div className="relative flex size-11 items-center justify-center rounded-full border border-current/15 bg-background/55 shadow-sm backdrop-blur-sm">
+          <Diamond className="size-5 opacity-45" strokeWidth={1.5} />
+        </div>
+        {showLabel ? (
+          <span className="relative mt-3 text-[10px] font-medium uppercase tracking-[0.16em] opacity-55">
+            Image unavailable
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={image.storageKey}
+      alt={image.altText}
+      fill
+      unoptimized
+      sizes={sizes}
+      className={className}
+      onError={() => setHasError(true)}
+    />
+  );
+}
+
 function getInventoryGridClass({
   columns,
   hasSelectedProduct,
@@ -326,16 +376,11 @@ function ProductListItem({
           compact && "h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20",
         )}
       >
-        {image ? (
-          <Image
-            src={image.storageKey}
-            alt={image.altText}
-            fill
-            unoptimized
-            sizes="96px"
-            className="object-contain p-1.5"
-          />
-        ) : null}
+        <InventoryProductImage
+          image={image}
+          sizes="96px"
+          className="object-contain p-1.5"
+        />
       </div>
 
       <div
@@ -429,20 +474,12 @@ function ProductDetail({
     <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="grid lg:min-h-[26rem] lg:grid-cols-[minmax(280px,0.95fr)_minmax(300px,1fr)]">
         <div className="relative aspect-[4/3] min-h-72 bg-muted/40 lg:aspect-auto lg:min-h-full">
-          {image ? (
-            <Image
-              src={image.storageKey}
-              alt={image.altText}
-              fill
-              unoptimized
-              sizes="(min-width: 1024px) 45vw, 100vw"
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full min-h-72 items-center justify-center">
-              <PackageSearch className="h-8 w-8 text-muted-foreground/40" />
-            </div>
-          )}
+          <InventoryProductImage
+            image={image}
+            sizes="(min-width: 1024px) 45vw, 100vw"
+            className="object-cover"
+            showLabel
+          />
         </div>
 
         <div className="flex flex-col justify-between p-5 lg:p-6">

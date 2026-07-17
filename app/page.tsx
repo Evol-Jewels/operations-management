@@ -7,7 +7,8 @@ import {
   OperationsDashboard,
   SalesDashboard,
 } from "@/components/dashboard/RoleDashboards";
-import { useEnquiries } from "@/hooks/useEnquiries";
+import { useMyEnquiries } from "@/hooks/useEnquiries";
+import { useOrdersEnquiriesAnalytics } from "@/hooks/useOrdersEnquiriesAnalytics";
 import { useOrders } from "@/hooks/useOrders";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
@@ -16,8 +17,15 @@ import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 
 function RoleDashboardPage() {
   const { data: session } = authClient.useSession();
-  const enquiriesQuery = useEnquiries();
-  const ordersQuery = useOrders({ limit: 100 });
+  const role = getSessionRole(session).toUpperCase();
+  const isSales = role === "SALES";
+  const salesPersonId = session?.user.id;
+  const analyticsQuery = useOrdersEnquiriesAnalytics();
+  const enquiriesQuery = useMyEnquiries({ enabled: isSales });
+  const ordersQuery = useOrders(
+    { limit: 100, salesPerson: salesPersonId },
+    { enabled: isSales && Boolean(salesPersonId) },
+  );
   const orders = useMemo(
     () => [
       ...(ordersQuery.data ?? []).map(mapBackendOrderListItemToOrder),
@@ -25,11 +33,18 @@ function RoleDashboardPage() {
     ],
     [enquiriesQuery.data, ordersQuery.data],
   );
-  const role = getSessionRole(session).toUpperCase();
+  const analyticsProps = {
+    analytics: analyticsQuery.data,
+    analyticsError: analyticsQuery.error,
+    analyticsLoading: analyticsQuery.isPending,
+    onRetryAnalytics: () => void analyticsQuery.refetch(),
+  };
 
-  if (role === "ADMIN") return <AdminDashboard orders={orders} />;
-  if (role === "OPERATIONS") return <OperationsDashboard orders={orders} />;
-  return <SalesDashboard orders={orders} />;
+  if (role === "ADMIN") return <AdminDashboard {...analyticsProps} />;
+  if (role === "OPERATIONS") {
+    return <OperationsDashboard {...analyticsProps} />;
+  }
+  return <SalesDashboard orders={orders} {...analyticsProps} />;
 }
 
 export default function DashboardPage() {

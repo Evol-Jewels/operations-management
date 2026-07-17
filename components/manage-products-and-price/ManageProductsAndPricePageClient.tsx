@@ -2126,7 +2126,7 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
                     <button
                       type="button"
                       onClick={openSpecialCharges}
-                      className="group rounded-xl border border-border bg-card p-4 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
+                      className="group h-fit self-start rounded-xl border border-border bg-card p-4 text-left shadow-sm outline-none transition-colors hover:border-foreground/30 hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring/40"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
