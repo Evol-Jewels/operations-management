@@ -362,6 +362,7 @@ export interface CalculatorFormState {
   netGoldWeight: number;
   purity: MetalPurity;
   stones: CalculatorStoneInput[];
+  goldRateOverride?: number;
   gstRate: number;
   makingCharge: number;
   productName: string;

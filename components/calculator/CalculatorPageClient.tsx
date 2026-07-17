@@ -7,6 +7,7 @@ import {
   CircleDollarSign,
   Diamond,
   ImageIcon,
+  Info,
   Loader2,
   MapPin,
   Minus,
@@ -135,6 +136,7 @@ function createDefaultCalculatorForm(
     netGoldWeight: 0,
     purity: "18K",
     stones: [createStone(settings)],
+    goldRateOverride: undefined,
     gstRate: settings.gstRate,
     makingCharge: calculateMakingCharge(
       0,
@@ -194,6 +196,10 @@ function restoreManualCalculatorForm(
         netGoldWeight: toPersistedNumber(storedForm.netGoldWeight),
         purity: normalizeMetalPurity(String(storedForm.purity ?? "18K")),
         stones,
+        goldRateOverride:
+          toPersistedNumber(storedForm.goldRateOverride) > 0
+            ? toPersistedNumber(storedForm.goldRateOverride)
+            : undefined,
         gstRate: toPersistedNumber(storedForm.gstRate, settings.gstRate),
         makingCharge: toPersistedNumber(storedForm.makingCharge),
         productName:
@@ -1512,6 +1518,23 @@ function CalculatorForm({
               <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 min-[430px]:gap-5">
                 <div className="space-y-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    Gold per gram override
+                  </p>
+                  <NumericLineInput
+                    value={form.goldRateOverride ?? 0}
+                    onChange={(goldRate) =>
+                      updateForm(
+                        "goldRateOverride",
+                        goldRate > 0 ? goldRate : undefined,
+                      )
+                    }
+                    placeholder="Use calculated rate"
+                    suffix="Rs."
+                    step={1}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     GST
                   </p>
                   <NumericLineInput
@@ -1597,6 +1620,7 @@ export function CalculatorPageClient({
       form.purity,
       form.stones,
       {
+        goldRateOverride: form.goldRateOverride,
         gstRateOverride: form.gstRate,
         makingCostOverride: form.makingCharge,
       },
@@ -1606,6 +1630,7 @@ export function CalculatorPageClient({
     form.netGoldWeight,
     form.purity,
     form.stones,
+    form.goldRateOverride,
     form.gstRate,
     form.makingCharge,
   ]);
@@ -1852,6 +1877,7 @@ export function CalculatorPageClient({
               id: stone.id || generateId(),
             }))
           : [createStone(settings)],
+      goldRateOverride: undefined,
       gstRate: result.pricing.gstRate,
       makingCharge: result.pricing.makingCost,
       productName: result.product.productName,
@@ -1917,38 +1943,58 @@ export function CalculatorPageClient({
             />
           </div>
         ) : (
-          <div className="grid items-start gap-5 lg:grid-cols-[minmax(380px,520px)_minmax(420px,760px)] xl:grid-cols-[minmax(420px,560px)_minmax(460px,760px)]">
-            <CalculatorForm
-              settings={settings}
-              form={form}
-              updateForm={updateForm}
-              updateNetGoldWeight={updateNetGoldWeight}
-              updateStone={updateStone}
-              addStone={addStone}
-              removeStone={removeStone}
-              resetForm={resetForm}
-              fileInputRef={fileInputRef}
-              onImageChange={handleImageChange}
-              onAdvancedGstChange={updateAdvancedGst}
-              onAdvancedMakingChange={updateAdvancedMakingCharge}
-            />
-            <div ref={summaryCardRef} className="min-w-0 h-full w-full max-w-[760px]">
-              {canShowSummary ? (
-                <EstimationSummaryCard
-                  data={{
-                    kind: "calculator",
-                    form,
-                    breakdown,
-                    gstRate: form.gstRate,
-                  }}
-                  className="lg:sticky lg:top-6 lg:self-start"
-                />
-              ) : (
-                <EstimateRequirementsCard
-                  requirements={estimateRequirements}
-                  className="lg:sticky lg:top-6 lg:self-start"
-                />
-              )}
+          <div className="space-y-4">
+            {form.goldRateOverride !== undefined ? (
+              <div
+                role="status"
+                className="flex items-center gap-2 rounded-lg border border-amber-300/70 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/35 dark:text-amber-100"
+              >
+                <Info className="size-4 shrink-0" aria-hidden="true" />
+                <span>
+                  Gold rate is overridden. Using{" "}
+                  <span className="font-semibold">
+                    {formatCurrency(form.goldRateOverride)} per gram
+                  </span>
+                  .
+                </span>
+              </div>
+            ) : null}
+            <div className="grid items-start gap-5 lg:grid-cols-[minmax(380px,520px)_minmax(420px,760px)] xl:grid-cols-[minmax(420px,560px)_minmax(460px,760px)]">
+              <CalculatorForm
+                settings={settings}
+                form={form}
+                updateForm={updateForm}
+                updateNetGoldWeight={updateNetGoldWeight}
+                updateStone={updateStone}
+                addStone={addStone}
+                removeStone={removeStone}
+                resetForm={resetForm}
+                fileInputRef={fileInputRef}
+                onImageChange={handleImageChange}
+                onAdvancedGstChange={updateAdvancedGst}
+                onAdvancedMakingChange={updateAdvancedMakingCharge}
+              />
+              <div
+                ref={summaryCardRef}
+                className="min-w-0 h-full w-full max-w-[760px]"
+              >
+                {canShowSummary ? (
+                  <EstimationSummaryCard
+                    data={{
+                      kind: "calculator",
+                      form,
+                      breakdown,
+                      gstRate: form.gstRate,
+                    }}
+                    className="lg:sticky lg:top-6 lg:self-start"
+                  />
+                ) : (
+                  <EstimateRequirementsCard
+                    requirements={estimateRequirements}
+                    className="lg:sticky lg:top-6 lg:self-start"
+                  />
+                )}
+              </div>
             </div>
           </div>
         )}

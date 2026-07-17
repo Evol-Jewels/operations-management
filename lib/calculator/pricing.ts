@@ -67,14 +67,21 @@ export function computeEstimateFromInputs(
   netGoldWeight: number,
   purity: MetalPurity,
   stones: CalculatorStoneInput[],
-  options: { makingCostOverride?: number; gstRateOverride?: number } = {},
+  options: {
+    goldRateOverride?: number;
+    makingCostOverride?: number;
+    gstRateOverride?: number;
+  } = {},
 ): CalculatorPricingBreakdown {
   const normalizedNetGoldWeight = normalizeWeight(netGoldWeight);
-  const goldRateValue = calculateGoldRate(
-    settings.goldRate24k,
-    purity,
-    settings.purityPercentages,
-  );
+  const goldRateValue =
+    options.goldRateOverride !== undefined && options.goldRateOverride > 0
+      ? options.goldRateOverride
+      : calculateGoldRate(
+          settings.goldRate24k,
+          purity,
+          settings.purityPercentages,
+        );
   const totalStoneWeightInCarats = stones.reduce(
     (sum, stone) => sum + stone.weight,
     0,
