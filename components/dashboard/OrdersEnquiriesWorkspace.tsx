@@ -824,7 +824,6 @@ export function OrdersEnquiriesWorkspace() {
   const shownRecordCount = isKanbanMode
     ? kanbanRecords.length
     : filteredRecords.length;
-  const purchasesShownCount = stockSales.length;
   const isFilterDisabled = isKanbanMode || typeTab === "purchase";
 
   const sectionHeading =
@@ -911,7 +910,7 @@ export function OrdersEnquiriesWorkspace() {
     }
   };
   const sectionCount =
-    typeTab === "purchase" ? purchasesShownCount : shownRecordCount;
+    typeTab === "purchase" ? stockSalesTotal : shownRecordCount;
 
   return (
     <div className="space-y-4">
