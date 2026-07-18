@@ -1634,33 +1634,57 @@ export function CalculatorPageClient({
     form.gstRate,
     form.makingCharge,
   ]);
+  const completedStones = useMemo(
+    () =>
+      form.stones.filter((stone) => {
+        const detail = breakdown.stoneDetails.find(
+          (candidate) => candidate.id === stone.id,
+        );
+
+        return Boolean(
+          detail?.stoneType &&
+            detail.weight > 0 &&
+            detail.quantity > 0 &&
+            (detail.fixedRatePerCarat !== undefined || detail.slabInfo),
+        );
+      }),
+    [form.stones, breakdown.stoneDetails],
+  );
+  const summaryBreakdown = useMemo(
+    () =>
+      computeEstimateFromInputs(
+        settings,
+        form.netGoldWeight,
+        form.purity,
+        completedStones,
+        {
+          goldRateOverride: form.goldRateOverride,
+          gstRateOverride: form.gstRate,
+          makingCostOverride: form.makingCharge,
+        },
+      ),
+    [settings, form, completedStones],
+  );
   const estimateRequirements = useMemo(() => {
     const hasNetWeight = form.netGoldWeight > 0;
-    const hasStoneRows = form.stones.length > 0;
-    const hasStoneType = form.stones.every((stone) =>
-      Boolean(getStoneType(settings, stone.stoneTypeId)),
-    );
-    const hasStoneWeight = form.stones.every((stone) => stone.weight > 0);
-    const hasStoneQuantity = form.stones.every((stone) => stone.quantity > 0);
-    const hasStoneRates = breakdown.stoneDetails.every(
+    const hasStoneTypeAndWeight = form.stones.some(
       (stone) =>
-        stone.weight > 0 &&
-        (stone.fixedRatePerCarat !== undefined || stone.slabInfo !== null),
+        Boolean(getStoneType(settings, stone.stoneTypeId)) && stone.weight > 0,
     );
+    const hasCompletedStone = completedStones.length > 0;
 
     return [
       { label: "Select correct metal net weight and purity", complete: hasNetWeight },
       {
-        label: "Select stone type and weight for each stone",
-        complete: hasStoneRows && hasStoneType && hasStoneWeight,
+        label: "Select a stone type and weight",
+        complete: hasStoneTypeAndWeight,
       },
       {
-        label: "Enter pieces and match slab for each stone",
-        complete:
-          hasStoneRows && hasStoneQuantity && hasStoneRates,
+        label: "Enter pieces and match a slab for at least one stone",
+        complete: hasCompletedStone,
       },
     ];
-  }, [settings, form.netGoldWeight, form.stones, breakdown.stoneDetails]);
+  }, [settings, form.netGoldWeight, form.stones, completedStones]);
   const canShowSummary = estimateRequirements.every(
     (requirement) => requirement.complete,
   );
@@ -1983,7 +2007,7 @@ export function CalculatorPageClient({
                     data={{
                       kind: "calculator",
                       form,
-                      breakdown,
+                      breakdown: summaryBreakdown,
                       gstRate: form.gstRate,
                     }}
                     className="lg:sticky lg:top-6 lg:self-start"
