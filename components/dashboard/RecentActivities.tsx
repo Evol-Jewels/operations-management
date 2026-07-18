@@ -86,7 +86,7 @@ function PersonAvatar({
   return (
     <Avatar
       className={cn(
-        "h-6 w-6 flex-shrink-0 text-[10px] font-semibold",
+        "size-6 shrink-0 text-[10px] font-semibold",
         colors.bg,
         colors.text,
       )}
@@ -106,7 +106,7 @@ function ActivityItem({ activity }: { activity: EnrichedActivity }) {
   return (
     <Link
       href={activity.href}
-      className="group flex items-start gap-3 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      className="group grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-start gap-x-3 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
       <PersonAvatar person={activity.postedBy} role={activity.actorRole} />
       <div className="min-w-0 flex-1 space-y-1">
@@ -130,7 +130,7 @@ function ActivityItem({ activity }: { activity: EnrichedActivity }) {
           </span>
         </p>
       </div>
-      <span className="flex-shrink-0 text-[10px] tabular-nums text-muted-foreground">
+      <span className="pt-0.5 text-[10px] leading-5 tabular-nums text-muted-foreground">
         {formatRelativeTime(activity.timestamp)}
       </span>
     </Link>

@@ -1062,11 +1062,11 @@ function ActivitySidebarToggle({ className }: { className?: string }) {
   return (
     <Button
       type="button"
-      variant="outline"
+      variant="ghost"
       size="icon"
       onClick={toggle}
       className={cn(
-        "size-9 shrink-0 rounded-lg border-border/70 bg-background/95 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted hover:text-foreground",
+        "size-9 shrink-0 bg-transparent text-muted-foreground shadow-none transition-colors hover:bg-transparent hover:text-foreground",
         className,
       )}
       aria-pressed={isOpen}
@@ -1090,7 +1090,7 @@ function RecentActivitiesColumn() {
   return (
     <div className="xl:sticky xl:top-5 xl:self-start">
       <div className="relative">
-        <ActivitySidebarToggle className="absolute top-2 right-2 z-10" />
+        <ActivitySidebarToggle className="absolute top-1 right-2 z-10" />
         <RecentActivities className="xl:max-h-[calc(100vh-2.5rem)]" />
       </div>
     </div>
