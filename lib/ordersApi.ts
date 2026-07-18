@@ -4,9 +4,9 @@ import type {
   CreateOrdersInput,
   CreateOrdersResponse,
   ListOrdersQuery,
-  UpdateOrderStatusInput,
   UpdateOrderInput,
   UpdateOrderResponse,
+  UpdateOrderStatusInput,
 } from "@/types/order-api";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
@@ -72,6 +72,10 @@ export function fetchOrders(query: ListOrdersQuery = {}) {
   return apiFetch<BackendOrderRow[]>(
     buildUrl("api/v1/orders", queryToStrings(query)),
   );
+}
+
+export function fetchOpenStoreOrders() {
+  return apiFetch<BackendOrderRow[]>(buildUrl("api/v1/orders/store"));
 }
 
 export function fetchOrderDetails(refCode: string | number) {

@@ -5,9 +5,10 @@ import {
   createEnquiry,
   createEstimation,
   fetchEnquiries,
-  fetchMyEnquiries,
   fetchEnquiryDetails,
   fetchEnquiryDetailsByRefCode,
+  fetchMyEnquiries,
+  fetchOpenStoreEnquiries,
   updateEnquiry,
   updateEstimation,
 } from "@/lib/enquiriesApi";
@@ -25,11 +26,20 @@ export const enquiryKeys = {
   list: (query: ListEnquiriesQuery = {}) =>
     [...enquiryKeys.lists(), query] as const,
   mine: () => [...enquiryKeys.all, "me"] as const,
+  store: () => [...enquiryKeys.lists(), "store"] as const,
   details: () => [...enquiryKeys.all, "detail"] as const,
   detail: (id: string) => [...enquiryKeys.details(), id] as const,
   detailByRefCode: (refCode: number) =>
     [...enquiryKeys.all, "detail", "ref", refCode] as const,
 };
+
+export function useOpenStoreEnquiries(options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: enquiryKeys.store(),
+    queryFn: fetchOpenStoreEnquiries,
+    enabled: options.enabled,
+  });
+}
 
 export function useMyEnquiries(options: { enabled?: boolean } = {}) {
   return useQuery({

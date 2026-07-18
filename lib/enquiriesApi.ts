@@ -73,6 +73,10 @@ export function fetchMyEnquiries() {
   return apiFetch<BackendEnquiryListItem[]>(buildUrl("api/v1/enquiries/me"));
 }
 
+export function fetchOpenStoreEnquiries() {
+  return apiFetch<BackendEnquiryListItem[]>(buildUrl("api/v1/enquiries/store"));
+}
+
 export function fetchEnquiryDetails(id: string) {
   return apiFetch<BackendEnquiryDetails>(buildUrl(`api/v1/enquiries/${id}`));
 }
