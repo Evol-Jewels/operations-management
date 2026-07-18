@@ -90,6 +90,8 @@ function buildInitialForm(
             quantity: stone.pieces,
           }))
         : [createStone(settings)],
+    diamondColor: "",
+    diamondClarity: "",
     gstRate: settings.gstRate,
     makingCharge:
       existingEstimation?.makingCost ??

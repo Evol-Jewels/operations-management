@@ -117,6 +117,8 @@ export function buildInventoryCalculatorForm(
     netGoldWeight,
     purity: getInventoryPurity(product),
     stones: buildInventoryCalculatorStones(product, settings),
+    diamondColor: "",
+    diamondClarity: "",
     gstRate: estimationGstRate(product, settings),
     makingCharge: estimationMakingCharge(product, settings, netGoldWeight),
     productName: product.name,
@@ -135,10 +137,7 @@ function estimationGstRate(
       ? estimation.gst / estimation.subTotal
       : settings.gstRate;
 
-  return estimationGstRateFromPercentage(
-    estimation?.gstPercentage,
-    fallback,
-  );
+  return estimationGstRateFromPercentage(estimation?.gstPercentage, fallback);
 }
 
 function estimationGstRateFromPercentage(
@@ -160,8 +159,8 @@ function estimationMakingCharge(
     (netGoldWeight <= 0
       ? 0
       : netGoldWeight <= 2
-      ? settings.makingChargeFlat
-      : netGoldWeight * settings.makingChargePerGram)
+        ? settings.makingChargeFlat
+        : netGoldWeight * settings.makingChargePerGram)
   );
 }
 

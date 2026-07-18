@@ -136,6 +136,8 @@ function createDefaultCalculatorForm(
     netGoldWeight: 0,
     purity: "18K",
     stones: [createStone(settings)],
+    diamondColor: "",
+    diamondClarity: "",
     goldRateOverride: undefined,
     gstRate: settings.gstRate,
     makingCharge: calculateMakingCharge(
@@ -176,7 +178,7 @@ function restoreManualCalculatorForm(
             stoneTypeId:
               typeof stone.stoneTypeId === "string"
                 ? stone.stoneTypeId
-                : settings.stoneTypes[0]?.stoneId ?? "",
+                : (settings.stoneTypes[0]?.stoneId ?? ""),
             weight: toPersistedNumber(stone.weight),
             quantity: toPersistedNumber(stone.quantity),
             fixedRatePerCarat:
@@ -196,6 +198,14 @@ function restoreManualCalculatorForm(
         netGoldWeight: toPersistedNumber(storedForm.netGoldWeight),
         purity: normalizeMetalPurity(String(storedForm.purity ?? "18K")),
         stones,
+        diamondColor:
+          typeof storedForm.diamondColor === "string"
+            ? storedForm.diamondColor
+            : "",
+        diamondClarity:
+          typeof storedForm.diamondClarity === "string"
+            ? storedForm.diamondClarity
+            : "",
         goldRateOverride:
           toPersistedNumber(storedForm.goldRateOverride) > 0
             ? toPersistedNumber(storedForm.goldRateOverride)
@@ -327,7 +337,13 @@ function StoneTypeCombobox({
         label: item.name,
         category: item.category,
         metadata: `${item.category} · ${item.slabs.length} slabs`,
-        searchText: [item.clarity, item.color, ...item.slabs.map((slab) => slab.code)].filter(Boolean).join(" "),
+        searchText: [
+          item.clarity,
+          item.color,
+          ...item.slabs.map((slab) => slab.code),
+        ]
+          .filter(Boolean)
+          .join(" "),
       }))}
       value={value}
       onValueChange={onChange}
@@ -682,14 +698,14 @@ function EstimateRequirementsCard({
       )}
     >
       {/*<ul className="flex flex-col items-center justify-center gap-3">*/}
-        {requirements.map((requirement) => (
-          <RequirementItem
-            key={requirement.label}
-            complete={requirement.complete}
-          >
-            {requirement.label}
-          </RequirementItem>
-        ))}
+      {requirements.map((requirement) => (
+        <RequirementItem
+          key={requirement.label}
+          complete={requirement.complete}
+        >
+          {requirement.label}
+        </RequirementItem>
+      ))}
       {/*</ul>*/}
     </div>
   );
@@ -1548,6 +1564,40 @@ function CalculatorForm({
                   />
                 </div>
                 <div className="space-y-2">
+                  <label
+                    htmlFor="calculator-diamond-colour"
+                    className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+                  >
+                    Diamond Colour
+                  </label>
+                  <input
+                    id="calculator-diamond-colour"
+                    value={form.diamondColor}
+                    onChange={(event) =>
+                      updateForm("diamondColor", event.target.value)
+                    }
+                    placeholder="e.g. EF"
+                    className="h-9 w-full border-b border-border bg-transparent px-0 text-sm uppercase outline-none placeholder:normal-case placeholder:text-muted-foreground/35 focus:border-foreground"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label
+                    htmlFor="calculator-diamond-clarity"
+                    className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+                  >
+                    Diamond Clarity
+                  </label>
+                  <input
+                    id="calculator-diamond-clarity"
+                    value={form.diamondClarity}
+                    onChange={(event) =>
+                      updateForm("diamondClarity", event.target.value)
+                    }
+                    placeholder="e.g. VVS/VS"
+                    className="h-9 w-full border-b border-border bg-transparent px-0 text-sm uppercase outline-none placeholder:normal-case placeholder:text-muted-foreground/35 focus:border-foreground"
+                  />
+                </div>
+                <div className="space-y-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     Making Charges
                   </p>
@@ -1589,9 +1639,7 @@ export function CalculatorPageClient({
 }: {
   initialTab?: CalculatorTab;
 }) {
-  const {
-    settings,
-  } = useCalculatorSettings();
+  const { settings } = useCalculatorSettings();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const summaryCardRef = useRef<HTMLDivElement | null>(null);
   const shouldScrollToSummaryRef = useRef(false);
@@ -1891,6 +1939,8 @@ export function CalculatorPageClient({
               id: stone.id || generateId(),
             }))
           : [createStone(settings)],
+      diamondColor: "",
+      diamondClarity: "",
       goldRateOverride: undefined,
       gstRate: result.pricing.gstRate,
       makingCharge: result.pricing.makingCost,

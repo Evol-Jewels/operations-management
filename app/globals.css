@@ -453,8 +453,7 @@
     display: none !important;
   }
 
-  body:has(> #estimation-summary-print-root)
-    #estimation-summary-print-root {
+  body:has(> #estimation-summary-print-root) #estimation-summary-print-root {
     display: block !important;
     position: static !important;
     width: 100%;
@@ -515,15 +514,9 @@
     -webkit-print-color-adjust: exact;
   }
 
-  body:not(:has(> #enquiry-print-root))
-    [data-estimation-summary-card]
-    p,
-  body:not(:has(> #enquiry-print-root))
-    [data-estimation-summary-card]
-    span,
-  body:not(:has(> #enquiry-print-root))
-    [data-estimation-summary-card]
-    li {
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-card] p,
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-card] span,
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-card] li {
     color: #525252 !important;
   }
 
@@ -536,9 +529,7 @@
     padding: 0 !important;
   }
 
-  body:not(:has(> #enquiry-print-root))
-    [data-estimation-summary-logo]
-    img {
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-logo] img {
     display: none !important;
   }
 
@@ -554,6 +545,41 @@
   body:not(:has(> #enquiry-print-root)) [data-estimation-summary-hero] {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-format="compact"]
+    [data-estimation-summary-compact] {
+    display: grid !important;
+    grid-template-columns: 1.18fr 0.82fr !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-format="compact"]
+    [data-estimation-summary-compact-product] {
+    border-left: 1px solid #d7d7d7 !important;
+    border-top: 0 !important;
+    display: flex !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-format="compact"]
+    [data-estimation-summary-compact-media] {
+    background-color: #eeeeec !important;
+    min-height: 74mm !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-format="compact"]
+    [data-estimation-summary-compact-total],
+  body:not(:has(> #enquiry-print-root))
+    [data-estimation-summary-format="compact"]
+    [data-estimation-summary-compact-total]
+    * {
+    background-color: #111111 !important;
+    color: #ffffff !important;
   }
 
   body:not(:has(> #enquiry-print-root)) [data-estimation-summary-media] {
@@ -616,10 +642,8 @@
     break-inside: auto !important;
   }
 
-  body:not(:has(> #enquiry-print-root))
-    [data-estimation-summary-stone-row],
-  body:not(:has(> #enquiry-print-root))
-    [data-estimation-summary-stones-total] {
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-stone-row],
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-stones-total] {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
@@ -670,15 +694,11 @@
     padding: 3.5mm 5mm !important;
   }
 
-  body:not(:has(> #enquiry-print-root))
-    [data-estimation-summary-terms]
-    ul {
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-terms] ul {
     margin-top: 2mm !important;
   }
 
-  body:not(:has(> #enquiry-print-root))
-    [data-estimation-summary-terms]
-    li {
+  body:not(:has(> #enquiry-print-root)) [data-estimation-summary-terms] li {
     color: #333333 !important;
     font-size: 10px !important;
     line-height: 1.6 !important;

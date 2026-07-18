@@ -8,6 +8,8 @@ import {
   FileImage,
   FileText,
   ImageIcon,
+  ListChevronsDownUp,
+  ListChevronsUpDown,
   Loader2,
   Share2,
 } from "lucide-react";
@@ -41,6 +43,8 @@ interface SharedSummaryData {
   goldCost: number;
   makingCost: number;
   stoneDetails: CalculatorPricingBreakdown["stoneDetails"];
+  diamondColor: string;
+  diamondClarity: string;
   totalStoneCost: number;
   subTotal: number;
   gst: number;
@@ -55,6 +59,7 @@ interface EstimationSummaryCardProps {
   showHeader?: boolean;
   downloadFilename?: string;
   title?: string;
+  showFormatToggle?: boolean;
   renderActions?: (props: {
     downloadSummary: () => Promise<void>;
     downloadSummaryPdf: () => Promise<void>;
@@ -114,6 +119,8 @@ function getSummaryData(
       goldCost: data.breakdown.goldCost,
       makingCost: data.breakdown.makingCost,
       stoneDetails: data.breakdown.stoneDetails,
+      diamondColor: data.form.diamondColor.trim(),
+      diamondClarity: data.form.diamondClarity.trim(),
       totalStoneCost: data.breakdown.totalStoneCost,
       subTotal: data.breakdown.subTotal,
       gst: data.breakdown.gst,
@@ -121,6 +128,10 @@ function getSummaryData(
       gstRate: data.gstRate,
     };
   }
+
+  const firstDiamond = data.result.pricing.stoneDetails.find(
+    (stone) => stone.stoneType?.category === "Diamond",
+  );
 
   return {
     name: data.result.product.productName,
@@ -134,6 +145,8 @@ function getSummaryData(
     goldCost: data.result.pricing.goldCost,
     makingCost: data.result.pricing.makingCost,
     stoneDetails: data.result.pricing.stoneDetails,
+    diamondColor: firstDiamond?.stoneType?.color?.trim() ?? "",
+    diamondClarity: firstDiamond?.stoneType?.clarity?.trim() ?? "",
     totalStoneCost: data.result.pricing.totalStoneCost,
     subTotal: data.result.pricing.subTotal,
     gst: data.result.pricing.gst,
@@ -296,10 +309,7 @@ export function EstimationSummaryShareButton({
       type="button"
       variant="outline"
       size="sm"
-      className={cn(
-        "h-8 shrink-0 rounded-md px-2.5 sm:hidden",
-        className,
-      )}
+      className={cn("h-8 shrink-0 rounded-md px-2.5 sm:hidden", className)}
       onClick={() => void shareSummaryPng()}
       disabled={isSharing || isDownloading}
       aria-label="Share summary PNG"
@@ -423,6 +433,200 @@ export function EstimationSummaryDownloadButton({
   );
 }
 
+function CompactSummary({ summary }: { summary: SharedSummaryData }) {
+  const visibleStoneDetails = summary.stoneDetails.filter(
+    (stone) => stone.weight > 0,
+  );
+  const totalStoneWeight = visibleStoneDetails.reduce(
+    (total, stone) => total + stone.weight,
+    0,
+  );
+  const totalStonePrice = visibleStoneDetails.reduce(
+    (total, stone) => total + stone.totalCost,
+    0,
+  );
+  const hasDiamondColor = Boolean(summary.diamondColor);
+  const hasDiamondClarity = Boolean(summary.diamondClarity);
+  const hasDiamondMetadata = hasDiamondColor || hasDiamondClarity;
+  const priceOrDash = (value: number) =>
+    value > 0 ? formatCurrency(value) : "—";
+
+  return (
+    <div
+      className="grid grid-cols-1 sm:grid-cols-[minmax(0,1.18fr)_minmax(240px,0.82fr)]"
+      data-estimation-summary-compact
+    >
+      <div className="min-w-0" data-estimation-summary-compact-breakup>
+        <div className="border-b border-border bg-muted/35 px-4 py-2.5 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Breakup Details
+          </p>
+        </div>
+        <table className="w-full table-fixed border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/15 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              <th className="w-[43%] px-4 py-2 font-semibold">Component</th>
+              <th className="w-[24%] px-2 py-2 font-semibold">Weight</th>
+              <th className="w-[33%] px-4 py-2 text-right font-semibold">
+                Price
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/70">
+            <tr>
+              <td className="px-4 py-2.5 text-muted-foreground">
+                Gross Weight
+              </td>
+              <td className="px-2 py-2.5 font-medium tabular">
+                {formatWeight(summary.grossWeight, "g")}
+              </td>
+              <td className="px-4 py-2.5 text-right text-muted-foreground">
+                —
+              </td>
+            </tr>
+            <tr>
+              <td className="px-4 py-2.5 text-muted-foreground">
+                Net Metal · {summary.purity}
+              </td>
+              <td className="px-2 py-2.5 font-medium tabular">
+                {formatWeight(summary.netGoldWeight, "g")}
+              </td>
+              <td className="px-4 py-2.5 text-right font-semibold tabular">
+                {formatCurrency(summary.goldCost)}
+              </td>
+            </tr>
+            <tr>
+              <td className="px-4 py-2.5 text-muted-foreground">Making</td>
+              <td className="px-2 py-2.5 font-medium tabular">
+                {formatWeight(summary.netGoldWeight, "g")}
+              </td>
+              <td className="px-4 py-2.5 text-right font-semibold tabular">
+                {priceOrDash(summary.makingCost)}
+              </td>
+            </tr>
+            <tr>
+              <td className="px-4 py-2.5 text-muted-foreground">
+                Diamonds/Stones
+              </td>
+              <td className="px-2 py-2.5 font-medium tabular">
+                {formatWeight(totalStoneWeight, "ct")}
+              </td>
+              <td className="px-4 py-2.5 text-right font-semibold tabular">
+                {priceOrDash(totalStonePrice)}
+              </td>
+            </tr>
+            <tr className="border-t border-border bg-muted/15">
+              <td colSpan={2} className="px-4 py-2.5 text-muted-foreground">
+                Subtotal
+              </td>
+              <td className="px-4 py-2.5 text-right font-semibold tabular">
+                {formatCurrency(summary.subTotal)}
+              </td>
+            </tr>
+            <tr className="bg-muted/15">
+              <td colSpan={2} className="px-4 py-2.5 text-muted-foreground">
+                GST ({(summary.gstRate * 100).toFixed(1)}%)
+              </td>
+              <td className="px-4 py-2.5 text-right font-semibold tabular">
+                {formatCurrency(summary.gst)}
+              </td>
+            </tr>
+            {hasDiamondMetadata ? (
+              <tr>
+                <td colSpan={3} className="p-0">
+                  <div
+                    className={cn(
+                      "grid",
+                      hasDiamondColor && hasDiamondClarity
+                        ? "grid-cols-2"
+                        : "grid-cols-1",
+                    )}
+                  >
+                    {hasDiamondColor ? (
+                      <div className="min-w-0 px-4 py-3">
+                        <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          Colour
+                        </p>
+                        <p className="mt-1 truncate text-xs font-semibold uppercase">
+                          {summary.diamondColor}
+                        </p>
+                      </div>
+                    ) : null}
+                    {hasDiamondClarity ? (
+                      <div
+                        className={cn(
+                          "min-w-0 px-4 py-3",
+                          hasDiamondColor && "border-l border-border",
+                        )}
+                      >
+                        <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          Clarity
+                        </p>
+                        <p className="mt-1 truncate text-xs font-semibold uppercase">
+                          {summary.diamondClarity}
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+
+      <div
+        className="flex min-w-0 flex-col border-t border-border sm:border-t-0 sm:border-l"
+        data-estimation-summary-compact-product
+      >
+        <div className="border-b border-border bg-muted/35 px-4 py-2.5 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Product
+          </p>
+        </div>
+        <div
+          className="relative flex min-h-64 flex-1 items-center justify-center overflow-hidden bg-muted/60"
+          data-estimation-summary-compact-media
+        >
+          {summary.imageUrl ? (
+            <>
+              <Image
+                src={summary.imageUrl}
+                alt=""
+                fill
+                aria-hidden="true"
+                className="scale-110 object-cover opacity-30 blur-md"
+                unoptimized
+              />
+              <div className="absolute inset-0 bg-black/5" aria-hidden="true" />
+              <Image
+                src={summary.imageUrl}
+                alt={summary.name || "Jewellery product"}
+                fill
+                className="object-contain"
+                unoptimized
+              />
+            </>
+          ) : (
+            <ImageIcon className="h-9 w-9 text-muted-foreground/35" />
+          )}
+        </div>
+        <div
+          className="flex items-center justify-between gap-4 border-t border-border bg-foreground px-4 py-3 text-background"
+          data-estimation-summary-compact-total
+        >
+          <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-background/70">
+            Total
+          </p>
+          <p className="whitespace-nowrap text-lg font-semibold tabular">
+            {formatCurrency(summary.total)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function EstimationSummaryCard({
   className,
   compact = false,
@@ -430,6 +634,7 @@ export function EstimationSummaryCard({
   showHeader = true,
   downloadFilename,
   title = "Estimate summary",
+  showFormatToggle = true,
   renderActions,
   renderHeaderActions,
   data,
@@ -437,6 +642,9 @@ export function EstimationSummaryCard({
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [summaryFormat, setSummaryFormat] = useState<"detailed" | "compact">(
+    "detailed",
+  );
   const summary = getSummaryData(data);
   const visibleStoneDetails = summary.stoneDetails.filter(
     (stone) => stone.weight > 0,
@@ -502,12 +710,14 @@ export function EstimationSummaryCard({
   }
 
   function getSummaryPngFilename() {
-    return (
+    const filename =
       downloadFilename ??
       `evol-estimate-${makeSlug(displayName)}-${new Date()
         .toISOString()
-        .slice(0, 10)}.png`
-    );
+        .slice(0, 10)}.png`;
+
+    if (summaryFormat !== "compact") return filename;
+    return filename.replace(/(\.png)?$/i, "-compact.png");
   }
 
   async function downloadSummaryPng() {
@@ -582,6 +792,48 @@ export function EstimationSummaryCard({
                 {showDownloadButton ? (
                   <>
                     <EstimationSummaryShareButton {...downloadProps} />
+                    {showFormatToggle ? (
+                      <div
+                        role="group"
+                        aria-label="Estimation summary format"
+                        className="inline-flex shrink-0 overflow-hidden rounded-md border border-input shadow-xs"
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className={cn(
+                            "h-8 w-8 rounded-none border-0 shadow-none",
+                            summaryFormat === "detailed"
+                              ? "bg-accent text-accent-foreground"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                          onClick={() => setSummaryFormat("detailed")}
+                          aria-label="Show detailed estimation summary"
+                          aria-pressed={summaryFormat === "detailed"}
+                          title="Detailed summary"
+                        >
+                          <ListChevronsUpDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className={cn(
+                            "h-8 w-8 rounded-none border-0 border-l border-input shadow-none",
+                            summaryFormat === "compact"
+                              ? "bg-accent text-accent-foreground"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                          onClick={() => setSummaryFormat("compact")}
+                          aria-label="Show compact estimation summary"
+                          aria-pressed={summaryFormat === "compact"}
+                          title="Compact summary"
+                        >
+                          <ListChevronsDownUp className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : null}
                     <EstimationSummaryDownloadButton {...downloadProps} />
                   </>
                 ) : null}
@@ -597,6 +849,7 @@ export function EstimationSummaryCard({
         ref={cardRef}
         className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
         data-estimation-summary-card
+        data-estimation-summary-format={summaryFormat}
       >
         <div
           className={cn(
@@ -631,247 +884,260 @@ export function EstimationSummaryCard({
           />
         </div>
 
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2"
-          data-estimation-summary-hero
-        >
-          <div
-            className="relative flex min-h-48 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0"
-            data-estimation-summary-media
-          >
-            {summary.imageUrl ? (
-              <>
-                <Image
-                  src={summary.imageUrl}
-                  alt=""
-                  fill
-                  aria-hidden="true"
-                  className="scale-110 object-cover opacity-30 blur-md"
-                  data-estimation-summary-media-backdrop
-                  unoptimized
-                />
-                <div className="absolute inset-0 bg-black/5" aria-hidden="true" />
-                <Image
-                  src={summary.imageUrl}
-                  alt={displayName}
-                  fill
-                  className="object-contain"
-                  data-estimation-summary-media-product
-                  unoptimized
-                />
-              </>
-            ) : (
-              <ImageIcon className="h-9 w-9 text-muted-foreground/35" />
-            )}
-          </div>
-
-          <div
-            className={cn(
-              "flex min-h-48 min-w-0 flex-col justify-between border-t border-border px-4 sm:min-h-0 sm:border-t-0 sm:border-l",
-              compact ? "py-3" : "py-4",
-            )}
-            data-estimation-summary-intro
-          >
-            <div className="min-w-0">
-              <p className="break-words text-sm font-semibold leading-snug sm:text-base">
-                {displayName}
-              </p>
-              {displayCode ? (
-                <p
-                  className={cn(
-                    "text-xs leading-5 text-muted-foreground",
-                    compact ? "mt-1" : "mt-2",
-                  )}
-                >
-                  {displayCode}
-                </p>
-              ) : null}
-              {displayNote ? (
-                <p
-                  className={cn(
-                    "break-words text-xs leading-5 text-muted-foreground",
-                    compact ? "mt-1" : "mt-2",
-                  )}
-                >
-                  {displayNote}
-                </p>
-              ) : null}
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                Total
-              </p>
-              <p
-                className={cn(
-                  "font-semibold tabular",
-                  compact ? "mt-1 text-xl" : "mt-2 text-2xl",
-                )}
-              >
-                {formatCurrency(displayTotal)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          className={cn(
-            "flex items-center justify-between bg-muted/35 px-4",
-            compact ? "py-2.5" : "py-3",
-          )}
-          data-estimation-summary-strip
-        >
-          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-            Gross Weight
-          </span>
-          <span className="text-sm font-semibold tabular">
-            {formatWeight(summary.grossWeight, "g")}
-          </span>
-        </div>
-
-        <Separator />
-
-        <div
-          className={cn("px-4", compact ? "py-3" : "py-4")}
-          data-estimation-summary-section
-        >
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-            Gold
-          </p>
-          <p
-            className={cn(
-              "text-xs text-muted-foreground",
-              compact ? "mt-2" : "mt-3",
-            )}
-          >
-            {formatWeight(summary.netGoldWeight, "g")} - {summary.purity} -{" "}
-            {formatCurrency(summary.goldRateValue)}/g
-          </p>
-          <div className={cn(compact ? "mt-2 space-y-2" : "mt-3 space-y-3")}>
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-muted-foreground">Gold Cost</span>
-              <span className="text-sm font-semibold tabular">
-                {formatCurrency(summary.goldCost)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm text-muted-foreground">
-                Making Charges
-              </span>
-              <span className="text-sm font-semibold tabular">
-                {formatCurrency(summary.makingCost)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {hasStones ? (
+        {summaryFormat === "compact" ? (
+          <CompactSummary summary={summary} />
+        ) : (
           <>
+            <div
+              className="grid grid-cols-1 sm:grid-cols-2"
+              data-estimation-summary-hero
+            >
+              <div
+                className="relative flex min-h-48 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0"
+                data-estimation-summary-media
+              >
+                {summary.imageUrl ? (
+                  <>
+                    <Image
+                      src={summary.imageUrl}
+                      alt=""
+                      fill
+                      aria-hidden="true"
+                      className="scale-110 object-cover opacity-30 blur-md"
+                      data-estimation-summary-media-backdrop
+                      unoptimized
+                    />
+                    <div
+                      className="absolute inset-0 bg-black/5"
+                      aria-hidden="true"
+                    />
+                    <Image
+                      src={summary.imageUrl}
+                      alt={displayName}
+                      fill
+                      className="object-contain"
+                      data-estimation-summary-media-product
+                      unoptimized
+                    />
+                  </>
+                ) : (
+                  <ImageIcon className="h-9 w-9 text-muted-foreground/35" />
+                )}
+              </div>
+
+              <div
+                className={cn(
+                  "flex min-h-48 min-w-0 flex-col justify-between border-t border-border px-4 sm:min-h-0 sm:border-t-0 sm:border-l",
+                  compact ? "py-3" : "py-4",
+                )}
+                data-estimation-summary-intro
+              >
+                <div className="min-w-0">
+                  <p className="break-words text-sm font-semibold leading-snug sm:text-base">
+                    {displayName}
+                  </p>
+                  {displayCode ? (
+                    <p
+                      className={cn(
+                        "text-xs leading-5 text-muted-foreground",
+                        compact ? "mt-1" : "mt-2",
+                      )}
+                    >
+                      {displayCode}
+                    </p>
+                  ) : null}
+                  {displayNote ? (
+                    <p
+                      className={cn(
+                        "break-words text-xs leading-5 text-muted-foreground",
+                        compact ? "mt-1" : "mt-2",
+                      )}
+                    >
+                      {displayNote}
+                    </p>
+                  ) : null}
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                    Total
+                  </p>
+                  <p
+                    className={cn(
+                      "font-semibold tabular",
+                      compact ? "mt-1 text-xl" : "mt-2 text-2xl",
+                    )}
+                  >
+                    {formatCurrency(displayTotal)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                "flex items-center justify-between bg-muted/35 px-4",
+                compact ? "py-2.5" : "py-3",
+              )}
+              data-estimation-summary-strip
+            >
+              <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                Gross Weight
+              </span>
+              <span className="text-sm font-semibold tabular">
+                {formatWeight(summary.grossWeight, "g")}
+              </span>
+            </div>
+
             <Separator />
+
             <div
               className={cn("px-4", compact ? "py-3" : "py-4")}
               data-estimation-summary-section
-              data-estimation-summary-stones
             >
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Diamonds/Stones
+                Gold
               </p>
-              <div
+              <p
                 className={cn(
-                  "divide-y divide-border/70",
+                  "text-xs text-muted-foreground",
                   compact ? "mt-2" : "mt-3",
                 )}
               >
-                {visibleStoneDetails.map((stone) => (
+                {formatWeight(summary.netGoldWeight, "g")} - {summary.purity} -{" "}
+                {formatCurrency(summary.goldRateValue)}/g
+              </p>
+              <div
+                className={cn(compact ? "mt-2 space-y-2" : "mt-3 space-y-3")}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-muted-foreground">
+                    Gold Cost
+                  </span>
+                  <span className="text-sm font-semibold tabular">
+                    {formatCurrency(summary.goldCost)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-muted-foreground">
+                    Making Charges
+                  </span>
+                  <span className="text-sm font-semibold tabular">
+                    {formatCurrency(summary.makingCost)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {hasStones ? (
+              <>
+                <Separator />
+                <div
+                  className={cn("px-4", compact ? "py-3" : "py-4")}
+                  data-estimation-summary-section
+                  data-estimation-summary-stones
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                    Diamonds/Stones
+                  </p>
                   <div
-                    key={stone.id}
-                    data-estimation-summary-stone-row
                     className={cn(
-                      "flex items-start justify-between gap-4 first:pt-0",
-                      compact ? "py-2" : "py-3",
+                      "divide-y divide-border/70",
+                      compact ? "mt-2" : "mt-3",
                     )}
                   >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">
-                        {stone.sourceStoneName ||
-                          stone.stoneType?.name ||
-                          "Stone"}
-                      </p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        {formatWeight(stone.weight, "ct")} - {stone.quantity}{" "}
-                        pcs
-                        {stone.fixedRatePerCarat
-                          ? ` @ ${formatCurrency(stone.fixedRatePerCarat)}/ct`
-                          : stone.slabInfo
-                            ? ` @ ${formatCurrency(stone.slabInfo.pricePerCarat)}/ct`
-                            : ""}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-sm font-semibold tabular">
-                      {formatCurrency(stone.totalCost)}
+                    {visibleStoneDetails.map((stone) => (
+                      <div
+                        key={stone.id}
+                        data-estimation-summary-stone-row
+                        className={cn(
+                          "flex items-start justify-between gap-4 first:pt-0",
+                          compact ? "py-2" : "py-3",
+                        )}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">
+                            {stone.sourceStoneName ||
+                              stone.stoneType?.name ||
+                              "Stone"}
+                          </p>
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {formatWeight(stone.weight, "ct")} -{" "}
+                            {stone.quantity} pcs
+                            {stone.fixedRatePerCarat
+                              ? ` @ ${formatCurrency(stone.fixedRatePerCarat)}/ct`
+                              : stone.slabInfo
+                                ? ` @ ${formatCurrency(stone.slabInfo.pricePerCarat)}/ct`
+                                : ""}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold tabular">
+                          {formatCurrency(stone.totalCost)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div
+                    data-estimation-summary-stones-total
+                    className={cn(
+                      "mt-2 flex items-center justify-between border-t border-border",
+                      compact ? "pt-2" : "pt-3",
+                    )}
+                  >
+                    <span className="text-sm text-muted-foreground">
+                      Total Stones
+                    </span>
+                    <span className="text-sm font-semibold tabular">
+                      {formatCurrency(summary.totalStoneCost)}
                     </span>
                   </div>
-                ))}
-              </div>
-              <div
-                data-estimation-summary-stones-total
-                className={cn(
-                  "mt-2 flex items-center justify-between border-t border-border",
-                  compact ? "pt-2" : "pt-3",
-                )}
-              >
-                <span className="text-sm text-muted-foreground">
-                  Total Stones
+                </div>
+              </>
+            ) : null}
+
+            <Separator />
+
+            <div
+              className={cn(
+                "px-4",
+                compact ? "space-y-2 py-3" : "space-y-3 py-4",
+              )}
+              data-estimation-summary-section
+            >
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-muted-foreground">Subtotal</span>
+                <span className="text-sm font-medium tabular">
+                  {formatCurrency(displaySubtotal)}
                 </span>
-                <span className="text-sm font-semibold tabular">
-                  {formatCurrency(summary.totalStoneCost)}
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-muted-foreground">
+                  GST ({(summary.gstRate * 100).toFixed(1)}%)
+                </span>
+                <span className="text-sm text-muted-foreground tabular">
+                  {formatCurrency(displayGst)}
                 </span>
               </div>
             </div>
+
+            <div
+              className={cn(
+                "flex items-center justify-between gap-4 bg-foreground px-4 text-background",
+                compact ? "py-3" : "py-3.5",
+              )}
+              data-estimation-summary-total
+            >
+              <span className="text-sm font-medium">Total</span>
+              <span
+                className={cn(
+                  "font-semibold tabular",
+                  compact ? "text-xl" : "text-2xl",
+                )}
+              >
+                {formatCurrency(displayTotal)}
+              </span>
+            </div>
           </>
-        ) : null}
-
-        <Separator />
-
-        <div
-          className={cn(
-            "px-4",
-            compact ? "space-y-2 py-3" : "space-y-3 py-4",
-          )}
-          data-estimation-summary-section
-        >
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-sm text-muted-foreground">Subtotal</span>
-            <span className="text-sm font-medium tabular">
-              {formatCurrency(displaySubtotal)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-sm text-muted-foreground">
-              GST ({(summary.gstRate * 100).toFixed(1)}%)
-            </span>
-            <span className="text-sm text-muted-foreground tabular">
-              {formatCurrency(displayGst)}
-            </span>
-          </div>
-        </div>
-
-        <div
-          className={cn(
-            "flex items-center justify-between gap-4 bg-foreground px-4 text-background",
-            compact ? "py-3" : "py-3.5",
-          )}
-          data-estimation-summary-total
-        >
-          <span className="text-sm font-medium">Total</span>
-          <span
-            className={cn(
-              "font-semibold tabular",
-              compact ? "text-xl" : "text-2xl",
-            )}
-          >
-            {formatCurrency(displayTotal)}
-          </span>
-        </div>
+        )}
 
         <div
           className={cn(
