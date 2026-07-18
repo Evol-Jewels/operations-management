@@ -1667,24 +1667,14 @@ export function CalculatorPageClient({
   );
   const estimateRequirements = useMemo(() => {
     const hasNetWeight = form.netGoldWeight > 0;
-    const hasStoneTypeAndWeight = form.stones.some(
-      (stone) =>
-        Boolean(getStoneType(settings, stone.stoneTypeId)) && stone.weight > 0,
-    );
-    const hasCompletedStone = completedStones.length > 0;
 
     return [
-      { label: "Select correct metal net weight and purity", complete: hasNetWeight },
       {
-        label: "Select a stone type and weight",
-        complete: hasStoneTypeAndWeight,
-      },
-      {
-        label: "Enter pieces and match a slab for at least one stone",
-        complete: hasCompletedStone,
+        label: "Select correct metal net weight and purity",
+        complete: hasNetWeight,
       },
     ];
-  }, [settings, form.netGoldWeight, form.stones, completedStones]);
+  }, [form.netGoldWeight]);
   const canShowSummary = estimateRequirements.every(
     (requirement) => requirement.complete,
   );
