@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Package,
   PanelRightClose,
+  Store,
   Users,
 } from "lucide-react";
 
@@ -75,7 +76,7 @@ import {
   formatRelativeTime,
   getUrgencyLevel,
 } from "@/lib/utils";
-import { type Order, type UrgencyLevel } from "@/types";
+import type { Order, UrgencyLevel } from "@/types";
 import type { BackendOrderStatus } from "@/types/order-api";
 import type { OrdersEnquiriesAnalyticsResponse } from "@/types/orders-enquiries-analytics-api";
 import type {
@@ -87,7 +88,11 @@ import type {
 import { RecentActivities } from "./RecentActivities";
 import { SalesTargetMeter } from "./SalesTargetMeter";
 
-type SalesTab = "orders" | "enquiries";
+export type SalesTab =
+  | "orders"
+  | "enquiries"
+  | "store-orders"
+  | "store-enquiries";
 type AdminDashboardTab = "orders-enquiries" | "sales-analytics";
 
 interface AnalyticsDashboardProps {
@@ -353,11 +358,7 @@ function MetricCard({ card }: { card: MetricCardData }) {
     );
   }
 
-  return (
-    <div className={className}>
-      {content}
-    </div>
-  );
+  return <div className={className}>{content}</div>;
 }
 
 function MetricsGrid({
@@ -552,9 +553,7 @@ function AnalyticsCharts({
         urgencyData={buildUrgencyData(
           buildSnapshotUrgency(analytics.currentSnapshot),
         )}
-        statusData={buildFunnelData(
-          analytics.periodActivity.enquiryFunnel,
-        )}
+        statusData={buildFunnelData(analytics.periodActivity.enquiryFunnel)}
       />
       <Panel title="Orders and enquiries created">
         <div className="rounded-lg border border-border/70 bg-card p-4">
@@ -576,10 +575,14 @@ function AnalyticsState({
 }) {
   if (isLoading) {
     return (
-      <div className="space-y-5" aria-label="Loading order and enquiry analytics">
+      <div className="space-y-5" aria-live="polite">
+        <span className="sr-only">Loading order and enquiry analytics</span>
         <MetricsGrid>
           {["one", "two", "three", "four"].map((item) => (
-            <div key={item} className="rounded-lg border border-border/70 bg-card p-4">
+            <div
+              key={item}
+              className="rounded-lg border border-border/70 bg-card p-4"
+            >
               <Skeleton className="h-4 w-24" />
               <Skeleton className="mt-3 h-8 w-16" />
             </div>
@@ -943,7 +946,6 @@ function SalesPerformanceCards({
             ? "Halfway crossed"
             : "Building momentum";
 
-
   return (
     <section className="rounded-lg border border-border/70 bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1060,11 +1062,11 @@ function ActivitySidebarToggle({ className }: { className?: string }) {
   return (
     <Button
       type="button"
-      variant="outline"
+      variant="ghost"
       size="icon"
       onClick={toggle}
       className={cn(
-        "size-9 shrink-0 rounded-lg border-border/70 bg-background/95 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted hover:text-foreground",
+        "size-9 shrink-0 bg-transparent text-muted-foreground shadow-none transition-colors hover:bg-transparent hover:text-foreground",
         className,
       )}
       aria-pressed={isOpen}
@@ -1088,7 +1090,7 @@ function RecentActivitiesColumn() {
   return (
     <div className="xl:sticky xl:top-5 xl:self-start">
       <div className="relative">
-        <ActivitySidebarToggle className="absolute top-2 right-2 z-10" />
+        <ActivitySidebarToggle className="absolute top-1 right-2 z-10" />
         <RecentActivities className="xl:max-h-[calc(100vh-2.5rem)]" />
       </div>
     </div>
@@ -1378,10 +1380,10 @@ function SalesLeaderboardCard({
                               {isSelected
                                 ? "Selected"
                                 : isLeader && isCurrentPerson
-                                ? "Top · You"
-                                : isLeader
-                                  ? "Top"
-                                  : "You"}
+                                  ? "Top · You"
+                                  : isLeader
+                                    ? "Top"
+                                    : "You"}
                             </Badge>
                           )}
                         </div>
@@ -1751,37 +1753,43 @@ export function AdminDashboard({
   }, [activeTab, closeActivity, openActivity]);
   const cards: MetricCardData[] = analytics
     ? [
-    {
-      label: "Active Orders",
-      value: String(analytics.currentSnapshot.activeOrders),
-      href: "/orders-workspace?type=order",
-      icon: <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />,
-      accent: "bg-blue-500/10 dark:bg-blue-500/10",
-    },
-    {
-      label: "Open Enquiries",
-      value: String(analytics.currentSnapshot.openEnquiries),
-      href: "/orders-workspace?type=enquiry",
-      icon: (
-        <MessageSquare className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-      ),
-      accent: "bg-amber-500/10 dark:bg-amber-500/10",
-    },
-    {
-      label: "Orders Created",
-      value: String(analytics.periodActivity.ordersCreated),
-      helper: formatAnalyticsPeriod(analytics.period),
-      icon: <Award className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />,
-      accent: "bg-emerald-500/10 dark:bg-emerald-500/10",
-    },
-    {
-      label: "Enquiry to Order",
-      value: `${analytics.periodActivity.conversion.enquiryToOrderRate}%`,
-      helper: `${analytics.periodActivity.conversion.enquiriesWithOrders} enquiries converted`,
-      icon: <ChartNoAxesColumn className="h-5 w-5 text-violet-600 dark:text-violet-400" />,
-      accent: "bg-violet-500/10 dark:bg-violet-500/10",
-    },
-  ]
+        {
+          label: "Active Orders",
+          value: String(analytics.currentSnapshot.activeOrders),
+          href: "/orders-workspace?type=order",
+          icon: (
+            <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          ),
+          accent: "bg-blue-500/10 dark:bg-blue-500/10",
+        },
+        {
+          label: "Open Enquiries",
+          value: String(analytics.currentSnapshot.openEnquiries),
+          href: "/orders-workspace?type=enquiry",
+          icon: (
+            <MessageSquare className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          ),
+          accent: "bg-amber-500/10 dark:bg-amber-500/10",
+        },
+        {
+          label: "Orders Created",
+          value: String(analytics.periodActivity.ordersCreated),
+          helper: formatAnalyticsPeriod(analytics.period),
+          icon: (
+            <Award className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          ),
+          accent: "bg-emerald-500/10 dark:bg-emerald-500/10",
+        },
+        {
+          label: "Enquiry to Order",
+          value: `${analytics.periodActivity.conversion.enquiryToOrderRate}%`,
+          helper: `${analytics.periodActivity.conversion.enquiriesWithOrders} enquiries converted`,
+          icon: (
+            <ChartNoAxesColumn className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+          ),
+          accent: "bg-violet-500/10 dark:bg-violet-500/10",
+        },
+      ]
     : [];
 
   return (
@@ -1928,13 +1936,26 @@ export function OperationsDashboard({
 }
 
 export function SalesDashboard({
+  activeTab,
+  onActiveTabChange,
   analytics,
   analyticsError,
   analyticsLoading,
   onRetryAnalytics,
   orders,
-}: AnalyticsDashboardProps & { orders: Order[] }) {
-  const [activeTab, setActiveTab] = useState<SalesTab>("orders");
+  storeOrders,
+  storeLocation,
+  storeRecordsLoading,
+  storeRecordsError,
+}: AnalyticsDashboardProps & {
+  activeTab: SalesTab;
+  onActiveTabChange: (tab: SalesTab) => void;
+  orders: Order[];
+  storeOrders: Order[];
+  storeLocation: { name: string; city: string } | null;
+  storeRecordsLoading: boolean;
+  storeRecordsError: Error | null;
+}) {
   const data = useMemo(() => {
     const openOrders = orders
       .filter(
@@ -1959,11 +1980,46 @@ export function SalesDashboard({
     return {
       openOrders,
       openEnquiries,
+      openStoreOrders: storeOrders.filter((order) => order.type === "order"),
+      openStoreEnquiries: storeOrders.filter(
+        (order) => order.type === "enquiry",
+      ),
     };
-  }, [orders]);
+  }, [orders, storeOrders]);
+
+  const salesTabs = [
+    {
+      key: "orders" as const,
+      label: "Open Orders",
+      count: data.openOrders.length,
+      icon: Package,
+    },
+    {
+      key: "enquiries" as const,
+      label: "Open Enquiries",
+      count: data.openEnquiries.length,
+      icon: MessageSquare,
+    },
+    ...(storeLocation
+      ? [
+          {
+            key: "store-orders" as const,
+            label: "Store Orders",
+            count: data.openStoreOrders.length,
+            icon: Store,
+          },
+          {
+            key: "store-enquiries" as const,
+            label: "Store Enquiries",
+            count: data.openStoreEnquiries.length,
+            icon: MessageSquare,
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-5 sm:pb-6">
       <div className="flex flex-col">
         <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
           Sales Dashboard
@@ -2021,39 +2077,30 @@ export function SalesDashboard({
       {analytics && <AnalyticsCharts analytics={analytics} />}
 
       <div>
-        <div className="flex items-center gap-1 border-b border-border">
-          <button
-            type="button"
-            onClick={() => setActiveTab("orders")}
-            className={cn(
-              "flex min-h-11 cursor-pointer items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-              activeTab === "orders"
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Package className="h-4 w-4" />
-            Open Orders
-            <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
-              {data.openOrders.length}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("enquiries")}
-            className={cn(
-              "flex min-h-11 cursor-pointer items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-              activeTab === "enquiries"
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <MessageSquare className="h-4 w-4" />
-            Open Enquiries
-            <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
-              {data.openEnquiries.length}
-            </span>
-          </button>
+        <div className="-mx-4 flex items-center gap-1 overflow-x-auto border-b border-border px-4 scrollbar-none sm:mx-0 sm:px-0">
+          {salesTabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => onActiveTabChange(tab.key)}
+                aria-pressed={activeTab === tab.key}
+                className={cn(
+                  "flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                  activeTab === tab.key
+                    ? "border-foreground text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+                <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="mt-4 overflow-hidden rounded-lg border border-border/70 bg-card">
@@ -2077,6 +2124,51 @@ export function SalesDashboard({
               <EmptyRows
                 title="No open enquiries"
                 description="Create a new enquiry to get started."
+              />
+            ))}
+          {(activeTab === "store-orders" || activeTab === "store-enquiries") &&
+          storeRecordsLoading ? (
+            <div className="space-y-3 p-4" aria-live="polite">
+              <span className="sr-only">Loading store records</span>
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : null}
+          {(activeTab === "store-orders" || activeTab === "store-enquiries") &&
+          storeRecordsError ? (
+            <div className="px-5 py-8 text-center">
+              <p className="text-sm font-medium text-foreground">
+                Store records could not be loaded.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {storeRecordsError.message}
+              </p>
+            </div>
+          ) : null}
+          {activeTab === "store-orders" &&
+            !storeRecordsLoading &&
+            !storeRecordsError &&
+            (data.openStoreOrders.length > 0 ? (
+              data.openStoreOrders.map((order) => (
+                <RecordRow key={order.id} order={order} />
+              ))
+            ) : (
+              <EmptyRows
+                title="No open store orders"
+                description={`There are no open orders for ${storeLocation?.name ?? "your store"}.`}
+              />
+            ))}
+          {activeTab === "store-enquiries" &&
+            !storeRecordsLoading &&
+            !storeRecordsError &&
+            (data.openStoreEnquiries.length > 0 ? (
+              data.openStoreEnquiries.map((order) => (
+                <EnquiryCard key={order.id} order={order} />
+              ))
+            ) : (
+              <EmptyRows
+                title="No open store enquiries"
+                description={`There are no open enquiries for ${storeLocation?.name ?? "your store"}.`}
               />
             ))}
         </div>
