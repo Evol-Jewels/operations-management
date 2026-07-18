@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     description: "Order tracking and operations dashboard for EVOL Jewels.",
     images: [
       {
-        url: "/evol-jewels-logo.png",
+        url: "/evol-logo.webp",
         alt: "EVOL Jewels logo",
       },
     ],
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "EVOL Jewels - Operations",
     description: "Order tracking and operations dashboard for EVOL Jewels.",
-    images: ["/evol-jewels-logo.png"],
+    images: ["/evol-logo.webp"],
   },
 };
 

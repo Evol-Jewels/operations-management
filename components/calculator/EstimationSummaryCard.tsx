@@ -770,7 +770,7 @@ export function EstimationSummaryCard({
               data-estimation-summary-stones
             >
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Stones
+                Diamonds/Stones
               </p>
               <div
                 className={cn(

@@ -7,6 +7,7 @@ import {
   createContext,
   type FC,
   isValidElement,
+  type Key,
   type ReactElement,
   type ReactNode,
   use,
@@ -286,6 +287,8 @@ export function Pie({
           selectSector(selectedSector === clickedName ? null : clickedName);
         }}
         shape={(props: PieSectorShapeProps) => {
+          const { key: sectorKey, ...sectorProps } = props as
+            PieSectorShapeProps & { key?: Key };
           const sectorName = data[props.index ?? 0]?.[nameKey] as string;
           const isGlowing = glowingSectors.includes(sectorName);
           const isDimmed =
@@ -295,7 +298,8 @@ export function Pie({
 
           return (
             <Sector
-              {...props}
+              key={sectorKey}
+              {...sectorProps}
               fill={`url(#${id}-colors-${sectorName})`}
               filter={isGlowing ? `url(#${id}-glow-${sectorName})` : undefined}
               stroke={paddingAngle < 0 ? "var(--background)" : "none"}

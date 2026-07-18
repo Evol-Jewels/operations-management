@@ -7,6 +7,7 @@ import {
   Columns2,
   Columns3,
   Diamond,
+  Download,
   MapPin,
   PackageSearch,
   RefreshCw,
@@ -92,6 +93,72 @@ type ActiveFilterChip = {
   label: string;
   onRemove: () => void;
 };
+
+function getImageExtension(blob: Blob, imageUrl: string) {
+  const typeExtension = blob.type.split("/")[1]?.split("+")[0];
+  if (typeExtension) return typeExtension === "jpeg" ? "jpg" : typeExtension;
+
+  const urlExtension = imageUrl.match(/\.([a-z0-9]+)(?:[?#]|$)/i)?.[1];
+  return urlExtension?.toLowerCase() || "jpg";
+}
+
+function InventoryImageDownloadButton({
+  imageUrl,
+  productCode,
+}: {
+  imageUrl: string;
+  productCode: string;
+}) {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  async function downloadImage() {
+    setIsDownloading(true);
+
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error("Image request failed");
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeProductCode =
+        productCode.trim().replace(/[^a-z0-9_-]+/gi, "-") || "product";
+
+      link.href = objectUrl;
+      link.download = `${safeProductCode}.${getImageExtension(blob, imageUrl)}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+      toast.success("Product image downloaded");
+    } catch {
+      toast.error("Unable to download the product image");
+    } finally {
+      setIsDownloading(false);
+    }
+  }
+
+  return (
+    <Button
+      type="button"
+      size="icon"
+      variant="secondary"
+      disabled={isDownloading}
+      aria-label={`Download image for ${productCode}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        void downloadImage();
+      }}
+      className="absolute top-2 right-2 z-20 size-9 cursor-pointer border border-border/70 bg-background/90 opacity-100 shadow-sm backdrop-blur-sm transition-opacity duration-200 hover:bg-background focus-visible:opacity-100 sm:opacity-0 sm:group-hover/image:opacity-100"
+    >
+      {isDownloading ? (
+        <RefreshCw className="size-4 animate-spin" />
+      ) : (
+        <Download className="size-4" />
+      )}
+    </Button>
+  );
+}
 
 const CATEGORY_VALUES: readonly InventoryCategory[] = [
   "RING",
@@ -359,33 +426,50 @@ function ProductListItem({
   const hasStoneInfo = stonePieces > 0 || stoneCarat > 0;
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
+    <div
       className={cn(
-        "flex w-full items-start gap-3 rounded-xl border bg-card p-3 text-left shadow-sm transition-colors cursor-pointer hover:border-foreground/25 hover:bg-muted/20",
+        "relative flex w-full items-start gap-3 rounded-xl border bg-card p-3 text-left shadow-sm transition-colors hover:border-foreground/25 hover:bg-muted/20 has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring has-[button:focus-visible]:ring-offset-2",
         compact && "gap-2.5 p-2.5",
         selected
           ? "border-foreground/60 ring-1 ring-foreground/10"
           : "border-border",
       )}
     >
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-label={`View ${product.name}`}
+        className="absolute inset-0 z-0 cursor-pointer rounded-xl"
+      />
       <div
         className={cn(
-          "relative h-[5.5rem] w-[5.5rem] shrink-0 overflow-hidden rounded-xl border border-border bg-muted/60 sm:h-24 sm:w-24",
+          "group/image pointer-events-none relative z-10 h-[5.5rem] w-[5.5rem] shrink-0 overflow-hidden rounded-xl border border-border bg-muted/60 sm:h-24 sm:w-24",
           compact && "h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20",
         )}
       >
-        <InventoryProductImage
-          image={image}
-          sizes="96px"
-          className="object-contain p-1.5"
-        />
+        {image ? (
+          <>
+            <Image
+              src={image.storageKey}
+              alt={image.altText}
+              fill
+              unoptimized
+              sizes="96px"
+              className="object-contain p-1.5"
+            />
+            <div className="pointer-events-auto">
+              <InventoryImageDownloadButton
+                imageUrl={image.storageKey}
+                productCode={product.productCode}
+              />
+            </div>
+          </>
+        ) : null}
       </div>
 
       <div
         className={cn(
-          "min-w-0 flex-1 space-y-2",
+          "pointer-events-none relative z-10 min-w-0 flex-1 space-y-2",
           compact && "space-y-1.5",
         )}
       >
@@ -439,7 +523,7 @@ function ProductListItem({
           </span>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -473,13 +557,27 @@ function ProductDetail({
   return (
     <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="grid lg:min-h-[26rem] lg:grid-cols-[minmax(280px,0.95fr)_minmax(300px,1fr)]">
-        <div className="relative aspect-[4/3] min-h-72 bg-muted/40 lg:aspect-auto lg:min-h-full">
-          <InventoryProductImage
-            image={image}
-            sizes="(min-width: 1024px) 45vw, 100vw"
-            className="object-cover"
-            showLabel
-          />
+        <div className="group/image relative aspect-[4/3] min-h-72 bg-muted/40 lg:aspect-auto lg:min-h-full">
+          {image ? (
+            <>
+              <Image
+                src={image.storageKey}
+                alt={image.altText}
+                fill
+                unoptimized
+                sizes="(min-width: 1024px) 45vw, 100vw"
+                className="object-cover"
+              />
+              <InventoryImageDownloadButton
+                imageUrl={image.storageKey}
+                productCode={product.productCode}
+              />
+            </>
+          ) : (
+            <div className="flex h-full min-h-72 items-center justify-center">
+              <PackageSearch className="h-8 w-8 text-muted-foreground/40" />
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col justify-between p-5 lg:p-6">
