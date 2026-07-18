@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { enquiryKeys } from "@/hooks/useEnquiries";
 import {
   createOrders,
+  fetchOpenStoreOrders,
   fetchOrderDetails,
   fetchOrders,
   updateOrder,
@@ -12,18 +13,27 @@ import {
 import type {
   CreateOrdersInput,
   ListOrdersQuery,
-  UpdateOrderStatusInput,
   UpdateOrderInput,
+  UpdateOrderStatusInput,
 } from "@/types/order-api";
 
 export const orderKeys = {
   all: ["orders"] as const,
   lists: () => [...orderKeys.all, "list"] as const,
   list: (query: ListOrdersQuery = {}) => [...orderKeys.lists(), query] as const,
+  store: () => [...orderKeys.lists(), "store"] as const,
   details: () => [...orderKeys.all, "detail"] as const,
   detail: (refCode: string | number) =>
     [...orderKeys.details(), String(refCode)] as const,
 };
+
+export function useOpenStoreOrders(options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: orderKeys.store(),
+    queryFn: fetchOpenStoreOrders,
+    enabled: options.enabled,
+  });
+}
 
 export function useOrders(
   query: ListOrdersQuery = {},
