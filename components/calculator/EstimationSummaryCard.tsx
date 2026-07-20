@@ -93,6 +93,33 @@ function formatWeight(value: number, suffix: string, decimals = 3) {
   return `${value.toFixed(decimals).replace(/\.?0+$/, "")} ${suffix}`;
 }
 
+function getStoneCategoryGroups(
+  stoneDetails: SharedSummaryData["stoneDetails"],
+) {
+  const visibleStoneDetails = stoneDetails.filter((stone) => stone.weight > 0);
+
+  return (
+    [
+      { category: "Diamond", label: "Diamonds" },
+      { category: "Gemstone", label: "Gemstones" },
+    ] as const
+  )
+    .map(({ category, label }) => {
+      const details = visibleStoneDetails.filter(
+        (stone) => (stone.stoneType?.category ?? "Diamond") === category,
+      );
+
+      return {
+        category,
+        label,
+        details,
+        totalWeight: details.reduce((total, stone) => total + stone.weight, 0),
+        totalCost: details.reduce((total, stone) => total + stone.totalCost, 0),
+      };
+    })
+    .filter((group) => group.details.length > 0);
+}
+
 function makeSlug(value: string) {
   return (
     value
@@ -434,17 +461,7 @@ export function EstimationSummaryDownloadButton({
 }
 
 function CompactSummary({ summary }: { summary: SharedSummaryData }) {
-  const visibleStoneDetails = summary.stoneDetails.filter(
-    (stone) => stone.weight > 0,
-  );
-  const totalStoneWeight = visibleStoneDetails.reduce(
-    (total, stone) => total + stone.weight,
-    0,
-  );
-  const totalStonePrice = visibleStoneDetails.reduce(
-    (total, stone) => total + stone.totalCost,
-    0,
-  );
+  const stoneCategoryGroups = getStoneCategoryGroups(summary.stoneDetails);
   const hasDiamondColor = Boolean(summary.diamondColor);
   const hasDiamondClarity = Boolean(summary.diamondClarity);
   const hasDiamondMetadata = hasDiamondColor || hasDiamondClarity;
@@ -474,9 +491,7 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
           </thead>
           <tbody className="divide-y divide-border/70">
             <tr>
-              <td className="px-4 py-2.5 text-muted-foreground">
-                Gross Weight
-              </td>
+              <td className="px-4 py-2.5">Gross Weight</td>
               <td className="px-2 py-2.5 font-medium tabular">
                 {formatWeight(summary.grossWeight, "g")}
               </td>
@@ -485,9 +500,7 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
               </td>
             </tr>
             <tr>
-              <td className="px-4 py-2.5 text-muted-foreground">
-                Net Metal · {summary.purity}
-              </td>
+              <td className="px-4 py-2.5">Net Metal · {summary.purity}</td>
               <td className="px-2 py-2.5 font-medium tabular">
                 {formatWeight(summary.netGoldWeight, "g")}
               </td>
@@ -496,7 +509,7 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
               </td>
             </tr>
             <tr>
-              <td className="px-4 py-2.5 text-muted-foreground">Making</td>
+              <td className="px-4 py-2.5">Making</td>
               <td className="px-2 py-2.5 font-medium tabular">
                 {formatWeight(summary.netGoldWeight, "g")}
               </td>
@@ -504,19 +517,19 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
                 {priceOrDash(summary.makingCost)}
               </td>
             </tr>
-            <tr>
-              <td className="px-4 py-2.5 text-muted-foreground">
-                Diamonds/Stones
-              </td>
-              <td className="px-2 py-2.5 font-medium tabular">
-                {formatWeight(totalStoneWeight, "ct")}
-              </td>
-              <td className="px-4 py-2.5 text-right font-semibold tabular">
-                {priceOrDash(totalStonePrice)}
-              </td>
-            </tr>
+            {stoneCategoryGroups.map((group) => (
+              <tr key={group.category}>
+                <td className="px-4 py-2.5">{group.label}</td>
+                <td className="px-2 py-2.5 text-xs text-muted-foreground tabular">
+                  {formatWeight(group.totalWeight, "ct")}
+                </td>
+                <td className="px-4 py-2.5 text-right font-semibold tabular">
+                  {priceOrDash(group.totalCost)}
+                </td>
+              </tr>
+            ))}
             <tr className="border-t border-border bg-muted/15">
-              <td colSpan={2} className="px-4 py-2.5 text-muted-foreground">
+              <td colSpan={2} className="px-4 py-2.5 font-medium">
                 Subtotal
               </td>
               <td className="px-4 py-2.5 text-right font-semibold tabular">
@@ -524,7 +537,7 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
               </td>
             </tr>
             <tr className="bg-muted/15">
-              <td colSpan={2} className="px-4 py-2.5 text-muted-foreground">
+              <td colSpan={2} className="px-4 py-2.5">
                 GST ({(summary.gstRate * 100).toFixed(1)}%)
               </td>
               <td className="px-4 py-2.5 text-right font-semibold tabular">
@@ -646,10 +659,8 @@ export function EstimationSummaryCard({
     data.kind === "calculator" ? "compact" : "detailed",
   );
   const summary = getSummaryData(data);
-  const visibleStoneDetails = summary.stoneDetails.filter(
-    (stone) => stone.weight > 0,
-  );
-  const hasStones = visibleStoneDetails.length > 0;
+  const stoneCategoryGroups = getStoneCategoryGroups(summary.stoneDetails);
+  const hasStones = stoneCategoryGroups.length > 0;
   const displayName = summary.name || "";
   const displayCode = summary.code.trim();
   const displayNote = summary.note.trim();
@@ -994,33 +1005,22 @@ export function EstimationSummaryCard({
               className={cn("px-4", compact ? "py-3" : "py-4")}
               data-estimation-summary-section
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Gold
-              </p>
-              <p
-                className={cn(
-                  "text-xs text-muted-foreground",
-                  compact ? "mt-2" : "mt-3",
-                )}
-              >
-                {formatWeight(summary.netGoldWeight, "g")} - {summary.purity} -{" "}
-                {formatCurrency(summary.goldRateValue)}/g
-              </p>
-              <div
-                className={cn(compact ? "mt-2 space-y-2" : "mt-3 space-y-3")}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm text-muted-foreground">
-                    Gold Cost
-                  </span>
+              <div className={cn(compact ? "space-y-2" : "space-y-3")}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">Gold</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {formatWeight(summary.netGoldWeight, "g")} -{" "}
+                      {summary.purity} - {formatCurrency(summary.goldRateValue)}
+                      /g
+                    </p>
+                  </div>
                   <span className="text-sm font-semibold tabular">
                     {formatCurrency(summary.goldCost)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm text-muted-foreground">
-                    Making Charges
-                  </span>
+                  <span className="text-sm font-medium">Making Charges</span>
                   <span className="text-sm font-semibold tabular">
                     {formatCurrency(summary.makingCost)}
                   </span>
@@ -1032,63 +1032,69 @@ export function EstimationSummaryCard({
               <>
                 <Separator />
                 <div
-                  className={cn("px-4", compact ? "py-3" : "py-4")}
+                  className="px-4"
                   data-estimation-summary-section
                   data-estimation-summary-stones
                 >
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    Diamonds/Stones
-                  </p>
-                  <div
-                    className={cn(
-                      "divide-y divide-border/70",
-                      compact ? "mt-2" : "mt-3",
-                    )}
-                  >
-                    {visibleStoneDetails.map((stone) => (
+                  <div className="divide-y divide-border">
+                    {stoneCategoryGroups.map((group) => (
                       <div
-                        key={stone.id}
-                        data-estimation-summary-stone-row
-                        className={cn(
-                          "flex items-start justify-between gap-4 first:pt-0",
-                          compact ? "py-2" : "py-3",
-                        )}
+                        key={group.category}
+                        data-estimation-summary-stone-group={group.category}
                       >
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium">
-                            {stone.sourceStoneName ||
-                              stone.stoneType?.name ||
-                              "Stone"}
-                          </p>
-                          <p className="mt-1 text-[11px] text-muted-foreground">
-                            {formatWeight(stone.weight, "ct")} -{" "}
-                            {stone.quantity} pcs
-                            {stone.fixedRatePerCarat
-                              ? ` @ ${formatCurrency(stone.fixedRatePerCarat)}/ct`
-                              : stone.slabInfo
-                                ? ` @ ${formatCurrency(stone.slabInfo.pricePerCarat)}/ct`
-                                : ""}
-                          </p>
+                        <div className="divide-y divide-border/70">
+                          {group.details.map((stone) => (
+                            <div
+                              key={stone.id}
+                              data-estimation-summary-stone-row
+                              className={cn(
+                                "flex items-start justify-between gap-4",
+                                compact ? "py-2.5" : "py-3",
+                              )}
+                            >
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-muted-foreground">
+                                  {stone.sourceStoneName ||
+                                    stone.stoneType?.name ||
+                                    "Stone"}
+                                </p>
+                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                  {formatWeight(stone.weight, "ct")} -{" "}
+                                  {stone.quantity} pcs
+                                  {stone.fixedRatePerCarat
+                                    ? ` @ ${formatCurrency(stone.fixedRatePerCarat)}/ct`
+                                    : stone.slabInfo
+                                      ? ` @ ${formatCurrency(stone.slabInfo.pricePerCarat)}/ct`
+                                      : ""}
+                                </p>
+                              </div>
+                              <span className="shrink-0 text-sm text-muted-foreground tabular">
+                                {formatCurrency(stone.totalCost)}
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                        <span className="shrink-0 text-sm font-semibold tabular">
-                          {formatCurrency(stone.totalCost)}
-                        </span>
+                        <div
+                          data-estimation-summary-stones-total
+                          className={cn(
+                            "flex items-center justify-between border-t border-border",
+                            compact ? "py-2.5" : "py-3",
+                          )}
+                        >
+                          <div className="flex min-w-0 items-baseline gap-1.5 whitespace-nowrap">
+                            <span className="text-sm font-medium">
+                              Total {group.label}
+                            </span>
+                            <span className="shrink-0 text-xs text-muted-foreground tabular">
+                              ({formatWeight(group.totalWeight, "ct")})
+                            </span>
+                          </div>
+                          <span className="shrink-0 text-sm font-semibold tabular">
+                            {formatCurrency(group.totalCost)}
+                          </span>
+                        </div>
                       </div>
                     ))}
-                  </div>
-                  <div
-                    data-estimation-summary-stones-total
-                    className={cn(
-                      "mt-2 flex items-center justify-between border-t border-border",
-                      compact ? "pt-2" : "pt-3",
-                    )}
-                  >
-                    <span className="text-sm text-muted-foreground">
-                      Total Stones
-                    </span>
-                    <span className="text-sm font-semibold tabular">
-                      {formatCurrency(summary.totalStoneCost)}
-                    </span>
                   </div>
                 </div>
               </>
@@ -1104,16 +1110,16 @@ export function EstimationSummaryCard({
               data-estimation-summary-section
             >
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-muted-foreground">Subtotal</span>
-                <span className="text-sm font-medium tabular">
+                <span className="text-sm font-medium">Subtotal</span>
+                <span className="text-sm font-semibold tabular">
                   {formatCurrency(displaySubtotal)}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm font-medium">
                   GST ({(summary.gstRate * 100).toFixed(1)}%)
                 </span>
-                <span className="text-sm text-muted-foreground tabular">
+                <span className="text-sm font-semibold tabular">
                   {formatCurrency(displayGst)}
                 </span>
               </div>
