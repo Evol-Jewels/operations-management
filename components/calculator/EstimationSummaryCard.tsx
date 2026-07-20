@@ -520,7 +520,7 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
             {stoneCategoryGroups.map((group) => (
               <tr key={group.category}>
                 <td className="px-4 py-2.5">{group.label}</td>
-                <td className="px-2 py-2.5 text-xs text-muted-foreground tabular">
+                <td className="px-2 py-2.5 font-medium tabular">
                   {formatWeight(group.totalWeight, "ct")}
                 </td>
                 <td className="px-4 py-2.5 text-right font-semibold tabular">
