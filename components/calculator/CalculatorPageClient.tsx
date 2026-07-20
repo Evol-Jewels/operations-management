@@ -52,6 +52,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
+import { useInfiniteRecentProductEstimates } from "@/hooks/useRecentProductEstimates";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
@@ -73,10 +74,7 @@ import {
   fetchInventoryProducts,
 } from "@/lib/inventoryApi";
 import { normalizeInventoryProductEstimate } from "@/lib/inventoryProductMapping";
-import {
-  createRecentProductEstimate,
-  fetchRecentProductEstimates,
-} from "@/lib/recentProductEstimatesApi";
+import { createRecentProductEstimate } from "@/lib/recentProductEstimatesApi";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   CalculatorFormState,
@@ -330,18 +328,19 @@ function StoneTypeCombobox({
   value: string;
   onChange: (stoneTypeId: string) => void;
 }) {
+  const sortedStoneTypes = [...stoneTypes].sort(
+    (a, b) =>
+      a.category.localeCompare(b.category) || a.name.localeCompare(b.name),
+  );
+
   return (
     <SharedStoneTypeCombobox
-      options={stoneTypes.map((item) => ({
+      options={sortedStoneTypes.map((item) => ({
         value: item.stoneId,
         label: item.name,
         category: item.category,
         metadata: `${item.category} · ${item.slabs.length} slabs`,
-        searchText: [
-          item.clarity,
-          item.color,
-          ...item.slabs.map((slab) => slab.code),
-        ]
+        searchText: [item.clarity, item.color]
           .filter(Boolean)
           .join(" "),
       }))}
@@ -838,31 +837,42 @@ function RecentEstimatesList({
   refreshKey: number;
   onOpen: (estimate: RecentProductEstimate) => void;
 }) {
-  const [estimates, setEstimates] = useState<RecentProductEstimate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [manualRefreshKey, setManualRefreshKey] = useState(0);
+  const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
+  const {
+    data,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isError,
+    isFetchNextPageError,
+    isFetching,
+    isFetchingNextPage,
+    isLoading,
+  } = useInfiniteRecentProductEstimates(`${refreshKey}:${manualRefreshKey}`);
+  const estimates = data?.pages.flat() ?? [];
 
   useEffect(() => {
-    async function loadRecentEstimates(_requestKey: string) {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const items = await fetchRecentProductEstimates({
-          limit: 10,
-          offset: 0,
-        });
-        setEstimates(items);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load recents");
-      } finally {
-        setIsLoading(false);
-      }
+    const trigger = loadMoreTriggerRef.current;
+    if (
+      !trigger ||
+      !hasNextPage ||
+      isFetchingNextPage ||
+      isFetchNextPageError
+    ) {
+      return;
     }
 
-    loadRecentEstimates(`${refreshKey}:${manualRefreshKey}`);
-  }, [refreshKey, manualRefreshKey]);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) void fetchNextPage();
+      },
+      { rootMargin: "240px 0px" },
+    );
+
+    observer.observe(trigger);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError]);
 
   return (
     <section className="my-5 space-y-2">
@@ -874,9 +884,9 @@ function RecentEstimatesList({
           size="sm"
           className="h-8 gap-1.5"
           onClick={() => setManualRefreshKey((current) => current + 1)}
-          disabled={isLoading}
+          disabled={isFetching}
         >
-          {isLoading ? (
+          {isFetching && !isFetchingNextPage ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <RefreshCcw className="h-4 w-4" />
@@ -896,9 +906,13 @@ function RecentEstimatesList({
               <div className="h-3 w-12 rounded bg-muted" />
             </div>
           ))
-        ) : error ? (
+        ) : isError && estimates.length === 0 ? (
           <div className="rounded-xl border border-destructive/35 px-4 py-3 text-sm text-destructive">
-            <p>{error}</p>
+            <p>
+              {error instanceof Error
+                ? error.message
+                : "Failed to load recents"}
+            </p>
             <Button
               type="button"
               variant="ghost"
@@ -914,13 +928,40 @@ function RecentEstimatesList({
             No recent estimates yet.
           </div>
         ) : (
-          estimates.map((estimate) => (
-            <RecentEstimateRow
-              key={estimate.id}
-              estimate={estimate}
-              onOpen={onOpen}
-            />
-          ))
+          <>
+            {estimates.map((estimate) => (
+              <RecentEstimateRow
+                key={estimate.id}
+                estimate={estimate}
+                onOpen={onOpen}
+              />
+            ))}
+            <div
+              ref={loadMoreTriggerRef}
+              className="flex min-h-10 items-center justify-center"
+              aria-live="polite"
+            >
+              {isFetchingNextPage ? (
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2
+                    className="h-4 w-4 animate-spin"
+                    aria-hidden="true"
+                  />
+                  Loading more estimates...
+                </span>
+              ) : isFetchNextPageError ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-destructive hover:text-destructive"
+                  onClick={() => void fetchNextPage()}
+                >
+                  Try loading more again
+                </Button>
+              ) : null}
+            </div>
+          </>
         )}
       </div>
     </section>

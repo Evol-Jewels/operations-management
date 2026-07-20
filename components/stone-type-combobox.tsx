@@ -57,7 +57,13 @@ export function StoneTypeCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[max(var(--radix-popover-trigger-width),18rem)] max-w-[calc(100vw-2rem)] p-0">
-        <Command>
+        <Command
+          filter={(itemValue, search) =>
+            itemValue.toLowerCase().includes(search.trim().toLowerCase())
+              ? 1
+              : 0
+          }
+        >
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList id={listId}>
             <CommandEmpty>{loading ? "Loading stone types..." : emptyMessage}</CommandEmpty>

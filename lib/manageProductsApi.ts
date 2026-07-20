@@ -173,6 +173,41 @@ export interface ListLocationsQuery {
   offset?: number;
 }
 
+const ALL_RECORDS_PAGE_SIZE = 1000;
+
+async function fetchAllPages<T extends { id: string }>(
+  fetchPage: (limit: number, offset: number) => Promise<{
+    data: T[];
+    total: number;
+  }>,
+) {
+  const data: T[] = [];
+  const seenIds = new Set<string>();
+  let offset = 0;
+  let total = 0;
+
+  while (true) {
+    const page = await fetchPage(ALL_RECORDS_PAGE_SIZE, offset);
+    total = Math.max(total, page.total);
+
+    const newItems = page.data.filter((item) => {
+      if (seenIds.has(item.id)) return false;
+      seenIds.add(item.id);
+      return true;
+    });
+
+    data.push(...newItems);
+
+    if (page.data.length === 0 || newItems.length === 0) {
+      break;
+    }
+
+    offset += page.data.length;
+  }
+
+  return { data, total: Math.max(total, data.length) };
+}
+
 export function fetchStoneTypes(query: ListStoneTypesQuery = {}) {
   return apiFetch<unknown>(
     buildUrl("api/v1/stone-types", {
@@ -181,6 +216,14 @@ export function fetchStoneTypes(query: ListStoneTypesQuery = {}) {
       offset: query.offset,
     }),
   ).then(normalizeListResponse<StoneTypeResponse>);
+}
+
+export function fetchAllStoneTypes(
+  query: Omit<ListStoneTypesQuery, "limit" | "offset"> = {},
+) {
+  return fetchAllPages((limit, offset) =>
+    fetchStoneTypes({ ...query, limit, offset }),
+  );
 }
 
 export function createStoneType(input: CreateStoneTypeInput) {
@@ -214,6 +257,14 @@ export function fetchStoneSlabs(query: ListStoneSlabsQuery = {}) {
       stoneTypeId: query.stoneTypeId,
     }),
   ).then(normalizeListResponse<StoneSlabResponse>);
+}
+
+export function fetchAllStoneSlabs(
+  query: Omit<ListStoneSlabsQuery, "limit" | "offset"> = {},
+) {
+  return fetchAllPages((limit, offset) =>
+    fetchStoneSlabs({ ...query, limit, offset }),
+  );
 }
 
 export function createStoneSlab(input: CreateStoneSlabInput) {

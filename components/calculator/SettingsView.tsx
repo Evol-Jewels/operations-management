@@ -33,6 +33,13 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import type {
   CalculatorSettings,
@@ -453,7 +460,7 @@ export function SettingsView({
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       <div className="space-y-1.5">
                         <p className="text-xs text-muted-foreground">Name</p>
                         <Input
@@ -486,6 +493,25 @@ export function SettingsView({
                           }}
                           className={`${compactInputClass} h-9 rounded-none text-sm`}
                         />
+                      </div>
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-muted-foreground">Type</p>
+                        <Select
+                          value={editingStone.category}
+                          onValueChange={(category) =>
+                            updateStoneType(editingStone.stoneId, {
+                              category: category as "Diamond" | "Gemstone",
+                            })
+                          }
+                        >
+                          <SelectTrigger className="h-9 w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Diamond">Diamond</SelectItem>
+                            <SelectItem value="Gemstone">Gemstone</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
 
@@ -651,6 +677,9 @@ export function SettingsView({
                             </div>
                           </div>
                           <div className="mt-2 flex items-center gap-2 pl-6">
+                            <Badge variant="outline" className="text-xs">
+                              {stone.category}
+                            </Badge>
                             <Badge variant="secondary" className="text-xs">
                               {stone.slabs.length} slabs
                             </Badge>

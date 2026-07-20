@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useOrdersStore } from "@/lib/stores/orders-store";
-import { useStoneTypes } from "@/hooks/useManageProducts";
+import { useStoneTypeOptions } from "@/hooks/useManageProducts";
 import { calculateEstimationAmount } from "@/lib/utils";
 import type {
   MetalPurity,
@@ -56,13 +56,7 @@ export function EstimationForm({
   productId,
   initialPurity,
 }: EstimationFormProps) {
-  const stoneTypesQuery = useStoneTypes({ limit: 1000 });
-  const stoneTypeOptions = (stoneTypesQuery.data?.data ?? [])
-    .filter((stone) => !stone.isDeleted)
-    .map((stone) => ({ value: stone.name, label: stone.name }));
-  const availableStoneTypes = stoneTypeOptions.length > 0
-    ? stoneTypeOptions
-    : STONE_TYPES.map((stone) => ({ value: stone, label: stone }));
+  const stoneTypesQuery = useStoneTypeOptions({ fallbackNames: STONE_TYPES });
   const [open, setOpen] = useState(false);
   const [metalWeight, setMetalWeight] = useState("");
   const [purity, setPurity] = useState<MetalPurity>(initialPurity);
@@ -215,7 +209,7 @@ export function EstimationForm({
                   <div className="space-y-1">
                     <Label className="text-xs">Type</Label>
                     <StoneTypeCombobox
-                      options={availableStoneTypes}
+                      options={stoneTypesQuery.options}
                       value={stone.type || ""}
                       onValueChange={(value) => updateStone(index, "type", value)}
                       loading={stoneTypesQuery.isLoading}

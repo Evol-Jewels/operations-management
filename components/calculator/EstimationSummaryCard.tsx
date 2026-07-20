@@ -643,7 +643,7 @@ export function EstimationSummaryCard({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [summaryFormat, setSummaryFormat] = useState<"detailed" | "compact">(
-    "detailed",
+    data.kind === "calculator" ? "compact" : "detailed",
   );
   const summary = getSummaryData(data);
   const visibleStoneDetails = summary.stoneDetails.filter(
