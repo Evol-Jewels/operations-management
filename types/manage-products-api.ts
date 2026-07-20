@@ -1,6 +1,9 @@
 export interface StoneTypeResponse {
   id: string;
   name: string;
+  category: "Diamond" | "Gemstone" | null;
+  clarity: string | null;
+  color: string | null;
   createdAt: string;
   updatedAt: string;
   isDeleted: boolean;
@@ -13,10 +16,12 @@ export interface StoneTypeListResponse {
 
 export interface CreateStoneTypeInput {
   name: string;
+  category: "Diamond" | "Gemstone";
 }
 
 export interface UpdateStoneTypeInput {
   name?: string;
+  category?: "Diamond" | "Gemstone";
 }
 
 export interface StoneSlabResponse {

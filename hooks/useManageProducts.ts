@@ -10,6 +10,7 @@ import {
   deleteMetal,
   deleteStoneSlab,
   deleteStoneType,
+  fetchAllStoneTypes,
   fetchLocations,
   fetchMetals,
   fetchStoneSlabs,
@@ -37,6 +38,7 @@ import type {
 export const manageProductsKeys = {
   all: ["manage-products"] as const,
   stoneTypes: () => [...manageProductsKeys.all, "stone-types"] as const,
+  allStoneTypes: () => [...manageProductsKeys.stoneTypes(), "all"] as const,
   stoneTypesList: (query: ListStoneTypesQuery = {}) =>
     [...manageProductsKeys.stoneTypes(), query] as const,
   stoneSlabs: () => [...manageProductsKeys.all, "stone-slabs"] as const,
@@ -61,6 +63,40 @@ export function useStoneTypes(
     enabled,
     staleTime: options.staleTime,
   });
+}
+
+interface StoneTypeOptionsConfig {
+  fallbackNames?: readonly string[];
+  additionalNames?: readonly string[];
+  sort?: boolean;
+}
+
+export function useStoneTypeOptions({
+  fallbackNames = [],
+  additionalNames = [],
+  sort = false,
+}: StoneTypeOptionsConfig = {}) {
+  const query = useQuery({
+    queryKey: manageProductsKeys.allStoneTypes(),
+    queryFn: () => fetchAllStoneTypes(),
+  });
+  const activeNames = (query.data?.data ?? [])
+    .filter((stone) => !stone.isDeleted)
+    .map((stone) => stone.name.trim())
+    .filter(Boolean);
+  const names = Array.from(
+    new Set([
+      ...(activeNames.length > 0 ? activeNames : fallbackNames),
+      ...additionalNames,
+    ]),
+  );
+
+  if (sort) names.sort((a, b) => a.localeCompare(b));
+
+  return {
+    ...query,
+    options: names.map((name) => ({ value: name, label: name })),
+  };
 }
 
 export function useCreateStoneType() {

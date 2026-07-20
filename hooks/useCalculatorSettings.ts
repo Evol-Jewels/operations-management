@@ -4,10 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_CALCULATOR_SETTINGS } from "@/lib/calculator/constants";
 import {
-  fetchStoneSlabs,
-  fetchStoneTypes,
-  type ListStoneSlabsQuery,
-  type ListStoneTypesQuery,
+  fetchAllStoneSlabs,
+  fetchAllStoneTypes,
 } from "@/lib/manageProductsApi";
 import { fetchGoldRate, fetchSystemConfigs } from "@/lib/systemConfigApi";
 import type {
@@ -26,9 +24,6 @@ const SYSTEM_CONFIGS_STORAGE_KEY = "diamond-calc-system-configs-v1";
 const STONE_TYPES_STORAGE_KEY = "diamond-calc-stone-types-v1";
 const STONE_SLABS_STORAGE_KEY = "diamond-calc-stone-slabs-v1";
 const LAST_SETTINGS_SYNCED_STORAGE_KEY = "diamond-calc-settings-last-synced-v1";
-const LIST_QUERY = { limit: 1000, offset: 0 } satisfies ListStoneTypesQuery &
-  ListStoneSlabsQuery;
-
 interface ListCache<T> {
   data: T[];
   total: number;
@@ -238,7 +233,9 @@ function mapStoneTypes(
   return activeStoneTypes.map((stone) => ({
     stoneId: stone.id,
     name: stone.name,
-    category: "Diamond",
+    category: stone.category ?? "Diamond",
+    clarity: stone.clarity ?? undefined,
+    color: stone.color ?? undefined,
     slabs: activeSlabs
       .filter((slab) => slab.stoneTypeId === stone.id)
       .map(mapStoneSlab),
@@ -316,6 +313,9 @@ function stoneTypesFromSettings(
     return {
       id: stone.stoneId,
       name: stone.name,
+      category: stone.category,
+      clarity: stone.clarity ?? null,
+      color: stone.color ?? null,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       isDeleted: false,
@@ -395,34 +395,25 @@ export function useCalculatorSettings() {
     const missingStoneTypes = stoneTypes === null;
     const missingStoneSlabs = stoneSlabs === null;
 
-    if (
-      missingCacheLoadRef.current ||
-      (!missingSystemConfigs && !missingStoneTypes && !missingStoneSlabs)
-    ) {
-      return;
-    }
+    if (missingCacheLoadRef.current) return;
 
     missingCacheLoadRef.current = true;
-    setIsLoadingCachedSettings(true);
+    setIsLoadingCachedSettings(
+      missingSystemConfigs || missingStoneTypes || missingStoneSlabs,
+    );
     setCacheError(null);
 
-    async function loadMissingCachedSettings() {
+    async function refreshCachedSettings() {
       try {
         const systemConfigsPromise = missingSystemConfigs
           ? fetchSystemConfigs()
           : Promise.resolve(systemConfigs);
-        const stoneTypesPromise = missingStoneTypes
-          ? fetchStoneTypes(LIST_QUERY)
-          : Promise.resolve(stoneTypes);
-        const stoneSlabsPromise = missingStoneSlabs
-          ? fetchStoneSlabs(LIST_QUERY)
-          : Promise.resolve(stoneSlabs);
 
         const [systemConfigsResult, stoneTypesResult, stoneSlabsResult] =
           await Promise.all([
             systemConfigsPromise,
-            stoneTypesPromise,
-            stoneSlabsPromise,
+            fetchAllStoneTypes(),
+            fetchAllStoneSlabs(),
           ]);
 
         if (!systemConfigsResult || !stoneTypesResult || !stoneSlabsResult) {
@@ -446,7 +437,7 @@ export function useCalculatorSettings() {
       }
     }
 
-    void loadMissingCachedSettings();
+    void refreshCachedSettings();
   }, [stoneSlabs, stoneTypes, systemConfigs]);
 
   const settings = useMemo<CalculatorSettings>(() => {
@@ -475,8 +466,8 @@ export function useCalculatorSettings() {
       const [nextSystemConfigs, nextStoneTypes, nextStoneSlabs] =
         await Promise.all([
           fetchSystemConfigs(),
-          fetchStoneTypes(LIST_QUERY),
-          fetchStoneSlabs(LIST_QUERY),
+          fetchAllStoneTypes(),
+          fetchAllStoneSlabs(),
         ]);
 
       persistCalculatorCaches({

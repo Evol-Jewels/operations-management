@@ -106,6 +106,7 @@ type LocationDraft = {
 
 type StoneDraft = {
   name: string;
+  category: "Diamond" | "Gemstone";
 };
 
 type SlabDraft = {
@@ -230,7 +231,9 @@ function SectionShell({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {children}
+      </div>
     </div>
   );
 }
@@ -824,12 +827,33 @@ function StoneDialog({
         </DialogHeader>
 
         {draft ? (
-          <FieldBlock label="Name">
-            <TextInput
-              value={draft.name}
-              onChange={(name) => onDraftChange({ ...draft, name })}
-            />
-          </FieldBlock>
+          <div className="grid gap-5 py-2 sm:grid-cols-2">
+            <FieldBlock label="Name">
+              <TextInput
+                value={draft.name}
+                onChange={(name) => onDraftChange({ ...draft, name })}
+              />
+            </FieldBlock>
+            <FieldBlock label="Type">
+              <Select
+                value={draft.category}
+                onValueChange={(category) =>
+                  onDraftChange({
+                    ...draft,
+                    category: category as "Diamond" | "Gemstone",
+                  })
+                }
+              >
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Diamond">Diamond</SelectItem>
+                  <SelectItem value="Gemstone">Gemstone</SelectItem>
+                </SelectContent>
+              </Select>
+            </FieldBlock>
+          </div>
         ) : null}
 
         <DialogFooter>
@@ -1014,13 +1038,16 @@ function StonesAndSlabsEditor({ onBack }: { onBack: () => void }) {
 
   function openAddStoneDialog() {
     setEditingStone(null);
-    setStoneDraft({ name: "" });
+    setStoneDraft({ name: "", category: "Diamond" });
     setStoneDialogMode("add");
   }
 
   function openEditStoneDialog(stone: StoneTypeResponse) {
     setEditingStone(stone);
-    setStoneDraft({ name: stone.name });
+    setStoneDraft({
+      name: stone.name,
+      category: stone.category ?? "Diamond",
+    });
     setStoneDialogMode("edit");
   }
 
@@ -1046,13 +1073,17 @@ function StonesAndSlabsEditor({ onBack }: { onBack: () => void }) {
       if (stoneDialogMode === "add") {
         const stone = await createStoneType.mutateAsync({
           name: stoneDraft.name.trim(),
+          category: stoneDraft.category,
         });
         setSelectedStoneId(stone.id);
         toast.success("Stone type created");
       } else if (editingStone) {
         const stone = await updateStoneType.mutateAsync({
           id: editingStone.id,
-          input: { name: stoneDraft.name.trim() },
+          input: {
+            name: stoneDraft.name.trim(),
+            category: stoneDraft.category,
+          },
         });
         setSelectedStoneId(stone.id);
         toast.success("Stone type updated");
@@ -1285,7 +1316,7 @@ function StonesAndSlabsEditor({ onBack }: { onBack: () => void }) {
                                   : undefined
                               }
                             >
-                              Stone type
+                              {stone.category ?? "Uncategorized"}
                             </Badge>
                           </div>
                         </button>
@@ -2046,7 +2077,10 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <div id="system-config" className="min-h-0 flex-1 scroll-mt-4">
+    <div
+      id="system-config"
+      className="flex min-h-0 flex-1 flex-col scroll-mt-4"
+    >
       {showSpecialCharges ? (
         <SpecialProductMakingChargesPanel onBack={closeSpecialCharges} />
       ) : (

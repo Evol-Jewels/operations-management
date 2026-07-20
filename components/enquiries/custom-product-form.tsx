@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useStoneTypes } from "@/hooks/useManageProducts";
+import { useStoneTypeOptions } from "@/hooks/useManageProducts";
 import { cn } from "@/lib/utils";
 import {
   CATEGORIES,
@@ -24,8 +24,6 @@ import {
 } from "./enquiry-form-types";
 import { formatFileSize, getReferenceIcon } from "./enquiry-form-utils";
 import { ExistingProductReferenceField } from "@/components/requirements/ExistingProductReferenceField";
-
-const STONE_TYPE_FALLBACK = ["Others"];
 
 interface CustomProductFormProps {
   draft: NewProduct;
@@ -62,22 +60,13 @@ export function CustomProductForm({
   showActions = true,
   showBackButton = true,
 }: CustomProductFormProps) {
-  const stoneTypesQuery = useStoneTypes({ limit: 1000 });
-
-  const stoneTypeOptions: readonly string[] = (() => {
-    if (stoneTypesQuery.isError) return STONE_TYPE_FALLBACK;
-    const list = stoneTypesQuery.data?.data ?? [];
-    const active = list
-      .filter((item) => !item.isDeleted)
-      .map((item) => item.name);
-    const names = Array.from(new Set([...active, "Others"])).sort((a, b) =>
-      a.localeCompare(b),
-    );
-    return names;
-  })();
+  const stoneTypesQuery = useStoneTypeOptions({
+    additionalNames: ["Others"],
+    sort: true,
+  });
 
   const showStoneLoadingState =
-    stoneTypesQuery.isLoading && stoneTypeOptions.length === 0;
+    stoneTypesQuery.isLoading && stoneTypesQuery.options.length === 0;
 
   function updateStone(
     stoneId: string,
@@ -216,10 +205,7 @@ export function CustomProductForm({
                   required
                 >
                   <StoneTypeCombobox
-                    options={stoneTypeOptions.map((stoneType) => ({
-                      value: stoneType,
-                      label: stoneType,
-                    }))}
+                    options={stoneTypesQuery.options}
                     value={stone.stoneType}
                     onValueChange={(stoneType) =>
                       updateStone(stone.id, { stoneType })
