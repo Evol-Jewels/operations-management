@@ -395,7 +395,7 @@ function RequirementStepPanel({
           Step 2 of 2
         </p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
-          What does the customer interested in?
+          What is the customer interested in?
         </h1>
       </div>
 

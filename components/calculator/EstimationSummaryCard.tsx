@@ -1059,8 +1059,10 @@ export function EstimationSummaryCard({
                                     "Stone"}
                                 </p>
                                 <p className="mt-1 text-[11px] text-muted-foreground">
-                                  {formatWeight(stone.weight, "ct")} -{" "}
-                                  {stone.quantity} pcs
+                                  {formatWeight(stone.weight, "ct")}
+                                  {stone.quantity > 0
+                                    ? ` - ${stone.quantity} pcs`
+                                    : ""}
                                   {stone.fixedRatePerCarat
                                     ? ` @ ${formatCurrency(stone.fixedRatePerCarat)}/ct`
                                     : stone.slabInfo

@@ -319,6 +319,38 @@ function NumericLineInput({
   );
 }
 
+const PRIORITY_STONE_NAMES = [
+  "ROUND",
+  "OVAL",
+  "MARQUISE",
+  "EMERALD",
+  "PEAR",
+  "CUSHION",
+  "RADIANT",
+  "PRINCESS",
+] as const;
+
+function stoneNameContains(name: string, expectedName: string): boolean {
+  const nameParts = name
+    .trim()
+    .toUpperCase()
+    .split(/[^A-Z]+/)
+    .filter(Boolean);
+
+  return nameParts.includes(expectedName);
+}
+
+function compareStoneTypesBySlabs(
+  a: CalculatorSettings["stoneTypes"][number],
+  b: CalculatorSettings["stoneTypes"][number],
+): number {
+  return (
+    b.slabs.length - a.slabs.length ||
+    a.category.localeCompare(b.category) ||
+    a.name.localeCompare(b.name)
+  );
+}
+
 function StoneTypeCombobox({
   stoneTypes,
   value,
@@ -328,10 +360,28 @@ function StoneTypeCombobox({
   value: string;
   onChange: (stoneTypeId: string) => void;
 }) {
-  const sortedStoneTypes = [...stoneTypes].sort(
-    (a, b) =>
-      a.category.localeCompare(b.category) || a.name.localeCompare(b.name),
-  );
+  const priorityStoneTypes: CalculatorSettings["stoneTypes"] = [];
+  const priorityStoneIds = new Set<string>();
+
+  for (const priorityName of PRIORITY_STONE_NAMES) {
+    const priorityStone = stoneTypes
+      .filter(
+        (stone) =>
+          !priorityStoneIds.has(stone.stoneId) &&
+          stoneNameContains(stone.name, priorityName),
+      )
+      .sort(compareStoneTypesBySlabs)[0];
+
+    if (priorityStone) {
+      priorityStoneTypes.push(priorityStone);
+      priorityStoneIds.add(priorityStone.stoneId);
+    }
+  }
+
+  const remainingStoneTypes = stoneTypes
+    .filter((stone) => !priorityStoneIds.has(stone.stoneId))
+    .sort(compareStoneTypesBySlabs);
+  const sortedStoneTypes = [...priorityStoneTypes, ...remainingStoneTypes];
 
   return (
     <SharedStoneTypeCombobox
@@ -1733,8 +1783,8 @@ export function CalculatorPageClient({
         return Boolean(
           detail?.stoneType &&
             detail.weight > 0 &&
-            detail.quantity > 0 &&
-            (detail.fixedRatePerCarat !== undefined || detail.slabInfo),
+            (detail.fixedRatePerCarat !== undefined ||
+              (detail.quantity > 0 && detail.slabInfo)),
         );
       }),
     [form.stones, breakdown.stoneDetails],

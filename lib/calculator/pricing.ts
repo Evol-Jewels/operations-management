@@ -51,9 +51,8 @@ export function resolveAutoSlab(
   weight: number,
   quantity: number,
 ): CalculatorStoneSlab | null {
-  if (weight <= 0 || slabs.length === 0) return null;
-  const pieces = Math.max(1, quantity);
-  const perPieceWeight = weight / pieces;
+  if (weight <= 0 || quantity <= 0 || slabs.length === 0) return null;
+  const perPieceWeight = weight / quantity;
   return (
     slabs.find(
       (slab) =>
