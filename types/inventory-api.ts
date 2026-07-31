@@ -157,6 +157,8 @@ export type InventoryAnalyticsResponse = {
     totalNetWeight: number;
     totalGrossWeight: number;
     averageNetWeight: number;
+    totalEstimatedPrice: number;
+    averageEstimatedPrice: number;
   };
   breakdowns: {
     byCategory: InventoryAnalyticsBucket[];

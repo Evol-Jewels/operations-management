@@ -1,6 +1,12 @@
 "use client";
 
-import { ArrowLeft, Boxes, MapPin, PackageCheck, Scale } from "lucide-react";
+import {
+  ArrowLeft,
+  Boxes,
+  IndianRupee,
+  PackageCheck,
+  Scale,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
@@ -171,6 +177,14 @@ function formatWeight(value: number) {
   return `${value.toLocaleString("en-IN", {
     maximumFractionDigits: 2,
   })} g`;
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 function topBuckets(items: InventoryAnalyticsBucket[], limit = 8) {
@@ -1396,11 +1410,13 @@ export function ProductAnalyticsPageClient() {
               toneClassName="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
             />
             <MetricCard
-              label="Locations"
-              value={formatNumber(analytics.breakdowns.byLocation.length)}
-              detail="Assigned and unassigned sectors"
-              icon={MapPin}
-              toneClassName="border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300"
+              label="Total product value"
+              value={formatCurrency(analytics.summary.totalEstimatedPrice)}
+              detail={`Average ${formatCurrency(
+                analytics.summary.averageEstimatedPrice,
+              )} per product`}
+              icon={IndianRupee}
+              toneClassName="border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-300"
             />
           </div>
 
