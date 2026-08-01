@@ -3,19 +3,22 @@
 import {
   ArrowLeft,
   Boxes,
+  Download,
   IndianRupee,
+  LoaderCircle,
   PackageCheck,
   Scale,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   Sankey,
   type SankeyLinkProps,
   type SankeyNodeProps,
 } from "recharts";
+import { toast } from "sonner";
 import {
   Bar,
   EvilBarChart,
@@ -50,6 +53,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryAnalytics } from "@/hooks/useInventoryProducts";
 import { useLocations } from "@/hooks/useManageProducts";
+import { downloadInventoryAnalyticsCsv } from "@/lib/inventoryApi";
 import { cn } from "@/lib/utils";
 import type {
   InventoryAnalyticsBucket,
@@ -1253,13 +1257,15 @@ export function ProductAnalyticsPageClient() {
   const color = getColorFilter(searchParams);
   const purity = getPurityFilter(searchParams);
   const location = getLocationFilter(searchParams);
+  const [isDownloading, setIsDownloading] = useState(false);
   const locationsQuery = useLocations({ limit: 100 });
-  const analyticsQuery = useInventoryAnalytics({
+  const analyticsFilters = {
     ...(status === "ALL" ? {} : { status }),
     ...(color === "ALL" ? {} : { color }),
     ...(purity === "ALL" ? {} : { purity: Number(purity) }),
     ...(location === "ALL" ? {} : { locationId: location }),
-  });
+  };
+  const analyticsQuery = useInventoryAnalytics(analyticsFilters);
   const analytics = analyticsQuery.data;
   const locations = locationsQuery.data?.data ?? [];
   const stockPercent = analytics
@@ -1302,6 +1308,31 @@ export function ProductAnalyticsPageClient() {
     router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`, {
       scroll: false,
     });
+  }
+
+  async function downloadFilteredProducts() {
+    setIsDownloading(true);
+    try {
+      const { blob, fileName } =
+        await downloadInventoryAnalyticsCsv(analyticsFilters);
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+      toast.success("Filtered products downloaded");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to download filtered products",
+      );
+    } finally {
+      setIsDownloading(false);
+    }
   }
 
   return (
@@ -1356,14 +1387,35 @@ export function ProductAnalyticsPageClient() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
-          <AnalyticsFilterControls
-            color={color}
-            location={location}
-            locations={locations}
-            locationsLoading={locationsQuery.isLoading}
-            purity={purity}
-            onFilterChange={updateAnalyticsFilter}
-          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <AnalyticsFilterControls
+              color={color}
+              location={location}
+              locations={locations}
+              locationsLoading={locationsQuery.isLoading}
+              purity={purity}
+              onFilterChange={updateAnalyticsFilter}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 gap-2 sm:shrink-0"
+              disabled={
+                isDownloading ||
+                analyticsQuery.isLoading ||
+                analyticsQuery.isError ||
+                !analytics?.summary.totalProducts
+              }
+              onClick={() => void downloadFilteredProducts()}
+            >
+              {isDownloading ? (
+                <LoaderCircle className="size-4 animate-spin" />
+              ) : (
+                <Download className="size-4" />
+              )}
+              {isDownloading ? "Preparing CSV…" : "Download CSV"}
+            </Button>
+          </div>
         </div>
       </div>
 

@@ -139,6 +139,28 @@ export function fetchInventoryAnalytics(query: InventoryProductListQuery = {}) {
   );
 }
 
+export async function downloadInventoryAnalyticsCsv(
+  query: InventoryProductListQuery = {},
+) {
+  const response = await fetch(
+    buildUrl("api/v1/products/analytics/export", query),
+    {
+      credentials: "include",
+      headers: { Accept: "text/csv" },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Unable to download products (HTTP ${response.status})`);
+  }
+
+  const disposition = response.headers.get("content-disposition");
+  const fileName =
+    disposition?.match(/filename="?([^";]+)"?/i)?.[1] ?? "products.csv";
+
+  return { blob: await response.blob(), fileName };
+}
+
 export function fetchInventoryProductByCode(productCode: string) {
   return apiFetch<unknown>(
     buildUrl(`api/v1/products/code/${encodeURIComponent(productCode)}`),
