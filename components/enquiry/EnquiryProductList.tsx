@@ -52,6 +52,9 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "ESTIMATED", label: "Estimated" },
 ];
 const ENQUIRY_DOWNLOAD_FORMAT_KEY = "evol:enquiry-item-download-format";
+const PNG_EXPORT_CONTENT_WIDTH = 680;
+const PNG_EXPORT_PADDING = 32;
+const PNG_EXPORT_WIDTH = PNG_EXPORT_CONTENT_WIDTH + PNG_EXPORT_PADDING * 2;
 
 interface EnquiryProductListProps {
   enquiryRefCode: number;
@@ -276,7 +279,7 @@ function RequirementCarouselCard({
         backgroundColor: "#ffffff",
         cacheBust: true,
         pixelRatio: 2,
-        width: 680,
+        width: PNG_EXPORT_WIDTH,
       });
     } finally {
       container.remove();
@@ -447,10 +450,14 @@ function RequirementCarouselCard({
 
 function prepareExportNode(exportNode: HTMLElement) {
   exportNode.style.background = "#ffffff";
+  exportNode.style.boxSizing = "border-box";
   exportNode.style.color = "#111111";
   exportNode.style.display = "block";
-  exportNode.style.maxWidth = "680px";
-  exportNode.style.width = "680px";
+  exportNode.style.fontFamily =
+    'var(--font-geist-sans), "Segoe UI", sans-serif';
+  exportNode.style.maxWidth = `${PNG_EXPORT_WIDTH}px`;
+  exportNode.style.padding = `${PNG_EXPORT_PADDING}px`;
+  exportNode.style.width = `${PNG_EXPORT_WIDTH}px`;
 
   exportNode.querySelectorAll<HTMLElement>("*").forEach((node) => {
     const computedColor = window.getComputedStyle(node).color;
@@ -505,6 +512,7 @@ function slugifyFilePart(value: string) {
 }
 
 async function waitForImages(container: HTMLElement) {
+  await document.fonts.ready;
   const images = Array.from(container.querySelectorAll("img"));
 
   await Promise.all(

@@ -104,7 +104,7 @@ function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
           </div>
         ) : null}
       </div>
-      {images.length > 0 ? (
+      {hasMany ? (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {images.map((imageItem, imageIndex) => (
             <button
@@ -183,7 +183,33 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
           {estimation.notes ? <p className="mt-1">{estimation.notes}</p> : null}
         </div>
       ) : null}
+      <dl className="mt-3 grid gap-1.5 border-t border-dashed border-border pt-3 text-xs">
+        {estimation.makingCost !== undefined ? (
+          <EstimateDetail
+            label="Making charge"
+            value={formatCurrency(estimation.makingCost)}
+          />
+        ) : null}
+        {estimation.stoneDetails.map((stone, index) => (
+          <EstimateDetail
+            key={stone.id}
+            label={`Stone ${index + 1}`}
+            value={`${stone.type} · ${stone.netWeight} ct · ${stone.pieces} pcs`}
+          />
+        ))}
+      </dl>
       <Calculator className="mt-3 size-4 text-muted-foreground/50" />
+    </div>
+  );
+}
+
+function EstimateDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 break-words text-right font-medium text-foreground">
+        {value}
+      </dd>
     </div>
   );
 }

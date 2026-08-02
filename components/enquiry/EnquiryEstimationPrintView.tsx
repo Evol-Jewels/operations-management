@@ -10,6 +10,8 @@ import type {
   ProductEstimation,
 } from "@/types";
 
+const PRINT_FONT = 'var(--font-geist-sans), "Segoe UI", sans-serif';
+
 function hasValue(value: unknown) {
   return value !== null && value !== undefined && String(value).trim() !== "";
 }
@@ -54,7 +56,7 @@ function PrintSection({
         style={{
           borderBottom: "1px solid #d9d9d9",
           color: "#111111",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "10.5pt",
           fontWeight: 700,
           lineHeight: 1.25,
@@ -95,7 +97,7 @@ function DetailRow({
       <dt
         style={{
           color: "#555555",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "8.5pt",
           lineHeight: 1.3,
           textTransform: "uppercase",
@@ -106,7 +108,7 @@ function DetailRow({
       <dd
         style={{
           color: "#111111",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "9.5pt",
           fontWeight: 700,
           lineHeight: 1.35,
@@ -163,7 +165,7 @@ function StoneCard({
       <p
         style={{
           color: "#111111",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "9.5pt",
           fontWeight: 700,
           margin: "0 0 4px",
@@ -217,7 +219,7 @@ function MediaPanel({ item }: { item: RequirementDisplayItem }) {
           <span
             style={{
               color: "#666666",
-              fontFamily: "Arial, Helvetica, sans-serif",
+              fontFamily: PRINT_FONT,
               fontSize: "9pt",
             }}
           >
@@ -287,7 +289,7 @@ function ReferenceLinks({
       <p
         style={{
           color: "#555555",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "7.5pt",
           fontWeight: 700,
           letterSpacing: 0,
@@ -309,7 +311,7 @@ function ReferenceLinks({
                 borderBottom: "1px dotted #cfcfcf",
                 color: "#111111",
                 display: "grid",
-                fontFamily: "Arial, Helvetica, sans-serif",
+                fontFamily: PRINT_FONT,
                 fontSize: "8.5pt",
                 fontWeight: 700,
                 gap: 6,
@@ -351,7 +353,7 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
       <p
         style={{
           color: "#555555",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "7.5pt",
           fontWeight: 700,
           letterSpacing: "0.2em",
@@ -364,7 +366,7 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
       <p
         style={{
           color: "#111111",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "15pt",
           fontWeight: 700,
           margin: "4px 0",
@@ -372,32 +374,28 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
       >
         {formatCurrency(estimation.finalAmount)}
       </p>
-      <p
-        style={{
-          color: "#555555",
-          fontFamily: "Arial, Helvetica, sans-serif",
-          fontSize: "9pt",
-          margin: 0,
-        }}
-      >
-        {estimation.metalWeight}g {estimation.purity} -{" "}
-        {formatDate(estimation.createdAt)}
-      </p>
-      {estimation.vendorName || estimation.notes ? (
-        <p
-          style={{
-            borderTop: "1px dotted #cfcfcf",
-            color: "#555555",
-            fontFamily: "Arial, Helvetica, sans-serif",
-            fontSize: "9pt",
-            margin: "10px 0 0",
-            overflowWrap: "anywhere",
-            paddingTop: 10,
-          }}
-        >
-          {[estimation.vendorName, estimation.notes].filter(Boolean).join(" - ")}
-        </p>
-      ) : null}
+      <dl style={{ margin: "8px 0 0" }}>
+        <DetailRow label="Metal weight" value={`${estimation.metalWeight} g`} />
+        <DetailRow label="Purity" value={estimation.purity} />
+        <DetailRow
+          label="Making charge"
+          value={
+            estimation.makingCost !== undefined
+              ? formatCurrency(estimation.makingCost)
+              : undefined
+          }
+        />
+        <DetailRow label="Estimated on" value={formatDate(estimation.createdAt)} />
+        <DetailRow label="Vendor" value={estimation.vendorName} />
+        {estimation.stoneDetails.map((stone, index) => (
+          <DetailRow
+            key={stone.id}
+            label={`Stone ${index + 1}`}
+            value={`${stone.type} - ${stone.netWeight} ct - ${stone.pieces} pcs`}
+          />
+        ))}
+        <DetailRow label="Notes" value={estimation.notes} />
+      </dl>
     </div>
   );
 }
@@ -477,18 +475,21 @@ export const EnquiryEstimationPrintView = forwardRef<
         background: "#ffffff",
         color: "#111111",
         display: "none",
-        fontFamily: "Arial, Helvetica, sans-serif",
+        fontFamily: PRINT_FONT,
         padding: 0,
       }}
     >
       <article
         style={{
           background: "#ffffff",
+          boxSizing: "border-box",
           color: "#111111",
           display: "block",
+          fontFamily: PRINT_FONT,
           margin: "0 auto",
           maxWidth: "680px",
           padding: "0 0 12px",
+          width: "680px",
         }}
       >
         <header
@@ -530,7 +531,7 @@ export const EnquiryEstimationPrintView = forwardRef<
               alignItems: "center",
               color: "#111111",
               display: "flex",
-              fontFamily: "Arial, Helvetica, sans-serif",
+              fontFamily: PRINT_FONT,
               fontSize: "9pt",
               fontWeight: 700,
               justifyContent: "space-between",
@@ -590,6 +591,18 @@ export const EnquiryEstimationPrintView = forwardRef<
               gridTemplateColumns: "1fr",
             }}
           >
+            <PrintSection title="Overview">
+              <DetailGrid>
+                <DetailRow label="Type of order" value={item.details.orderType} />
+                <DetailRow label="Category" value={item.title} />
+                <DetailRow label="Subcategory" value={item.details.subcategory} />
+                <DetailRow label="Product size" value={item.details.productSize} />
+                <DetailRow label="Budget range" value={item.details.budgetRange} />
+                <DetailRow label="Setting type" value={item.details.settingType} />
+                <DetailRow label="Finding type" value={item.details.findingType} />
+                <DetailRow label="Delivery date" value={item.details.deliveryDate} />
+              </DetailGrid>
+            </PrintSection>
             <PrintSection title="Metal">
               <DetailGrid>
                 <DetailRow label="Metal" value={metal} />
