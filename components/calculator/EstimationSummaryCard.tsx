@@ -41,6 +41,7 @@ interface SharedSummaryData {
   purity: string;
   goldRateValue: number;
   goldCost: number;
+  metalDetails?: NonNullable<CalculatorPricingBreakdown["metalDetails"]>;
   makingCost: number;
   stoneDetails: CalculatorPricingBreakdown["stoneDetails"];
   diamondColor: string;
@@ -144,6 +145,7 @@ function getSummaryData(
       purity: data.form.purity,
       goldRateValue: data.breakdown.goldRateValue,
       goldCost: data.breakdown.goldCost,
+      metalDetails: data.breakdown.metalDetails,
       makingCost: data.breakdown.makingCost,
       stoneDetails: data.breakdown.stoneDetails,
       diamondColor: data.form.diamondColor.trim(),
@@ -470,7 +472,7 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
 
   return (
     <div
-      className="grid grid-cols-1 sm:grid-cols-[minmax(0,1.18fr)_minmax(240px,0.82fr)]"
+      className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.18fr)_minmax(240px,0.82fr)]"
       data-estimation-summary-compact
     >
       <div className="min-w-0" data-estimation-summary-compact-breakup>
@@ -499,15 +501,31 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
                 —
               </td>
             </tr>
-            <tr>
-              <td className="px-4 py-2.5">Net Metal · {summary.purity}</td>
-              <td className="px-2 py-2.5 font-medium tabular">
-                {formatWeight(summary.netGoldWeight, "g")}
-              </td>
-              <td className="px-4 py-2.5 text-right font-semibold tabular">
-                {formatCurrency(summary.goldCost)}
-              </td>
-            </tr>
+            {summary.metalDetails?.length ? (
+              summary.metalDetails.map((metal) => (
+                <tr key={metal.id}>
+                  <td className="px-4 py-2.5">
+                    {metal.metalName} · {metal.purityLabel}
+                  </td>
+                  <td className="px-2 py-2.5 font-medium tabular">
+                    {formatWeight(metal.weight, "g")}
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-semibold tabular">
+                    {formatCurrency(metal.totalCost)}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td className="px-4 py-2.5">Gold · {summary.purity}</td>
+                <td className="px-2 py-2.5 font-medium tabular">
+                  {formatWeight(summary.netGoldWeight, "g")}
+                </td>
+                <td className="px-4 py-2.5 text-right font-semibold tabular">
+                  {formatCurrency(summary.goldCost)}
+                </td>
+              </tr>
+            )}
             <tr>
               <td className="px-4 py-2.5">Making</td>
               <td className="px-2 py-2.5 font-medium tabular">
@@ -589,7 +607,7 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
       </div>
 
       <div
-        className="flex min-w-0 flex-col border-t border-border sm:border-t-0 sm:border-l"
+        className="flex min-w-0 flex-col border-t border-border lg:border-t-0 lg:border-l"
         data-estimation-summary-compact-product
       >
         <div className="border-b border-border bg-muted/35 px-4 py-2.5 text-center">
@@ -598,7 +616,10 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
           </p>
         </div>
         <div
-          className="relative flex min-h-64 flex-1 items-center justify-center overflow-hidden bg-muted/60"
+          className={cn(
+            "relative flex min-h-40 flex-1 items-center justify-center overflow-hidden bg-muted/60 lg:min-h-64",
+            !summary.imageUrl && "hidden lg:flex",
+          )}
           data-estimation-summary-compact-media
         >
           {summary.imageUrl ? (
@@ -792,10 +813,6 @@ export function EstimationSummaryCard({
           <div className="mb-4 flex flex-wrap items-start gap-4">
             <div className="min-w-0 flex-1">
               <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Estimation as per values, share with customers using the
-                download button
-              </p>
             </div>
             {showDownloadButton || renderHeaderActions ? (
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
@@ -900,11 +917,14 @@ export function EstimationSummaryCard({
         ) : (
           <>
             <div
-              className="grid grid-cols-1 sm:grid-cols-2"
+              className="grid grid-cols-1 lg:grid-cols-2"
               data-estimation-summary-hero
             >
               <div
-                className="relative flex min-h-48 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0"
+                className={cn(
+                  "relative flex min-h-40 items-center justify-center overflow-hidden bg-muted/60 lg:aspect-square lg:min-h-0",
+                  !summary.imageUrl && "hidden lg:flex",
+                )}
                 data-estimation-summary-media
               >
                 {summary.imageUrl ? (
@@ -938,7 +958,8 @@ export function EstimationSummaryCard({
 
               <div
                 className={cn(
-                  "flex min-h-48 min-w-0 flex-col justify-between border-t border-border px-4 sm:min-h-0 sm:border-t-0 sm:border-l",
+                  "flex min-h-36 min-w-0 flex-col justify-between border-t border-border px-4 lg:min-h-0 lg:border-t-0 lg:border-l",
+                  !summary.imageUrl && "border-t-0",
                   compact ? "py-3" : "py-4",
                 )}
                 data-estimation-summary-intro
@@ -1006,19 +1027,41 @@ export function EstimationSummaryCard({
               data-estimation-summary-section
             >
               <div className={cn(compact ? "space-y-2" : "space-y-3")}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">Gold</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      {formatWeight(summary.netGoldWeight, "g")} -{" "}
-                      {summary.purity} - {formatCurrency(summary.goldRateValue)}
-                      /g
-                    </p>
+                {summary.metalDetails?.length ? (
+                  summary.metalDetails.map((metal) => (
+                    <div
+                      key={metal.id}
+                      className="flex items-start justify-between gap-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {metal.metalName} · {metal.purityLabel}
+                        </p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {formatWeight(metal.weight, "g")} ·{" "}
+                          {formatCurrency(metal.ratePerGram)}/g
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-semibold tabular">
+                        {formatCurrency(metal.totalCost)}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">Gold</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {formatWeight(summary.netGoldWeight, "g")} ·{" "}
+                        {summary.purity} ·{" "}
+                        {formatCurrency(summary.goldRateValue)}/g
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold tabular">
+                      {formatCurrency(summary.goldCost)}
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold tabular">
-                    {formatCurrency(summary.goldCost)}
-                  </span>
-                </div>
+                )}
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-sm font-medium">Making Charges</span>
                   <span className="text-sm font-semibold tabular">
@@ -1164,8 +1207,8 @@ export function EstimationSummaryCard({
             )}
           >
             <li>
-              Gold weight estimated might be slightly higher than actual product
-              weight. Invoicing will be as per actuals.
+              Metal weight estimated might be slightly higher than actual
+              product weight. Invoicing will be as per actuals.
             </li>
             <li>
               Prices quoted are indicative and subject to rate fluctuations on

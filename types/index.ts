@@ -340,13 +340,34 @@ export interface CalculatorStoneType {
   slabs: CalculatorStoneSlab[];
 }
 
+export interface CalculatorMetalPurityOption {
+  id: string;
+  label: string;
+  ratePerGram: number;
+}
+
+export interface CalculatorMetalType {
+  id: string;
+  name: string;
+  purities: CalculatorMetalPurityOption[];
+}
+
 export interface CalculatorSettings {
   goldRate24k: number;
   makingChargeFlat: number;
   makingChargePerGram: number;
   gstRate: number;
   purityPercentages: Record<MetalPurity, number>;
+  metalTypes: CalculatorMetalType[];
   stoneTypes: CalculatorStoneType[];
+}
+
+export interface CalculatorMetalInput {
+  id: string;
+  metalTypeId: string;
+  purityId: string;
+  weight: number;
+  rateOverride?: number;
 }
 
 export interface CalculatorStoneInput {
@@ -361,6 +382,7 @@ export interface CalculatorStoneInput {
 export interface CalculatorFormState {
   netGoldWeight: number;
   purity: MetalPurity;
+  metals?: CalculatorMetalInput[];
   stones: CalculatorStoneInput[];
   diamondColor: string;
   diamondClarity: string;
@@ -382,6 +404,14 @@ export interface CalculatorPricingBreakdown {
   grossWeight: number;
   goldRateValue: number;
   goldCost: number;
+  metalDetails?: Array<
+    CalculatorMetalInput & {
+      metalName: string;
+      purityLabel: string;
+      ratePerGram: number;
+      totalCost: number;
+    }
+  >;
   makingCost: number;
   stoneDetails: CalculatorPricedStoneDetail[];
   totalStoneCost: number;

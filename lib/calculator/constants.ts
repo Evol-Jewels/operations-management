@@ -392,6 +392,28 @@ export const DEFAULT_CALCULATOR_SETTINGS: CalculatorSettings = {
     "24K": 100,
     Other: 100,
   },
+  metalTypes: [
+    {
+      id: "gold",
+      name: "Gold",
+      purities: [
+        { id: "14K", label: "14K", ratePerGram: 9000 },
+        { id: "18K", label: "18K", ratePerGram: 11400 },
+        { id: "22K", label: "22K", ratePerGram: 13800 },
+        { id: "24K", label: "24K", ratePerGram: 15000 },
+      ],
+    },
+    {
+      id: "silver",
+      name: "Silver",
+      purities: [{ id: "925", label: "925", ratePerGram: 120 }],
+    },
+    {
+      id: "platinum",
+      name: "Platinum",
+      purities: [{ id: "950", label: "950", ratePerGram: 3800 }],
+    },
+  ],
   stoneTypes: [
     // Diamonds
     {
