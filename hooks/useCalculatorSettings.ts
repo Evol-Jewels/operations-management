@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_CALCULATOR_SETTINGS } from "@/lib/calculator/constants";
+import { calculateGoldRate } from "@/lib/calculator/pricing";
 import {
   fetchAllStoneSlabs,
   fetchAllStoneTypes,
@@ -10,6 +11,7 @@ import {
 import { fetchGoldRate, fetchSystemConfigs } from "@/lib/systemConfigApi";
 import type {
   CalculatorSettings,
+  CalculatorMetalType,
   CalculatorStoneSlab,
   CalculatorStoneType,
   MetalPurity,
@@ -140,6 +142,34 @@ function getFirstConfigValue(configs: SystemConfig[], keys: string[]) {
   return undefined;
 }
 
+function parseMetalTypes(value: unknown): CalculatorMetalType[] | null {
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    const metals = parsed.filter((metal): metal is CalculatorMetalType => {
+      if (!metal || typeof metal !== "object") return false;
+      const candidate = metal as Partial<CalculatorMetalType>;
+      return (
+        typeof candidate.id === "string" &&
+        typeof candidate.name === "string" &&
+        Array.isArray(candidate.purities) &&
+        candidate.purities.every(
+          (purity) =>
+            purity &&
+            typeof purity.id === "string" &&
+            typeof purity.label === "string" &&
+            typeof purity.ratePerGram === "number" &&
+            Number.isFinite(purity.ratePerGram),
+        )
+      );
+    });
+    return metals.length ? metals : null;
+  } catch {
+    return null;
+  }
+}
+
 function upsertConfig(
   configs: SystemConfig[],
   key: string,
@@ -168,6 +198,33 @@ function upsertConfig(
 
 function mapSystemConfigs(configs: SystemConfig[]) {
   const defaults = DEFAULT_CALCULATOR_SETTINGS;
+  const configuredMetals = parseMetalTypes(
+    getFirstConfigValue(configs, ["calculatorMetals", "metalTypes"]),
+  );
+  const fallbackMetals = defaults.metalTypes.map((metal) => ({
+    ...metal,
+    purities: metal.purities.map((purity) => ({ ...purity })),
+  }));
+  const silverRate = toNumber(
+    getFirstConfigValue(configs, ["silver_rate_per_gram", "silverRatePerGram"]),
+    fallbackMetals.find((metal) => metal.id === "silver")?.purities[0]
+      ?.ratePerGram ?? 120,
+  );
+  const platinumRate = toNumber(
+    getFirstConfigValue(configs, [
+      "platinum_rate_per_gram",
+      "platinumRatePerGram",
+    ]),
+    fallbackMetals.find((metal) => metal.id === "platinum")?.purities[0]
+      ?.ratePerGram ?? 3800,
+  );
+  const metalTypes = configuredMetals ?? fallbackMetals;
+  if (!configuredMetals) {
+    const silver = metalTypes.find((metal) => metal.id === "silver");
+    const platinum = metalTypes.find((metal) => metal.id === "platinum");
+    if (silver?.purities[0]) silver.purities[0].ratePerGram = silverRate;
+    if (platinum?.purities[0]) platinum.purities[0].ratePerGram = platinumRate;
+  }
 
   return {
     makingChargeFlat: toNumber(
@@ -208,6 +265,7 @@ function mapSystemConfigs(configs: SystemConfig[]) {
         defaults.purityPercentages.Other,
       ),
     } satisfies Record<MetalPurity, number>,
+    metalTypes,
   };
 }
 
@@ -295,6 +353,12 @@ function systemConfigsFromSettings(
     configs,
     "purityOther",
     String(settings.purityPercentages.Other),
+    now,
+  );
+  configs = upsertConfig(
+    configs,
+    "calculatorMetals",
+    JSON.stringify(settings.metalTypes),
     now,
   );
 
@@ -454,6 +518,21 @@ export function useCalculatorSettings() {
     return {
       ...configSettings,
       goldRate24k,
+      metalTypes: configSettings.metalTypes.map((metal) =>
+        metal.id === "gold"
+          ? {
+              ...metal,
+              purities: metal.purities.map((purity) => ({
+                ...purity,
+                ratePerGram: calculateGoldRate(
+                  goldRate24k,
+                  purity.id as MetalPurity,
+                  configSettings.purityPercentages,
+                ),
+              })),
+            }
+          : metal,
+      ),
       stoneTypes: mappedStoneTypes,
     };
   }, [goldRateQuery.data, stoneSlabs, stoneTypes, systemConfigs]);

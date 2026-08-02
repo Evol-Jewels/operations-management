@@ -1,4 +1,5 @@
 import type { CalculatorSettings } from "@/types";
+import { DEFAULT_CALCULATOR_SETTINGS } from "@/lib/calculator/constants";
 
 export const MOCK_PRICING_SETTINGS: CalculatorSettings = {
   goldRate24k: 10000,
@@ -12,6 +13,7 @@ export const MOCK_PRICING_SETTINGS: CalculatorSettings = {
     "14K": 58.5,
     Other: 100,
   },
+  metalTypes: DEFAULT_CALCULATOR_SETTINGS.metalTypes,
   stoneTypes: [
     {
       stoneId: "LGDRDVVSEF",

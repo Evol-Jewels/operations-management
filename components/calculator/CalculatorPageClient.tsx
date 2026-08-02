@@ -50,6 +50,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { useInfiniteRecentProductEstimates } from "@/hooks/useRecentProductEstimates";
@@ -57,10 +64,10 @@ import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 import {
-  calculateGoldRate,
   calculateMakingCharge,
   computeEstimateFromInputs,
   getStoneType,
+  resolveMetalRate,
   resolveAutoSlab,
 } from "@/lib/calculator/pricing";
 import {
@@ -78,6 +85,7 @@ import { createRecentProductEstimate } from "@/lib/recentProductEstimatesApi";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   CalculatorFormState,
+  CalculatorMetalInput,
   CalculatorSettings,
   CalculatorStoneInput,
   MetalPurity,
@@ -86,7 +94,6 @@ import type {
 } from "@/types";
 import type { InventoryProduct } from "@/types/inventory-api";
 
-const PURITY_OPTIONS: MetalPurity[] = ["24K", "22K", "18K", "14K"];
 const RECENT_ESTIMATE_SKELETON_IDS = [
   "recent-skeleton-1",
   "recent-skeleton-2",
@@ -97,6 +104,34 @@ const segmentTriggerClassName =
   "h-9 rounded-lg text-foreground hover:text-foreground data-[state=active]:bg-zinc-950 data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950";
 const MANUAL_CALCULATOR_STORAGE_KEY = "evol-manual-calculator-form-v1";
 
+const metalOptionStyles = {
+  gold: {
+    swatch: "bg-amber-400",
+    active:
+      "border-amber-400/50 bg-amber-400/15 text-amber-950 shadow-xs dark:text-amber-200",
+    inactive:
+      "border-transparent text-muted-foreground hover:border-amber-400/25 hover:bg-amber-400/10 hover:text-foreground",
+  },
+  silver: {
+    swatch: "bg-zinc-300 ring-1 ring-zinc-400/50",
+    active:
+      "border-zinc-400/60 bg-zinc-200 text-zinc-950 shadow-xs dark:border-zinc-300/40 dark:bg-zinc-200/15 dark:text-zinc-100",
+    inactive:
+      "border-transparent text-muted-foreground hover:border-zinc-400/30 hover:bg-zinc-400/10 hover:text-foreground",
+  },
+  platinum: {
+    swatch: "bg-sky-300 ring-1 ring-sky-400/50",
+    active:
+      "border-sky-400/50 bg-sky-400/15 text-sky-950 shadow-xs dark:text-sky-200",
+    inactive:
+      "border-transparent text-muted-foreground hover:border-sky-400/25 hover:bg-sky-400/10 hover:text-foreground",
+  },
+} as const;
+
+function getMetalOptionStyle(metalTypeId: string) {
+  return metalOptionStyles[metalTypeId as keyof typeof metalOptionStyles];
+}
+
 interface PersistedManualCalculatorForm {
   form: CalculatorFormState;
   isGstEdited: boolean;
@@ -105,6 +140,26 @@ interface PersistedManualCalculatorForm {
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
+}
+
+function createMetal(
+  settings: CalculatorSettings,
+  metalTypeId = "gold",
+  purityId = "18K",
+): CalculatorMetalInput {
+  const metalType =
+    settings.metalTypes.find((metal) => metal.id === metalTypeId) ??
+    settings.metalTypes[0];
+  const purity =
+    metalType?.purities.find((item) => item.id === purityId) ??
+    metalType?.purities[0];
+
+  return {
+    id: generateId(),
+    metalTypeId: metalType?.id ?? "gold",
+    purityId: purity?.id ?? "18K",
+    weight: 0,
+  };
 }
 
 function normalizeMetalPurity(value: string): MetalPurity {
@@ -133,6 +188,7 @@ function createDefaultCalculatorForm(
   return {
     netGoldWeight: 0,
     purity: "18K",
+    metals: [createMetal(settings)],
     stones: [createStone(settings)],
     diamondColor: "",
     diamondClarity: "",
@@ -169,6 +225,36 @@ function restoreManualCalculatorForm(
     if (!storedForm) return null;
 
     const defaultForm = createDefaultCalculatorForm(settings);
+    const metals =
+      Array.isArray(storedForm.metals) && storedForm.metals.length > 0
+        ? storedForm.metals.map((metal) => ({
+            id: typeof metal.id === "string" ? metal.id : generateId(),
+            metalTypeId:
+              typeof metal.metalTypeId === "string"
+                ? metal.metalTypeId
+                : "gold",
+            purityId:
+              typeof metal.purityId === "string" ? metal.purityId : "18K",
+            weight: toPersistedNumber(metal.weight),
+            rateOverride:
+              toPersistedNumber(metal.rateOverride) > 0
+                ? toPersistedNumber(metal.rateOverride)
+                : undefined,
+          }))
+        : [
+            {
+              ...createMetal(
+                settings,
+                "gold",
+                String(storedForm.purity ?? "18K"),
+              ),
+              weight: toPersistedNumber(storedForm.netGoldWeight),
+              rateOverride:
+                toPersistedNumber(storedForm.goldRateOverride) > 0
+                  ? toPersistedNumber(storedForm.goldRateOverride)
+                  : undefined,
+            },
+          ];
     const stones =
       Array.isArray(storedForm.stones) && storedForm.stones.length > 0
         ? storedForm.stones.map((stone) => ({
@@ -195,6 +281,7 @@ function restoreManualCalculatorForm(
         ...defaultForm,
         netGoldWeight: toPersistedNumber(storedForm.netGoldWeight),
         purity: normalizeMetalPurity(String(storedForm.purity ?? "18K")),
+        metals,
         stones,
         diamondColor:
           typeof storedForm.diamondColor === "string"
@@ -390,9 +477,7 @@ function StoneTypeCombobox({
         label: item.name,
         category: item.category,
         metadata: `${item.category} · ${item.slabs.length} slabs`,
-        searchText: [item.clarity, item.color]
-          .filter(Boolean)
-          .join(" "),
+        searchText: [item.clarity, item.color].filter(Boolean).join(" "),
       }))}
       value={value}
       onValueChange={onChange}
@@ -446,55 +531,141 @@ function TabsSwitcher({
   );
 }
 
-function PurityCards({
+function MetalRow({
   settings,
-  value,
+  metal,
+  index,
+  canRemove,
   onChange,
+  onRemove,
 }: {
   settings: CalculatorSettings;
-  value: MetalPurity;
-  onChange: (value: MetalPurity) => void;
+  metal: CalculatorMetalInput;
+  index: number;
+  canRemove: boolean;
+  onChange: (patch: Partial<CalculatorMetalInput>) => void;
+  onRemove: () => void;
 }) {
-  const purityCards = useMemo(() => {
-    return PURITY_OPTIONS.map((purity) => ({
-      purity,
-      rate: calculateGoldRate(
-        settings.goldRate24k,
-        purity,
-        settings.purityPercentages,
-      ),
-    }));
-  }, [settings.goldRate24k, settings.purityPercentages]);
+  const metalType =
+    settings.metalTypes.find((item) => item.id === metal.metalTypeId) ??
+    settings.metalTypes[0];
+  const rate = metal.rateOverride ?? resolveMetalRate(settings, metal);
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {purityCards.map((card) => {
-        const selected = value === card.purity;
+    <div className="space-y-2.5 rounded-xl border border-border bg-muted/10 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Metal {index + 1}
+        </p>
+        <div className="flex items-start gap-1.5">
+          <div className="text-right">
+            <p className="text-sm font-semibold leading-none tabular">
+              {formatCurrency(metal.weight * rate)}
+            </p>
+            <p className="mt-1 text-[11px] leading-none text-muted-foreground tabular">
+              {formatCurrency(rate)}/g
+              {metal.rateOverride !== undefined ? " / custom" : ""}
+            </p>
+          </div>
+          {canRemove ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="-mr-1 -mt-2 size-9"
+              onClick={onRemove}
+              aria-label={`Remove metal ${index + 1}`}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          ) : null}
+        </div>
+      </div>
 
-        return (
-          <button
-            key={card.purity}
-            type="button"
-            onClick={() => onChange(card.purity)}
-            className={cn(
-              "flex h-12 flex-col items-center justify-center rounded-lg border px-2 text-center transition-colors",
-              selected
-                ? "border-foreground bg-muted text-foreground"
-                : "border-border bg-background hover:border-foreground/30",
-            )}
-          >
-            <span className="text-sm font-semibold">{card.purity}</span>
-            <span
+      <div className="grid w-full grid-cols-3 gap-1.5 rounded-lg bg-muted/60 p-1.5 sm:w-fit">
+        {settings.metalTypes.map((option) => {
+          const style = getMetalOptionStyle(option.id);
+          const isActive = option.id === metal.metalTypeId;
+
+          return (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() =>
+                onChange({
+                  metalTypeId: option.id,
+                  purityId: option.purities[0]?.id ?? "",
+                  rateOverride: undefined,
+                })
+              }
               className={cn(
-                "mt-0.5 text-[10px] leading-none",
-                "text-muted-foreground",
+                "flex h-9 min-w-24 cursor-pointer items-center justify-center gap-2 rounded-md border px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                isActive
+                  ? (style?.active ??
+                      "border-border bg-background text-foreground shadow-xs")
+                  : (style?.inactive ??
+                      "border-transparent text-muted-foreground hover:border-border hover:bg-background/70 hover:text-foreground"),
               )}
             >
-              {formatCurrency(card.rate)}/g
-            </span>
-          </button>
-        );
-      })}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "size-2.5 rounded-full",
+                  style?.swatch ?? "bg-muted-foreground",
+                )}
+              />
+              {option.name}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 items-end gap-3 min-[430px]:grid-cols-2 min-[430px]:gap-4">
+        <div className="space-y-1.5">
+          <label
+            htmlFor={`calculator-metal-purity-${metal.id}`}
+            className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+          >
+            Purity
+          </label>
+          <Select
+            value={metal.purityId}
+            onValueChange={(purityId) =>
+              onChange({ purityId, rateOverride: undefined })
+            }
+          >
+            <SelectTrigger
+              id={`calculator-metal-purity-${metal.id}`}
+              className="w-full bg-background px-3 font-semibold uppercase shadow-none"
+            >
+              <SelectValue placeholder="Select purity" />
+            </SelectTrigger>
+            <SelectContent position="popper" align="start">
+              {metalType?.purities.map((option) => (
+                <SelectItem
+                  key={option.id}
+                  value={option.id}
+                  className="font-medium"
+                >
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Net weight
+          </p>
+          <NumericLineInput
+            value={metal.weight}
+            onChange={(weight) => onChange({ weight })}
+            placeholder="0.000"
+            suffix="g"
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -547,8 +718,8 @@ function StoneRow({
   }
 
   return (
-    <div className="space-y-3 border-b border-border pb-3.5 last:border-b-0 last:pb-0">
-      <div className="flex items-center justify-between gap-3">
+    <div className="space-y-2.5 rounded-xl border border-border bg-muted/10 p-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Stone {index + 1}
@@ -564,26 +735,33 @@ function StoneRow({
             </span>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <span className="text-sm font-semibold tabular">
-            {formatCurrency(stoneTotal)}
-          </span>
+        <div className="flex shrink-0 items-start gap-1.5">
+          <div className="text-right">
+            <p className="text-sm font-semibold leading-none tabular">
+              {formatCurrency(stoneTotal)}
+            </p>
+            <p className="mt-1 text-[11px] leading-none text-muted-foreground tabular">
+              {formatCurrency(ratePerCarat)}/ct
+              {hasFixedRate ? " / custom" : ""}
+            </p>
+          </div>
           {canRemove ? (
             <Button
               type="button"
               variant="ghost"
-              size="icon-xs"
+              size="icon"
+              className="-mr-1 -mt-2 size-9"
               onClick={onRemove}
               aria-label={`Remove stone ${index + 1}`}
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="size-4" />
             </Button>
           ) : null}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 min-[430px]:gap-5">
-        <div className="space-y-2">
+      <div className="grid grid-cols-1 items-end gap-3 min-[430px]:grid-cols-2 min-[430px]:gap-4">
+        <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Stone Type
           </p>
@@ -599,7 +777,7 @@ function StoneRow({
             }
           />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Weight
           </p>
@@ -612,8 +790,8 @@ function StoneRow({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 min-[430px]:gap-5">
-        <div className="space-y-2">
+      <div className="grid grid-cols-1 items-end gap-3 min-[430px]:grid-cols-2 min-[430px]:gap-4">
+        <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Pieces
           </p>
@@ -648,7 +826,7 @@ function StoneRow({
             </Button>
           </div>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Price / Carat
           </p>
@@ -1468,7 +1646,9 @@ function CalculatorForm({
   settings,
   form,
   updateForm,
-  updateNetGoldWeight,
+  updateMetal,
+  addMetal,
+  removeMetal,
   updateStone,
   addStone,
   removeStone,
@@ -1484,7 +1664,9 @@ function CalculatorForm({
     key: K,
     value: CalculatorFormState[K],
   ) => void;
-  updateNetGoldWeight: (value: number) => void;
+  updateMetal: (metalId: string, patch: Partial<CalculatorMetalInput>) => void;
+  addMetal: () => void;
+  removeMetal: (metalId: string) => void;
   updateStone: (stoneId: string, patch: Partial<CalculatorStoneInput>) => void;
   addStone: () => void;
   removeStone: (stoneId: string) => void;
@@ -1497,75 +1679,71 @@ function CalculatorForm({
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   return (
-    <div className="min-w-0 space-y-4 rounded-lg border border-border bg-background p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">Inputs</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Metal, stones and product details
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="gap-2"
-            onClick={resetForm}
-          >
-            <RefreshCcw className="h-4 w-4" />
-            Reset
-          </Button>
-        </div>
+    <div className="min-w-0 space-y-5">
+      <div className="flex min-h-9 items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold tracking-tight">Calculator</h2>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-9 gap-1.5 px-2.5"
+          onClick={resetForm}
+        >
+          <RefreshCcw className="size-3.5" />
+          Reset
+        </Button>
       </div>
 
-      <Separator />
-
-      <section className="space-y-3.5">
-        <SectionLabel title="Metal Details" />
-        <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Net Weight
-          </p>
-          <NumericLineInput
-            value={form.netGoldWeight}
-            onChange={updateNetGoldWeight}
-            placeholder="0.000"
-            suffix="g"
-          />
-        </div>
-
+      <section className="space-y-3">
+        <SectionLabel
+          title="Metals"
+          action={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 gap-1.5 px-2.5"
+              onClick={addMetal}
+            >
+              <Plus className="size-3.5" />
+              Add metal
+            </Button>
+          }
+        />
         <div className="space-y-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Purity
-          </p>
-          <PurityCards
-            settings={settings}
-            value={form.purity}
-            onChange={(purity) => updateForm("purity", purity)}
-          />
+          {(form.metals ?? []).map((metal, index) => (
+            <MetalRow
+              key={metal.id}
+              settings={settings}
+              metal={metal}
+              index={index}
+              canRemove={(form.metals?.length ?? 0) > 1}
+              onChange={(patch) => updateMetal(metal.id, patch)}
+              onRemove={() => removeMetal(metal.id)}
+            />
+          ))}
         </div>
       </section>
 
       <Separator />
 
-      <section className="space-y-3.5">
+      <section className="space-y-3">
         <SectionLabel
-          title="Stone Details"
+          title="Stones"
           action={
             <Button
               type="button"
               variant="ghost"
-              size="xs"
-              className="gap-1"
+              size="sm"
+              className="h-9 gap-1.5 px-2.5"
               onClick={addStone}
             >
-              <Plus className="h-3.5 w-3.5" />
-              Add
+              <Plus className="size-3.5" />
+              Add stone
             </Button>
           }
         />
-        <div className="space-y-3.5">
+        <div className="space-y-3">
           {form.stones.map((stone, index) => (
             <StoneRow
               key={stone.id}
@@ -1582,8 +1760,8 @@ function CalculatorForm({
 
       <Separator />
 
-      <section className="space-y-3.5">
-        <SectionLabel title="Product Details (Optional)" />
+      <section className="space-y-3">
+        <SectionLabel title="Product (optional)" />
         <ProductImageInput
           imageUrl={form.productImageUrl}
           fileInputRef={fileInputRef}
@@ -1622,24 +1800,46 @@ function CalculatorForm({
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-3">
             <div className="space-y-4">
+              <div className="space-y-2.5">
+                {(form.metals ?? []).map((metal) => {
+                  const metalType = settings.metalTypes.find(
+                    (item) => item.id === metal.metalTypeId,
+                  );
+                  const purity = metalType?.purities.find(
+                    (item) => item.id === metal.purityId,
+                  );
+                  return (
+                    <div
+                      key={metal.id}
+                      className="grid grid-cols-[minmax(0,1fr)_minmax(120px,0.7fr)] items-end gap-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {metalType?.name ?? "Metal"} /{" "}
+                          {purity?.label ?? metal.purityId}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          System{" "}
+                          {formatCurrency(resolveMetalRate(settings, metal))}/g
+                        </p>
+                      </div>
+                      <NumericLineInput
+                        value={metal.rateOverride ?? 0}
+                        onChange={(rateOverride) =>
+                          updateMetal(metal.id, {
+                            rateOverride:
+                              rateOverride > 0 ? rateOverride : undefined,
+                          })
+                        }
+                        placeholder="System rate"
+                        suffix="Rs./g"
+                        step={1}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
               <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 min-[430px]:gap-5">
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    Gold per gram override
-                  </p>
-                  <NumericLineInput
-                    value={form.goldRateOverride ?? 0}
-                    onChange={(goldRate) =>
-                      updateForm(
-                        "goldRateOverride",
-                        goldRate > 0 ? goldRate : undefined,
-                      )
-                    }
-                    placeholder="Use calculated rate"
-                    suffix="Rs."
-                    step={1}
-                  />
-                </div>
                 <div className="space-y-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     GST
@@ -1652,6 +1852,20 @@ function CalculatorForm({
                     placeholder="0"
                     suffix="%"
                     step={0.1}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    Making Charges
+                  </p>
+                  <NumericLineInput
+                    value={form.makingCharge}
+                    onChange={(makingCharge) =>
+                      onAdvancedMakingChange(Math.max(0, makingCharge))
+                    }
+                    placeholder="0"
+                    suffix="Rs."
+                    step={1}
                   />
                 </div>
                 <div className="space-y-2">
@@ -1686,20 +1900,6 @@ function CalculatorForm({
                     }
                     placeholder="e.g. VVS/VS"
                     className="h-9 w-full border-b border-border bg-transparent px-0 text-sm uppercase outline-none placeholder:normal-case placeholder:text-muted-foreground/35 focus:border-foreground"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    Making Charges
-                  </p>
-                  <NumericLineInput
-                    value={form.makingCharge}
-                    onChange={(makingCharge) =>
-                      onAdvancedMakingChange(Math.max(0, makingCharge))
-                    }
-                    placeholder="0"
-                    suffix="Rs."
-                    step={1}
                   />
                 </div>
               </div>
@@ -1759,9 +1959,9 @@ export function CalculatorPageClient({
       form.purity,
       form.stones,
       {
-        goldRateOverride: form.goldRateOverride,
         gstRateOverride: form.gstRate,
         makingCostOverride: form.makingCharge,
+        metals: form.metals,
       },
     );
   }, [
@@ -1769,9 +1969,9 @@ export function CalculatorPageClient({
     form.netGoldWeight,
     form.purity,
     form.stones,
-    form.goldRateOverride,
     form.gstRate,
     form.makingCharge,
+    form.metals,
   ]);
   const completedStones = useMemo(
     () =>
@@ -1797,9 +1997,9 @@ export function CalculatorPageClient({
         form.purity,
         completedStones,
         {
-          goldRateOverride: form.goldRateOverride,
           gstRateOverride: form.gstRate,
           makingCostOverride: form.makingCharge,
+          metals: form.metals,
         },
       ),
     [settings, form, completedStones],
@@ -1921,18 +2121,62 @@ export function CalculatorPageClient({
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function updateNetGoldWeight(netGoldWeight: number) {
+  function updateMetal(metalId: string, patch: Partial<CalculatorMetalInput>) {
+    setForm((current) => {
+      const metals = (current.metals ?? []).map((metal) =>
+        metal.id === metalId ? { ...metal, ...patch } : metal,
+      );
+      const netGoldWeight = metals.reduce(
+        (sum, metal) => sum + metal.weight,
+        0,
+      );
+      const firstMetal = metals[0];
+      return {
+        ...current,
+        metals,
+        netGoldWeight,
+        purity: normalizeMetalPurity(firstMetal?.purityId ?? "Other"),
+        makingCharge: isMakingChargeEdited
+          ? current.makingCharge
+          : calculateMakingCharge(
+              netGoldWeight,
+              settings.makingChargeFlat,
+              settings.makingChargePerGram,
+            ),
+      };
+    });
+  }
+
+  function addMetal() {
     setForm((current) => ({
       ...current,
-      netGoldWeight,
-      makingCharge: isMakingChargeEdited
-        ? current.makingCharge
-        : calculateMakingCharge(
-            netGoldWeight,
-            settings.makingChargeFlat,
-            settings.makingChargePerGram,
-          ),
+      metals: [...(current.metals ?? []), createMetal(settings)],
     }));
+  }
+
+  function removeMetal(metalId: string) {
+    setForm((current) => {
+      const currentMetals = current.metals ?? [];
+      if (currentMetals.length <= 1) return current;
+      const metals = currentMetals.filter((metal) => metal.id !== metalId);
+      const netGoldWeight = metals.reduce(
+        (sum, metal) => sum + metal.weight,
+        0,
+      );
+      return {
+        ...current,
+        metals,
+        netGoldWeight,
+        purity: normalizeMetalPurity(metals[0]?.purityId ?? "Other"),
+        makingCharge: isMakingChargeEdited
+          ? current.makingCharge
+          : calculateMakingCharge(
+              netGoldWeight,
+              settings.makingChargeFlat,
+              settings.makingChargePerGram,
+            ),
+      };
+    });
   }
 
   function updateAdvancedGst(gstRate: number) {
@@ -2023,6 +2267,12 @@ export function CalculatorPageClient({
     setForm({
       netGoldWeight: result.product.netGoldWeight,
       purity: normalizeMetalPurity(result.product.purity),
+      metals: [
+        {
+          ...createMetal(settings, "gold", result.product.purity),
+          weight: result.product.netGoldWeight,
+        },
+      ],
       stones:
         result.stones.length > 0
           ? result.stones.map((stone) => ({
@@ -2079,8 +2329,7 @@ export function CalculatorPageClient({
               Calculator
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Enter metal and stone details to build a customer-ready price
-              estimate.
+              Add weights. Rates and totals update instantly.
             </p>
           </div>
           <TabsSwitcher
@@ -2099,19 +2348,13 @@ export function CalculatorPageClient({
           </div>
         ) : (
           <div className="space-y-4">
-            {form.goldRateOverride !== undefined ? (
+            {form.metals?.some((metal) => metal.rateOverride !== undefined) ? (
               <div
                 role="status"
                 className="flex items-center gap-2 rounded-lg border border-amber-300/70 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/35 dark:text-amber-100"
               >
                 <Info className="size-4 shrink-0" aria-hidden="true" />
-                <span>
-                  Gold rate is overridden. Using{" "}
-                  <span className="font-semibold">
-                    {formatCurrency(form.goldRateOverride)} per gram
-                  </span>
-                  .
-                </span>
+                <span>One or more metal rates use a custom override.</span>
               </div>
             ) : null}
             <div className="grid items-start gap-5 lg:grid-cols-[minmax(380px,520px)_minmax(420px,760px)] xl:grid-cols-[minmax(420px,560px)_minmax(460px,760px)]">
@@ -2119,7 +2362,9 @@ export function CalculatorPageClient({
                 settings={settings}
                 form={form}
                 updateForm={updateForm}
-                updateNetGoldWeight={updateNetGoldWeight}
+                updateMetal={updateMetal}
+                addMetal={addMetal}
+                removeMetal={removeMetal}
                 updateStone={updateStone}
                 addStone={addStone}
                 removeStone={removeStone}

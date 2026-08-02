@@ -150,6 +150,26 @@ export function SettingsView({
     });
   }
 
+  function updateMetalRate(
+    metalId: string,
+    purityId: string,
+    ratePerGram: number,
+  ) {
+    onChange({
+      ...settings,
+      metalTypes: settings.metalTypes.map((metal) =>
+        metal.id === metalId
+          ? {
+              ...metal,
+              purities: metal.purities.map((purity) =>
+                purity.id === purityId ? { ...purity, ratePerGram } : purity,
+              ),
+            }
+          : metal,
+      ),
+    });
+  }
+
   function updateStoneType(
     stoneId: string,
     updates: Partial<CalculatorStoneType>,
@@ -255,7 +275,7 @@ export function SettingsView({
           <Collapsible open={goldExpanded} onOpenChange={setGoldExpanded}>
             <CollapsibleTrigger asChild>
               <button type="button" className={sectionTriggerClass}>
-                <span className={sectionTitleClass}>Gold Rates</span>
+                <span className={sectionTitleClass}>Metal Rates</span>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="text-xs text-muted-foreground">
                     Live: {formatCurrency(settings.goldRate24k)}/g
@@ -311,6 +331,52 @@ export function SettingsView({
                       </span>
                     </div>
                   ))}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Other metals
+                  </p>
+                  {settings.metalTypes
+                    .filter((metal) => metal.id !== "gold")
+                    .flatMap((metal) =>
+                      metal.purities.map((purity) => (
+                        <div
+                          key={`${metal.id}-${purity.id}`}
+                          className="grid grid-cols-[minmax(0,1fr)_minmax(120px,auto)] items-center gap-3 rounded-md bg-muted/50 px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              {metal.name}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Purity {purity.label}
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span className="text-xs text-muted-foreground">
+                              ₹
+                            </span>
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              min="0"
+                              value={purity.ratePerGram}
+                              onChange={(event) =>
+                                updateMetalRate(
+                                  metal.id,
+                                  purity.id,
+                                  Math.max(0, Number(event.target.value)),
+                                )
+                              }
+                              className={`${compactInputClass} h-8 w-24 rounded-none text-right text-xs`}
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              /g
+                            </span>
+                          </div>
+                        </div>
+                      )),
+                    )}
                 </div>
               </div>
             </CollapsibleContent>
