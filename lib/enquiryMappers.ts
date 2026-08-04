@@ -72,7 +72,7 @@ export function mapBackendEstimationToProductEstimation(
       id: `${estimation.id}-stone-${index}`,
       type: stone.stoneType,
       netWeight: Number(stone.weight ?? 0),
-      pieces: 1,
+      pieces: stone.pieces ?? 1,
     })),
     finalAmount: 0,
     makingCost: Number(estimation.makingCost ?? 0),
