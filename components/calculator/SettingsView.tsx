@@ -150,26 +150,6 @@ export function SettingsView({
     });
   }
 
-  function updateMetalRate(
-    metalId: string,
-    purityId: string,
-    ratePerGram: number,
-  ) {
-    onChange({
-      ...settings,
-      metalTypes: settings.metalTypes.map((metal) =>
-        metal.id === metalId
-          ? {
-              ...metal,
-              purities: metal.purities.map((purity) =>
-                purity.id === purityId ? { ...purity, ratePerGram } : purity,
-              ),
-            }
-          : metal,
-      ),
-    });
-  }
-
   function updateStoneType(
     stoneId: string,
     updates: Partial<CalculatorStoneType>,
@@ -352,27 +332,13 @@ export function SettingsView({
                               Purity {purity.label}
                             </p>
                           </div>
-                          <div className="flex items-center justify-end gap-1.5">
-                            <span className="text-xs text-muted-foreground">
-                              ₹
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <span className="text-sm font-mono tabular-nums text-foreground">
+                              {formatCurrency(purity.ratePerGram)}/g
                             </span>
-                            <Input
-                              type="number"
-                              inputMode="decimal"
-                              min="0"
-                              value={purity.ratePerGram}
-                              onChange={(event) =>
-                                updateMetalRate(
-                                  metal.id,
-                                  purity.id,
-                                  Math.max(0, Number(event.target.value)),
-                                )
-                              }
-                              className={`${compactInputClass} h-8 w-24 rounded-none text-right text-xs`}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                              /g
-                            </span>
+                            <Badge variant="outline" className="font-normal">
+                              System config
+                            </Badge>
                           </div>
                         </div>
                       )),

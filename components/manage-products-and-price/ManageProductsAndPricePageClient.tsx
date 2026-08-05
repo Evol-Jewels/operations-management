@@ -161,10 +161,14 @@ function formatSystemConfigValue(config: SystemConfig) {
 
   if (
     config.key === "makingChargeFlat" ||
-    config.key === "makingChargePerGram"
+    config.key === "makingChargePerGram" ||
+    config.key === "silverPrice" ||
+    config.key === "platinumPrice"
   ) {
     if (!Number.isFinite(numericValue)) return config.value;
-    return config.key === "makingChargePerGram"
+    return config.key === "makingChargePerGram" ||
+      config.key === "silverPrice" ||
+      config.key === "platinumPrice"
       ? `${formatCurrency(numericValue)}/g`
       : formatCurrency(numericValue);
   }
@@ -2084,24 +2088,24 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
       {showSpecialCharges ? (
         <SpecialProductMakingChargesPanel onBack={closeSpecialCharges} />
       ) : (
-      <SectionShell
-        icon={<ReceiptText className="h-5 w-5" />}
-        title="System Config"
-        description="View and update GST and making values from system config keys."
-        onBack={onBack}
-        action={
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void systemConfigsQuery.refetch()}
-            className="gap-2"
-            disabled={systemConfigsQuery.isFetching}
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </Button>
-        }
-      >
+        <SectionShell
+          icon={<ReceiptText className="h-5 w-5" />}
+          title="System Config"
+          description="View and update metal rates, GST, and making values from system config keys."
+          onBack={onBack}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void systemConfigsQuery.refetch()}
+              className="gap-2"
+              disabled={systemConfigsQuery.isFetching}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
+          }
+        >
           <>
             <div className="min-h-0 flex-1 overflow-y-auto">
               {systemConfigsQuery.isLoading ? <LoadingRows count={3} /> : null}
@@ -2193,7 +2197,7 @@ function SystemConfigsEditor({ onBack }: { onBack: () => void }) {
               onSubmit={submitConfig}
             />
           </>
-      </SectionShell>
+        </SectionShell>
       )}
     </div>
   );

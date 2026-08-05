@@ -406,12 +406,12 @@ export const DEFAULT_CALCULATOR_SETTINGS: CalculatorSettings = {
     {
       id: "silver",
       name: "Silver",
-      purities: [{ id: "925", label: "925", ratePerGram: 120 }],
+      purities: [{ id: "925", label: "925", ratePerGram: 0 }],
     },
     {
       id: "platinum",
       name: "Platinum",
-      purities: [{ id: "950", label: "950", ratePerGram: 3800 }],
+      purities: [{ id: "950", label: "950", ratePerGram: 0 }],
     },
   ],
   stoneTypes: [

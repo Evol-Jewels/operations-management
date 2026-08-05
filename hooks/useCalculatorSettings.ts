@@ -44,6 +44,11 @@ function toNumber(value: unknown, fallback: number) {
   return fallback;
 }
 
+function toConfiguredPrice(value: unknown) {
+  const price = toNumber(value, Number.NaN);
+  return Number.isFinite(price) && price >= 0 ? price : null;
+}
+
 function normalizeGstRate(value: unknown, fallback: number) {
   const numericValue = toNumber(value, fallback);
   return numericValue > 1 ? numericValue / 100 : numericValue;
@@ -205,26 +210,33 @@ function mapSystemConfigs(configs: SystemConfig[]) {
     ...metal,
     purities: metal.purities.map((purity) => ({ ...purity })),
   }));
-  const silverRate = toNumber(
-    getFirstConfigValue(configs, ["silver_rate_per_gram", "silverRatePerGram"]),
-    fallbackMetals.find((metal) => metal.id === "silver")?.purities[0]
-      ?.ratePerGram ?? 120,
-  );
-  const platinumRate = toNumber(
-    getFirstConfigValue(configs, [
-      "platinum_rate_per_gram",
-      "platinumRatePerGram",
-    ]),
-    fallbackMetals.find((metal) => metal.id === "platinum")?.purities[0]
-      ?.ratePerGram ?? 3800,
-  );
-  const metalTypes = configuredMetals ?? fallbackMetals;
-  if (!configuredMetals) {
-    const silver = metalTypes.find((metal) => metal.id === "silver");
-    const platinum = metalTypes.find((metal) => metal.id === "platinum");
-    if (silver?.purities[0]) silver.purities[0].ratePerGram = silverRate;
-    if (platinum?.purities[0]) platinum.purities[0].ratePerGram = platinumRate;
-  }
+  const configuredMetalPrices = new Map<string, number | null>([
+    ["silver", toConfiguredPrice(getConfigValue(configs, "silverPrice"))],
+    ["platinum", toConfiguredPrice(getConfigValue(configs, "platinumPrice"))],
+  ]);
+  const baseMetalTypes = configuredMetals
+    ? [
+        ...configuredMetals,
+        ...fallbackMetals.filter(
+          (fallbackMetal) =>
+            !configuredMetals.some(
+              (configuredMetal) => configuredMetal.id === fallbackMetal.id,
+            ),
+        ),
+      ]
+    : fallbackMetals;
+  const metalTypes = baseMetalTypes
+    .map((metal) => {
+      const configuredPrice = configuredMetalPrices.get(metal.id);
+      return {
+        ...metal,
+        purities: metal.purities.map((purity) => ({
+          ...purity,
+          ratePerGram: configuredPrice ?? purity.ratePerGram,
+        })),
+      };
+    })
+    .filter((metal) => configuredMetalPrices.get(metal.id) !== null);
 
   return {
     makingChargeFlat: toNumber(
@@ -355,13 +367,6 @@ function systemConfigsFromSettings(
     String(settings.purityPercentages.Other),
     now,
   );
-  configs = upsertConfig(
-    configs,
-    "calculatorMetals",
-    JSON.stringify(settings.metalTypes),
-    now,
-  );
-
   return configs;
 }
 
@@ -469,13 +474,9 @@ export function useCalculatorSettings() {
 
     async function refreshCachedSettings() {
       try {
-        const systemConfigsPromise = missingSystemConfigs
-          ? fetchSystemConfigs()
-          : Promise.resolve(systemConfigs);
-
         const [systemConfigsResult, stoneTypesResult, stoneSlabsResult] =
           await Promise.all([
-            systemConfigsPromise,
+            fetchSystemConfigs(),
             fetchAllStoneTypes(),
             fetchAllStoneSlabs(),
           ]);
