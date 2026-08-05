@@ -8,6 +8,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -571,7 +572,7 @@ function StockPurchasesTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card my-4">
+    <div className="my-4 overflow-hidden rounded-xl border border-border bg-card">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -629,6 +630,73 @@ function StockPurchasesTable({
           -- End of List --
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function StockPurchasesMobileList({
+  sales,
+  isLoading,
+  isError,
+}: {
+  sales: BackendStockSaleRow[];
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  if (isLoading) {
+    return <p className="py-8 text-sm text-muted-foreground sm:hidden">Loading purchases...</p>;
+  }
+
+  if (isError || sales.length === 0) {
+    return (
+      <div className="my-3 rounded-xl border border-dashed border-border py-12 text-center sm:hidden">
+        <p className="text-sm font-medium text-muted-foreground">
+          {isError ? "Could not load purchases" : "No stock purchases found"}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="my-3 space-y-3 sm:hidden">
+      {sales.map((sale) => (
+        <article
+          key={sale.id}
+          className="rounded-xl border border-border bg-card p-4 shadow-xs"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-foreground">
+                {sale.customerName}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {sale.stockType ?? "Stock sale"} ·{" "}
+                {formatStockSaleMonth(sale.saleMonth)}
+              </p>
+            </div>
+            <p className="shrink-0 font-semibold tabular-nums text-foreground">
+              {formatStockSaleAmount(sale.totalAmount)}
+            </p>
+          </div>
+          <div className="mt-4 border-t border-border pt-3">
+            <StockSaleProductCodes sale={sale} />
+          </div>
+          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+            <div>
+              <dt className="text-muted-foreground">Sales person</dt>
+              <dd className="mt-0.5 truncate font-medium text-foreground">
+                {sale.salesPerson?.name ?? "-"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Store</dt>
+              <dd className="mt-0.5 truncate font-medium text-foreground">
+                {sale.location?.name ?? sale.storeName ?? "-"}
+              </dd>
+            </div>
+          </dl>
+        </article>
+      ))}
     </div>
   );
 }
@@ -914,28 +982,30 @@ export function OrdersEnquiriesWorkspace() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2 text-left sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 text-left sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-              Orders and enquiries
-            </h1>
-            <div className="flex shrink-0 items-center gap-2 sm:hidden">
-              <Button asChild size="sm">
-                <Link href="/enquiries/new">
-                  <Plus className="h-4 w-4" />
-                  New enquiry
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="secondary">
-                <Link href="/orders/new">
-                  <PackagePlus className="h-4 w-4" />
-                  New order
-                </Link>
-              </Button>
-            </div>
+          <h1 className="min-w-0 text-2xl font-semibold tracking-tight text-foreground">
+            Orders and enquiries
+          </h1>
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:hidden">
+            <Button asChild className="h-11 justify-center">
+              <Link href="/enquiries/new">
+                <Plus className="h-4 w-4" />
+                New enquiry
+              </Link>
+            </Button>
+            <Button
+              asChild
+              className="h-11 justify-center"
+              variant="secondary"
+            >
+              <Link href="/orders/new">
+                <PackagePlus className="h-4 w-4" />
+                New order
+              </Link>
+            </Button>
           </div>
-          <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
+          <p className="mt-1 hidden max-w-xl text-sm leading-6 text-muted-foreground sm:block">
             Filter, review, and move production records without crowding the
             dashboard.
           </p>
@@ -964,7 +1034,7 @@ export function OrdersEnquiriesWorkspace() {
               type="button"
               onClick={() => handleTypeTabChange(tab.key)}
               className={cn(
-                "flex min-h-8 shrink-0 cursor-pointer items-center rounded-full border px-4 text-sm font-medium transition-colors",
+                "flex min-h-11 shrink-0 cursor-pointer items-center rounded-full border px-4 text-sm font-medium transition-colors",
                 typeTab === tab.key
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -1025,28 +1095,55 @@ export function OrdersEnquiriesWorkspace() {
       </div>
 
       <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
-        <div className="flex min-w-0 items-center justify-between gap-3 lg:block">
-          <h2 className="shrink-0 text-base font-medium text-foreground lg:min-w-28">
-            {sectionHeading}{" "}
-            <span className="text-muted-foreground">({sectionCount})</span>
-          </h2>
+        <div className="space-y-3 lg:block">
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <h2 className="shrink-0 text-base font-medium text-foreground lg:min-w-28">
+              {sectionHeading}{" "}
+              <span className="text-muted-foreground">({sectionCount})</span>
+            </h2>
 
-          <div className={cn("lg:hidden", typeTab === "purchase" && "hidden")}>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsMobileFiltersOpen(true)}
-              className="h-10 shrink-0 justify-center gap-2"
+            <div
+              className={cn("lg:hidden", typeTab === "purchase" && "hidden")}
             >
-              <Filter className="h-4 w-4" />
-              Filters
-              {activeFilterCount > 0 ? (
-                <Badge variant="secondary" className="ml-0.5 px-1.5">
-                  {activeFilterCount}
-                </Badge>
-              ) : null}
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsMobileFiltersOpen(true)}
+                className="h-11 shrink-0 justify-center gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                Filters
+                {activeFilterCount > 0 ? (
+                  <Badge variant="secondary" className="ml-0.5 px-1.5">
+                    {activeFilterCount}
+                  </Badge>
+                ) : null}
+              </Button>
+            </div>
           </div>
+
+          {typeTab !== "purchase" && !isKanbanMode ? (
+            <div className="relative lg:hidden">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search customer, phone or ID"
+                className="h-11 rounded-xl bg-card pl-10 pr-10"
+                aria-label={`Search ${sectionHeading.toLowerCase()}`}
+              />
+              {search ? (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="size-4" />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -1240,14 +1337,29 @@ export function OrdersEnquiriesWorkspace() {
       ) : null}
 
       {typeTab === "purchase" ? (
-        <StockPurchasesTable
-          sales={stockSales}
-          isLoading={stockSalesQuery.isLoading}
-          isError={stockSalesQuery.isError}
-          isFetchingNextPage={stockSalesQuery.isFetchingNextPage}
-          hasNextPage={Boolean(stockSalesQuery.hasNextPage)}
-          loadMoreRef={stockSalesLoadMoreRef}
-        />
+        <>
+          <StockPurchasesMobileList
+            sales={stockSales}
+            isLoading={stockSalesQuery.isLoading}
+            isError={stockSalesQuery.isError}
+          />
+          <div className="hidden sm:block">
+            <StockPurchasesTable
+              sales={stockSales}
+              isLoading={stockSalesQuery.isLoading}
+              isError={stockSalesQuery.isError}
+              isFetchingNextPage={stockSalesQuery.isFetchingNextPage}
+              hasNextPage={Boolean(stockSalesQuery.hasNextPage)}
+              loadMoreRef={stockSalesLoadMoreRef}
+            />
+          </div>
+          <div ref={stockSalesLoadMoreRef} className="h-4 sm:hidden" />
+          {stockSalesQuery.isFetchingNextPage ? (
+            <p className="py-3 text-center text-xs text-muted-foreground sm:hidden">
+              Fetching more purchases...
+            </p>
+          ) : null}
+        </>
       ) : viewMode === "table" ? (
         <>
           <div className="sm:hidden">

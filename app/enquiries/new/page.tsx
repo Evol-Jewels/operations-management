@@ -313,7 +313,7 @@ function EnquiryCreateForm() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl pb-24">
+    <div className="mx-auto w-full max-w-5xl pb-8 sm:pb-24">
       <EnquiryCreateHeader step={step} />
 
       {step === "customer" ? (
@@ -389,8 +389,8 @@ function RequirementStepPanel({
     (!requirementDraft.category.trim() || !requirementDraft.metalType.trim());
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-13rem)] min-h-[34rem] max-w-3xl flex-col rounded-lg border border-border">
-      <div className="border-b border-border p-5">
+    <div className="-mx-4 flex min-h-[calc(100svh-9rem)] flex-col bg-background sm:mx-auto sm:h-[calc(100vh-13rem)] sm:min-h-[34rem] sm:max-w-3xl sm:rounded-lg sm:border sm:border-border">
+      <div className="border-b border-border px-4 py-4 sm:p-5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
           Step 2 of 2
         </p>
@@ -399,7 +399,7 @@ function RequirementStepPanel({
         </h1>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-5">
+      <div className="min-h-0 flex-1 px-4 py-5 sm:overflow-y-auto sm:p-5">
         {isFormOpen ? (
           <div className="space-y-3">
             <CustomProductForm
@@ -431,7 +431,7 @@ function RequirementStepPanel({
         )}
       </div>
 
-      <div className="flex items-center gap-3 border-t border-border p-5">
+      <div className="sticky bottom-0 z-20 mt-auto flex items-center gap-3 border-t border-border bg-background/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:static sm:p-5">
         <Button type="button" variant="outline" onClick={onBack}>
           <ChevronLeft className="size-4" />
           Back
@@ -443,7 +443,7 @@ function RequirementStepPanel({
             isRequirementActionDisabled ||
             (!isFormOpen && (isSubmitting || requirements.length === 0))
           }
-          className="ml-auto"
+          className="ml-auto h-11 min-w-36"
         >
           {isFormOpen
             ? editingRequirementId

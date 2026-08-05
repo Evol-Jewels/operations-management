@@ -27,8 +27,8 @@ export function CustomerDetailsStep({
   onNext: () => void;
 }) {
   return (
-    <div className="mx-auto flex min-h-[58vh] max-w-xl flex-col justify-center">
-      <div className="rounded-lg border border-border p-5">
+    <div className="mx-auto flex w-full max-w-xl flex-col justify-start sm:min-h-[58vh] sm:justify-center">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-xs sm:p-5">
         <div className="mb-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
             Step 1 of 2
@@ -62,7 +62,7 @@ export function CustomerDetailsStep({
           </FormField>
         </div>
         <div className="mt-6 flex justify-end">
-          <Button type="button" onClick={onNext} disabled={isNextDisabled}>
+          <Button type="button" onClick={onNext} disabled={isNextDisabled} className="h-12 w-full sm:h-10 sm:w-auto">
             Add requirements
             <ChevronRight className="size-4" />
           </Button>

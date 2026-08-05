@@ -314,14 +314,14 @@ export function EnquiryDetailPage({
         </Button>
       </div>
 
-      <header className="mb-7 border-b border-border pb-6">
-        <div className="flex flex-col gap-5 lg:flex-row items-center lg:justify-between">
+      <header className="mb-5 border-b border-border pb-5 sm:mb-7 sm:pb-6">
+        <div className="flex flex-col items-start gap-4 lg:flex-row lg:justify-between">
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-              <h1 className="text-3xl font-semibold text-foreground sm:text-4xl">
+              <h1 className="text-2xl font-semibold text-foreground sm:text-4xl">
                 {order.customerName}
               </h1>
-              <span className="text-2xl font-normal text-muted-foreground sm:text-3xl">
+              <span className="text-xl font-normal text-muted-foreground sm:text-3xl">
                 {`#${order.refCode}`}
               </span>
             </div>
@@ -349,12 +349,12 @@ export function EnquiryDetailPage({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap lg:justify-end">
             {!isFinalized ? (
               <Button
                 size="sm"
                 asChild
-                className="bg-foreground text-background hover:bg-foreground/90"
+                className="h-11 justify-center bg-foreground text-background hover:bg-foreground/90 sm:h-9"
               >
                 <Link href={`/orders/new?from=${order.id}`}>
                   <Calendar className="size-4" />
@@ -397,7 +397,7 @@ export function EnquiryDetailPage({
           <EnquiryStageBar currentStage={stage} />
 
           {order.customerNotes || order.budget ? (
-            <section className="rounded-xl border border-border bg-card px-6 py-6">
+            <section className="rounded-xl border border-border bg-card px-4 py-5 sm:px-6 sm:py-6">
               <div className="flex items-start justify-between gap-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                   Notes
