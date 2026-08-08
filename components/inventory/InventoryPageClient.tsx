@@ -831,19 +831,19 @@ function ProductGridSkeleton() {
       {rows.map((row) => (
         <div
           key={row}
-          className="flex w-full items-start gap-3 rounded-xl border border-border bg-card p-3 shadow-sm"
+          className="rounded-xl border border-border bg-card p-3 shadow-sm"
         >
-          <Skeleton className="h-20 w-20 shrink-0 rounded-xl" />
-          <div className="min-w-0 flex-1 space-y-3">
-            <div className="flex justify-between gap-3">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-36" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-              <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="aspect-square w-full rounded-lg" />
+          <div className="mt-3 space-y-2">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-3 w-24" />
             </div>
-            <Skeleton className="h-3 w-48" />
-            <Skeleton className="h-3 w-32" />
+            <div className="flex gap-1.5 pt-1">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-10 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
           </div>
         </div>
       ))}
@@ -1655,7 +1655,7 @@ export function InventoryPageClient() {
         className={cn(
           "grid min-h-0 w-full flex-1 gap-3",
           hasSelectedProduct
-            ? "lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)] lg:overflow-hidden"
+            ? "lg:grid-cols-[minmax(0,1fr)_17rem] lg:overflow-hidden"
             : "overflow-hidden",
         )}
       >
@@ -1663,10 +1663,22 @@ export function InventoryPageClient() {
           className={cn(
             "min-h-0 rounded-md",
             hasSelectedProduct &&
-              "hidden lg:block lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-3",
+              "order-2 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pl-3",
             !hasSelectedProduct && "overflow-y-auto pr-3",
           )}
         >
+          {hasSelectedProduct ? (
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-foreground">
+                More products
+              </h2>
+              {formattedTotalProducts ? (
+                <span className="text-xs text-muted-foreground">
+                  {formattedTotalProducts} items
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           {listQuery.isLoading ? (
             hasSelectedProduct ? (
               <ProductListSkeleton />
@@ -1690,7 +1702,7 @@ export function InventoryPageClient() {
                   key={product.id}
                   product={product}
                   selected={product.productCode === selectedProductCode}
-                  compact={hasSelectedProduct}
+                  compact={false}
                   onSelect={() => selectProduct(product.productCode)}
                 />
               ))}
@@ -1719,7 +1731,7 @@ export function InventoryPageClient() {
         </section>
 
         {hasSelectedProduct ? (
-          <div className="min-w-0 space-y-3 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-3">
+          <div className="order-1 min-w-0 space-y-3 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-3">
             <div>
               <Button
                 type="button"
