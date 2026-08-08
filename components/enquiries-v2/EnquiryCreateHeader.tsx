@@ -6,13 +6,13 @@ export type EnquiryCreateStep = "customer" | "requirements";
 
 export function EnquiryCreateHeader({ step }: { step: EnquiryCreateStep }) {
   return (
-    <header className="mb-6 border-b border-border pb-5">
+    <header className="mb-5 border-b border-border pb-4 sm:mb-6 sm:pb-5">
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
             New enquiry
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             {step === "customer" ? "Capture customer" : "Custom requirements"}
           </h1>
         </div>
@@ -21,11 +21,11 @@ export function EnquiryCreateHeader({ step }: { step: EnquiryCreateStep }) {
           <StepPill active={step === "requirements"} label="Requirements" />
         </div>
       </div>
-      <div className="mt-5 h-1 overflow-hidden rounded-full bg-muted">
+      <div className="mt-4 h-1 overflow-hidden rounded-full bg-muted sm:mt-5">
         <div
           className={cn(
             "h-full rounded-full bg-primary transition-all duration-300",
-            step === "customer" ? "w-0" : "w-1/2",
+            step === "customer" ? "w-1/2" : "w-full",
           )}
         />
       </div>

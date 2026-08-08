@@ -169,7 +169,7 @@ function GoldRateSidebarItem({ role }: { role: string }) {
 export function AppSidebar() {
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebar();
   const { theme, setTheme } = useTheme();
 
   const sessionRole = session ? getSessionRole(session) : "";
@@ -266,6 +266,7 @@ export function AppSidebar() {
                   >
                     <Link
                       href={item.href}
+                      onClick={() => isMobile && setOpenMobile(false)}
                       className="flex w-full min-w-0 items-center gap-2 overflow-hidden group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
                     >
                       <item.icon className="h-5 w-5" />
@@ -283,6 +284,7 @@ export function AppSidebar() {
                 >
                   <Link
                     href="/enquiries/new"
+                    onClick={() => isMobile && setOpenMobile(false)}
                     className="flex w-full min-w-0 items-center gap-2 overflow-hidden"
                   >
                     <Plus className="h-4 w-4 flex-shrink-0" />
@@ -301,6 +303,7 @@ export function AppSidebar() {
                 >
                   <Link
                     href="/orders/new"
+                    onClick={() => isMobile && setOpenMobile(false)}
                     className="flex w-full min-w-0 items-center gap-2 overflow-hidden"
                   >
                     <PackagePlus className="h-4 w-4 flex-shrink-0" />

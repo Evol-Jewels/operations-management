@@ -9,7 +9,7 @@ import { authClient } from "@/lib/auth-client";
 import { formatCurrency } from "@/lib/utils";
 
 const actionClassName =
-  "fixed top-4 right-4 z-40 flex h-9 items-center gap-1.5 rounded-full border border-border/70 bg-background/90 px-3 text-xs font-semibold tabular-nums shadow-sm backdrop-blur transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden print-hide";
+  "mobile-gold-action flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold tabular-nums transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden print-hide";
 
 export function MobileGoldRateAction() {
   const { data: session } = authClient.useSession();

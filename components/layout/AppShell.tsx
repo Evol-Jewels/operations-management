@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { MobileGoldRateAction } from "@/components/layout/MobileGoldRateAction";
+import { MobileNavigation } from "@/components/layout/MobileNavigation";
 import {
   SidebarInset,
   SidebarProvider,
@@ -39,11 +40,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         id="app-content"
         className="h-svh overflow-x-clip overflow-y-auto"
       >
-        <SidebarTrigger className="fixed top-4 left-4 z-40 rounded-full border border-border/70 bg-background/90 shadow-sm backdrop-blur md:hidden print-hide" />
-        <MobileGoldRateAction />
-        <div className="mx-auto min-h-full w-full max-w-400 px-4 pt-16 pb-5 sm:p-6">
+        <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border/70 bg-background/95 px-3 backdrop-blur-xl md:hidden print-hide">
+          <SidebarTrigger className="size-11 rounded-xl border-0 bg-transparent shadow-none" />
+          <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-sm font-semibold tracking-[0.16em]">
+            EVOL
+          </span>
+          <MobileGoldRateAction />
+        </header>
+        <div className="mx-auto min-h-full w-full max-w-400 px-4 pt-[4.5rem] pb-24 sm:p-6">
           <Suspense fallback={<Loading />}>{children}</Suspense>
         </div>
+        <MobileNavigation />
       </SidebarInset>
     </SidebarProvider>
   );
