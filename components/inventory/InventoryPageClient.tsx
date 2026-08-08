@@ -4,12 +4,12 @@ import {
   AlertCircle,
   ArrowLeft,
   Calculator,
-  Columns2,
-  Columns3,
   Diamond,
   Download,
+  Gem,
   MapPin,
   PackageSearch,
+  Palette,
   RefreshCw,
   ScanLine,
   Search,
@@ -87,7 +87,6 @@ type InventoryCategory =
 type SourceFilter = "ALL" | "CUSTOMER" | "STOCK";
 type ColorFilter = "ALL" | ProductColor;
 type PurityFilter = "ALL" | "14" | "18" | "24";
-type InventoryGridColumns = 2 | 3;
 type ActiveFilterChip = {
   key: string;
   label: string;
@@ -212,7 +211,6 @@ const QUERY_PARAM_KEYS = {
   netWeightTo: "netWeightTo",
   sourceCreatedFrom: "sourceCreatedFrom",
   sourceCreatedTo: "sourceCreatedTo",
-  columns: "columns",
 } as const;
 
 function formatWeight(value: string | number, unit: string) {
@@ -257,10 +255,6 @@ function getPurityQueryValue(params: URLSearchParams) {
 function getSourceQueryValue(params: URLSearchParams) {
   const value = params.get(QUERY_PARAM_KEYS.source);
   return value === "CUSTOMER" || value === "STOCK" ? value : "ALL";
-}
-
-function getColumnsQueryValue(params: URLSearchParams): InventoryGridColumns {
-  return params.get(QUERY_PARAM_KEYS.columns) === "2" ? 2 : 3;
 }
 
 function getMetalLabel(product: InventoryProduct) {
@@ -342,15 +336,9 @@ function InventoryProductImage({
   );
 }
 
-function getInventoryGridClass({
-  columns,
-  hasSelectedProduct,
-}: {
-  columns: InventoryGridColumns;
-  hasSelectedProduct: boolean;
-}) {
+function getInventoryGridClass(hasSelectedProduct: boolean) {
   if (hasSelectedProduct) return "grid-cols-1";
-  return columns === 3 ? "md:grid-cols-2 xl:grid-cols-3" : "md:grid-cols-2";
+  return "sm:grid-cols-2 lg:grid-cols-3";
 }
 
 function InventoryStat({
@@ -421,15 +409,14 @@ function ProductListItem({
   onSelect: () => void;
 }) {
   const image = getInventoryPrimaryImage(product);
-  const stonePieces = getTotalStonePieces(product);
-  const stoneCarat = getTotalStoneCarat(product);
-  const hasStoneInfo = stonePieces > 0 || stoneCarat > 0;
+  const city = product.location.city?.trim() || "City unavailable";
+  const colorLabel = COLOR_LABELS[product.color as ProductColor] ?? product.color;
 
   return (
     <div
       className={cn(
-        "relative flex w-full items-start gap-3 rounded-xl border bg-card p-3 text-left shadow-sm transition-colors hover:border-foreground/25 hover:bg-muted/20 has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring has-[button:focus-visible]:ring-offset-2",
-        compact && "gap-2.5 p-2.5",
+        "relative w-full rounded-xl border bg-card text-left shadow-sm transition-colors hover:border-foreground/25 hover:bg-muted/20 has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring has-[button:focus-visible]:ring-offset-2",
+        compact ? "flex items-stretch gap-2.5 p-2.5" : "flex flex-col p-3",
         selected
           ? "border-foreground/60 ring-1 ring-foreground/10"
           : "border-border",
@@ -443,7 +430,7 @@ function ProductListItem({
       />
       <div
         className={cn(
-          "group/image pointer-events-none relative z-10 h-[5.5rem] w-[5.5rem] shrink-0 overflow-hidden rounded-xl border border-border bg-muted/60 sm:h-24 sm:w-24",
+          "group/image pointer-events-none relative z-10 aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted/60",
           compact && "h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20",
         )}
       >
@@ -454,8 +441,8 @@ function ProductListItem({
               alt={image.altText}
               fill
               unoptimized
-              sizes="96px"
-              className="object-contain p-1.5"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className={compact ? "object-contain p-1" : "object-cover"}
             />
             <div className="pointer-events-auto">
               <InventoryImageDownloadButton
@@ -469,59 +456,53 @@ function ProductListItem({
 
       <div
         className={cn(
-          "pointer-events-none relative z-10 min-w-0 flex-1 space-y-2",
-          compact && "space-y-1.5",
+          "pointer-events-none relative z-10 min-w-0",
+          compact ? "flex flex-1 flex-col justify-between py-0.5" : "pt-3",
         )}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-foreground">
-              {product.name}
-            </h3>
-            <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-              {product.productCode}
-            </p>
+        {compact ? (
+          <>
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-semibold text-foreground">
+                {product.name}
+              </h3>
+              <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+                {product.productCode}
+              </p>
+            </div>
+            <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{city}</span>
+            </div>
+          </>
+        ) : (
+          <div className="flex items-start justify-between gap-3 max-[420px]:flex-col">
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-semibold text-foreground">
+                {product.name}
+              </h3>
+              <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+                {product.productCode}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1.5 max-[420px]:items-start">
+              <div className="flex gap-1.5">
+                <Badge variant="secondary" className="gap-1 font-normal">
+                  <Gem className="size-3" aria-hidden="true" />
+                  {product.purity}K
+                </Badge>
+                <Badge variant="secondary" className="gap-1 font-normal">
+                  <Palette className="size-3" aria-hidden="true" />
+                  {colorLabel}
+                </Badge>
+              </div>
+              <Badge variant="outline" className="gap-1 font-normal">
+                <MapPin className="size-3" aria-hidden="true" />
+                {city}
+              </Badge>
+            </div>
           </div>
-          {!compact ? (
-            <Badge
-              variant={product.isCustomerProduct ? "default" : "outline"}
-              className="shrink-0"
-            >
-              {product.isCustomerProduct ? "Customer" : "Stock"}
-            </Badge>
-          ) : null}
-        </div>
-
-        <p className="line-clamp-1 text-sm text-muted-foreground">
-          {getMetalLabel(product)}
-        </p>
-
-        {!compact ? (
-          <div className="flex flex-wrap gap-1.5">
-            <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground">
-              Net {formatWeight(product.netWeight, "g")}
-            </span>
-            <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
-              Gross {formatWeight(product.grossWeight, "g")}
-            </span>
-            {hasStoneInfo ? (
-              <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
-                Stones{" "}
-                {stoneCarat > 0
-                  ? formatWeight(stoneCarat, "ct")
-                  : `${stonePieces.toLocaleString("en-IN")} pcs`}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">
-            {product.location.name}
-            {product.location.city ? `, ${product.location.city}` : ""}
-          </span>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -817,19 +798,19 @@ function ProductListSkeleton() {
       {rows.map((row) => (
         <div
           key={row}
-          className="flex w-full items-start gap-3 rounded-xl border border-border bg-card p-3 shadow-sm"
+          className="rounded-xl border border-border bg-card p-3 shadow-sm"
         >
-          <Skeleton className="h-20 w-20 shrink-0 rounded-xl" />
-          <div className="min-w-0 flex-1 space-y-3">
-            <div className="flex justify-between gap-3">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-36" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-              <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="aspect-square w-full rounded-lg" />
+          <div className="mt-3 space-y-2">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-3 w-24" />
             </div>
-            <Skeleton className="h-3 w-48" />
-            <Skeleton className="h-3 w-32" />
+            <div className="flex gap-1.5 pt-1">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-10 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
           </div>
         </div>
       ))}
@@ -837,14 +818,14 @@ function ProductListSkeleton() {
   );
 }
 
-function ProductGridSkeleton({ columns }: { columns: InventoryGridColumns }) {
+function ProductGridSkeleton() {
   const rows = ["row-1", "row-2", "row-3", "row-4", "row-5", "row-6"];
 
   return (
     <div
       className={cn(
         "grid gap-3",
-        getInventoryGridClass({ columns, hasSelectedProduct: false }),
+        getInventoryGridClass(false),
       )}
     >
       {rows.map((row) => (
@@ -963,9 +944,6 @@ export function InventoryPageClient() {
 
   const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [gridColumns, setGridColumns] = useState<InventoryGridColumns>(() =>
-    getColumnsQueryValue(searchParams),
-  );
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const estimationSectionRef = useRef<HTMLElement | null>(null);
   const { settings } = useCalculatorSettings();
@@ -1082,7 +1060,6 @@ export function InventoryPageClient() {
     setSourceCreatedTo(
       getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedTo),
     );
-    setGridColumns(getColumnsQueryValue(searchParams));
   }, [searchParams]);
 
   function selectProduct(productCode: string) {
@@ -1540,38 +1517,6 @@ export function InventoryPageClient() {
               </Badge>
             ) : null}
           </Button>
-          {!hasSelectedProduct ? (
-            <div className="hidden h-10 shrink-0 items-center rounded-md border border-border bg-background p-1 lg:flex">
-              <Button
-                type="button"
-                variant={gridColumns === 2 ? "secondary" : "ghost"}
-                size="icon"
-                aria-label="Show 2 columns"
-                aria-pressed={gridColumns === 2}
-                onClick={() => {
-                  setGridColumns(2);
-                  updateQueryParam(QUERY_PARAM_KEYS.columns, "2", "3");
-                }}
-                className="size-8"
-              >
-                <Columns2 className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant={gridColumns === 3 ? "secondary" : "ghost"}
-                size="icon"
-                aria-label="Show 3 columns"
-                aria-pressed={gridColumns === 3}
-                onClick={() => {
-                  setGridColumns(3);
-                  updateQueryParam(QUERY_PARAM_KEYS.columns, "3", "3");
-                }}
-                className="size-8"
-              >
-                <Columns3 className="size-4" />
-              </Button>
-            </div>
-          ) : null}
         </div>
       </section>
 
@@ -1726,7 +1671,7 @@ export function InventoryPageClient() {
             hasSelectedProduct ? (
               <ProductListSkeleton />
             ) : (
-              <ProductGridSkeleton columns={gridColumns} />
+              <ProductGridSkeleton />
             )
           ) : listQuery.isError ? (
             <ErrorPanel
@@ -1737,10 +1682,7 @@ export function InventoryPageClient() {
             <div
               className={cn(
                 "grid gap-3",
-                getInventoryGridClass({
-                  columns: gridColumns,
-                  hasSelectedProduct,
-                }),
+                getInventoryGridClass(hasSelectedProduct),
               )}
             >
               {products.map((product) => (
