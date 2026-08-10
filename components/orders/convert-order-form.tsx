@@ -158,7 +158,16 @@ function createOrderItemFromNewCustom(
 
 function createDirectOrderItem(createdAt: Date): OrderItem {
   const id = generateId();
-  const requirement = { ...createEmptyRequirement(), id };
+  const estimatedDelivery = addDaysDateString(createdAt, 17);
+  const emptyRequirement = createEmptyRequirement();
+  const requirement = {
+    ...emptyRequirement,
+    id,
+    details: {
+      ...emptyRequirement.details,
+      deliveryDate: estimatedDelivery,
+    },
+  };
 
   return {
     id,
@@ -171,7 +180,7 @@ function createDirectOrderItem(createdAt: Date): OrderItem {
     metalNetWeight: requirement.metalWeight,
     vendor: "",
     cadApprovalRequired: false,
-    estimatedDelivery: addDaysDateString(createdAt, 17),
+    estimatedDelivery,
   };
 }
 
@@ -611,7 +620,16 @@ export function ConvertOrderForm({
 
   function addNewCustomProduct() {
     const id = generateId();
-    const requirement = { ...createEmptyRequirement(), id };
+    const estimatedDelivery = addDaysDateString(createdAtRef.current, 17);
+    const emptyRequirement = createEmptyRequirement();
+    const requirement = {
+      ...emptyRequirement,
+      id,
+      details: {
+        ...emptyRequirement.details,
+        deliveryDate: estimatedDelivery,
+      },
+    };
     const newItem: OrderItem = {
       id,
       source: "new-custom",
@@ -623,7 +641,7 @@ export function ConvertOrderForm({
       metalNetWeight: requirement.metalWeight,
       vendor: "",
       cadApprovalRequired: false,
-      estimatedDelivery: addDaysDateString(createdAtRef.current, 17),
+      estimatedDelivery,
     };
     setForm((prev) => ({
       ...prev,
@@ -1052,6 +1070,9 @@ export function ConvertOrderForm({
                         metalPurity: requirement.metalPurity,
                         metalNetWeight: requirement.metalWeight,
                         notes: requirement.notes,
+                        estimatedDelivery: isConversion
+                          ? item.estimatedDelivery
+                          : (requirement.details.deliveryDate ?? ""),
                         requirement,
                       }
                     : item,
@@ -1085,6 +1106,9 @@ export function ConvertOrderForm({
                         metalPurity: requirement.metalPurity,
                         metalNetWeight: requirement.metalWeight,
                         notes: requirement.notes,
+                        estimatedDelivery: isConversion
+                          ? item.estimatedDelivery
+                          : (requirement.details.deliveryDate ?? ""),
                         requirement,
                       }
                     : item,
@@ -1332,7 +1356,7 @@ function RequirementDetailsStep({
           onChange={(requirement) => updateRequirement(activeItem.id, requirement)}
           onSubmit={() => undefined}
           showActions={false}
-          hideDeliveryDate
+          hideDeliveryDate={isConversion}
         />
       ) : (
         <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
