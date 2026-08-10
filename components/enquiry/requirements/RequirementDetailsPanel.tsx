@@ -17,8 +17,6 @@ export function RequirementDetailsPanel({
 }: {
   item: RequirementDisplayItem;
 }) {
-  const metal = [item.metalType, item.metalPurity].filter(Boolean).join(" ");
-
   return (
     <div className="space-y-4">
       <div>
@@ -49,7 +47,8 @@ export function RequirementDetailsPanel({
         </DetailSection>
 
         <DetailSection title="Metal">
-          <DetailRow label="Metal" value={metal} />
+          <DetailRow label="Metal" value={item.metalType} />
+          <DetailRow label="Metal purity" value={item.metalPurity} />
           <DetailRow label="Metal color" value={item.details.metalColor} />
           <DetailRow label="Gold weight" value={item.metalWeight} />
           <DetailRow label="Certification" value={item.details.certification} />

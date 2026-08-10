@@ -37,9 +37,10 @@ export function getItemStatus(status?: EnquiryItemStatus): EnquiryItemStatus {
 }
 
 export function getDefaultPurity(value?: string): MetalPurity {
-  return value && ["14K", "18K", "22K", "24K"].includes(value)
-    ? (value as MetalPurity)
-    : "22K";
+  const normalized = value?.trim().toUpperCase();
+  const karat = normalized?.match(/^(14|18|22|24)\s*K(?:T)?$/)?.[1];
+
+  return karat ? (`${karat}K` as MetalPurity) : "22K";
 }
 
 export function normalizeRequirementItems({

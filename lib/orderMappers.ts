@@ -50,14 +50,16 @@ function normalizeMetalType(value?: string | null): MetalType {
 
 function normalizeMetalPurity(value?: string | number | null): MetalPurity {
   if (!value) return "Other";
-  const str = String(value).trim();
-  if (["14K", "18K", "22K", "24K", "Other"].includes(str)) {
-    return str as MetalPurity;
+
+  const normalized = String(value).trim().toUpperCase();
+  if (normalized === "OTHER") return "Other";
+
+  const karat = normalized.match(/^(14|18|22|24)\s*K(?:T)?$/)?.[1]
+    ?? normalized.match(/^(14|18|22|24)$/)?.[1];
+  if (karat) {
+    return `${karat}K` as MetalPurity;
   }
-  const num = Number(str);
-  if (!Number.isNaN(num) && [14, 18, 22, 24].includes(num)) {
-    return `${num}K` as MetalPurity;
-  }
+
   return "Other";
 }
 
