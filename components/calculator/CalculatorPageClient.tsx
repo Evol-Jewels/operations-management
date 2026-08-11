@@ -5,7 +5,7 @@ import {
   Check,
   ChevronDown,
   CircleDollarSign,
-  Diamond,
+  Download,
   ImageIcon,
   Info,
   Loader2,
@@ -21,35 +21,30 @@ import {
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
-import { StoneTypeCombobox as SharedStoneTypeCombobox } from "@/components/stone-type-combobox";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import {
   EstimationSummaryCard,
   EstimationSummaryDownloadButton,
   EstimationSummaryShareButton,
 } from "@/components/calculator/EstimationSummaryCard";
+import { StoneTypeCombobox as SharedStoneTypeCombobox } from "@/components/stone-type-combobox";
 import { Button } from "@/components/ui/button";
+import {
+  Carousel,
+  type CarouselApi,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -57,25 +52,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { useInfiniteRecentProductEstimates } from "@/hooks/useRecentProductEstimates";
-import { normalizeDecodedId } from "@/lib/barcodeScanner";
+import { captureProductEvent } from "@/lib/analytics";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
+import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
   calculateMakingCharge,
   computeEstimateFromInputs,
   getStoneType,
-  resolveMetalRate,
   resolveAutoSlab,
+  resolveMetalRate,
 } from "@/lib/calculator/pricing";
 import {
   type CalculatorTab,
   isCalculatorTab,
   writeCalculatorTabCookie,
 } from "@/lib/calculatorTab";
-import { captureProductEvent } from "@/lib/analytics";
+import {
+  getInventoryMediaUrl,
+  isGoogleDriveStorageKey,
+} from "@/lib/inventory-media";
 import {
   fetchInventoryProductByCode,
   fetchInventoryProducts,
@@ -307,9 +307,18 @@ function restoreManualCalculatorForm(
             : "",
         productImageUrl:
           typeof storedForm.productImageUrl === "string" &&
-          !storedForm.productImageUrl.startsWith("blob:")
+          !storedForm.productImageUrl.startsWith("blob:") &&
+          !isGoogleDriveStorageKey(storedForm.productImageUrl)
             ? storedForm.productImageUrl
             : undefined,
+        productImageUrls: Array.isArray(storedForm.productImageUrls)
+          ? storedForm.productImageUrls.filter(
+              (url): url is string =>
+                typeof url === "string" &&
+                !url.startsWith("blob:") &&
+                !isGoogleDriveStorageKey(url),
+            )
+          : undefined,
       },
       isGstEdited: Boolean(parsed.isGstEdited),
       isMakingChargeEdited: Boolean(parsed.isMakingChargeEdited),
@@ -330,6 +339,9 @@ function persistManualCalculatorForm(
       productImageUrl: form.productImageUrl?.startsWith("blob:")
         ? undefined
         : form.productImageUrl,
+      productImageUrls: form.productImageUrls?.filter(
+        (url) => !url.startsWith("blob:"),
+      ),
     };
 
     localStorage.setItem(
@@ -389,11 +401,13 @@ function NumericLineInput({
     <div className="flex h-9 items-end gap-2 border-b border-border pb-1.5 focus-within:border-foreground">
       <input
         type="text"
+        role="spinbutton"
         inputMode="decimal"
         value={inputValue}
         onChange={(event) => handleChange(event.target.value)}
         placeholder={placeholder}
         aria-valuemin={min}
+        aria-valuenow={value}
         data-step={step}
         className="min-w-0 flex-1 bg-transparent px-0 text-sm outline-none placeholder:text-muted-foreground/35"
       />
@@ -886,6 +900,148 @@ function ProductImageInput({
   );
 }
 
+function CalculatorProductMediaPicker({
+  imageUrls,
+  selectedImageUrl,
+  productName,
+  onSelect,
+}: {
+  imageUrls: string[];
+  selectedImageUrl?: string;
+  productName: string;
+  onSelect: (imageUrl: string) => void;
+}) {
+  const images = useMemo(() => [...new Set(imageUrls)], [imageUrls]);
+  const [api, setApi] = useState<CarouselApi>();
+  const selectedIndex = Math.max(0, images.indexOf(selectedImageUrl ?? ""));
+  const currentImageUrl = images[selectedIndex];
+
+  useEffect(() => {
+    if (!api) return;
+
+    const updateSelection = () => {
+      const imageUrl = images[api.selectedScrollSnap()];
+      if (imageUrl && imageUrl !== selectedImageUrl) onSelect(imageUrl);
+    };
+
+    api.on("select", updateSelection);
+    api.on("reInit", updateSelection);
+    return () => {
+      api.off("select", updateSelection);
+      api.off("reInit", updateSelection);
+    };
+  }, [api, images, onSelect, selectedImageUrl]);
+
+  useEffect(() => {
+    if (api && api.selectedScrollSnap() !== selectedIndex) {
+      api.scrollTo(selectedIndex);
+    }
+  }, [api, selectedIndex]);
+
+  if (images.length < 2 || !currentImageUrl) return null;
+
+  async function downloadCurrentImage() {
+    try {
+      const response = await fetch(currentImageUrl, { credentials: "include" });
+      if (!response.ok) throw new Error("Image request failed");
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeName =
+        productName.trim().replace(/[^a-z0-9_-]+/gi, "-") || "product";
+      const extension =
+        blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+
+      link.href = objectUrl;
+      link.download = `${safeName}-view-${selectedIndex + 1}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      toast.error("Unable to download the selected product image");
+    }
+  }
+
+  return (
+    <section className="rounded-lg border border-border bg-background p-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Summary image
+          </p>
+          <p className="mt-1 text-sm text-foreground">
+            View {selectedIndex + 1} of {images.length}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="cursor-pointer"
+          onClick={() => void downloadCurrentImage()}
+        >
+          <Download className="size-4" />
+          Download current
+        </Button>
+      </div>
+
+      <Carousel
+        setApi={setApi}
+        opts={{ loop: true }}
+        aria-label="Choose the product image used in the estimate"
+      >
+        <CarouselContent className="ml-0">
+          {images.map((imageUrl, index) => (
+            <CarouselItem key={imageUrl} className="pl-0">
+              <div className="relative aspect-[16/9] overflow-hidden rounded-md border border-border bg-muted/30">
+                <Image
+                  src={imageUrl}
+                  alt={`${productName || "Product"} view ${index + 1}`}
+                  fill
+                  sizes="(min-width: 1024px) 45vw, 100vw"
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        <CarouselPrevious className="left-3 size-10 cursor-pointer bg-background/90 shadow-sm" />
+        <CarouselNext className="right-3 size-10 cursor-pointer bg-background/90 shadow-sm" />
+      </Carousel>
+
+      <div className="scrollbar-none mt-2 flex gap-2 overflow-x-auto">
+        {images.map((imageUrl, index) => (
+          <button
+            key={imageUrl}
+            type="button"
+            aria-label={`Use product image ${index + 1}`}
+            aria-current={selectedIndex === index ? "true" : undefined}
+            onClick={() => onSelect(imageUrl)}
+            className={cn(
+              "relative size-14 shrink-0 cursor-pointer overflow-hidden rounded-md border bg-background transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              selectedIndex === index
+                ? "border-foreground opacity-100"
+                : "border-border opacity-55 hover:opacity-100",
+            )}
+          >
+            <Image
+              src={imageUrl}
+              alt=""
+              fill
+              sizes="56px"
+              className="object-contain"
+              unoptimized
+            />
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function RequirementItem({
   complete,
   children,
@@ -1280,52 +1436,50 @@ function RecentEstimateSummaryDialog({
             <p className="text-sm text-destructive">{error}</p>
           </div>
         ) : result ? (
-          <>
-            <div className="max-h-[76vh] overflow-y-auto p-3 sm:p-4">
-              <EstimationSummaryCard
-                data={{ kind: "estimate", result }}
-                downloadFilename={`evol-estimate-${result.product.productCode}-${new Date()
-                  .toISOString()
-                  .slice(0, 10)}.png`}
-                compact
-                className="border-0 bg-transparent p-0 shadow-none"
-                showHeader={false}
-                showDownloadButton={false}
-                title="Summary"
-                renderActions={({
-                  downloadSummaryPdf,
-                  downloadSummaryPng,
-                  shareSummaryPng,
-                  isDownloading,
-                  isSharing,
-                }) => (
-                  <div className="flex flex-wrap items-center justify-end gap-2.5">
-                    <EstimationSummaryShareButton
-                      shareSummaryPng={shareSummaryPng}
-                      isSharing={isSharing}
-                      isDownloading={isDownloading}
-                      className="h-11 justify-center rounded-lg"
-                    />
-                    <EstimationSummaryDownloadButton
-                      downloadSummaryPdf={downloadSummaryPdf}
-                      downloadSummaryPng={downloadSummaryPng}
-                      isDownloading={isDownloading}
-                      className="h-11 justify-center rounded-lg"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-11 rounded-lg"
-                      onClick={loadIntoCalculator}
-                    >
-                      <ArrowUpRight className="h-4 w-4" />
-                      Load into Calculator
-                    </Button>
-                  </div>
-                )}
-              />
-            </div>
-          </>
+          <div className="max-h-[76vh] overflow-y-auto p-3 sm:p-4">
+            <EstimationSummaryCard
+              data={{ kind: "estimate", result }}
+              downloadFilename={`evol-estimate-${result.product.productCode}-${new Date()
+                .toISOString()
+                .slice(0, 10)}.png`}
+              compact
+              className="border-0 bg-transparent p-0 shadow-none"
+              showHeader={false}
+              showDownloadButton={false}
+              title="Summary"
+              renderActions={({
+                downloadSummaryPdf,
+                downloadSummaryPng,
+                shareSummaryPng,
+                isDownloading,
+                isSharing,
+              }) => (
+                <div className="flex flex-wrap items-center justify-end gap-2.5">
+                  <EstimationSummaryShareButton
+                    shareSummaryPng={shareSummaryPng}
+                    isSharing={isSharing}
+                    isDownloading={isDownloading}
+                    className="h-11 justify-center rounded-lg"
+                  />
+                  <EstimationSummaryDownloadButton
+                    downloadSummaryPdf={downloadSummaryPdf}
+                    downloadSummaryPng={downloadSummaryPng}
+                    isDownloading={isDownloading}
+                    className="h-11 justify-center rounded-lg"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 rounded-lg"
+                    onClick={loadIntoCalculator}
+                  >
+                    <ArrowUpRight className="h-4 w-4" />
+                    Load into Calculator
+                  </Button>
+                </div>
+              )}
+            />
+          </div>
         ) : null}
       </DialogContent>
     </Dialog>
@@ -1573,9 +1727,9 @@ function SearchPanel({
       {!blockedResult && searchResults.length > 0 ? (
         <div className="max-h-80 overflow-y-auto rounded-lg border border-border bg-background">
           {searchResults.map((product) => {
-            const imageUrl =
-              product.media.find((item) => item.isPrimary)?.storageKey ??
-              product.media[0]?.storageKey;
+            const image =
+              product.media.find((item) => item.isPrimary) ?? product.media[0];
+            const imageUrl = image ? getInventoryMediaUrl(image) : undefined;
 
             return (
               <button
@@ -2251,7 +2405,12 @@ export function CalculatorPageClient({
       URL.revokeObjectURL(form.productImageUrl);
     }
 
-    updateForm("productImageUrl", URL.createObjectURL(file));
+    const objectUrl = URL.createObjectURL(file);
+    setForm((current) => ({
+      ...current,
+      productImageUrl: objectUrl,
+      productImageUrls: [objectUrl],
+    }));
   }
 
   function loadInventoryProduct(result: ProductEstimateResult) {
@@ -2288,6 +2447,7 @@ export function CalculatorPageClient({
       productName: result.product.productName,
       productNote: result.product.note || "",
       productImageUrl: result.product.imageUrl || undefined,
+      productImageUrls: result.product.imageUrls,
     });
     setIsGstEdited(true);
     setIsMakingChargeEdited(true);
@@ -2295,6 +2455,7 @@ export function CalculatorPageClient({
     handleActiveTabChange("calculate");
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Query loading is intentionally keyed by the URL and settings; the loader mutates the same state this effect coordinates.
   useEffect(() => {
     if (!hasRestoredPersistedForm) return;
 
@@ -2349,13 +2510,10 @@ export function CalculatorPageClient({
         ) : (
           <div className="space-y-4">
             {form.metals?.some((metal) => metal.rateOverride !== undefined) ? (
-              <div
-                role="status"
-                className="flex items-center gap-2 rounded-lg border border-amber-300/70 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/35 dark:text-amber-100"
-              >
+              <output className="flex items-center gap-2 rounded-lg border border-amber-300/70 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/35 dark:text-amber-100">
                 <Info className="size-4 shrink-0" aria-hidden="true" />
                 <span>One or more metal rates use a custom override.</span>
-              </div>
+              </output>
             ) : null}
             <div className="grid items-start gap-5 lg:grid-cols-[minmax(380px,520px)_minmax(420px,760px)] xl:grid-cols-[minmax(420px,560px)_minmax(460px,760px)]">
               <CalculatorForm
@@ -2376,18 +2534,28 @@ export function CalculatorPageClient({
               />
               <div
                 ref={summaryCardRef}
-                className="min-w-0 h-full w-full max-w-[760px]"
+                className="min-w-0 h-full w-full max-w-[760px] space-y-3"
               >
                 {canShowSummary ? (
-                  <EstimationSummaryCard
-                    data={{
-                      kind: "calculator",
-                      form,
-                      breakdown: summaryBreakdown,
-                      gstRate: form.gstRate,
-                    }}
-                    className="lg:sticky lg:top-6 lg:self-start"
-                  />
+                  <>
+                    <CalculatorProductMediaPicker
+                      imageUrls={form.productImageUrls ?? []}
+                      selectedImageUrl={form.productImageUrl}
+                      productName={form.productName}
+                      onSelect={(imageUrl) =>
+                        updateForm("productImageUrl", imageUrl)
+                      }
+                    />
+                    <EstimationSummaryCard
+                      data={{
+                        kind: "calculator",
+                        form,
+                        breakdown: summaryBreakdown,
+                        gstRate: form.gstRate,
+                      }}
+                      className="lg:sticky lg:top-6 lg:self-start"
+                    />
+                  </>
                 ) : (
                   <EstimateRequirementsCard
                     requirements={estimateRequirements}

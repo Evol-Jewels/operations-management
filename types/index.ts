@@ -392,6 +392,7 @@ export interface CalculatorFormState {
   productName: string;
   productNote: string;
   productImageUrl?: string;
+  productImageUrls?: string[];
 }
 
 export interface CalculatorPricedStoneDetail extends CalculatorStoneInput {
@@ -559,6 +560,7 @@ export interface ProductLookupProduct {
   description: string;
   note: string;
   imageUrl: string | null;
+  imageUrls?: string[];
   purity: string;
   netGoldWeight: number;
   grossWeight: number;
