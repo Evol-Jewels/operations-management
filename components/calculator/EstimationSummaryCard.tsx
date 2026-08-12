@@ -56,7 +56,105 @@ interface SharedSummaryData {
   gstRate: number;
 }
 
+interface SummaryMediaControlsProps {
+  imageUrls: string[];
+  selectedIndex: number;
+  onSelect: (imageUrl: string) => void;
+  onPrevious: () => void;
+  onNext: () => void;
+}
+
 const EMPTY_IMAGE_URLS: string[] = [];
+
+function SummaryMediaControls({
+  imageUrls,
+  selectedIndex,
+  onSelect,
+  onPrevious,
+  onNext,
+}: SummaryMediaControlsProps) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <fieldset
+      className="absolute inset-0 z-10"
+      aria-label="Product image controls"
+      data-estimation-summary-media-controls
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
+      onFocusCapture={() => setIsVisible(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsVisible(false);
+        }
+      }}
+    >
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 flex items-center justify-between px-2 opacity-0 transition-opacity duration-200",
+          isVisible && "pointer-events-auto opacity-100",
+        )}
+      >
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="size-10 cursor-pointer rounded-full border border-white/15 bg-black/65 text-white shadow-lg backdrop-blur-sm hover:bg-black/80 hover:text-white"
+          aria-label="Show previous product image"
+          onClick={onPrevious}
+        >
+          <ChevronLeft className="size-5" />
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="size-10 cursor-pointer rounded-full border border-white/15 bg-black/65 text-white shadow-lg backdrop-blur-sm hover:bg-black/80 hover:text-white"
+          aria-label="Show next product image"
+          onClick={onNext}
+        >
+          <ChevronRight className="size-5" />
+        </Button>
+      </div>
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-1 items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3 pb-3 pt-10 opacity-0 transition-all duration-200",
+          isVisible && "pointer-events-auto translate-y-0 opacity-100",
+        )}
+      >
+        <div className="scrollbar-none flex min-w-0 gap-1.5 overflow-x-auto">
+          {imageUrls.map((imageUrl, index) => (
+            <button
+              key={imageUrl}
+              type="button"
+              aria-label={`Use product image ${index + 1}`}
+              aria-current={selectedIndex === index ? "true" : undefined}
+              onClick={() => onSelect(imageUrl)}
+              className={cn(
+                "relative size-10 shrink-0 cursor-pointer overflow-hidden rounded border bg-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
+                selectedIndex === index
+                  ? "border-white opacity-100 ring-1 ring-white"
+                  : "border-white/35 opacity-65 hover:opacity-100",
+              )}
+            >
+              <Image
+                src={imageUrl}
+                alt=""
+                fill
+                sizes="40px"
+                className="object-contain"
+                unoptimized
+              />
+            </button>
+          ))}
+        </div>
+        <span className="shrink-0 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold tabular text-white backdrop-blur-sm">
+          {selectedIndex + 1} / {imageUrls.length}
+        </span>
+      </div>
+    </fieldset>
+  );
+}
 
 interface EstimationSummaryCardProps {
   className?: string;
@@ -255,6 +353,69 @@ function imageToPngDataUrl(image: HTMLImageElement) {
 
   context.drawImage(image, 0, 0);
   return canvas.toDataURL("image/png");
+}
+
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result)), {
+      once: true,
+    });
+    reader.addEventListener("error", () => reject(reader.error), {
+      once: true,
+    });
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function inlineProductImages(card: HTMLElement) {
+  const images = Array.from(
+    card.querySelectorAll<HTMLImageElement>(
+      "[data-estimation-summary-media-product], [data-estimation-summary-media-backdrop]",
+    ),
+  );
+  const originalSources = images.map((image) => image.src);
+  const originalSrcsets = images.map((image) => image.getAttribute("srcset"));
+  const inlinedSources = new Map<string, string>();
+
+  await Promise.all(
+    images.map(async (image) => {
+      const source = image.currentSrc || image.src;
+      let dataUrl = inlinedSources.get(source);
+
+      if (!dataUrl) {
+        let response = await fetch(source, {
+          credentials: "include",
+          cache: "force-cache",
+        });
+        if (!response.ok) {
+          await waitForAnimationFrame();
+          response = await fetch(source, {
+            credentials: "include",
+            cache: "reload",
+          });
+        }
+        if (!response.ok) throw new Error("Unable to load the product image");
+        dataUrl = await blobToDataUrl(await response.blob());
+        inlinedSources.set(source, dataUrl);
+      }
+
+      image.src = dataUrl;
+      image.removeAttribute("srcset");
+      await image.decode().catch(() => undefined);
+    }),
+  );
+
+  await waitForCardImages(card);
+
+  return () => {
+    images.forEach((image, index) => {
+      image.src = originalSources[index];
+      if (originalSrcsets[index]) {
+        image.setAttribute("srcset", originalSrcsets[index]);
+      }
+    });
+  };
 }
 
 function inlineDownloadLogos(card: HTMLElement) {
@@ -631,7 +792,7 @@ function CompactSummary({
         </div>
         <div
           className={cn(
-            "relative flex min-h-40 flex-1 items-center justify-center overflow-hidden bg-muted/60 lg:min-h-64",
+            "group relative flex min-h-40 flex-1 items-center justify-center overflow-hidden bg-muted/60 lg:min-h-64",
             !summary.imageUrl && "hidden lg:flex",
           )}
           data-estimation-summary-compact-media
@@ -644,6 +805,7 @@ function CompactSummary({
                 fill
                 aria-hidden="true"
                 className="scale-110 object-cover opacity-30 blur-md"
+                data-estimation-summary-media-backdrop
                 unoptimized
               />
               <div className="absolute inset-0 bg-black/5" aria-hidden="true" />
@@ -652,6 +814,7 @@ function CompactSummary({
                 alt={summary.name || "Jewellery product"}
                 fill
                 className="object-contain"
+                data-estimation-summary-media-product
                 unoptimized
               />
               {mediaControls}
@@ -750,67 +913,13 @@ export function EstimationSummaryCard({
 
   const mediaControls =
     availableImages.length > 1 ? (
-      <>
-        <div
-          className="absolute inset-0 z-10 flex items-center justify-between px-2"
-          data-estimation-summary-media-controls
-        >
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            className="size-10 cursor-pointer rounded-full border border-white/15 bg-black/65 text-white shadow-lg backdrop-blur-sm hover:bg-black/80 hover:text-white"
-            aria-label="Show previous product image"
-            onClick={() => selectRelativeImage(-1)}
-          >
-            <ChevronLeft className="size-5" />
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            className="size-10 cursor-pointer rounded-full border border-white/15 bg-black/65 text-white shadow-lg backdrop-blur-sm hover:bg-black/80 hover:text-white"
-            aria-label="Show next product image"
-            onClick={() => selectRelativeImage(1)}
-          >
-            <ChevronRight className="size-5" />
-          </Button>
-        </div>
-        <div
-          className="absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3 pb-3 pt-10"
-          data-estimation-summary-media-controls
-        >
-          <div className="scrollbar-none flex min-w-0 gap-1.5 overflow-x-auto">
-            {availableImages.map((imageUrl, index) => (
-              <button
-                key={imageUrl}
-                type="button"
-                aria-label={`Use product image ${index + 1}`}
-                aria-current={selectedImageIndex === index ? "true" : undefined}
-                onClick={() => selectImage(imageUrl)}
-                className={cn(
-                  "relative size-10 shrink-0 cursor-pointer overflow-hidden rounded border bg-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
-                  selectedImageIndex === index
-                    ? "border-white opacity-100 ring-1 ring-white"
-                    : "border-white/35 opacity-65 hover:opacity-100",
-                )}
-              >
-                <Image
-                  src={imageUrl}
-                  alt=""
-                  fill
-                  sizes="40px"
-                  className="object-contain"
-                  unoptimized
-                />
-              </button>
-            ))}
-          </div>
-          <span className="shrink-0 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold tabular text-white backdrop-blur-sm">
-            {selectedImageIndex + 1} / {availableImages.length}
-          </span>
-        </div>
-      </>
+      <SummaryMediaControls
+        imageUrls={availableImages}
+        selectedIndex={selectedImageIndex}
+        onSelect={selectImage}
+        onPrevious={() => selectRelativeImage(-1)}
+        onNext={() => selectRelativeImage(1)}
+      />
     ) : null;
 
   async function downloadSummaryPdf() {
@@ -855,21 +964,35 @@ export function EstimationSummaryCard({
     if (!cardRef.current) throw new Error("Unable to prepare summary image");
 
     await waitForCardImages(cardRef.current);
+    await document.fonts?.ready;
+    const restoreProductImages = await inlineProductImages(cardRef.current);
     const restoreBlobImages = inlineBlobImages(cardRef.current);
     const restoreLogos = inlineDownloadLogos(cardRef.current);
 
-    const blob = await toBlob(cardRef.current, {
+    const exportOptions = {
       pixelRatio: 2,
-      cacheBust: true,
-      filter: (node) =>
-        !(
-          node instanceof HTMLElement &&
-          node.hasAttribute("data-estimation-summary-media-controls")
-        ),
-    }).finally(() => {
+      cacheBust: false,
+      filter: (node: HTMLElement) =>
+        !node.hasAttribute?.("data-estimation-summary-media-controls"),
+    };
+
+    let blob: Blob | null = null;
+    try {
+      await waitForAnimationFrame();
+      try {
+        blob = await toBlob(cardRef.current, exportOptions);
+      } catch {
+        blob = null;
+      }
+      if (!blob) {
+        await waitForAnimationFrame();
+        blob = await toBlob(cardRef.current, exportOptions);
+      }
+    } finally {
       restoreLogos();
       restoreBlobImages();
-    });
+      restoreProductImages();
+    }
 
     if (!blob) throw new Error("Unable to create summary image");
     return blob;
@@ -1055,7 +1178,7 @@ export function EstimationSummaryCard({
             >
               <div
                 className={cn(
-                  "relative flex min-h-40 items-center justify-center overflow-hidden bg-muted/60 lg:aspect-square lg:min-h-0",
+                  "group relative flex min-h-40 items-center justify-center overflow-hidden bg-muted/60 lg:aspect-square lg:min-h-0",
                   !summary.imageUrl && "hidden lg:flex",
                 )}
                 data-estimation-summary-media
