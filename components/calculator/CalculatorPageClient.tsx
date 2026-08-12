@@ -63,6 +63,7 @@ import {
   writeCalculatorTabCookie,
 } from "@/lib/calculatorTab";
 import {
+  getInventoryImages,
   getInventoryMediaUrl,
   isGoogleDriveStorageKey,
 } from "@/lib/inventory-media";
@@ -1206,12 +1207,14 @@ function RecentEstimateSummaryDialog({
   estimate,
   settings,
   onLoadProduct,
+  preferCatalog,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   estimate: RecentProductEstimate | null;
   settings: CalculatorSettings;
   onLoadProduct: (result: ProductEstimateResult) => void;
+  preferCatalog: boolean;
 }) {
   const [result, setResult] = useState<ProductEstimateResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -1234,7 +1237,9 @@ function RecentEstimateSummaryDialog({
           return;
         }
 
-        setResult(normalizeInventoryProductEstimate(product, settings));
+        setResult(
+          normalizeInventoryProductEstimate(product, settings, preferCatalog),
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load summary");
       } finally {
@@ -1243,7 +1248,7 @@ function RecentEstimateSummaryDialog({
     }
 
     loadEstimateDetails();
-  }, [estimate, open, settings]);
+  }, [estimate, open, preferCatalog, settings]);
 
   function loadIntoCalculator() {
     if (!result) return;
@@ -1338,10 +1343,12 @@ function SearchPanel({
   settings,
   onLoadProduct,
   canUseRecentEstimates,
+  preferCatalog,
 }: {
   settings: CalculatorSettings;
   onLoadProduct: (result: ProductEstimateResult) => void;
   canUseRecentEstimates: boolean;
+  preferCatalog: boolean;
 }) {
   const [searchInput, setSearchInput] = useState("");
   const [searchedCode, setSearchedCode] = useState("");
@@ -1384,6 +1391,7 @@ function SearchPanel({
       const normalized = normalizeInventoryProductEstimate(
         detailProduct,
         settings,
+        preferCatalog,
       );
 
       if (canUseRecentEstimates) {
@@ -1575,8 +1583,7 @@ function SearchPanel({
       {!blockedResult && searchResults.length > 0 ? (
         <div className="max-h-80 overflow-y-auto rounded-lg border border-border bg-background">
           {searchResults.map((product) => {
-            const image =
-              product.media.find((item) => item.isPrimary) ?? product.media[0];
+            const image = getInventoryImages(product, preferCatalog)[0];
             const imageUrl = image ? getInventoryMediaUrl(image) : undefined;
 
             return (
@@ -1639,6 +1646,7 @@ function SearchPanel({
         estimate={selectedRecent}
         settings={settings}
         onLoadProduct={onLoadProduct}
+        preferCatalog={preferCatalog}
       />
     </div>
   );
@@ -1941,7 +1949,9 @@ export function CalculatorPageClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
-  const canUseRecentEstimates = getSessionRole(session) === "SALES";
+  const sessionRole = getSessionRole(session);
+  const canUseRecentEstimates = sessionRole === "SALES";
+  const preferCatalogImages = sessionRole === "OPERATIONS";
   const [activeTab, setActiveTab] = useState<CalculatorTab>(() => {
     const queryTab = searchParams.get("tab");
     return isCalculatorTab(queryTab) ? queryTab : initialTab;
@@ -2319,7 +2329,11 @@ export function CalculatorPageClient({
         if (!product) return;
 
         loadInventoryProduct(
-          normalizeInventoryProductEstimate(product, settings),
+          normalizeInventoryProductEstimate(
+            product,
+            settings,
+            preferCatalogImages,
+          ),
         );
       } catch {
         loadedProductCodeRef.current = null;
@@ -2327,7 +2341,7 @@ export function CalculatorPageClient({
     }
 
     loadProductFromQuery();
-  }, [hasRestoredPersistedForm, searchParams, settings]);
+  }, [hasRestoredPersistedForm, preferCatalogImages, searchParams, settings]);
 
   return (
     <RequireInternalAuth>
@@ -2353,6 +2367,7 @@ export function CalculatorPageClient({
               settings={settings}
               onLoadProduct={loadInventoryProduct}
               canUseRecentEstimates={canUseRecentEstimates}
+              preferCatalog={preferCatalogImages}
             />
           </div>
         ) : (

@@ -18,7 +18,19 @@ export function getInventoryMediaUrl(
 }
 
 export function getInventoryMediaUrls(product: InventoryProduct) {
-  return product.media
-    .filter((item) => item.mediaType === "IMAGE")
-    .map(getInventoryMediaUrl);
+  return getInventoryImages(product).map(getInventoryMediaUrl);
+}
+
+export function getInventoryImages(
+  product: InventoryProduct,
+  preferCatalog = false,
+) {
+  const images = product.media.filter((item) => item.mediaType === "IMAGE");
+  if (!preferCatalog) return images;
+
+  return images.toSorted((left, right) => {
+    const leftIsCatalog = left.source === "CATALOG" ? 0 : 1;
+    const rightIsCatalog = right.source === "CATALOG" ? 0 : 1;
+    return leftIsCatalog - rightIsCatalog;
+  });
 }

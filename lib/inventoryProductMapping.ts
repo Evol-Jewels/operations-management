@@ -1,7 +1,7 @@
 import type { Product } from "@/components/enquiries/enquiry-form-types";
 import {
+  getInventoryImages,
   getInventoryMediaUrl,
-  getInventoryMediaUrls,
 } from "@/lib/inventory-media";
 import type {
   CalculatorFormState,
@@ -46,8 +46,10 @@ export function parseInventoryNumber(
 
 export function getInventoryPrimaryImage(
   product: InventoryProduct,
+  preferCatalog = false,
 ): InventoryMedia | undefined {
-  return product.media.find((item) => item.isPrimary) ?? product.media[0];
+  const images = getInventoryImages(product, preferCatalog);
+  return images[0];
 }
 
 export function getInventoryPurity(product: InventoryProduct): MetalPurity {
@@ -114,10 +116,12 @@ export function buildInventoryCalculatorStones(
 export function buildInventoryCalculatorForm(
   product: InventoryProduct,
   settings: CalculatorSettings,
+  preferCatalog = false,
 ): CalculatorFormState {
   const netGoldWeight = parseInventoryNumber(product.netWeight);
 
-  const primaryImage = getInventoryPrimaryImage(product);
+  const primaryImage = getInventoryPrimaryImage(product, preferCatalog);
+  const productImages = getInventoryImages(product, preferCatalog);
 
   return {
     netGoldWeight,
@@ -132,7 +136,7 @@ export function buildInventoryCalculatorForm(
     productImageUrl: primaryImage
       ? getInventoryMediaUrl(primaryImage)
       : undefined,
-    productImageUrls: getInventoryMediaUrls(product),
+    productImageUrls: productImages.map(getInventoryMediaUrl),
   };
 }
 
@@ -210,6 +214,7 @@ function buildBackendPricingBreakdown(
 export function normalizeInventoryProductEstimate(
   product: InventoryProduct,
   settings: CalculatorSettings,
+  preferCatalog = false,
 ): ProductEstimateResult {
   const stones: ProductLookupStoneLine[] = (product.stones ?? []).map(
     (stone) => ({
@@ -225,8 +230,10 @@ export function normalizeInventoryProductEstimate(
     }),
   );
 
-  const primaryImage = getInventoryPrimaryImage(product);
-  const imageUrls = getInventoryMediaUrls(product);
+  const primaryImage = getInventoryPrimaryImage(product, preferCatalog);
+  const imageUrls = getInventoryImages(product, preferCatalog).map(
+    getInventoryMediaUrl,
+  );
 
   return {
     product: {
