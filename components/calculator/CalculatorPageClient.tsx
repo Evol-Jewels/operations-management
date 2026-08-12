@@ -5,7 +5,6 @@ import {
   Check,
   ChevronDown,
   CircleDollarSign,
-  Download,
   ImageIcon,
   Info,
   Loader2,
@@ -21,7 +20,6 @@ import {
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import {
@@ -31,14 +29,6 @@ import {
 } from "@/components/calculator/EstimationSummaryCard";
 import { StoneTypeCombobox as SharedStoneTypeCombobox } from "@/components/stone-type-combobox";
 import { Button } from "@/components/ui/button";
-import {
-  Carousel,
-  type CarouselApi,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 import {
   Collapsible,
   CollapsibleContent,
@@ -897,148 +887,6 @@ function ProductImageInput({
         onChange={(event) => onImageChange(event.target.files?.[0] ?? null)}
       />
     </>
-  );
-}
-
-function CalculatorProductMediaPicker({
-  imageUrls,
-  selectedImageUrl,
-  productName,
-  onSelect,
-}: {
-  imageUrls: string[];
-  selectedImageUrl?: string;
-  productName: string;
-  onSelect: (imageUrl: string) => void;
-}) {
-  const images = useMemo(() => [...new Set(imageUrls)], [imageUrls]);
-  const [api, setApi] = useState<CarouselApi>();
-  const selectedIndex = Math.max(0, images.indexOf(selectedImageUrl ?? ""));
-  const currentImageUrl = images[selectedIndex];
-
-  useEffect(() => {
-    if (!api) return;
-
-    const updateSelection = () => {
-      const imageUrl = images[api.selectedScrollSnap()];
-      if (imageUrl && imageUrl !== selectedImageUrl) onSelect(imageUrl);
-    };
-
-    api.on("select", updateSelection);
-    api.on("reInit", updateSelection);
-    return () => {
-      api.off("select", updateSelection);
-      api.off("reInit", updateSelection);
-    };
-  }, [api, images, onSelect, selectedImageUrl]);
-
-  useEffect(() => {
-    if (api && api.selectedScrollSnap() !== selectedIndex) {
-      api.scrollTo(selectedIndex);
-    }
-  }, [api, selectedIndex]);
-
-  if (images.length < 2 || !currentImageUrl) return null;
-
-  async function downloadCurrentImage() {
-    try {
-      const response = await fetch(currentImageUrl, { credentials: "include" });
-      if (!response.ok) throw new Error("Image request failed");
-
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const safeName =
-        productName.trim().replace(/[^a-z0-9_-]+/gi, "-") || "product";
-      const extension =
-        blob.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
-
-      link.href = objectUrl;
-      link.download = `${safeName}-view-${selectedIndex + 1}.${extension}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(objectUrl);
-    } catch {
-      toast.error("Unable to download the selected product image");
-    }
-  }
-
-  return (
-    <section className="rounded-lg border border-border bg-background p-3">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Summary image
-          </p>
-          <p className="mt-1 text-sm text-foreground">
-            View {selectedIndex + 1} of {images.length}
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="cursor-pointer"
-          onClick={() => void downloadCurrentImage()}
-        >
-          <Download className="size-4" />
-          Download current
-        </Button>
-      </div>
-
-      <Carousel
-        setApi={setApi}
-        opts={{ loop: true }}
-        aria-label="Choose the product image used in the estimate"
-      >
-        <CarouselContent className="ml-0">
-          {images.map((imageUrl, index) => (
-            <CarouselItem key={imageUrl} className="pl-0">
-              <div className="relative aspect-[16/9] overflow-hidden rounded-md border border-border bg-muted/30">
-                <Image
-                  src={imageUrl}
-                  alt={`${productName || "Product"} view ${index + 1}`}
-                  fill
-                  sizes="(min-width: 1024px) 45vw, 100vw"
-                  className="object-contain"
-                  unoptimized
-                />
-              </div>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        <CarouselPrevious className="left-3 size-10 cursor-pointer bg-background/90 shadow-sm" />
-        <CarouselNext className="right-3 size-10 cursor-pointer bg-background/90 shadow-sm" />
-      </Carousel>
-
-      <div className="scrollbar-none mt-2 flex gap-2 overflow-x-auto">
-        {images.map((imageUrl, index) => (
-          <button
-            key={imageUrl}
-            type="button"
-            aria-label={`Use product image ${index + 1}`}
-            aria-current={selectedIndex === index ? "true" : undefined}
-            onClick={() => onSelect(imageUrl)}
-            className={cn(
-              "relative size-14 shrink-0 cursor-pointer overflow-hidden rounded-md border bg-background transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              selectedIndex === index
-                ? "border-foreground opacity-100"
-                : "border-border opacity-55 hover:opacity-100",
-            )}
-          >
-            <Image
-              src={imageUrl}
-              alt=""
-              fill
-              sizes="56px"
-              className="object-contain"
-              unoptimized
-            />
-          </button>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -2534,28 +2382,21 @@ export function CalculatorPageClient({
               />
               <div
                 ref={summaryCardRef}
-                className="min-w-0 h-full w-full max-w-[760px] space-y-3"
+                className="min-w-0 h-full w-full max-w-[760px]"
               >
                 {canShowSummary ? (
-                  <>
-                    <CalculatorProductMediaPicker
-                      imageUrls={form.productImageUrls ?? []}
-                      selectedImageUrl={form.productImageUrl}
-                      productName={form.productName}
-                      onSelect={(imageUrl) =>
-                        updateForm("productImageUrl", imageUrl)
-                      }
-                    />
-                    <EstimationSummaryCard
-                      data={{
-                        kind: "calculator",
-                        form,
-                        breakdown: summaryBreakdown,
-                        gstRate: form.gstRate,
-                      }}
-                      className="lg:sticky lg:top-6 lg:self-start"
-                    />
-                  </>
+                  <EstimationSummaryCard
+                    data={{
+                      kind: "calculator",
+                      form,
+                      breakdown: summaryBreakdown,
+                      gstRate: form.gstRate,
+                    }}
+                    className="lg:sticky lg:top-6 lg:self-start"
+                    onImageSelect={(imageUrl) =>
+                      updateForm("productImageUrl", imageUrl)
+                    }
+                  />
                 ) : (
                   <EstimateRequirementsCard
                     requirements={estimateRequirements}
