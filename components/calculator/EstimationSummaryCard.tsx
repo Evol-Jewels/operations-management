@@ -813,7 +813,7 @@ function CompactSummary({
                 src={summary.imageUrl}
                 alt={summary.name || "Jewellery product"}
                 fill
-                className="object-contain"
+                className="object-cover"
                 data-estimation-summary-media-product
                 unoptimized
               />
@@ -1202,7 +1202,7 @@ export function EstimationSummaryCard({
                       src={summary.imageUrl}
                       alt={displayName}
                       fill
-                      className="object-contain"
+                      className="object-cover"
                       data-estimation-summary-media-product
                       unoptimized
                     />
