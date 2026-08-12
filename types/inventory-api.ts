@@ -5,6 +5,7 @@ export type InventoryMedia = {
   altText: string;
   sortOrder: number;
   isPrimary: boolean;
+  source?: "CATALOG" | "LINE_SHEET";
 };
 
 export type InventoryStone = {

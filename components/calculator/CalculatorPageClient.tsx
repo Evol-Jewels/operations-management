@@ -5,7 +5,6 @@ import {
   Check,
   ChevronDown,
   CircleDollarSign,
-  Diamond,
   ImageIcon,
   Info,
   Loader2,
@@ -22,34 +21,20 @@ import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
-import { StoneTypeCombobox as SharedStoneTypeCombobox } from "@/components/stone-type-combobox";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import {
   EstimationSummaryCard,
   EstimationSummaryDownloadButton,
   EstimationSummaryShareButton,
 } from "@/components/calculator/EstimationSummaryCard";
+import { StoneTypeCombobox as SharedStoneTypeCombobox } from "@/components/stone-type-combobox";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -57,25 +42,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { useInfiniteRecentProductEstimates } from "@/hooks/useRecentProductEstimates";
-import { normalizeDecodedId } from "@/lib/barcodeScanner";
+import { captureProductEvent } from "@/lib/analytics";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
+import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
   calculateMakingCharge,
   computeEstimateFromInputs,
   getStoneType,
-  resolveMetalRate,
   resolveAutoSlab,
+  resolveMetalRate,
 } from "@/lib/calculator/pricing";
 import {
   type CalculatorTab,
   isCalculatorTab,
   writeCalculatorTabCookie,
 } from "@/lib/calculatorTab";
-import { captureProductEvent } from "@/lib/analytics";
+import {
+  getInventoryImages,
+  getInventoryMediaUrl,
+  isGoogleDriveStorageKey,
+} from "@/lib/inventory-media";
 import {
   fetchInventoryProductByCode,
   fetchInventoryProducts,
@@ -307,9 +298,18 @@ function restoreManualCalculatorForm(
             : "",
         productImageUrl:
           typeof storedForm.productImageUrl === "string" &&
-          !storedForm.productImageUrl.startsWith("blob:")
+          !storedForm.productImageUrl.startsWith("blob:") &&
+          !isGoogleDriveStorageKey(storedForm.productImageUrl)
             ? storedForm.productImageUrl
             : undefined,
+        productImageUrls: Array.isArray(storedForm.productImageUrls)
+          ? storedForm.productImageUrls.filter(
+              (url): url is string =>
+                typeof url === "string" &&
+                !url.startsWith("blob:") &&
+                !isGoogleDriveStorageKey(url),
+            )
+          : undefined,
       },
       isGstEdited: Boolean(parsed.isGstEdited),
       isMakingChargeEdited: Boolean(parsed.isMakingChargeEdited),
@@ -330,6 +330,9 @@ function persistManualCalculatorForm(
       productImageUrl: form.productImageUrl?.startsWith("blob:")
         ? undefined
         : form.productImageUrl,
+      productImageUrls: form.productImageUrls?.filter(
+        (url) => !url.startsWith("blob:"),
+      ),
     };
 
     localStorage.setItem(
@@ -389,11 +392,13 @@ function NumericLineInput({
     <div className="flex h-9 items-end gap-2 border-b border-border pb-1.5 focus-within:border-foreground">
       <input
         type="text"
+        role="spinbutton"
         inputMode="decimal"
         value={inputValue}
         onChange={(event) => handleChange(event.target.value)}
         placeholder={placeholder}
         aria-valuemin={min}
+        aria-valuenow={value}
         data-step={step}
         className="min-w-0 flex-1 bg-transparent px-0 text-sm outline-none placeholder:text-muted-foreground/35"
       />
@@ -1202,12 +1207,14 @@ function RecentEstimateSummaryDialog({
   estimate,
   settings,
   onLoadProduct,
+  preferCatalog,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   estimate: RecentProductEstimate | null;
   settings: CalculatorSettings;
   onLoadProduct: (result: ProductEstimateResult) => void;
+  preferCatalog: boolean;
 }) {
   const [result, setResult] = useState<ProductEstimateResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -1230,7 +1237,9 @@ function RecentEstimateSummaryDialog({
           return;
         }
 
-        setResult(normalizeInventoryProductEstimate(product, settings));
+        setResult(
+          normalizeInventoryProductEstimate(product, settings, preferCatalog),
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load summary");
       } finally {
@@ -1239,7 +1248,7 @@ function RecentEstimateSummaryDialog({
     }
 
     loadEstimateDetails();
-  }, [estimate, open, settings]);
+  }, [estimate, open, preferCatalog, settings]);
 
   function loadIntoCalculator() {
     if (!result) return;
@@ -1280,52 +1289,50 @@ function RecentEstimateSummaryDialog({
             <p className="text-sm text-destructive">{error}</p>
           </div>
         ) : result ? (
-          <>
-            <div className="max-h-[76vh] overflow-y-auto p-3 sm:p-4">
-              <EstimationSummaryCard
-                data={{ kind: "estimate", result }}
-                downloadFilename={`evol-estimate-${result.product.productCode}-${new Date()
-                  .toISOString()
-                  .slice(0, 10)}.png`}
-                compact
-                className="border-0 bg-transparent p-0 shadow-none"
-                showHeader={false}
-                showDownloadButton={false}
-                title="Summary"
-                renderActions={({
-                  downloadSummaryPdf,
-                  downloadSummaryPng,
-                  shareSummaryPng,
-                  isDownloading,
-                  isSharing,
-                }) => (
-                  <div className="flex flex-wrap items-center justify-end gap-2.5">
-                    <EstimationSummaryShareButton
-                      shareSummaryPng={shareSummaryPng}
-                      isSharing={isSharing}
-                      isDownloading={isDownloading}
-                      className="h-11 justify-center rounded-lg"
-                    />
-                    <EstimationSummaryDownloadButton
-                      downloadSummaryPdf={downloadSummaryPdf}
-                      downloadSummaryPng={downloadSummaryPng}
-                      isDownloading={isDownloading}
-                      className="h-11 justify-center rounded-lg"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-11 rounded-lg"
-                      onClick={loadIntoCalculator}
-                    >
-                      <ArrowUpRight className="h-4 w-4" />
-                      Load into Calculator
-                    </Button>
-                  </div>
-                )}
-              />
-            </div>
-          </>
+          <div className="max-h-[76vh] overflow-y-auto p-3 sm:p-4">
+            <EstimationSummaryCard
+              data={{ kind: "estimate", result }}
+              downloadFilename={`evol-estimate-${result.product.productCode}-${new Date()
+                .toISOString()
+                .slice(0, 10)}.png`}
+              compact
+              className="border-0 bg-transparent p-0 shadow-none"
+              showHeader={false}
+              showDownloadButton={false}
+              title="Summary"
+              renderActions={({
+                downloadSummaryPdf,
+                downloadSummaryPng,
+                shareSummaryPng,
+                isDownloading,
+                isSharing,
+              }) => (
+                <div className="flex flex-wrap items-center justify-end gap-2.5">
+                  <EstimationSummaryShareButton
+                    shareSummaryPng={shareSummaryPng}
+                    isSharing={isSharing}
+                    isDownloading={isDownloading}
+                    className="h-11 justify-center rounded-lg"
+                  />
+                  <EstimationSummaryDownloadButton
+                    downloadSummaryPdf={downloadSummaryPdf}
+                    downloadSummaryPng={downloadSummaryPng}
+                    isDownloading={isDownloading}
+                    className="h-11 justify-center rounded-lg"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 rounded-lg"
+                    onClick={loadIntoCalculator}
+                  >
+                    <ArrowUpRight className="h-4 w-4" />
+                    Load into Calculator
+                  </Button>
+                </div>
+              )}
+            />
+          </div>
         ) : null}
       </DialogContent>
     </Dialog>
@@ -1336,10 +1343,12 @@ function SearchPanel({
   settings,
   onLoadProduct,
   canUseRecentEstimates,
+  preferCatalog,
 }: {
   settings: CalculatorSettings;
   onLoadProduct: (result: ProductEstimateResult) => void;
   canUseRecentEstimates: boolean;
+  preferCatalog: boolean;
 }) {
   const [searchInput, setSearchInput] = useState("");
   const [searchedCode, setSearchedCode] = useState("");
@@ -1382,6 +1391,7 @@ function SearchPanel({
       const normalized = normalizeInventoryProductEstimate(
         detailProduct,
         settings,
+        preferCatalog,
       );
 
       if (canUseRecentEstimates) {
@@ -1573,9 +1583,8 @@ function SearchPanel({
       {!blockedResult && searchResults.length > 0 ? (
         <div className="max-h-80 overflow-y-auto rounded-lg border border-border bg-background">
           {searchResults.map((product) => {
-            const imageUrl =
-              product.media.find((item) => item.isPrimary)?.storageKey ??
-              product.media[0]?.storageKey;
+            const image = getInventoryImages(product, preferCatalog)[0];
+            const imageUrl = image ? getInventoryMediaUrl(image) : undefined;
 
             return (
               <button
@@ -1637,6 +1646,7 @@ function SearchPanel({
         estimate={selectedRecent}
         settings={settings}
         onLoadProduct={onLoadProduct}
+        preferCatalog={preferCatalog}
       />
     </div>
   );
@@ -1939,7 +1949,9 @@ export function CalculatorPageClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
-  const canUseRecentEstimates = getSessionRole(session) === "SALES";
+  const sessionRole = getSessionRole(session);
+  const canUseRecentEstimates = sessionRole === "SALES";
+  const preferCatalogImages = sessionRole === "OPERATIONS";
   const [activeTab, setActiveTab] = useState<CalculatorTab>(() => {
     const queryTab = searchParams.get("tab");
     return isCalculatorTab(queryTab) ? queryTab : initialTab;
@@ -2251,7 +2263,12 @@ export function CalculatorPageClient({
       URL.revokeObjectURL(form.productImageUrl);
     }
 
-    updateForm("productImageUrl", URL.createObjectURL(file));
+    const objectUrl = URL.createObjectURL(file);
+    setForm((current) => ({
+      ...current,
+      productImageUrl: objectUrl,
+      productImageUrls: [objectUrl],
+    }));
   }
 
   function loadInventoryProduct(result: ProductEstimateResult) {
@@ -2288,6 +2305,7 @@ export function CalculatorPageClient({
       productName: result.product.productName,
       productNote: result.product.note || "",
       productImageUrl: result.product.imageUrl || undefined,
+      productImageUrls: result.product.imageUrls,
     });
     setIsGstEdited(true);
     setIsMakingChargeEdited(true);
@@ -2295,6 +2313,7 @@ export function CalculatorPageClient({
     handleActiveTabChange("calculate");
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Query loading is intentionally keyed by the URL and settings; the loader mutates the same state this effect coordinates.
   useEffect(() => {
     if (!hasRestoredPersistedForm) return;
 
@@ -2310,7 +2329,11 @@ export function CalculatorPageClient({
         if (!product) return;
 
         loadInventoryProduct(
-          normalizeInventoryProductEstimate(product, settings),
+          normalizeInventoryProductEstimate(
+            product,
+            settings,
+            preferCatalogImages,
+          ),
         );
       } catch {
         loadedProductCodeRef.current = null;
@@ -2318,7 +2341,7 @@ export function CalculatorPageClient({
     }
 
     loadProductFromQuery();
-  }, [hasRestoredPersistedForm, searchParams, settings]);
+  }, [hasRestoredPersistedForm, preferCatalogImages, searchParams, settings]);
 
   return (
     <RequireInternalAuth>
@@ -2344,18 +2367,16 @@ export function CalculatorPageClient({
               settings={settings}
               onLoadProduct={loadInventoryProduct}
               canUseRecentEstimates={canUseRecentEstimates}
+              preferCatalog={preferCatalogImages}
             />
           </div>
         ) : (
           <div className="space-y-4">
             {form.metals?.some((metal) => metal.rateOverride !== undefined) ? (
-              <div
-                role="status"
-                className="flex items-center gap-2 rounded-lg border border-amber-300/70 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/35 dark:text-amber-100"
-              >
+              <output className="flex items-center gap-2 rounded-lg border border-amber-300/70 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/35 dark:text-amber-100">
                 <Info className="size-4 shrink-0" aria-hidden="true" />
                 <span>One or more metal rates use a custom override.</span>
-              </div>
+              </output>
             ) : null}
             <div className="grid items-start gap-5 lg:grid-cols-[minmax(380px,520px)_minmax(420px,760px)] xl:grid-cols-[minmax(420px,560px)_minmax(460px,760px)]">
               <CalculatorForm
@@ -2387,6 +2408,9 @@ export function CalculatorPageClient({
                       gstRate: form.gstRate,
                     }}
                     className="lg:sticky lg:top-6 lg:self-start"
+                    onImageSelect={(imageUrl) =>
+                      updateForm("productImageUrl", imageUrl)
+                    }
                   />
                 ) : (
                   <EstimateRequirementsCard
