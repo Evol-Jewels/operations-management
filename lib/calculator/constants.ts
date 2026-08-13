@@ -386,6 +386,7 @@ export const DEFAULT_CALCULATOR_SETTINGS: CalculatorSettings = {
   makingChargePerGram: 2200,
   gstRate: 0.03,
   purityPercentages: {
+    "9K": 40,
     "14K": 60,
     "18K": 76,
     "22K": 92,
@@ -397,6 +398,7 @@ export const DEFAULT_CALCULATOR_SETTINGS: CalculatorSettings = {
       id: "gold",
       name: "Gold",
       purities: [
+        { id: "9K", label: "9K", ratePerGram: 6000 },
         { id: "14K", label: "14K", ratePerGram: 9000 },
         { id: "18K", label: "18K", ratePerGram: 11400 },
         { id: "22K", label: "22K", ratePerGram: 13800 },

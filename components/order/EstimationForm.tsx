@@ -36,7 +36,14 @@ interface EstimationFormProps {
   initialPurity: MetalPurity;
 }
 
-const METAL_PURITIES: MetalPurity[] = ["14K", "18K", "22K", "24K", "Other"];
+const METAL_PURITIES: MetalPurity[] = [
+  "9K",
+  "14K",
+  "18K",
+  "22K",
+  "24K",
+  "Other",
+];
 
 const STONE_TYPES = [
   "Round",

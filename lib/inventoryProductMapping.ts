@@ -48,7 +48,7 @@ export function getInventoryPrimaryImage(
 
 export function getInventoryPurity(product: InventoryProduct): MetalPurity {
   const purity = `${product.purity}K`;
-  return ["14K", "18K", "22K", "24K"].includes(purity)
+  return ["9K", "14K", "18K", "22K", "24K"].includes(purity)
     ? (purity as MetalPurity)
     : "Other";
 }

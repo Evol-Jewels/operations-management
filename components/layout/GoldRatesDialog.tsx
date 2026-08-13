@@ -15,7 +15,7 @@ import { calculateGoldRate } from "@/lib/calculator/pricing";
 import { formatCurrency } from "@/lib/utils";
 import type { MetalPurity } from "@/types";
 
-const PURITIES: MetalPurity[] = ["24K", "22K", "18K", "14K"];
+const PURITIES: MetalPurity[] = ["24K", "22K", "18K", "14K", "9K"];
 
 const OTHER_METALS = [
   { key: "silverPrice", label: "Silver", purity: "925" },
@@ -26,8 +26,12 @@ function configuredPercentage(
   configs: { key: string; value: string }[],
   purity: MetalPurity,
 ) {
+  const karat = purity.replace("K", "");
   const configured = Number(
-    configs.find((config) => config.key === `purity${purity}`)?.value,
+    configs.find(
+      (config) =>
+        config.key === `purity_${karat}` || config.key === `purity${purity}`,
+    )?.value,
   );
 
   return Number.isFinite(configured)

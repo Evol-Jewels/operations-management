@@ -57,7 +57,7 @@ interface SettingsViewProps {
   syncError: string | null;
 }
 
-const GOLD_PURITIES: MetalPurity[] = ["24K", "22K", "18K", "14K"];
+const GOLD_PURITIES: MetalPurity[] = ["24K", "22K", "18K", "14K", "9K"];
 const settingsCardClass = "rounded-lg border border-border py-0";
 const sectionTriggerClass =
   "flex min-h-16 w-full items-center justify-between gap-3 rounded-lg px-4 py-3.5 text-left transition-colors hover:bg-muted/50 sm:px-5";

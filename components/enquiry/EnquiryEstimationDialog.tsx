@@ -40,7 +40,7 @@ import type {
   ProductEstimation,
 } from "@/types";
 
-const PURITY_OPTIONS: MetalPurity[] = ["24K", "22K", "18K", "14K"];
+const PURITY_OPTIONS: MetalPurity[] = ["24K", "22K", "18K", "14K", "9K"];
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);

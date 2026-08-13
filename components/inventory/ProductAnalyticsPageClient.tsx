@@ -64,7 +64,7 @@ import type {
 
 type StatusFilter = "ALL" | "AVAILABLE" | "NOT_AVAILABLE";
 type ColorFilter = "ALL" | ProductColor;
-type PurityFilter = "ALL" | "14" | "18" | "24";
+type PurityFilter = "ALL" | "9" | "14" | "18" | "22" | "24";
 type LocationFilter = "ALL" | string;
 const DEFAULT_STATUS_FILTER: StatusFilter = "AVAILABLE";
 
@@ -76,8 +76,10 @@ const COLOR_LABELS: Record<ProductColor, string> = {
 };
 
 const PURITY_LABELS: Record<Exclude<PurityFilter, "ALL">, string> = {
+  "9": "9K",
   "14": "14K",
   "18": "18K",
+  "22": "22K",
   "24": "24K",
 };
 
@@ -108,8 +110,10 @@ const locationChartColors = [
 ];
 
 const purityChartColors = {
+  "9": inventoryRose,
   "14": inventoryBlue,
   "18": inventoryAmber,
+  "22": "oklch(0.78 0.09 310 / 0.48)",
   "24": "oklch(0.76 0.1 145 / 0.52)",
   unknown: inventoryNeutral,
 };
@@ -134,7 +138,7 @@ const PRODUCT_COLOR_ORDER: ProductColor[] = [
   "OTHERS",
 ];
 
-const PURITY_ORDER = ["14", "18", "24"] as const;
+const PURITY_ORDER = ["9", "14", "18", "22", "24"] as const;
 
 type ChartBucket = InventoryAnalyticsBucket & Record<string, unknown>;
 type StackedChartRow = {
