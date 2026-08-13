@@ -1,11 +1,8 @@
 "use client";
 
-import type { RequirementDraft } from "./requirement-form-types";
-import {
-  ORDER_TYPES,
-  PRODUCT_CATEGORIES,
-} from "./requirement-options";
 import { OptionTextField, SectionShell, TextField } from "./RequirementFields";
+import type { RequirementDraft } from "./requirement-form-types";
+import { ORDER_TYPES, PRODUCT_CATEGORIES } from "./requirement-options";
 
 export function RequirementBasicsSection({
   value,
@@ -28,6 +25,15 @@ export function RequirementBasicsSection({
           options={ORDER_TYPES}
           onChange={(orderType) => updateDetails({ orderType })}
         />
+        {!hideDeliveryDate && (
+          <TextField
+            label="Estimated delivery date"
+            type="date"
+            value={value.details.deliveryDate}
+            onChange={(deliveryDate) => updateDetails({ deliveryDate })}
+            required
+          />
+        )}
         <OptionTextField
           label="Product category"
           value={value.category}
@@ -65,14 +71,6 @@ export function RequirementBasicsSection({
           placeholder="2.2L - 2.6L"
           onChange={(budgetRange) => updateDetails({ budgetRange })}
         />
-        {!hideDeliveryDate && (
-          <TextField
-            label="Delivery date"
-            type="date"
-            value={value.details.deliveryDate}
-            onChange={(deliveryDate) => updateDetails({ deliveryDate })}
-          />
-        )}
       </div>
     </SectionShell>
   );
