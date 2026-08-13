@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  NotesField,
+  OptionTextField,
+  SectionShell,
+  TextField,
+} from "./RequirementFields";
 import type { RequirementDraft } from "./requirement-form-types";
 import {
   CERTIFICATIONS,
@@ -8,7 +14,6 @@ import {
   METAL_TYPES,
   POLISH_OPTIONS,
 } from "./requirement-options";
-import { NotesField, OptionTextField, SectionShell, TextField } from "./RequirementFields";
 
 export function MetalDetailsSection({
   value,
@@ -41,6 +46,7 @@ export function MetalDetailsSection({
           value={value.metalWeight}
           placeholder="5.80, approx..."
           onChange={(metalWeight) => onChange({ ...value, metalWeight })}
+          optional
         />
         <OptionTextField
           label="Metal KT / purity"

@@ -1,16 +1,16 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Input } from "@/components/ui/input";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { DatePicker } from "@/components/ui/date-picker";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import { FormField } from "@/components/ui/form-field";
 import { cn } from "@/lib/utils";
 
 export function TextField({
@@ -19,6 +19,7 @@ export function TextField({
   onChange,
   placeholder,
   required,
+  optional,
   type = "text",
 }: {
   label: string;
@@ -26,12 +27,18 @@ export function TextField({
   onChange: (value: string) => void;
   placeholder?: string;
   required?: boolean;
+  optional?: boolean;
   type?: string;
 }) {
   const id = `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 
   return (
-    <FormField label={label} htmlFor={id} required={required}>
+    <FormField
+      label={label}
+      htmlFor={id}
+      required={required}
+      optional={optional}
+    >
       {type === "date" ? (
         <DatePicker
           id={id}

@@ -110,7 +110,7 @@ export function customProductDetails(
     metalPurity: product.metalPurity || undefined,
     metalColor: mapMetalColorToBackend(product.metalColor),
     size: product.size ? Number(product.size) : undefined,
-    metalNetWeight: product.metalNetWeight,
+    metalNetWeight: product.metalNetWeight.trim() || undefined,
     metalGrossWeight: product.metalGrossWeight || undefined,
     stones:
       stones.length > 0

@@ -50,7 +50,7 @@ export interface BackendCustomProductDetails {
   metalPurity?: string;
   metalColor?: "YELLOW" | "ROSE" | "WHITE" | "OTHERS";
   size?: number;
-  metalNetWeight: string;
+  metalNetWeight?: string;
   metalGrossWeight?: string;
   referenceProductCode?: string | null;
   stones: BackendOrderStone[];
