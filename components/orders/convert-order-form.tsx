@@ -1008,9 +1008,9 @@ export function ConvertOrderForm({
   }
 
   return (
-    <div className="mx-auto max-w-3xl pb-28">
+    <div className="mx-auto max-w-3xl pb-24 sm:pb-28">
       {/* Progress bar */}
-      <div className="mb-2">
+      <div className="mb-3">
         <div className="h-[2px] w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
@@ -1018,6 +1018,10 @@ export function ConvertOrderForm({
           />
         </div>
       </div>
+
+      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        Step {safeStep + 1} of {steps.length}
+      </p>
 
       {/* Back button */}
       <div className="mb-4">
@@ -1036,7 +1040,7 @@ export function ConvertOrderForm({
       <div
         key={`step-${safeStep}-${stepId}`}
         className={cn(
-          "flex min-h-[68vh] flex-col justify-center px-1",
+          "flex flex-col justify-start px-0 sm:min-h-[68vh] sm:justify-center sm:px-1",
           "animate-in fade-in-0 duration-300",
           animDir === "forward"
             ? "slide-in-from-bottom-3"
@@ -1145,7 +1149,7 @@ export function ConvertOrderForm({
       </div>
 
       {/* Floating bottom nav */}
-      <div className="pointer-events-none fixed right-0 bottom-6 left-0 z-40 md:left-[var(--sidebar-width)] group-data-[collapsible=icon]/sidebar-wrapper:md:left-[var(--sidebar-width-icon)]">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:left-[var(--sidebar-width)] md:bottom-6 md:border-0 md:bg-transparent md:py-0 md:backdrop-blur-none group-data-[collapsible=icon]/sidebar-wrapper:md:left-[var(--sidebar-width-icon)]">
         <div className="mx-auto flex max-w-3xl items-center gap-2 px-4">
           <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-border bg-card shadow-md">
             <Button
@@ -1175,10 +1179,10 @@ export function ConvertOrderForm({
           {!isLastStep && (
             <Button
               type="button"
-              size="sm"
+              size="default"
               onClick={goNext}
               disabled={isSubmitting || !hasItems}
-              className="pointer-events-auto ml-auto gap-2 px-5 shadow-md"
+              className="pointer-events-auto ml-auto h-11 flex-1 gap-2 px-5 shadow-md sm:flex-none"
             >
               {stepId === "details" && hasNextCustomRequirement
                 ? "Save & Next requirement"
@@ -1189,10 +1193,10 @@ export function ConvertOrderForm({
           {isLastStep && (
             <Button
               type="button"
-              size="sm"
+              size="default"
               onClick={handleSubmit}
               disabled={isSubmitting || !hasItems}
-              className="pointer-events-auto ml-auto gap-2 px-5 shadow-md"
+              className="pointer-events-auto ml-auto h-11 flex-1 gap-2 px-5 shadow-md sm:flex-none"
             >
               {isSubmitting ? (isConversion ? "Converting..." : "Creating...") : (isConversion ? "Confirm & Convert" : "Create order")}
             </Button>
