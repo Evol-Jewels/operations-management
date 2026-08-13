@@ -7,6 +7,7 @@ export const MOCK_PRICING_SETTINGS: CalculatorSettings = {
   makingChargePerGram: 2200,
   gstRate: 0.03,
   purityPercentages: {
+    "9K": 40,
     "24K": 100,
     "22K": 91.6,
     "18K": 75,

@@ -154,7 +154,7 @@ function createMetal(
 }
 
 function normalizeMetalPurity(value: string): MetalPurity {
-  return ["14K", "18K", "22K", "24K", "Other"].includes(value)
+  return ["9K", "14K", "18K", "22K", "24K", "Other"].includes(value)
     ? (value as MetalPurity)
     : "Other";
 }

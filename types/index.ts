@@ -132,7 +132,7 @@ export type MetalType =
   | "Rose Gold"
   | "White Gold";
 
-export type MetalPurity = "14K" | "18K" | "22K" | "24K" | "Other";
+export type MetalPurity = "9K" | "14K" | "18K" | "22K" | "24K" | "Other";
 
 export type CertificationType = "Jewellery" | "GIA" | "IGI" | "SGL" | "None";
 

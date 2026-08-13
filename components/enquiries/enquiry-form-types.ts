@@ -39,6 +39,7 @@ export const METAL_TYPES: readonly string[] = [
 ];
 
 export const METAL_PURITIES: MetalPurity[] = [
+  "9K",
   "14K",
   "18K",
   "22K",

@@ -256,20 +256,24 @@ function mapSystemConfigs(configs: SystemConfig[]) {
     ),
     purityPercentages: {
       ...defaults.purityPercentages,
+      "9K": toNumber(
+        getFirstConfigValue(configs, ["purity_9", "purity9K"]),
+        defaults.purityPercentages["9K"],
+      ),
       "24K": toNumber(
-        getConfigValue(configs, "purity24K"),
+        getFirstConfigValue(configs, ["purity_24", "purity24K"]),
         defaults.purityPercentages["24K"],
       ),
       "22K": toNumber(
-        getConfigValue(configs, "purity22K"),
+        getFirstConfigValue(configs, ["purity_22", "purity22K"]),
         defaults.purityPercentages["22K"],
       ),
       "18K": toNumber(
-        getConfigValue(configs, "purity18K"),
+        getFirstConfigValue(configs, ["purity_18", "purity18K"]),
         defaults.purityPercentages["18K"],
       ),
       "14K": toNumber(
-        getConfigValue(configs, "purity14K"),
+        getFirstConfigValue(configs, ["purity_14", "purity14K"]),
         defaults.purityPercentages["14K"],
       ),
       Other: toNumber(
@@ -335,6 +339,12 @@ function systemConfigsFromSettings(
     configs,
     "gstRate",
     String(settings.gstRate * 100),
+    now,
+  );
+  configs = upsertConfig(
+    configs,
+    "purity_9",
+    String(settings.purityPercentages["9K"]),
     now,
   );
   configs = upsertConfig(

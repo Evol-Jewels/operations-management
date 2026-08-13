@@ -98,7 +98,7 @@ type InventoryCategory =
   | "OTHER";
 type SourceFilter = "ALL" | "CUSTOMER" | "STOCK";
 type ColorFilter = "ALL" | ProductColor;
-type PurityFilter = "ALL" | "14" | "18" | "24";
+type PurityFilter = "ALL" | "9" | "14" | "18" | "22" | "24";
 type ActiveFilterChip = {
   key: string;
   label: string;
@@ -205,8 +205,10 @@ const COLOR_LABELS: Record<ProductColor, string> = {
 };
 
 const PURITY_LABELS: Record<Exclude<PurityFilter, "ALL">, string> = {
+  "9": "9K",
   "14": "14K",
   "18": "18K",
+  "22": "22K",
   "24": "24K",
 };
 

@@ -19,7 +19,7 @@ export const ORDER_TYPES = [
 
 export const METAL_TYPES = ["Gold", "Silver"] as const;
 
-export const METAL_PURITIES = ["14KT", "18KT", "22KT"] as const;
+export const METAL_PURITIES = ["9KT", "14KT", "18KT", "22KT"] as const;
 
 export const METAL_COLOURS = [
   "Rose",
