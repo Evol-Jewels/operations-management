@@ -41,7 +41,9 @@ export function PostHogAnalytics() {
     }
 
     const user = session.user as AnalyticsUser;
-    const distinctId = user.id || user.email;
+    // Email is the primary identity so people are recognizable in PostHog;
+    // fall back to the better-auth ID if a session ever lacks an email.
+    const distinctId = user.email || user.id;
 
     if (!distinctId) return;
 
