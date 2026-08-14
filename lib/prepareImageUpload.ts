@@ -1,8 +1,11 @@
 const MAX_DIMENSION = 2000;
+const MAX_SOURCE_IMAGE_BYTES = 25_000_000;
 const TARGET_UPLOAD_BYTES = 3_500_000;
 const SMALL_PASSTHROUGH_BYTES = 1_000_000;
 const UPLOAD_TOO_LARGE_ERROR =
   "This image is too large to upload. Choose an image under 3.5 MB.";
+const SOURCE_IMAGE_TOO_LARGE_ERROR =
+  "This image is too large to process. Choose an image under 25 MB.";
 
 function isHeicLike(file: File) {
   return /image\/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
@@ -63,12 +66,14 @@ async function decodeImage(file: File) {
 }
 
 export async function prepareImageForUpload(file: File): Promise<File> {
-  if (file.size > TARGET_UPLOAD_BYTES && !isSupportedImageFile(file)) {
+  const looksLikeImage = isSupportedImageFile(file);
+  if (!looksLikeImage && file.size > TARGET_UPLOAD_BYTES) {
     throw new Error(UPLOAD_TOO_LARGE_ERROR);
   }
-
-  const looksLikeImage = isSupportedImageFile(file);
   if (!looksLikeImage) return file;
+  if (file.size > MAX_SOURCE_IMAGE_BYTES) {
+    throw new Error(SOURCE_IMAGE_TOO_LARGE_ERROR);
+  }
 
   if (canUploadUnchanged(file)) {
     return file;

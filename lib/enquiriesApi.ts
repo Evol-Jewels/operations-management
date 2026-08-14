@@ -63,8 +63,8 @@ export function createEnquiry(input: CreateEnquiryInput) {
 }
 
 export async function uploadEnquiryImage(file: File) {
-  const prepared = await prepareImageForUpload(file);
-  return withImageUploadSlot(() => {
+  return withImageUploadSlot(async () => {
+    const prepared = await prepareImageForUpload(file);
     const body = new FormData();
     body.set("file", prepared);
 
