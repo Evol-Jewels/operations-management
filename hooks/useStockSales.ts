@@ -7,11 +7,13 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
-  fetchSalesPersonStockSales,
   fetchMyStockSales,
+  fetchRecentProductSales,
+  fetchSalesPersonStockSales,
   fetchStockSales,
   fetchStockSalesAnalytics,
   fetchStockSalesLeaderboard,
+  RECENT_PRODUCT_SALES_DEFAULT_LIMIT,
   STOCK_SALES_LIST_DEFAULT_LIMIT,
   syncStockSales,
 } from "@/lib/stockSalesApi";
@@ -26,6 +28,8 @@ export const stockSalesKeys = {
   lists: () => [...stockSalesKeys.all, "list"] as const,
   list: (query: ListStockSalesQuery = {}) =>
     [...stockSalesKeys.lists(), query] as const,
+  recentProducts: (limit: number) =>
+    [...stockSalesKeys.all, "recent-products", limit] as const,
   analytics: (query: StockSalesAnalyticsQuery = {}) =>
     [...stockSalesKeys.all, "analytics", query] as const,
   leaderboard: (query: StockSalesAnalyticsQuery = {}) =>
@@ -35,6 +39,27 @@ export const stockSalesKeys = {
   salesperson: (query: StockSalesPersonAnalyticsQuery) =>
     [...stockSalesKeys.all, "salesperson", query] as const,
 };
+
+export function useRecentProductSales(
+  options: { enabled?: boolean; limit?: number } = {},
+) {
+  const limit = options.limit ?? RECENT_PRODUCT_SALES_DEFAULT_LIMIT;
+
+  return useInfiniteQuery({
+    queryKey: stockSalesKeys.recentProducts(limit),
+    queryFn: ({ pageParam }) =>
+      fetchRecentProductSales({
+        limit,
+        cursor: pageParam || undefined,
+      }),
+    enabled: options.enabled,
+    initialPageParam: "",
+    getNextPageParam: (lastPage) =>
+      lastPage.pageInfo.hasMore
+        ? (lastPage.pageInfo.nextCursor ?? undefined)
+        : undefined,
+  });
+}
 
 export function useStockSales(
   query: ListStockSalesQuery = {},

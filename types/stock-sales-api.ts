@@ -1,3 +1,5 @@
+import type { InventoryProduct } from "@/types/inventory-api";
+
 export interface BackendStockSaleUserSummary {
   id: string;
   name: string | null;
@@ -41,6 +43,28 @@ export interface ListStockSalesQuery {
 export interface StockSalesListResponse {
   data: BackendStockSaleRow[];
   total: number;
+}
+
+export interface RecentProductSale {
+  saleItemId: string;
+  transactionId: string;
+  productCode: string;
+  saleMonth: string | null;
+  sellingPrice: string;
+  salesPerson: BackendStockSaleUserSummary | null;
+  location: BackendStockSaleLocationSummary | null;
+  storeName: string | null;
+  inventoryResolution: "FOUND" | "NOT_FOUND";
+  product: InventoryProduct | null;
+}
+
+export interface RecentProductSalesPageResponse {
+  data: RecentProductSale[];
+  total: number;
+  pageInfo: {
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
 }
 
 export type StockSalesAnalyticsPeriod = "month" | "allTime";
