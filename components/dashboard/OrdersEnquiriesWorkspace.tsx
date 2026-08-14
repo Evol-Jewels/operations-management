@@ -53,10 +53,14 @@ import {
 } from "@/components/ui/tooltip";
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { useOrders, useUpdateAnyOrderStatus } from "@/hooks/useOrders";
-import { useStockSales, useSyncStockSales } from "@/hooks/useStockSales";
+import {
+  useRecentProductSales,
+  useStockSales,
+  useSyncStockSales,
+} from "@/hooks/useStockSales";
+import { captureProductEvent } from "@/lib/analytics";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
-import { captureProductEvent } from "@/lib/analytics";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
 import { ENQUIRY_STATUS_LABELS, getRecordStatus } from "@/lib/enquiryStatus";
 import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
@@ -67,8 +71,9 @@ import type { BackendEnquiryStatus } from "@/types/enquiry-api";
 import type { BackendOrderStatus } from "@/types/order-api";
 import type { BackendStockSaleRow } from "@/types/stock-sales-api";
 import { KanbanBoard, type KanbanColumnConfig } from "./KanbanBoard";
+import { RecentProductSalesGrid } from "./RecentProductSalesGrid";
 
-type TypeTab = RecordType | "purchase";
+type TypeTab = RecordType | "purchase" | "recent-sale";
 type ViewMode = "table" | "kanban";
 type DateFilter = "all" | "7d" | "30d" | "90d";
 
@@ -124,13 +129,19 @@ const ENQUIRY_KANBAN_COLUMNS: KanbanColumnConfig[] = [
 ];
 
 function isTypeTab(value: unknown): value is TypeTab {
-  return value === "order" || value === "enquiry" || value === "purchase";
+  return (
+    value === "order" ||
+    value === "enquiry" ||
+    value === "purchase" ||
+    value === "recent-sale"
+  );
 }
 
 function getTypeTabFromSearchParams(searchParams: URLSearchParams) {
   const type = searchParams.get("type");
   if (type === "enquiries") return "enquiry";
   if (type === "purchases") return "purchase";
+  if (type === "recent-sales") return "recent-sale";
   return isTypeTab(type) ? type : null;
 }
 
@@ -161,11 +172,13 @@ function writeStoredTypeTab(tab: TypeTab) {
 }
 
 function getInitialTypeTab(searchParams: URLSearchParams): TypeTab {
-  return getTypeTabFromSearchParams(searchParams) ?? readStoredTypeTab() ?? "order";
+  return (
+    getTypeTabFromSearchParams(searchParams) ?? readStoredTypeTab() ?? "order"
+  );
 }
 
 function getDefaultViewMode(tab: TypeTab): ViewMode {
-  return tab === "purchase" ? "table" : "kanban";
+  return tab === "purchase" || tab === "recent-sale" ? "table" : "kanban";
 }
 
 function getInitialViewMode(searchParams: URLSearchParams): ViewMode {
@@ -650,6 +663,7 @@ export function OrdersEnquiriesWorkspace() {
   const [search, setSearch] = useState("");
   const sessionRole = session ? getSessionRole(session) : "";
   const canViewPurchases = ["ADMIN", "OPERATIONS"].includes(sessionRole);
+  const canViewRecentSales = canViewPurchases;
   const canSyncPurchases = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const stockSalesQuery = useStockSales(
     { limit: 40, search: search.trim() || undefined },
@@ -657,6 +671,12 @@ export function OrdersEnquiriesWorkspace() {
   );
   const syncStockSalesMutation = useSyncStockSales();
   const stockSalesLoadMoreRef = useRef<HTMLDivElement>(null);
+  const activeTypeTabRef = useRef<HTMLButtonElement>(null);
+  const recentProductSalesQuery = useRecentProductSales({
+    enabled: typeTab === "recent-sale" && canViewRecentSales,
+    limit: 12,
+  });
+  const recentProductSalesLoadMoreRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() =>
     getInitialViewMode(searchParams),
   );
@@ -681,14 +701,22 @@ export function OrdersEnquiriesWorkspace() {
 
   useEffect(() => {
     const queryTab = getTypeTabFromSearchParams(searchParams);
-    if (queryTab && (queryTab !== "purchase" || canViewPurchases)) {
+    if (
+      queryTab &&
+      ((queryTab !== "purchase" && queryTab !== "recent-sale") ||
+        canViewPurchases)
+    ) {
       setTypeTab(queryTab);
       setViewMode(getInitialViewMode(searchParams));
     }
   }, [canViewPurchases, searchParams]);
 
   useEffect(() => {
-    if (session && !canViewPurchases && typeTab === "purchase") {
+    if (
+      session &&
+      !canViewPurchases &&
+      (typeTab === "purchase" || typeTab === "recent-sale")
+    ) {
       setTypeTab("order");
       setViewMode("kanban");
     }
@@ -696,6 +724,16 @@ export function OrdersEnquiriesWorkspace() {
 
   useEffect(() => {
     writeStoredTypeTab(typeTab);
+  }, [typeTab]);
+
+  useEffect(() => {
+    const activeTab = activeTypeTabRef.current;
+    if (activeTab?.dataset.tab !== typeTab) return;
+
+    activeTab.scrollIntoView({
+      block: "nearest",
+      inline: "center",
+    });
   }, [typeTab]);
 
   useEffect(() => {
@@ -728,6 +766,36 @@ export function OrdersEnquiriesWorkspace() {
     typeTab,
   ]);
 
+  useEffect(() => {
+    if (typeTab !== "recent-sale" || !canViewRecentSales) return;
+
+    const sentinel = recentProductSalesLoadMoreRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (
+          entry.isIntersecting &&
+          recentProductSalesQuery.hasNextPage &&
+          !recentProductSalesQuery.isFetchingNextPage
+        ) {
+          recentProductSalesQuery.fetchNextPage();
+        }
+      },
+      { rootMargin: "480px" },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    canViewRecentSales,
+    recentProductSalesQuery.fetchNextPage,
+    recentProductSalesQuery.hasNextPage,
+    recentProductSalesQuery.isFetchingNextPage,
+    typeTab,
+  ]);
+
   const apiEnquiries = useMemo(
     () =>
       (enquiriesQuery.data ?? []).map((enquiry) =>
@@ -751,14 +819,22 @@ export function OrdersEnquiriesWorkspace() {
     [stockSalesQuery.data],
   );
   const stockSalesTotal = stockSalesQuery.data?.pages[0]?.total;
+  const recentProductSales = useMemo(
+    () =>
+      recentProductSalesQuery.data?.pages.flatMap((page) => page.data) ?? [],
+    [recentProductSalesQuery.data],
+  );
+  const recentProductSalesTotal = recentProductSalesQuery.data?.pages[0]?.total;
 
   const tabCounts = useMemo(
     () => ({
       order: typeTab === "order" ? records.length : undefined,
       enquiry: typeTab === "enquiry" ? records.length : undefined,
       purchase: typeTab === "purchase" ? stockSalesTotal : undefined,
+      recentSale:
+        typeTab === "recent-sale" ? recentProductSalesTotal : undefined,
     }),
-    [records.length, stockSalesTotal, typeTab],
+    [records.length, recentProductSalesTotal, stockSalesTotal, typeTab],
   );
   const typeTabs = useMemo(
     () => [
@@ -775,10 +851,21 @@ export function OrdersEnquiriesWorkspace() {
               label: "Purchases",
               count: tabCounts.purchase,
             },
+            {
+              key: "recent-sale" as const,
+              label: "Recent sales",
+              count: tabCounts.recentSale,
+            },
           ]
         : []),
     ],
-    [canViewPurchases, tabCounts.enquiry, tabCounts.order, tabCounts.purchase],
+    [
+      canViewPurchases,
+      tabCounts.enquiry,
+      tabCounts.order,
+      tabCounts.purchase,
+      tabCounts.recentSale,
+    ],
   );
 
   const filteredRecords = useMemo(() => {
@@ -824,14 +911,17 @@ export function OrdersEnquiriesWorkspace() {
   const shownRecordCount = isKanbanMode
     ? kanbanRecords.length
     : filteredRecords.length;
-  const isFilterDisabled = isKanbanMode || typeTab === "purchase";
+  const isFilterDisabled =
+    isKanbanMode || typeTab === "purchase" || typeTab === "recent-sale";
 
   const sectionHeading =
     typeTab === "order"
       ? "Orders"
       : typeTab === "enquiry"
         ? "Enquiries"
-        : "Purchases";
+        : typeTab === "purchase"
+          ? "Purchases"
+          : "Recent product sales";
   const activeFilterCount =
     (search.trim() ? 1 : 0) +
     (statusFilter !== "all" ? 1 : 0) +
@@ -910,7 +1000,11 @@ export function OrdersEnquiriesWorkspace() {
     }
   };
   const sectionCount =
-    typeTab === "purchase" ? stockSalesTotal : shownRecordCount;
+    typeTab === "purchase"
+      ? stockSalesTotal
+      : typeTab === "recent-sale"
+        ? recentProductSalesTotal
+        : shownRecordCount;
 
   return (
     <div className="space-y-4">
@@ -960,6 +1054,8 @@ export function OrdersEnquiriesWorkspace() {
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pr-8 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
           {typeTabs.map((tab) => (
             <button
+              ref={typeTab === tab.key ? activeTypeTabRef : undefined}
+              data-tab={tab.key}
               key={tab.key}
               type="button"
               onClick={() => handleTypeTabChange(tab.key)}
@@ -978,7 +1074,9 @@ export function OrdersEnquiriesWorkspace() {
         <div
           className={cn(
             "hidden w-full items-center gap-1 rounded-lg border border-border bg-background p-1 lg:w-auto",
-            typeTab === "purchase" ? "lg:hidden" : "lg:flex",
+            typeTab === "purchase" || typeTab === "recent-sale"
+              ? "lg:hidden"
+              : "lg:flex",
           )}
         >
           <button
@@ -1031,7 +1129,12 @@ export function OrdersEnquiriesWorkspace() {
             <span className="text-muted-foreground">({sectionCount})</span>
           </h2>
 
-          <div className={cn("lg:hidden", typeTab === "purchase" && "hidden")}>
+          <div
+            className={cn(
+              "lg:hidden",
+              (typeTab === "purchase" || typeTab === "recent-sale") && "hidden",
+            )}
+          >
             <Button
               type="button"
               variant="outline"
@@ -1052,10 +1155,10 @@ export function OrdersEnquiriesWorkspace() {
         <div
           className={cn(
             "hidden justify-items-end min-w-0 flex-1 gap-3 lg:grid lg:grid-cols-[minmax(160px,1fr)_minmax(140px,180px)_minmax(120px,160px)] lg:items-center",
-            typeTab === "purchase" && "lg:hidden",
+            (typeTab === "purchase" || typeTab === "recent-sale") &&
+              "lg:hidden",
           )}
-        >
-        </div>
+        ></div>
 
         {typeTab === "purchase" ? (
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:min-w-0 lg:flex-1 lg:justify-end">
@@ -1239,7 +1342,16 @@ export function OrdersEnquiriesWorkspace() {
         <p className="text-sm text-muted-foreground">Loading records...</p>
       ) : null}
 
-      {typeTab === "purchase" ? (
+      {typeTab === "recent-sale" ? (
+        <RecentProductSalesGrid
+          sales={recentProductSales}
+          isLoading={recentProductSalesQuery.isLoading}
+          isError={recentProductSalesQuery.isError}
+          isFetchingNextPage={recentProductSalesQuery.isFetchingNextPage}
+          hasNextPage={Boolean(recentProductSalesQuery.hasNextPage)}
+          loadMoreRef={recentProductSalesLoadMoreRef}
+        />
+      ) : typeTab === "purchase" ? (
         <StockPurchasesTable
           sales={stockSales}
           isLoading={stockSalesQuery.isLoading}
