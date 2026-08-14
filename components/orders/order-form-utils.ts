@@ -8,10 +8,32 @@ import type {
   ProductReference,
 } from "../enquiries/enquiry-form-types";
 
+export const METAL_WEIGHT_PATTERN = /^\d+(\.\d{1,3})?$/;
+export const METAL_WEIGHT_ERROR =
+  "Enter a weight using digits with up to 3 decimal places, for example 5.800";
+
 export function addDaysDateString(baseDate: Date, days: number) {
   const next = new Date(baseDate);
   next.setDate(next.getDate() + days);
   return next.toISOString().slice(0, 10);
+}
+
+export function cleanOptionalText(value?: string) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+export function isIsoDateString(value?: string) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return (
+    !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value
+  );
+}
+
+export function isValidMetalWeight(value?: string) {
+  const trimmed = value?.trim();
+  return Boolean(trimmed && METAL_WEIGHT_PATTERN.test(trimmed));
 }
 
 export function referenceToOrderMedia(

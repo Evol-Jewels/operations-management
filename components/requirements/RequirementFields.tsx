@@ -1,7 +1,14 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type HTMLAttributes,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
@@ -21,6 +28,7 @@ export function TextField({
   required,
   optional,
   type = "text",
+  inputMode,
 }: {
   label: string;
   value?: string;
@@ -29,6 +37,7 @@ export function TextField({
   required?: boolean;
   optional?: boolean;
   type?: string;
+  inputMode?: HTMLAttributes<HTMLInputElement>["inputMode"];
 }) {
   const id = `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 
@@ -50,6 +59,7 @@ export function TextField({
         <Input
           id={id}
           type={type}
+          inputMode={inputMode}
           value={value ?? ""}
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}

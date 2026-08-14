@@ -44,7 +44,8 @@ export function MetalDetailsSection({
         <TextField
           label="Gold weight (in gms)"
           value={value.metalWeight}
-          placeholder="5.80, approx..."
+          placeholder="5.800"
+          inputMode="decimal"
           onChange={(metalWeight) => onChange({ ...value, metalWeight })}
           optional
         />

@@ -1,3 +1,5 @@
+import { apiFetch, buildUrl } from "@/lib/apiClient";
+import { prepareImageForUpload } from "@/lib/prepareImageUpload";
 import type {
   BackendEnquiryDetails,
   BackendEnquiryListItem,
@@ -10,57 +12,22 @@ import type {
   UpdateEstimationInput,
 } from "@/types/enquiry-api";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
+const MAX_CONCURRENT_IMAGE_UPLOADS = 2;
+let activeImageUploads = 0;
+const pendingImageUploads: Array<() => void> = [];
 
-function ensureApiConfig() {
-  if (!apiBaseUrl) {
-    throw new Error("Missing NEXT_PUBLIC_API_BASE_URL in .env");
-  }
-}
-
-function buildUrl(path: string, query?: Record<string, string | undefined>) {
-  ensureApiConfig();
-  const url = new URL(path, `${apiBaseUrl}/`);
-
-  if (query) {
-    for (const [key, value] of Object.entries(query)) {
-      const trimmed = value?.trim();
-      if (trimmed) url.searchParams.set(key, trimmed);
-    }
+async function withImageUploadSlot<T>(upload: () => Promise<T>) {
+  if (activeImageUploads >= MAX_CONCURRENT_IMAGE_UPLOADS) {
+    await new Promise<void>((resolve) => pendingImageUploads.push(resolve));
   }
 
-  return url.toString();
-}
-
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    credentials: "include",
-    headers: {
-      Accept: "application/json",
-      ...init?.headers,
-    },
-  });
-
-  if (!response.ok) {
-    let message = `Request failed (HTTP ${response.status})`;
-
-    try {
-      const body = (await response.json()) as {
-        message?: string | string[];
-        error?: string;
-      };
-      message = Array.isArray(body.message)
-        ? body.message.join(", ")
-        : body.message || body.error || message;
-    } catch {
-      // Keep HTTP fallback.
-    }
-
-    throw new Error(message);
+  activeImageUploads += 1;
+  try {
+    return await upload();
+  } finally {
+    activeImageUploads -= 1;
+    pendingImageUploads.shift()?.();
   }
-
-  return response.json() as Promise<T>;
 }
 
 export function fetchEnquiries(query: ListEnquiriesQuery = {}) {
@@ -96,16 +63,19 @@ export function createEnquiry(input: CreateEnquiryInput) {
 }
 
 export async function uploadEnquiryImage(file: File) {
-  const body = new FormData();
-  body.set("file", file);
+  const prepared = await prepareImageForUpload(file);
+  return withImageUploadSlot(() => {
+    const body = new FormData();
+    body.set("file", prepared);
 
-  return apiFetch<BackendEnquiryMedia>(
-    buildUrl("api/v1/uploads/enquiry-image"),
-    {
-      method: "POST",
-      body,
-    },
-  );
+    return apiFetch<BackendEnquiryMedia>(
+      buildUrl("api/v1/uploads/enquiry-image"),
+      {
+        method: "POST",
+        body,
+      },
+    );
+  });
 }
 
 export function updateEnquiry(id: string, input: UpdateEnquiryInput) {
