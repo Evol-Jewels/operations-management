@@ -72,6 +72,7 @@ import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
   getInventoryImages,
   getInventoryMediaUrl,
+  isInventoryMediaProxyUrl,
 } from "@/lib/inventory-media";
 import {
   getInventoryPrimaryImage,
@@ -126,7 +127,11 @@ function InventoryImageDownloadButton({
     setIsDownloading(true);
 
     try {
-      const response = await fetch(imageUrl, { credentials: "include" });
+      const response = await fetch(imageUrl, {
+        credentials: isInventoryMediaProxyUrl(imageUrl)
+          ? "include"
+          : "same-origin",
+      });
       if (!response.ok) throw new Error("Image request failed");
 
       const blob = await response.blob();
