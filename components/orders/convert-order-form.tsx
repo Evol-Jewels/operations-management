@@ -53,6 +53,7 @@ import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import { uploadEnquiryImage } from "@/lib/enquiriesApi";
 import { fetchInventoryProducts } from "@/lib/inventoryApi";
 import { mapInventoryProductToEnquiryProduct } from "@/lib/inventoryProductMapping";
+import { isSupportedImageFile } from "@/lib/prepareImageUpload";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   CreateOrdersInput,
@@ -60,8 +61,12 @@ import type {
 } from "@/types/order-api";
 import {
   addDaysDateString,
+  cleanOptionalText,
+  isIsoDateString,
+  isValidMetalWeight,
   mapCategoryToBackend,
   mapMetalColorToBackend,
+  METAL_WEIGHT_ERROR,
 } from "./order-form-utils";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -540,7 +545,7 @@ export function ConvertOrderForm({
     if (!files?.length) return;
     const references: ProductReference[] = [];
     for (const file of Array.from(files)) {
-      const type = file.type.startsWith("image/")
+      const type = isSupportedImageFile(file)
         ? "image"
         : file.type.startsWith("video/")
           ? "video"
@@ -701,7 +706,7 @@ export function ConvertOrderForm({
     if (!files?.length) return;
     const nextRefs: ProductReference[] = [];
     for (const file of Array.from(files)) {
-      const type = file.type.startsWith("image/")
+      const type = isSupportedImageFile(file)
         ? "image"
         : file.type.startsWith("video/")
           ? "video"
@@ -771,6 +776,12 @@ export function ConvertOrderForm({
         nextErrors.requirements =
           "Each custom requirement needs a category and metal type";
       }
+      if (
+        activeCustomItem?.requirement?.metalWeight.trim() &&
+        !isValidMetalWeight(activeCustomItem.requirement.metalWeight)
+      ) {
+        nextErrors.requirements = METAL_WEIGHT_ERROR;
+      }
     }
     if (stepId === "customer" || stepId === "review") {
       if (!form.customerName.trim()) {
@@ -834,20 +845,32 @@ export function ConvertOrderForm({
     item: OrderItem,
   ): Promise<CreateOrdersInput["orders"][number]> {
     if (item.source === "enquiry-existing" || item.source === "new-existing") {
+      if (!isIsoDateString(item.estimatedDelivery)) {
+        throw new Error("Choose a valid estimated delivery date.");
+      }
       return {
         productType: "EXISTING",
         ...(isConversion ? { sourceEnquiryItemId: item.id } : {}),
-        productCode: item.productCode ?? "",
-        notes: item.notes,
+        productCode: item.productCode?.trim() ?? "",
+        notes: cleanOptionalText(item.notes),
         isCadRequired: item.cadApprovalRequired,
         estimatedDeliveryDate: item.estimatedDelivery,
-        vendor: item.vendor.trim() || undefined,
+        vendor: cleanOptionalText(item.vendor),
       };
     }
 
     const requirement = item.requirement;
     if (!requirement)
       throw new Error("Custom requirement details are missing.");
+    if (!isIsoDateString(item.estimatedDelivery)) {
+      throw new Error("Choose a valid estimated delivery date.");
+    }
+    if (
+      requirement.metalWeight.trim() &&
+      !isValidMetalWeight(requirement.metalWeight)
+    ) {
+      throw new Error(METAL_WEIGHT_ERROR);
+    }
     const references = await Promise.all(
       requirement.references.map(async (reference) => {
         if (reference.type === "image" && reference.file) {
@@ -859,8 +882,8 @@ export function ConvertOrderForm({
         return {
           type: reference.type.toUpperCase() as "IMAGE" | "VIDEO" | "LINK",
           url: reference.url,
-          name: reference.name,
-          mimeType: reference.mimeType,
+          name: cleanOptionalText(reference.name),
+          mimeType: cleanOptionalText(reference.mimeType),
           size: reference.size,
         };
       }),
@@ -872,7 +895,7 @@ export function ConvertOrderForm({
         ({ id: _id, ...stone }) => stone,
       ),
       details: { ...requirement.details },
-      notes: requirement.notes || undefined,
+      notes: cleanOptionalText(requirement.notes),
     };
     const productSize = Number(requirement.details.productSize);
     const stoneRows = [
@@ -895,21 +918,23 @@ export function ConvertOrderForm({
       ...(isConversion ? { sourceEnquiryItemId: item.id } : {}),
       customProduct: {
         category: mapCategoryToBackend(requirement.category),
-        referenceProductCode: requirement.referenceProductCode || undefined,
-        metalType: requirement.metalType,
-        metalPurity: requirement.metalPurity || undefined,
+        referenceProductCode: cleanOptionalText(
+          requirement.referenceProductCode,
+        ),
+        metalType: requirement.metalType.trim(),
+        metalPurity: cleanOptionalText(requirement.metalPurity),
         metalColor: mapMetalColorToBackend(
           requirement.details.metalColor || "",
         ),
         size: Number.isInteger(productSize) ? productSize : undefined,
-        metalNetWeight: requirement.metalWeight.trim() || undefined,
+        metalNetWeight: cleanOptionalText(requirement.metalWeight),
         stones: stoneRows,
       },
       requirementSpecification: specification,
-      notes: requirement.notes || undefined,
+      notes: cleanOptionalText(requirement.notes),
       isCadRequired: item.cadApprovalRequired,
       estimatedDeliveryDate: item.estimatedDelivery,
-      vendor: item.vendor.trim() || undefined,
+      vendor: cleanOptionalText(item.vendor),
     };
   }
 
@@ -947,6 +972,23 @@ export function ConvertOrderForm({
             estimatedDelivery:
               "Estimated delivery date is required for every product",
           }
+        : {}),
+      ...(selectedItems.some(
+        (item) =>
+          !isIsoDateString(item.estimatedDelivery) ||
+          ((item.source === "enquiry-custom" || item.source === "new-custom") &&
+            (!item.requirement?.category.trim() ||
+              !item.requirement.metalType.trim())),
+      )
+        ? { requirements: "Complete the required details for every product." }
+        : {}),
+      ...(selectedItems.some(
+        (item) =>
+          (item.source === "enquiry-custom" || item.source === "new-custom") &&
+          Boolean(item.requirement?.metalWeight.trim()) &&
+          !isValidMetalWeight(item.requirement?.metalWeight),
+      )
+        ? { metalWeight: METAL_WEIGHT_ERROR }
         : {}),
     };
     if (Object.keys(nextErrors).length > 0) {
@@ -989,6 +1031,8 @@ export function ConvertOrderForm({
       captureProductEvent("order_creation_failed", {
         product_count: selectedItems.length,
         source: isConversion ? "enquiry_conversion" : "direct",
+        error_name: error instanceof Error ? error.name : "UnknownError",
+        browser_online: navigator.onLine,
       });
       setSubmitError(
         error instanceof Error
@@ -2080,9 +2124,11 @@ function ReviewStep({
       </div>
 
       {Object.values(errors).length > 0 && (
-        <p className="text-sm text-destructive">
-          Resolve the highlighted fields before converting.
-        </p>
+        <div className="space-y-1 text-sm text-destructive" role="alert">
+          {[...new Set(Object.values(errors))].map((message) => (
+            <p key={message}>{message}</p>
+          ))}
+        </div>
       )}
       {submitError && <p className="text-sm text-destructive">{submitError}</p>}
     </div>
