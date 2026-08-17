@@ -1,8 +1,16 @@
 "use client";
 
-import { IndianRupee, MapPin, PackageSearch, UserRound } from "lucide-react";
+import {
+  Gem,
+  IndianRupee,
+  MapPin,
+  PackageSearch,
+  Palette,
+  UserRound,
+} from "lucide-react";
 import Image from "next/image";
 import type { RefObject } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getInventoryMediaUrl } from "@/lib/inventory-media";
 import { getInventoryPrimaryImage } from "@/lib/inventoryProductMapping";
@@ -20,6 +28,13 @@ const SKELETON_KEYS = [
   "sale-skeleton-8",
 ] as const;
 
+const COLOR_LABELS: Record<string, string> = {
+  YELLOW: "Yellow",
+  ROSE: "Rose",
+  WHITE: "White",
+  OTHERS: "Others",
+};
+
 function formatSellingPrice(value: string) {
   const amount = Number(value);
   return Number.isFinite(amount) ? formatCurrency(amount) : value;
@@ -35,12 +50,21 @@ function ProductSaleCard({
   const image = sale.product
     ? getInventoryPrimaryImage(sale.product, true)
     : undefined;
-  const store = sale.location?.name ?? sale.storeName ?? "Store unavailable";
+  const product = sale.product;
+  const city =
+    product?.location.city?.trim() ||
+    sale.location?.city?.trim() ||
+    sale.location?.name ||
+    sale.storeName ||
+    "Location unavailable";
   const salesperson = sale.salesPerson?.name ?? "Salesperson unavailable";
+  const colorLabel = product
+    ? (COLOR_LABELS[product.color] ?? product.color)
+    : null;
 
   return (
-    <article className="group overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-foreground/20 hover:shadow-md">
-      <div className="relative aspect-[4/3] overflow-hidden border-b border-border bg-muted/60">
+    <article className="w-full rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-colors hover:border-foreground/25 hover:bg-muted/20">
+      <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted/60">
         {image ? (
           <Image
             src={getInventoryMediaUrl(image)}
@@ -48,8 +72,8 @@ function ProductSaleCard({
             fill
             priority={priority}
             unoptimized
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-contain p-3 transition-transform duration-300 motion-safe:group-hover:scale-[1.02]"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover"
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
@@ -59,40 +83,48 @@ function ProductSaleCard({
         )}
       </div>
 
-      <div className="space-y-4 p-4">
-        <div className="flex items-start justify-between gap-3">
+      <div className="pt-3">
+        <div className="flex items-start justify-between gap-3 max-[420px]:flex-col">
           <div className="min-w-0">
-            <p className="truncate font-mono text-sm font-semibold text-foreground">
+            <h3 className="truncate text-base font-semibold text-foreground">
+              {product?.name ?? sale.productCode}
+            </h3>
+            <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
               {sale.productCode}
             </p>
-            {sale.inventoryResolution === "NOT_FOUND" ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Inventory details unavailable
-              </p>
-            ) : null}
           </div>
-          <div className="shrink-0 text-right">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              Selling price
-            </p>
-            <p className="mt-0.5 text-base font-semibold tabular-nums text-foreground">
-              {formatSellingPrice(sale.sellingPrice)}
-            </p>
+          <div className="flex max-w-[65%] shrink-0 flex-wrap justify-end gap-1.5 max-[420px]:max-w-full max-[420px]:justify-start">
+            {product && colorLabel ? (
+              <>
+                <Badge variant="secondary" className="gap-1 font-normal">
+                  <Gem className="size-3" aria-hidden="true" />
+                  {product.purity}K
+                </Badge>
+                <Badge variant="secondary" className="gap-1 font-normal">
+                  <Palette className="size-3" aria-hidden="true" />
+                  {colorLabel}
+                </Badge>
+              </>
+            ) : (
+              <Badge variant="secondary" className="font-normal">
+                Inventory details unavailable
+              </Badge>
+            )}
+            <Badge variant="outline" className="gap-1 font-normal">
+              <UserRound className="size-3" aria-hidden="true" />
+              {salesperson}
+            </Badge>
+            <Badge variant="outline" className="gap-1 font-normal">
+              <MapPin className="size-3" aria-hidden="true" />
+              {city}
+            </Badge>
           </div>
         </div>
 
-        <dl className="grid gap-2.5 border-t border-border pt-3 text-sm">
-          <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
-            <UserRound className="size-4 shrink-0" aria-hidden="true" />
-            <dt className="sr-only">Salesperson</dt>
-            <dd className="truncate">{salesperson}</dd>
-          </div>
-          <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
-            <MapPin className="size-4 shrink-0" aria-hidden="true" />
-            <dt className="sr-only">Store location</dt>
-            <dd className="truncate">{store}</dd>
-          </div>
-        </dl>
+        <p className="mt-3 border-t border-border pt-3 text-right text-sm font-semibold tabular-nums text-foreground">
+          <span className="sr-only">Selling price: </span>
+          {formatSellingPrice(sale.sellingPrice)}
+        </p>
       </div>
     </article>
   );
@@ -100,16 +132,23 @@ function ProductSaleCard({
 
 function ProductSaleSkeleton() {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
-      <Skeleton className="aspect-[4/3] w-full rounded-none" />
-      <div className="space-y-4 p-4">
+    <div className="rounded-xl border border-border bg-card p-3">
+      <Skeleton className="aspect-square w-full rounded-lg" />
+      <div className="space-y-3 pt-3">
         <div className="flex justify-between gap-4">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-8 w-28" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+          <div className="flex max-w-44 flex-wrap justify-end gap-1.5">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-5 w-20" />
+          </div>
         </div>
-        <div className="space-y-2.5 border-t border-border pt-3">
-          <Skeleton className="h-4 w-36" />
-          <Skeleton className="h-4 w-28" />
+        <div className="flex justify-end border-t border-border pt-3">
+          <Skeleton className="h-5 w-20" />
         </div>
       </div>
     </div>
@@ -133,7 +172,7 @@ export function RecentProductSalesGrid({
 }) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {SKELETON_KEYS.map((key) => (
           <ProductSaleSkeleton key={key} />
         ))}
@@ -167,7 +206,7 @@ export function RecentProductSalesGrid({
 
   return (
     <section aria-label="Recent product sales" className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {sales.map((sale, index) => (
           <ProductSaleCard
             key={sale.saleItemId}
