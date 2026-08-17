@@ -8,6 +8,7 @@ import {
   type EnquiryStage,
   EnquiryStageBar,
 } from "@/components/enquiry/EnquiryStageBar";
+import { normalizeRequirementItems } from "@/components/enquiry/requirements/requirement-display-utils";
 import { ActivityTimeline } from "@/components/order/ActivityTimeline";
 import { ComposeBox } from "@/components/order/ComposeBox";
 import { RelativeTime } from "@/components/RelativeTime";
@@ -273,6 +274,25 @@ export function EnquiryDetailPage({
   const customProducts = order.customProducts ?? [];
   const estimations = order.estimations ?? [];
   const productCount = selectedProducts.length + customProducts.length;
+  const requirementItems = normalizeRequirementItems({
+    selectedProducts,
+    customProducts,
+    estimations,
+  });
+  const deliveryDates = [
+    ...new Set(
+      requirementItems
+        .map((item) => item.details.deliveryDate?.trim())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ];
+  const budgetRanges = [
+    ...new Set(
+      requirementItems
+        .map((item) => item.details.budgetRange?.trim())
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ];
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
 
   function handleSaveEstimation(estimation: ProductEstimation) {
@@ -494,9 +514,17 @@ export function EnquiryDetailPage({
 
             <div className="border-t border-border px-5 py-5">
               <p className="mb-4 text-sm font-semibold text-foreground">
-                Details
+                Overview
               </p>
               <dl className="space-y-4">
+                <DetailMetric
+                  label="Delivery date"
+                  value={deliveryDates.join(", ")}
+                />
+                <DetailMetric
+                  label="Budget range"
+                  value={budgetRanges.join(", ")}
+                />
                 <DetailMetric label="Ref code" value={`#${order.refCode}`} />
                 <DetailMetric label="Products" value={productCount} />
                 <DetailMetric label="Estimates" value={estimations.length} />

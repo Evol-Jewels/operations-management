@@ -8,7 +8,7 @@
  */
 
 import { getFirstName, getInitials } from "@/lib/people";
-import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
 import {
   ACTOR_ROLE_LABELS,
   type ActivityEntry,
@@ -193,12 +193,6 @@ function PrintHeader({ order }: { order: Order }) {
           Stage: {order.currentStage}
         </span>
 
-        {/* Delivery date */}
-        {order.deliveryDate && (
-          <span style={{ fontSize: "9pt", color: "#374151" }}>
-            Delivery: <strong>{formatDate(order.deliveryDate)}</strong>
-          </span>
-        )}
       </div>
 
       {/* Actors */}
@@ -361,12 +355,6 @@ function PrintOrderDetails({ order }: { order: Order }) {
         <PrintRow label="Salesperson" value={order.salespersonName} />
         <PrintRow label="Vendor" value={order.vendorName} />
         <PrintRow
-          label="Delivery date"
-          value={
-            order.deliveryDate ? formatDate(order.deliveryDate) : undefined
-          }
-        />
-        <PrintRow
           label="Certification"
           value={
             order.certification !== "None"
@@ -411,7 +399,6 @@ function PrintOrderDetails({ order }: { order: Order }) {
             value={formatCurrency(order.totalEstimate - order.advancePaid)}
           />
         )}
-        <PrintRow label="Budget range" value={order.budgetRange} />
         <PrintRow label="Occasion" value={order.occasion} />
       </PrintSection>
 
