@@ -16,13 +16,14 @@ import {
   PanelLeftOpen,
   Plus,
   ShieldUser,
+  ShoppingBag,
   SunMedium,
   Warehouse,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTheme } from "@/components/providers/ThemeProvider";
 import { GoldRatesDialog } from "@/components/layout/GoldRatesDialog";
+import { useTheme } from "@/components/providers/ThemeProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,12 @@ const navItems = [
     icon: Boxes,
     label: "Manage Config & Pricing",
     href: "/manage-products-and-price",
+    roles: ["ADMIN", "OPERATIONS"],
+  },
+  {
+    icon: ShoppingBag,
+    label: "Manage Shopify Store",
+    href: "/shopify-products",
     roles: ["ADMIN", "OPERATIONS"],
   },
   {
@@ -156,11 +163,7 @@ function GoldRateSidebarItem({ role }: { role: string }) {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        {canOpenRates ? (
-          <GoldRatesDialog trigger={menuButton} />
-        ) : (
-          menuButton
-        )}
+        {canOpenRates ? <GoldRatesDialog trigger={menuButton} /> : menuButton}
       </SidebarMenuItem>
     </SidebarMenu>
   );
