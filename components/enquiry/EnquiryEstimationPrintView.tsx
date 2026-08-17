@@ -597,10 +597,8 @@ export const EnquiryEstimationPrintView = forwardRef<
                 <DetailRow label="Category" value={item.title} />
                 <DetailRow label="Subcategory" value={item.details.subcategory} />
                 <DetailRow label="Product size" value={item.details.productSize} />
-                <DetailRow label="Budget range" value={item.details.budgetRange} />
                 <DetailRow label="Setting type" value={item.details.settingType} />
                 <DetailRow label="Finding type" value={item.details.findingType} />
-                <DetailRow label="Delivery date" value={item.details.deliveryDate} />
               </DetailGrid>
             </PrintSection>
             <PrintSection title="Metal">

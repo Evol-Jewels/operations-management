@@ -38,7 +38,7 @@ export function getItemStatus(status?: EnquiryItemStatus): EnquiryItemStatus {
 
 export function getDefaultPurity(value?: string): MetalPurity {
   const normalized = value?.trim().toUpperCase();
-  const karat = normalized?.match(/^(14|18|22|24)\s*K(?:T)?$/)?.[1];
+  const karat = normalized?.match(/^(9|14|18|22|24)\s*K(?:T)?$/)?.[1];
 
   return karat ? (`${karat}K` as MetalPurity) : "22K";
 }

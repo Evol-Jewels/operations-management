@@ -55,8 +55,8 @@ function normalizeMetalPurity(value?: string | number | null): MetalPurity {
   if (normalized === "OTHER") return "Other";
 
   const karat =
-    normalized.match(/^(14|18|22|24)\s*K(?:T)?$/)?.[1] ??
-    normalized.match(/^(14|18|22|24)$/)?.[1];
+    normalized.match(/^(9|14|18|22|24)\s*K(?:T)?$/)?.[1] ??
+    normalized.match(/^(9|14|18|22|24)$/)?.[1];
   if (karat) {
     return `${karat}K` as MetalPurity;
   }

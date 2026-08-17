@@ -40,7 +40,7 @@ function normalizeMetalPurity(value?: string | null): MetalPurity {
   const normalized = value.trim().toUpperCase();
   if (normalized === "OTHER") return "Other";
 
-  const karat = normalized.match(/^(14|18|22|24)\s*K(?:T)?$/)?.[1];
+  const karat = normalized.match(/^(9|14|18|22|24)\s*K(?:T)?$/)?.[1];
   if (karat) {
     return `${karat}K` as MetalPurity;
   }

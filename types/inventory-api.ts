@@ -106,6 +106,8 @@ export type InventoryProductListQuery = {
   isCustomerProduct?: boolean;
   netWeightFrom?: number;
   netWeightTo?: number;
+  priceFrom?: number;
+  priceTo?: number;
   sourceCreatedFrom?: string;
   sourceCreatedTo?: string;
   limit?: number;

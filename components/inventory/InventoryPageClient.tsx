@@ -228,6 +228,8 @@ const QUERY_PARAM_KEYS = {
   location: "locationId",
   netWeightFrom: "netWeightFrom",
   netWeightTo: "netWeightTo",
+  priceFrom: "priceFrom",
+  priceTo: "priceTo",
   sourceCreatedFrom: "sourceCreatedFrom",
   sourceCreatedTo: "sourceCreatedTo",
 } as const;
@@ -1071,6 +1073,12 @@ export function InventoryPageClient() {
   const [netWeightTo, setNetWeightTo] = useState(() =>
     getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightTo),
   );
+  const [priceFrom, setPriceFrom] = useState(() =>
+    getQueryValue(searchParams, QUERY_PARAM_KEYS.priceFrom),
+  );
+  const [priceTo, setPriceTo] = useState(() =>
+    getQueryValue(searchParams, QUERY_PARAM_KEYS.priceTo),
+  );
   const [sourceCreatedFrom, setSourceCreatedFrom] = useState(() =>
     getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedFrom),
   );
@@ -1105,6 +1113,8 @@ export function InventoryPageClient() {
         isCustomerProduct,
         netWeightFrom: netWeightFrom ? Number(netWeightFrom) : undefined,
         netWeightTo: netWeightTo ? Number(netWeightTo) : undefined,
+        priceFrom: priceFrom ? Number(priceFrom) : undefined,
+        priceTo: priceTo ? Number(priceTo) : undefined,
         sourceCreatedFrom: sourceCreatedFrom || undefined,
         sourceCreatedTo: sourceCreatedTo || undefined,
       };
@@ -1116,6 +1126,8 @@ export function InventoryPageClient() {
       locationFilter,
       netWeightFrom,
       netWeightTo,
+      priceFrom,
+      priceTo,
       purityFilter,
       sourceCreatedFrom,
       sourceCreatedTo,
@@ -1191,6 +1203,8 @@ export function InventoryPageClient() {
       getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightFrom),
     );
     setNetWeightTo(getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightTo));
+    setPriceFrom(getQueryValue(searchParams, QUERY_PARAM_KEYS.priceFrom));
+    setPriceTo(getQueryValue(searchParams, QUERY_PARAM_KEYS.priceTo));
     setSourceCreatedFrom(
       getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedFrom),
     );
@@ -1237,6 +1251,8 @@ export function InventoryPageClient() {
     setLocationFilter("ALL");
     setNetWeightFrom("");
     setNetWeightTo("");
+    setPriceFrom("");
+    setPriceTo("");
     setSourceCreatedFrom("");
     setSourceCreatedTo("");
     updateSearchParams((params) => {
@@ -1247,6 +1263,8 @@ export function InventoryPageClient() {
       params.delete(QUERY_PARAM_KEYS.location);
       params.delete(QUERY_PARAM_KEYS.netWeightFrom);
       params.delete(QUERY_PARAM_KEYS.netWeightTo);
+      params.delete(QUERY_PARAM_KEYS.priceFrom);
+      params.delete(QUERY_PARAM_KEYS.priceTo);
       params.delete(QUERY_PARAM_KEYS.sourceCreatedFrom);
       params.delete(QUERY_PARAM_KEYS.sourceCreatedTo);
     });
@@ -1301,6 +1319,8 @@ export function InventoryPageClient() {
     (locationFilter !== "ALL" ? 1 : 0) +
     (netWeightFrom ? 1 : 0) +
     (netWeightTo ? 1 : 0) +
+    (priceFrom ? 1 : 0) +
+    (priceTo ? 1 : 0) +
     (sourceCreatedFrom ? 1 : 0) +
     (sourceCreatedTo ? 1 : 0);
 
@@ -1403,6 +1423,28 @@ export function InventoryPageClient() {
       });
     }
 
+    if (priceFrom) {
+      chips.push({
+        key: QUERY_PARAM_KEYS.priceFrom,
+        label: `Price from: ${formatCurrency(Number(priceFrom))}`,
+        onRemove: () => {
+          setPriceFrom("");
+          clearQueryParam(QUERY_PARAM_KEYS.priceFrom);
+        },
+      });
+    }
+
+    if (priceTo) {
+      chips.push({
+        key: QUERY_PARAM_KEYS.priceTo,
+        label: `Price to: ${formatCurrency(Number(priceTo))}`,
+        onRemove: () => {
+          setPriceTo("");
+          clearQueryParam(QUERY_PARAM_KEYS.priceTo);
+        },
+      });
+    }
+
     if (sourceCreatedFrom) {
       chips.push({
         key: QUERY_PARAM_KEYS.sourceCreatedFrom,
@@ -1434,6 +1476,8 @@ export function InventoryPageClient() {
     locationLabel,
     netWeightFrom,
     netWeightTo,
+    priceFrom,
+    priceTo,
     purityFilter,
     sourceCreatedFrom,
     sourceCreatedTo,
@@ -1696,7 +1740,7 @@ export function InventoryPageClient() {
             <div className="px-5 pt-5 sm:px-6 sm:pt-6">
               <DialogTitle>Filters</DialogTitle>
               <DialogDescription className="mt-2">
-                Refine inventory results by product attributes, location,
+                Refine inventory results by product attributes, location, price,
                 weight, and source date.
               </DialogDescription>
             </div>
@@ -1708,6 +1752,42 @@ export function InventoryPageClient() {
             </div>
 
             <div className="space-y-5">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Estimated price (₹)
+                </Label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="1"
+                    value={priceFrom}
+                    onChange={(event) => {
+                      const { value } = event.target;
+                      setPriceFrom(value);
+                      updateQueryParam(QUERY_PARAM_KEYS.priceFrom, value, "");
+                    }}
+                    placeholder="Minimum price"
+                    aria-label="Minimum estimated price"
+                  />
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="1"
+                    value={priceTo}
+                    onChange={(event) => {
+                      const { value } = event.target;
+                      setPriceTo(value);
+                      updateQueryParam(QUERY_PARAM_KEYS.priceTo, value, "");
+                    }}
+                    placeholder="Maximum price"
+                    aria-label="Maximum estimated price"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Net weight (g)</Label>
                 <div className="grid gap-3 sm:grid-cols-2">

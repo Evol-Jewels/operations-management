@@ -133,7 +133,11 @@ export function ProductionSpecCard({ order }: ProductionSpecCardProps) {
             />
             <SpecLine label="Setting" value={customDetails?.settingType} />
             <SpecLine label="Finding" value={customDetails?.findingType} />
-            <SpecLine label="Budget" value={customDetails?.budgetRange} />
+            <SpecLine
+              label="Budget range"
+              value={order.budgetRange ?? customDetails?.budgetRange}
+            />
+            <SpecLine label="Delivery date" value={order.deliveryDate} />
             <SpecLine
               label="Customer need CAD Design"
               value={order.cadDesignRequired ? "Required" : "Not required"}
