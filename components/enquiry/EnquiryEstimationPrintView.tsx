@@ -1,5 +1,6 @@
 import {
   compactUrl,
+  getDisplayMetalPurity,
   type RequirementDisplayItem,
 } from "@/components/enquiry/requirements/requirement-display-utils";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -462,7 +463,10 @@ export const EnquiryEstimationPrintView = forwardRef<
   HTMLDivElement,
   EnquiryEstimationPrintViewProps
 >(function EnquiryEstimationPrintView({ item, enquiryRefCode }, ref) {
-  const metal = joinValues([item.metalType, item.metalPurity]);
+  const metal = joinValues([
+    item.metalType,
+    getDisplayMetalPurity(item.metalPurity),
+  ]);
   const printDate = formatPrintDate(new Date());
   const visibleDiamonds = item.diamonds.filter(hasRecordValues);
   const visibleColorStones = item.colorStones.filter(hasRecordValues);

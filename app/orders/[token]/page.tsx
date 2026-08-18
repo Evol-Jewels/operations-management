@@ -448,7 +448,7 @@ export default function OrderPage() {
       )}
 
       {/* Product requirements and order details */}
-      <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_370px]">
+      <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,1fr)_370px]">
         <main className="space-y-5">
           <EnquiryProductList
             enquiryRefCode={order.refCode ?? 0}
@@ -466,7 +466,7 @@ export default function OrderPage() {
           />
         </main>
 
-        <aside className="lg:sticky lg:top-6 lg:self-start">
+        <aside className="xl:sticky xl:top-6 xl:self-start">
           {order.type === "order" && (
             <ProductionSpecCard
               order={order}

@@ -22,6 +22,8 @@ import {
   type RequirementDisplayItem,
 } from "@/components/enquiry/requirements/requirement-display-utils";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
@@ -202,6 +204,7 @@ function RequirementCarouselCard({
   const hasMany = totalCount > 1;
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [hideVendorDetails, setHideVendorDetails] = useState(false);
   const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>("pdf");
   const printViewRef = useRef<HTMLDivElement>(null);
 
@@ -352,6 +355,19 @@ function RequirementCarouselCard({
           </span>
         </p>
         <div className="flex items-center gap-2">
+          {item.kind === "custom" && vendorDetails ? (
+            <Label className="flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground">
+              <Checkbox
+                checked={hideVendorDetails}
+                onCheckedChange={(checked) =>
+                  setHideVendorDetails(checked === true)
+                }
+                aria-label="Hide vendor details"
+              />
+              <span className="hidden sm:inline">Hide vendor details</span>
+              <span className="sm:hidden">Hide vendor</span>
+            </Label>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -437,7 +453,7 @@ function RequirementCarouselCard({
         </div>
       </div>
 
-      <div className="grid gap-4 p-3 lg:grid-cols-[minmax(15rem,1fr)_minmax(0,2fr)] lg:p-4">
+      <div className="grid gap-4 p-3 xl:grid-cols-[minmax(15rem,1fr)_minmax(0,2fr)] xl:p-4">
         <RequirementMediaPanel
           item={item}
           settings={settings}
@@ -445,7 +461,10 @@ function RequirementCarouselCard({
           isSavingEstimation={isSavingEstimation}
           onSaveEstimation={onSaveEstimation}
         />
-        <RequirementDetailsPanel item={item} vendorDetails={vendorDetails} />
+        <RequirementDetailsPanel
+          item={item}
+          vendorDetails={hideVendorDetails ? undefined : vendorDetails}
+        />
       </div>
       <EnquiryEstimationPrintView
         ref={printViewRef}

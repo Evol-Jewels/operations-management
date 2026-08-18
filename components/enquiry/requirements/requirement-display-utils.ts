@@ -54,7 +54,12 @@ export function normalizeRequirementItems({
 }): RequirementDisplayItem[] {
   const existingItems = selectedProducts.map((product) => {
     const references = product.references ?? imageReference(product.imageUrl);
-    const metal = [product.metalType, product.metalPurity].filter(Boolean).join(" ");
+    const metal = [
+      product.metalType,
+      getDisplayMetalPurity(product.metalPurity),
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     return {
       id: product.id,
@@ -80,7 +85,12 @@ export function normalizeRequirementItems({
 
   const customItems = customProducts.map((product) => {
     const details = product.details ?? {};
-    const metal = [product.metalType, product.metalPurity].filter(Boolean).join(" ");
+    const metal = [
+      product.metalType,
+      getDisplayMetalPurity(product.metalPurity),
+    ]
+      .filter(Boolean)
+      .join(" ");
     const title = product.category || "Custom requirement";
 
     return {
@@ -132,6 +142,14 @@ function imageReference(imageUrl?: string): EnquiryReference[] {
 
 export function hasValue(value: unknown) {
   return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+export function getDisplayMetalPurity(value?: string | null) {
+  if (!hasValue(value) || value?.trim().toLowerCase() === "other") {
+    return undefined;
+  }
+
+  return value;
 }
 
 export function compactUrl(url?: string) {

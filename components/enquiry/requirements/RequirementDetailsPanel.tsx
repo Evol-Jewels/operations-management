@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { EnquiryColorStone, EnquiryDiamond } from "@/types";
 import {
   compactUrl,
+  getDisplayMetalPurity,
   hasValue,
   type RequirementDisplayItem,
 } from "./requirement-display-utils";
@@ -47,7 +48,10 @@ export function RequirementDetailsPanel({
 
         <DetailSection title="Metal">
           <DetailRow label="Metal" value={item.metalType} />
-          <DetailRow label="Metal purity" value={item.metalPurity} />
+          <DetailRow
+            label="Metal purity"
+            value={getDisplayMetalPurity(item.metalPurity)}
+          />
           <DetailRow label="Metal color" value={item.details.metalColor} />
           <DetailRow label="Gold weight" value={item.metalWeight} />
           <DetailRow label="Certification" value={item.details.certification} />
@@ -88,14 +92,12 @@ export function RequirementDetailsPanel({
       <MiniCarousel
         title="Diamond Details"
         items={item.diamonds.filter(hasRecordValues)}
-        emptyLabel="No diamond details added."
         renderItem={(diamond) => <DiamondCard diamond={diamond} />}
       />
 
       <MiniCarousel
         title="Color Stone Details"
         items={item.colorStones.filter(hasRecordValues)}
-        emptyLabel="No colour stone details added."
         renderItem={(stone) => <ColorStoneCard stone={stone} />}
       />
 
@@ -145,12 +147,10 @@ export interface OrderVendorDetailsDisplay {
 function MiniCarousel<T>({
   title,
   items,
-  emptyLabel,
   renderItem,
 }: {
   title: string;
   items: T[];
-  emptyLabel: string;
   renderItem: (item: T) => ReactNode;
 }) {
   const [index, setIndex] = useState(0);
@@ -161,13 +161,7 @@ function MiniCarousel<T>({
     setIndex(0);
   }, [items.length]);
 
-  if (items.length === 0) {
-    return (
-      <DetailSection title={title}>
-        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
-      </DetailSection>
-    );
-  }
+  if (items.length === 0) return null;
 
   return (
     <section className="space-y-2">

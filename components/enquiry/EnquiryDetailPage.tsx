@@ -412,7 +412,7 @@ export function EnquiryDetailPage({
         </div>
       ) : null}
 
-      <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_370px]">
+      <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_370px]">
         <div className="space-y-6">
           <EnquiryStageBar currentStage={stage} />
 
@@ -485,7 +485,7 @@ export function EnquiryDetailPage({
           </section>
         </div>
 
-        <aside className="lg:sticky lg:top-6 lg:self-start">
+        <aside className="xl:sticky xl:top-6 xl:self-start">
           <section className="overflow-hidden rounded-xl border border-border bg-card">
             <div className="px-5 py-5">
               <p className="mb-5 text-sm font-semibold text-foreground">

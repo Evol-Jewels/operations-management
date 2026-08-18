@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, Pencil, Truck, UserRound, Wrench } from "lucide-react";
+import { getDisplayMetalPurity } from "@/components/enquiry/requirements/requirement-display-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -118,7 +119,10 @@ export function ProductionSpecCard({
                 <BadgeGroup
                   items={[
                     { label: "Metal", value: order.metalType },
-                    { label: "Purity", value: order.metalPurity },
+                    {
+                      label: "Purity",
+                      value: getDisplayMetalPurity(order.metalPurity),
+                    },
                     {
                       label: "Net weight",
                       value: order.metalWeight
