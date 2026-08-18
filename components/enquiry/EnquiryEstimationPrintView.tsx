@@ -1,14 +1,15 @@
+import { forwardRef } from "react";
 import {
   compactUrl,
   getDisplayMetalPurity,
   type RequirementDisplayItem,
 } from "@/components/enquiry/requirements/requirement-display-utils";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { forwardRef } from "react";
 import type {
   EnquiryColorStone,
   EnquiryDiamond,
   ProductEstimation,
+  RecordType,
 } from "@/types";
 
 const PRINT_FONT = 'var(--font-geist-sans), "Segoe UI", sans-serif';
@@ -126,11 +127,7 @@ function DetailRow({
   );
 }
 
-function DetailGrid({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DetailGrid({ children }: { children: React.ReactNode }) {
   return (
     <dl
       style={{
@@ -273,11 +270,7 @@ function MediaPanel({ item }: { item: RequirementDisplayItem }) {
   );
 }
 
-function ReferenceLinks({
-  links,
-}: {
-  links: RequirementDisplayItem["links"];
-}) {
+function ReferenceLinks({ links }: { links: RequirementDisplayItem["links"] }) {
   return (
     <div
       style={{
@@ -386,7 +379,10 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
               : undefined
           }
         />
-        <DetailRow label="Estimated on" value={formatDate(estimation.createdAt)} />
+        <DetailRow
+          label="Estimated on"
+          value={formatDate(estimation.createdAt)}
+        />
         <DetailRow label="Vendor" value={estimation.vendorName} />
         {estimation.stoneDetails.map((stone, index) => (
           <DetailRow
@@ -457,12 +453,20 @@ function ColorStoneDetails({ stones }: { stones: EnquiryColorStone[] }) {
 interface EnquiryEstimationPrintViewProps {
   item: RequirementDisplayItem;
   enquiryRefCode: number;
+  recordType: RecordType;
+  vendorDetails?: {
+    name?: string;
+    deliveryDate?: string;
+  };
 }
 
 export const EnquiryEstimationPrintView = forwardRef<
   HTMLDivElement,
   EnquiryEstimationPrintViewProps
->(function EnquiryEstimationPrintView({ item, enquiryRefCode }, ref) {
+>(function EnquiryEstimationPrintView(
+  { item, enquiryRefCode, recordType, vendorDetails },
+  ref,
+) {
   const metal = joinValues([
     item.metalType,
     getDisplayMetalPurity(item.metalPurity),
@@ -542,7 +546,7 @@ export const EnquiryEstimationPrintView = forwardRef<
               marginTop: 10,
             }}
           >
-            <span>{`Enquiry No: #${enquiryRefCode}`}</span>
+            <span>{`${recordType === "order" ? "Order" : "Enquiry"} No: #${enquiryRefCode}`}</span>
             <span>{`Date: ${printDate}`}</span>
           </div>
         </header>
@@ -597,23 +601,58 @@ export const EnquiryEstimationPrintView = forwardRef<
           >
             <PrintSection title="Overview">
               <DetailGrid>
-                <DetailRow label="Type of order" value={item.details.orderType} />
+                <DetailRow
+                  label="Type of order"
+                  value={item.details.orderType}
+                />
                 <DetailRow label="Category" value={item.title} />
-                <DetailRow label="Subcategory" value={item.details.subcategory} />
-                <DetailRow label="Product size" value={item.details.productSize} />
-                <DetailRow label="Setting type" value={item.details.settingType} />
-                <DetailRow label="Finding type" value={item.details.findingType} />
+                <DetailRow
+                  label="Subcategory"
+                  value={item.details.subcategory}
+                />
+                <DetailRow
+                  label="Product size"
+                  value={item.details.productSize}
+                />
+                <DetailRow
+                  label="Setting type"
+                  value={item.details.settingType}
+                />
+                <DetailRow
+                  label="Finding type"
+                  value={item.details.findingType}
+                />
               </DetailGrid>
             </PrintSection>
             <PrintSection title="Metal">
               <DetailGrid>
                 <DetailRow label="Metal" value={metal} />
-                <DetailRow label="Metal color" value={item.details.metalColor} />
+                <DetailRow
+                  label="Metal color"
+                  value={item.details.metalColor}
+                />
                 <DetailRow label="Gold weight" value={item.metalWeight} />
-                <DetailRow label="Certification" value={item.details.certification} />
+                <DetailRow
+                  label="Certification"
+                  value={item.details.certification}
+                />
                 <DetailRow label="Polish" value={item.details.polish} />
               </DetailGrid>
             </PrintSection>
+            {item.kind === "custom" && vendorDetails ? (
+              <PrintSection title="Vendor details">
+                <DetailGrid>
+                  <DetailRow
+                    label="Vendor name"
+                    value={vendorDetails.name || "Not added"}
+                  />
+                  <DetailRow
+                    label="Vendor delivery date"
+                    value={vendorDetails.deliveryDate || "Not added"}
+                  />
+                </DetailGrid>
+              </PrintSection>
+            ) : null}
           </div>
 
           {visibleDiamonds.length > 0 ? (
