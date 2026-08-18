@@ -20,6 +20,10 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import {
+  VendorDetailsDialog,
+  type VendorDetailsValues,
+} from "@/components/order/VendorDetailsDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -64,6 +68,7 @@ import { authClient } from "@/lib/auth-client";
 import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
 import { ENQUIRY_STATUS_LABELS, getRecordStatus } from "@/lib/enquiryStatus";
 import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
+import { shouldPromptForVendorDetails } from "@/lib/orderVendorDetails";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { Order, PersonSummary, RecordType } from "@/types";
@@ -683,6 +688,10 @@ export function OrdersEnquiriesWorkspace() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [pendingKanbanMove, setPendingKanbanMove] = useState<{
+    record: Order;
+    newColumnId: string;
+  } | null>(null);
   const isKanbanMode = viewMode === "kanban";
 
   const replaceWorkspaceUrl = useCallback(
@@ -964,6 +973,35 @@ export function OrdersEnquiriesWorkspace() {
       toast.error(getErrorMessage(error, "Could not sync purchases"));
     }
   };
+  const commitKanbanOrderMove = async (
+    record: Order,
+    newColumnId: string,
+    vendorDetails?: VendorDetailsValues,
+  ) => {
+    if (!record.refCode || !isOrderStage(newColumnId)) return false;
+
+    try {
+      await updateOrderStatusMutation.mutateAsync({
+        refCode: record.refCode,
+        input: {
+          status: ORDER_STAGE_TO_STATUS[newColumnId],
+          ...vendorDetails,
+        },
+      });
+      captureProductEvent("order_status_changed", {
+        from_status: record.currentStage,
+        to_status: newColumnId,
+        surface: "kanban",
+        vendor_prompt: Boolean(vendorDetails),
+      });
+      toast.success(`Order moved to ${newColumnId}`);
+      return true;
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not update order status"));
+      return false;
+    }
+  };
+
   const handleKanbanOrderMove = async (record: Order, newColumnId: string) => {
     if (record.type === "enquiry") {
       toast.error(
@@ -984,20 +1022,28 @@ export function OrdersEnquiriesWorkspace() {
 
     if (!record.refCode || !isOrderStage(newColumnId)) return;
 
-    try {
-      await updateOrderStatusMutation.mutateAsync({
-        refCode: record.refCode,
-        input: { status: ORDER_STAGE_TO_STATUS[newColumnId] },
-      });
-      captureProductEvent("order_status_changed", {
-        from_status: record.currentStage,
-        to_status: newColumnId,
-        surface: "kanban",
-      });
-      toast.success(`Order moved to ${newColumnId}`);
-    } catch (error) {
-      toast.error(getErrorMessage(error, "Could not update order status"));
+    if (
+      shouldPromptForVendorDetails(
+        record.orderStatus,
+        ORDER_STAGE_TO_STATUS[newColumnId],
+      )
+    ) {
+      setPendingKanbanMove({ record, newColumnId });
+      return;
     }
+
+    await commitKanbanOrderMove(record, newColumnId);
+  };
+
+  const handleConfirmKanbanVendor = async (values: VendorDetailsValues) => {
+    if (!pendingKanbanMove) return;
+
+    const didMove = await commitKanbanOrderMove(
+      pendingKanbanMove.record,
+      pendingKanbanMove.newColumnId,
+      values,
+    );
+    if (didMove) setPendingKanbanMove(null);
   };
   const sectionCount =
     typeTab === "purchase"
@@ -1203,6 +1249,26 @@ export function OrdersEnquiriesWorkspace() {
           </div>
         ) : null}
       </div>
+
+      <VendorDetailsDialog
+        open={Boolean(pendingKanbanMove)}
+        onOpenChange={(open) => {
+          if (!open) setPendingKanbanMove(null);
+        }}
+        vendorName={pendingKanbanMove?.record.vendorName}
+        vendorDeliveryDate={pendingKanbanMove?.record.vendorDeliveryDate}
+        title="Add vendor details"
+        description={`Please add vendor details before moving this order to ${
+          pendingKanbanMove?.newColumnId ?? "the next status"
+        }. Both fields are optional and can be updated later.`}
+        confirmLabel={
+          pendingKanbanMove
+            ? `Move to ${pendingKanbanMove.newColumnId}`
+            : "Move order"
+        }
+        isPending={updateOrderStatusMutation.isPending}
+        onSubmit={handleConfirmKanbanVendor}
+      />
 
       <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
         <SheetContent
