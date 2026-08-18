@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  ChevronDown,
   Check,
+  ChevronDown,
   Download,
   FileImage,
   FileText,
@@ -10,8 +10,12 @@ import {
   Share2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { EnquiryEstimationPrintView } from "@/components/enquiry/EnquiryEstimationPrintView";
-import { RequirementDetailsPanel } from "@/components/enquiry/requirements/RequirementDetailsPanel";
+import {
+  type OrderVendorDetailsDisplay,
+  RequirementDetailsPanel,
+} from "@/components/enquiry/requirements/RequirementDetailsPanel";
 import { RequirementMediaPanel } from "@/components/enquiry/requirements/RequirementMediaPanel";
 import {
   normalizeRequirementItems,
@@ -33,7 +37,6 @@ import {
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import type {
   CalculatorSettings,
   CalculatorStoneInput,
@@ -64,6 +67,7 @@ interface EnquiryProductListProps {
   isFinalized: boolean;
   isSavingEstimation?: boolean;
   showHeader?: boolean;
+  vendorDetails?: OrderVendorDetailsDisplay;
   onSaveEstimation: (estimation: ProductEstimation) => void;
 }
 
@@ -75,6 +79,7 @@ export function EnquiryProductList({
   isFinalized,
   isSavingEstimation,
   showHeader = true,
+  vendorDetails,
   onSaveEstimation,
 }: EnquiryProductListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -132,6 +137,7 @@ export function EnquiryProductList({
           settings={settings}
           isFinalized={isFinalized}
           isSavingEstimation={isSavingEstimation}
+          vendorDetails={vendorDetails}
           onSaveEstimation={onSaveEstimation}
           onSelectItem={setActiveIndex}
         />
@@ -178,6 +184,7 @@ function RequirementCarouselCard({
   settings,
   isFinalized,
   isSavingEstimation,
+  vendorDetails,
   onSaveEstimation,
   onSelectItem,
 }: {
@@ -188,6 +195,7 @@ function RequirementCarouselCard({
   settings: CalculatorSettings;
   isFinalized: boolean;
   isSavingEstimation?: boolean;
+  vendorDetails?: OrderVendorDetailsDisplay;
   onSaveEstimation: (estimation: ProductEstimation) => void;
   onSelectItem: (index: number) => void;
 }) {
@@ -437,7 +445,7 @@ function RequirementCarouselCard({
           isSavingEstimation={isSavingEstimation}
           onSaveEstimation={onSaveEstimation}
         />
-        <RequirementDetailsPanel item={item} />
+        <RequirementDetailsPanel item={item} vendorDetails={vendorDetails} />
       </div>
       <EnquiryEstimationPrintView
         ref={printViewRef}

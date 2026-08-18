@@ -6,14 +6,18 @@ import { notFound, useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
+import { EnquiryProductList } from "@/components/enquiry/EnquiryProductList";
 import { ActivityTimeline } from "@/components/order/ActivityTimeline";
 import { CloseEnquiryDialog } from "@/components/order/CloseEnquiryDialog";
 import { ComposeBox } from "@/components/order/ComposeBox";
-import { EnquiryProductList } from "@/components/enquiry/EnquiryProductList";
 import { OrderPrintView } from "@/components/order/OrderPrintView";
 import { ProductionSpecCard } from "@/components/order/ProductionSpecCard";
 import { StageBar } from "@/components/order/StageBar";
 import { StageHint } from "@/components/order/StageHint";
+import {
+  VendorDetailsDialog,
+  type VendorDetailsValues,
+} from "@/components/order/VendorDetailsDialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -36,13 +40,14 @@ import { useMyInternalProfile } from "@/hooks/useInternalProfile";
 import {
   orderKeys,
   useOrderDetails,
+  useUpdateOrder,
   useUpdateOrderStatus,
 } from "@/hooks/useOrders";
 import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
 import { captureProductEvent } from "@/lib/analytics";
 import { mapBackendOrderDetailsToOrder } from "@/lib/orderMappers";
+import { shouldPromptForVendorDetails } from "@/lib/orderVendorDetails";
 import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
-import type { Order } from "@/types";
 import type { BackendOrderStatus } from "@/types/order-api";
 
 const ORDER_STATUS_OPTIONS: Array<{
@@ -87,10 +92,14 @@ function OrderStatusControl({
   refCode,
   status,
   canUpdate,
+  vendorName,
+  vendorDeliveryDate,
 }: {
   refCode: string | number;
   status?: BackendOrderStatus;
   canUpdate: boolean;
+  vendorName?: string;
+  vendorDeliveryDate?: string;
 }) {
   const updateStatus = useUpdateOrderStatus(refCode);
   const createCommentMutation = useCreateComment("ORDER", Number(refCode), {
@@ -100,6 +109,9 @@ function OrderStatusControl({
     null,
   );
   const [statusNote, setStatusNote] = useState("");
+  const [vendorStatus, setVendorStatus] = useState<BackendOrderStatus | null>(
+    null,
+  );
 
   if (!status) return null;
 
@@ -147,6 +159,26 @@ function OrderStatusControl({
     }
   }
 
+  async function handleConfirmVendorStatus(values: VendorDetailsValues) {
+    if (!vendorStatus) return;
+
+    try {
+      await updateStatus.mutateAsync({ status: vendorStatus, ...values });
+      captureProductEvent("order_status_changed", {
+        from_status: status,
+        to_status: vendorStatus,
+        surface: "order_detail",
+        vendor_prompt: true,
+      });
+      toast.success(
+        `Order status changed to ${getOrderStatusLabel(vendorStatus)}`,
+      );
+      setVendorStatus(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not update order status"));
+    }
+  }
+
   if (!canUpdate) {
     return (
       <span className="inline-flex h-8 items-center rounded-md border border-border bg-muted/30 px-2.5 text-xs font-medium text-muted-foreground">
@@ -167,6 +199,11 @@ function OrderStatusControl({
           if (NOTE_REQUIRED_STATUSES.has(typedStatus)) {
             setPendingStatus(typedStatus);
             setStatusNote("");
+            return;
+          }
+
+          if (shouldPromptForVendorDetails(status, typedStatus)) {
+            setVendorStatus(typedStatus);
             return;
           }
 
@@ -231,6 +268,26 @@ function OrderStatusControl({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <VendorDetailsDialog
+        open={Boolean(vendorStatus)}
+        onOpenChange={(open) => {
+          if (!open) setVendorStatus(null);
+        }}
+        vendorName={vendorName}
+        vendorDeliveryDate={vendorDeliveryDate}
+        title="Add vendor details"
+        description={`Please add vendor details before moving this order to ${
+          vendorStatus ? getOrderStatusLabel(vendorStatus) : "the next status"
+        }. Both fields are optional and can be updated later.`}
+        confirmLabel={
+          vendorStatus
+            ? `Move to ${getOrderStatusLabel(vendorStatus)}`
+            : "Move order"
+        }
+        isPending={isUpdating}
+        onSubmit={handleConfirmVendorStatus}
+      />
     </>
   );
 }
@@ -244,6 +301,7 @@ export default function OrderPage() {
   const refCode = params.token as string;
   const numericRefCode = Number(refCode);
   const orderQuery = useOrderDetails(refCode);
+  const updateOrder = useUpdateOrder(refCode);
   const profileQuery = useMyInternalProfile();
   const sessionRole = profileQuery.data?.profile?.role;
   const canUpdateOrderStatus =
@@ -252,6 +310,7 @@ export default function OrderPage() {
   const createCommentMutation = useCreateComment("ORDER", numericRefCode, {
     invalidateQueryKeys: [orderKeys.detail(refCode)],
   });
+  const [isVendorEditorOpen, setIsVendorEditorOpen] = useState(false);
   const order = orderQuery.data
     ? mapBackendOrderDetailsToOrder(orderQuery.data, commentsQuery.data ?? [])
     : null;
@@ -281,6 +340,16 @@ export default function OrderPage() {
         .getElementById("timeline-end")
         ?.scrollIntoView({ behavior: "smooth", block: "end" });
     }, 100);
+  }
+
+  async function handleSaveVendorDetails(values: VendorDetailsValues) {
+    try {
+      await updateOrder.mutateAsync(values);
+      toast.success("Vendor details updated");
+      setIsVendorEditorOpen(false);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Could not update vendor details"));
+    }
   }
 
   return (
@@ -351,6 +420,8 @@ export default function OrderPage() {
               refCode={refCode}
               status={order.orderStatus}
               canUpdate={canUpdateOrderStatus}
+              vendorName={order.vendorName}
+              vendorDeliveryDate={order.vendorDeliveryDate}
             />
             {order.type === "enquiry" && order.status !== "closed" && (
               <CloseEnquiryDialog orderId={order.id} />
@@ -379,7 +450,6 @@ export default function OrderPage() {
       {/* Product requirements and order details */}
       <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_370px]">
         <main className="space-y-5">
-
           <EnquiryProductList
             enquiryRefCode={order.refCode ?? 0}
             selectedProducts={order.selectedProducts ?? []}
@@ -387,12 +457,22 @@ export default function OrderPage() {
             estimations={order.estimations ?? []}
             isFinalized
             showHeader={false}
+            vendorDetails={{
+              name: order.vendorName,
+              deliveryDate: order.vendorDeliveryDate,
+              onEdit: () => setIsVendorEditorOpen(true),
+            }}
             onSaveEstimation={() => undefined}
           />
         </main>
 
         <aside className="lg:sticky lg:top-6 lg:self-start">
-          {order.type === "order" && <ProductionSpecCard order={order} />}
+          {order.type === "order" && (
+            <ProductionSpecCard
+              order={order}
+              onEditVendor={() => setIsVendorEditorOpen(true)}
+            />
+          )}
         </aside>
       </div>
 
@@ -433,6 +513,18 @@ export default function OrderPage() {
 
       {/* ── Print-only document — hidden in UI, shown when printing ── */}
       <OrderPrintView order={order} />
+
+      <VendorDetailsDialog
+        open={isVendorEditorOpen}
+        onOpenChange={setIsVendorEditorOpen}
+        vendorName={order.vendorName}
+        vendorDeliveryDate={order.vendorDeliveryDate}
+        title="Edit vendor details"
+        description="Update the vendor assigned to this order and the date they expect to deliver it."
+        confirmLabel="Save vendor details"
+        isPending={updateOrder.isPending}
+        onSubmit={handleSaveVendorDetails}
+      />
     </div>
   );
 }

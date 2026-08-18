@@ -57,7 +57,7 @@ function ProductSaleCard({
     sale.location?.name ||
     sale.storeName ||
     "Location unavailable";
-  const salesperson = sale.salesPerson?.name ?? "Salesperson unavailable";
+  const salesperson = sale.salesPerson?.name ?? "N/A";
   const colorLabel = product
     ? (COLOR_LABELS[product.color] ?? product.color)
     : null;
@@ -83,8 +83,8 @@ function ProductSaleCard({
         )}
       </div>
 
-      <div className="pt-3">
-        <div className="flex items-start justify-between gap-3 max-[420px]:flex-col">
+      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-3 pt-3 max-[420px]:grid-cols-2">
+        <div className="min-w-0">
           <div className="min-w-0">
             <h3 className="truncate text-base font-semibold text-foreground">
               {product?.name ?? sale.productCode}
@@ -93,7 +93,8 @@ function ProductSaleCard({
               {sale.productCode}
             </p>
           </div>
-          <div className="flex max-w-[65%] shrink-0 flex-wrap justify-end gap-1.5 max-[420px]:max-w-full max-[420px]:justify-start">
+
+          <div className="mt-2 flex min-w-0 flex-nowrap items-center gap-1.5">
             {product && colorLabel ? (
               <>
                 <Badge variant="secondary" className="gap-1 font-normal">
@@ -106,25 +107,30 @@ function ProductSaleCard({
                 </Badge>
               </>
             ) : (
-              <Badge variant="secondary" className="font-normal">
-                Inventory details unavailable
+              <Badge variant="secondary" className="max-w-full font-normal">
+                <span className="truncate">Inventory details unavailable</span>
               </Badge>
             )}
-            <Badge variant="outline" className="gap-1 font-normal">
-              <UserRound className="size-3" aria-hidden="true" />
-              {salesperson}
-            </Badge>
-            <Badge variant="outline" className="gap-1 font-normal">
-              <MapPin className="size-3" aria-hidden="true" />
-              {city}
-            </Badge>
           </div>
         </div>
 
-        <p className="mt-3 border-t border-border pt-3 text-right text-sm font-semibold tabular-nums text-foreground">
-          <span className="sr-only">Selling price: </span>
-          {formatSellingPrice(sale.sellingPrice)}
-        </p>
+        <div className="min-w-0 space-y-2 text-right">
+          <p className="text-sm font-semibold tabular-nums text-foreground">
+            <span className="sr-only">Selling price: </span>
+            {formatSellingPrice(sale.sellingPrice)}
+          </p>
+
+          <div className="flex min-w-0 flex-wrap justify-end gap-1.5">
+            <Badge variant="outline" className="max-w-full gap-1 font-normal">
+              <UserRound className="size-3" aria-hidden="true" />
+              <span className="truncate">{salesperson}</span>
+            </Badge>
+            <Badge variant="outline" className="max-w-full gap-1 font-normal">
+              <MapPin className="size-3" aria-hidden="true" />
+              <span className="truncate">{city}</span>
+            </Badge>
+          </div>
+        </div>
       </div>
     </article>
   );
@@ -134,21 +140,24 @@ function ProductSaleSkeleton() {
   return (
     <div className="rounded-xl border border-border bg-card p-3">
       <Skeleton className="aspect-square w-full rounded-lg" />
-      <div className="space-y-3 pt-3">
-        <div className="flex justify-between gap-4">
+      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-3 pt-3 max-[420px]:grid-cols-2">
+        <div className="space-y-2">
           <div className="space-y-1.5">
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-5 w-28 max-w-full" />
+            <Skeleton className="h-3 w-20 max-w-full" />
           </div>
-          <div className="flex max-w-44 flex-wrap justify-end gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             <Skeleton className="h-5 w-16" />
             <Skeleton className="h-5 w-16" />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Skeleton className="ml-auto h-5 w-20" />
+          <div className="flex flex-wrap justify-end gap-1.5">
             <Skeleton className="h-5 w-24" />
             <Skeleton className="h-5 w-20" />
           </div>
-        </div>
-        <div className="flex justify-end border-t border-border pt-3">
-          <Skeleton className="h-5 w-20" />
         </div>
       </div>
     </div>

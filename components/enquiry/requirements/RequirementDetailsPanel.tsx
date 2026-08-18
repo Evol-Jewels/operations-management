@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,10 @@ import {
 
 export function RequirementDetailsPanel({
   item,
+  vendorDetails,
 }: {
   item: RequirementDisplayItem;
+  vendorDetails?: OrderVendorDetailsDisplay;
 }) {
   return (
     <div className="space-y-4">
@@ -51,6 +53,36 @@ export function RequirementDetailsPanel({
           <DetailRow label="Certification" value={item.details.certification} />
           <DetailRow label="Polish" value={item.details.polish} />
         </DetailSection>
+
+        {item.kind === "custom" && vendorDetails ? (
+          <section className="space-y-2 xl:col-span-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-muted-foreground">
+                Vendor details
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={vendorDetails.onEdit}
+                className="h-8 gap-1.5 px-2.5 text-xs"
+              >
+                <Pencil className="size-3.5" />
+                Edit
+              </Button>
+            </div>
+            <dl className="grid gap-1.5 sm:grid-cols-2">
+              <DetailRow
+                label="Vendor name"
+                value={vendorDetails.name || "Not added"}
+              />
+              <DetailRow
+                label="Vendor delivery date"
+                value={vendorDetails.deliveryDate || "Not added"}
+              />
+            </dl>
+          </section>
+        ) : null}
       </div>
 
       <MiniCarousel
@@ -82,7 +114,9 @@ export function RequirementDetailsPanel({
                     className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:border-primary/30 hover:text-primary"
                   >
                     <ExternalLink className="size-3" />
-                    <span className="truncate">{compactUrl(reference.url)}</span>
+                    <span className="truncate">
+                      {compactUrl(reference.url)}
+                    </span>
                   </a>
                 ) : null,
               )}
@@ -90,7 +124,9 @@ export function RequirementDetailsPanel({
           ) : null}
           {item.notes ? (
             <p className="text-sm leading-5 text-muted-foreground">
-              <span className="font-medium text-foreground">Special notes:</span>{" "}
+              <span className="font-medium text-foreground">
+                Special notes:
+              </span>{" "}
               {item.notes}
             </p>
           ) : null}
@@ -98,6 +134,12 @@ export function RequirementDetailsPanel({
       ) : null}
     </div>
   );
+}
+
+export interface OrderVendorDetailsDisplay {
+  name?: string;
+  deliveryDate?: string;
+  onEdit: () => void;
 }
 
 function MiniCarousel<T>({
@@ -141,7 +183,9 @@ function MiniCarousel<T>({
                 variant="ghost"
                 size="icon-xs"
                 onClick={() =>
-                  setIndex((value) => (value === 0 ? items.length - 1 : value - 1))
+                  setIndex((value) =>
+                    value === 0 ? items.length - 1 : value - 1,
+                  )
                 }
                 aria-label={`Previous ${title}`}
                 className="text-muted-foreground hover:bg-transparent hover:text-foreground"
@@ -153,7 +197,9 @@ function MiniCarousel<T>({
                 variant="ghost"
                 size="icon-xs"
                 onClick={() =>
-                  setIndex((value) => (value === items.length - 1 ? 0 : value + 1))
+                  setIndex((value) =>
+                    value === items.length - 1 ? 0 : value + 1,
+                  )
                 }
                 aria-label={`Next ${title}`}
                 className="text-muted-foreground hover:bg-transparent hover:text-foreground"
@@ -164,9 +210,7 @@ function MiniCarousel<T>({
           ) : null}
         </div>
       </div>
-      <div>
-        {selectedItem ? renderItem(selectedItem) : null}
-      </div>
+      <div>{selectedItem ? renderItem(selectedItem) : null}</div>
     </section>
   );
 }
@@ -209,9 +253,7 @@ function DetailSection({
 }) {
   return (
     <section className="space-y-2">
-      <p className="text-sm font-semibold text-muted-foreground">
-        {title}
-      </p>
+      <p className="text-sm font-semibold text-muted-foreground">{title}</p>
       <dl className="grid gap-1.5">{children}</dl>
     </section>
   );
