@@ -46,6 +46,7 @@ import type {
   EnquiryItemStatus,
   EnquirySelectedProduct,
   ProductEstimation,
+  RecordType,
 } from "@/types";
 
 type StatusFilter = "ALL" | EnquiryItemStatus;
@@ -63,6 +64,7 @@ const PNG_EXPORT_WIDTH = PNG_EXPORT_CONTENT_WIDTH + PNG_EXPORT_PADDING * 2;
 
 interface EnquiryProductListProps {
   enquiryRefCode: number;
+  recordType?: RecordType;
   selectedProducts: EnquirySelectedProduct[];
   customProducts: EnquiryCustomProduct[];
   estimations: ProductEstimation[];
@@ -75,6 +77,7 @@ interface EnquiryProductListProps {
 
 export function EnquiryProductList({
   enquiryRefCode,
+  recordType = "enquiry",
   selectedProducts,
   customProducts,
   estimations,
@@ -134,6 +137,7 @@ export function EnquiryProductList({
         <RequirementCarouselCard
           item={activeItem}
           enquiryRefCode={enquiryRefCode}
+          recordType={recordType}
           activeIndex={activeIndex}
           totalCount={filteredItems.length}
           settings={settings}
@@ -181,6 +185,7 @@ function Header({
 function RequirementCarouselCard({
   item,
   enquiryRefCode,
+  recordType,
   activeIndex,
   totalCount,
   settings,
@@ -192,6 +197,7 @@ function RequirementCarouselCard({
 }: {
   item: RequirementDisplayItem;
   enquiryRefCode: number;
+  recordType: RecordType;
   activeIndex: number;
   totalCount: number;
   settings: CalculatorSettings;
@@ -252,7 +258,7 @@ function RequirementCarouselCard({
       const dataUrl = await createExportPngDataUrl();
       downloadDataUrl(
         dataUrl,
-        `enquiry-${enquiryRefCode}-${slugifyFilePart(item.title)}.png`,
+        `${recordType}-${enquiryRefCode}-${slugifyFilePart(item.title)}.png`,
       );
       toast.success("PNG downloaded");
     } catch {
@@ -304,7 +310,7 @@ function RequirementCarouselCard({
       const blob = dataUrlToBlob(dataUrl);
       await sharePngBlob(
         blob,
-        `enquiry-${enquiryRefCode}-${slugifyFilePart(item.title)}.png`,
+        `${recordType}-${enquiryRefCode}-${slugifyFilePart(item.title)}.png`,
         item.title,
       );
     } catch (error) {
@@ -470,6 +476,8 @@ function RequirementCarouselCard({
         ref={printViewRef}
         item={item}
         enquiryRefCode={enquiryRefCode}
+        recordType={recordType}
+        vendorDetails={hideVendorDetails ? undefined : vendorDetails}
       />
     </article>
   );

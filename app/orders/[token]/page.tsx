@@ -452,6 +452,7 @@ export default function OrderPage() {
         <main className="space-y-5">
           <EnquiryProductList
             enquiryRefCode={order.refCode ?? 0}
+            recordType="order"
             selectedProducts={order.selectedProducts ?? []}
             customProducts={order.customProducts ?? []}
             estimations={order.estimations ?? []}
