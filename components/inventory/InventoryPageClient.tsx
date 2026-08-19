@@ -131,6 +131,7 @@ function InventoryImageDownloadButton({
         credentials: isInventoryMediaProxyUrl(imageUrl)
           ? "include"
           : "same-origin",
+        cache: "no-store",
       });
       if (!response.ok) throw new Error("Image request failed");
 
