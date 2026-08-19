@@ -26,6 +26,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { isInventoryMediaProxyUrl } from "@/lib/inventory-media";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   CalculatorFormState,
@@ -91,8 +92,8 @@ function SummaryMediaControls({
     >
       <div
         className={cn(
-          "pointer-events-none absolute inset-0 flex items-center justify-between px-2 opacity-0 transition-opacity duration-200",
-          isVisible && "pointer-events-auto opacity-100",
+          "pointer-events-auto absolute inset-0 flex items-center justify-between px-2 opacity-100 transition-opacity duration-200 sm:pointer-events-none sm:opacity-0",
+          isVisible && "sm:pointer-events-auto sm:opacity-100",
         )}
       >
         <Button
@@ -118,8 +119,9 @@ function SummaryMediaControls({
       </div>
       <div
         className={cn(
-          "pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-1 items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3 pb-3 pt-10 opacity-0 transition-all duration-200",
-          isVisible && "pointer-events-auto translate-y-0 opacity-100",
+          "pointer-events-auto absolute inset-x-0 bottom-0 flex translate-y-0 items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3 pb-3 pt-10 opacity-100 transition-all duration-200 sm:pointer-events-none sm:translate-y-1 sm:opacity-0",
+          isVisible &&
+            "sm:pointer-events-auto sm:translate-y-0 sm:opacity-100",
         )}
       >
         <div className="scrollbar-none flex min-w-0 gap-1.5 overflow-x-auto">
@@ -376,30 +378,34 @@ async function inlineProductImages(card: HTMLElement) {
   );
   const originalSources = images.map((image) => image.src);
   const originalSrcsets = images.map((image) => image.getAttribute("srcset"));
-  const inlinedSources = new Map<string, string>();
-
-  await Promise.all(
-    images.map(async (image) => {
-      const source = image.currentSrc || image.src;
-      let dataUrl = inlinedSources.get(source);
-
-      if (!dataUrl) {
+  const sources = Array.from(
+    new Set(images.map((image) => image.currentSrc || image.src)),
+  );
+  const inlinedSources = new Map(
+    await Promise.all(
+      sources.map(async (source) => {
+        const credentials = isInventoryMediaProxyUrl(source)
+          ? "include"
+          : "same-origin";
         let response = await fetch(source, {
-          credentials: "include",
+          credentials,
           cache: "force-cache",
         });
         if (!response.ok) {
           await waitForAnimationFrame();
-          response = await fetch(source, {
-            credentials: "include",
-            cache: "reload",
-          });
+          response = await fetch(source, { credentials, cache: "reload" });
         }
         if (!response.ok) throw new Error("Unable to load the product image");
-        dataUrl = await blobToDataUrl(await response.blob());
-        inlinedSources.set(source, dataUrl);
-      }
+        return [source, await blobToDataUrl(await response.blob())] as const;
+      }),
+    ),
+  );
 
+  await Promise.all(
+    images.map(async (image) => {
+      const source = image.currentSrc || image.src;
+      const dataUrl = inlinedSources.get(source);
+      if (!dataUrl) return;
       image.src = dataUrl;
       image.removeAttribute("srcset");
       await image.decode().catch(() => undefined);

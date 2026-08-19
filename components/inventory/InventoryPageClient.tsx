@@ -355,16 +355,10 @@ function InventoryProductImage({
   );
 }
 
-function ProductMediaCarousel({
-  product,
-  preferCatalog,
-}: {
-  product: InventoryProduct;
-  preferCatalog: boolean;
-}) {
+function ProductMediaCarousel({ product }: { product: InventoryProduct }) {
   const images = useMemo(
-    () => getInventoryImages(product, preferCatalog),
-    [preferCatalog, product],
+    () => getInventoryImages(product),
+    [product],
   );
   const [api, setApi] = useState<CarouselApi>();
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -560,15 +554,13 @@ function ProductListItem({
   selected,
   compact = false,
   onSelect,
-  preferCatalog,
 }: {
   product: InventoryProduct;
   selected: boolean;
   compact?: boolean;
   onSelect: () => void;
-  preferCatalog: boolean;
 }) {
-  const image = getInventoryPrimaryImage(product, preferCatalog);
+  const image = getInventoryPrimaryImage(product);
   const city = product.location.city?.trim() || "City unavailable";
   const colorLabel =
     COLOR_LABELS[product.color as ProductColor] ?? product.color;
@@ -673,16 +665,14 @@ function ProductDetail({
   product,
   settings,
   estimationSectionRef,
-  preferCatalog,
 }: {
   product: InventoryProduct;
   settings: CalculatorSettings;
   estimationSectionRef: RefObject<HTMLElement | null>;
-  preferCatalog: boolean;
 }) {
   const estimateResult = useMemo(
-    () => normalizeInventoryProductEstimate(product, settings, preferCatalog),
-    [preferCatalog, product, settings],
+    () => normalizeInventoryProductEstimate(product, settings),
+    [product, settings],
   );
 
   function scrollToEstimation() {
@@ -700,7 +690,7 @@ function ProductDetail({
   return (
     <section className="@container overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="grid @min-[56rem]:grid-cols-[minmax(0,1.12fr)_minmax(19rem,0.88fr)]">
-        <ProductMediaCarousel product={product} preferCatalog={preferCatalog} />
+        <ProductMediaCarousel product={product} />
 
         <div className="flex flex-col justify-between p-5 lg:p-6">
           <div>
@@ -768,16 +758,14 @@ function ProductEstimationSection({
   product,
   settings,
   estimationSectionRef,
-  preferCatalog,
 }: {
   product: InventoryProduct;
   settings: CalculatorSettings;
   estimationSectionRef: RefObject<HTMLElement | null>;
-  preferCatalog: boolean;
 }) {
   const estimateResult = useMemo(
-    () => normalizeInventoryProductEstimate(product, settings, preferCatalog),
-    [preferCatalog, product, settings],
+    () => normalizeInventoryProductEstimate(product, settings),
+    [product, settings],
   );
   const router = useRouter();
 
@@ -1144,7 +1132,6 @@ export function InventoryPageClient() {
   const hasSelectedProduct = Boolean(selectedProductCode);
   const selectedProduct = detailQuery.data ?? null;
   const internalRole = profileQuery.data?.profile?.role;
-  const preferCatalogImages = internalRole === "OPERATIONS";
   const canSyncProducts =
     internalRole === "ADMIN" || internalRole === "OPERATIONS";
   const canScanInventory = Boolean(internalRole) && internalRole !== "SALES";
@@ -1921,7 +1908,6 @@ export function InventoryPageClient() {
                   selected={product.productCode === selectedProductCode}
                   compact={false}
                   onSelect={() => selectProduct(product.productCode)}
-                  preferCatalog={preferCatalogImages}
                 />
               ))}
             </div>
@@ -1978,14 +1964,12 @@ export function InventoryPageClient() {
                   product={selectedProduct}
                   settings={settings}
                   estimationSectionRef={estimationSectionRef}
-                  preferCatalog={preferCatalogImages}
                 />
                 <ProductSpecification product={selectedProduct} />
                 <ProductEstimationSection
                   product={selectedProduct}
                   settings={settings}
                   estimationSectionRef={estimationSectionRef}
-                  preferCatalog={preferCatalogImages}
                 />
               </>
             ) : null}

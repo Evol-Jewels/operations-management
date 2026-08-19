@@ -68,8 +68,8 @@ import {
   isGoogleDriveStorageKey,
 } from "@/lib/inventory-media";
 import {
-  fetchInventoryProductByCode,
   fetchInventoryProducts,
+  fetchInventoryProductWithAllMedia,
 } from "@/lib/inventoryApi";
 import { normalizeInventoryProductEstimate } from "@/lib/inventoryProductMapping";
 import { createRecentProductEstimate } from "@/lib/recentProductEstimatesApi";
@@ -1207,14 +1207,12 @@ function RecentEstimateSummaryDialog({
   estimate,
   settings,
   onLoadProduct,
-  preferCatalog,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   estimate: RecentProductEstimate | null;
   settings: CalculatorSettings;
   onLoadProduct: (result: ProductEstimateResult) => void;
-  preferCatalog: boolean;
 }) {
   const [result, setResult] = useState<ProductEstimateResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -1231,14 +1229,16 @@ function RecentEstimateSummaryDialog({
       setResult(null);
 
       try {
-        const product = await fetchInventoryProductByCode(estimate.productCode);
+        const product = await fetchInventoryProductWithAllMedia(
+          estimate.productCode,
+        );
         if (!product) {
           setError(`Product details unavailable for ${estimate.productCode}.`);
           return;
         }
 
         setResult(
-          normalizeInventoryProductEstimate(product, settings, preferCatalog),
+          normalizeInventoryProductEstimate(product, settings),
         );
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load summary");
@@ -1248,7 +1248,7 @@ function RecentEstimateSummaryDialog({
     }
 
     loadEstimateDetails();
-  }, [estimate, open, preferCatalog, settings]);
+  }, [estimate, open, settings]);
 
   function loadIntoCalculator() {
     if (!result) return;
@@ -1292,6 +1292,16 @@ function RecentEstimateSummaryDialog({
           <div className="max-h-[76vh] overflow-y-auto p-3 sm:p-4">
             <EstimationSummaryCard
               data={{ kind: "estimate", result }}
+              onImageSelect={(imageUrl) =>
+                setResult((current) =>
+                  current
+                    ? {
+                        ...current,
+                        product: { ...current.product, imageUrl },
+                      }
+                    : current,
+                )
+              }
               downloadFilename={`evol-estimate-${result.product.productCode}-${new Date()
                 .toISOString()
                 .slice(0, 10)}.png`}
@@ -1343,12 +1353,10 @@ function SearchPanel({
   settings,
   onLoadProduct,
   canUseRecentEstimates,
-  preferCatalog,
 }: {
   settings: CalculatorSettings;
   onLoadProduct: (result: ProductEstimateResult) => void;
   canUseRecentEstimates: boolean;
-  preferCatalog: boolean;
 }) {
   const [searchInput, setSearchInput] = useState("");
   const [searchedCode, setSearchedCode] = useState("");
@@ -1379,10 +1387,10 @@ function SearchPanel({
     setBlockedResult(null);
 
     try {
-      const detailProduct =
-        product.estimation !== undefined
-          ? product
-          : await fetchInventoryProductByCode(product.productCode);
+      const detailProduct = await fetchInventoryProductWithAllMedia(
+        product.productCode,
+        [product],
+      );
       if (!detailProduct) {
         setError(`Product details unavailable for ${product.productCode}.`);
         return;
@@ -1391,7 +1399,6 @@ function SearchPanel({
       const normalized = normalizeInventoryProductEstimate(
         detailProduct,
         settings,
-        preferCatalog,
       );
 
       if (canUseRecentEstimates) {
@@ -1583,7 +1590,7 @@ function SearchPanel({
       {!blockedResult && searchResults.length > 0 ? (
         <div className="max-h-80 overflow-y-auto rounded-lg border border-border bg-background">
           {searchResults.map((product) => {
-            const image = getInventoryImages(product, preferCatalog)[0];
+            const image = getInventoryImages(product)[0];
             const imageUrl = image ? getInventoryMediaUrl(image) : undefined;
 
             return (
@@ -1646,7 +1653,6 @@ function SearchPanel({
         estimate={selectedRecent}
         settings={settings}
         onLoadProduct={onLoadProduct}
-        preferCatalog={preferCatalog}
       />
     </div>
   );
@@ -1949,9 +1955,7 @@ export function CalculatorPageClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
-  const sessionRole = getSessionRole(session);
-  const canUseRecentEstimates = sessionRole === "SALES";
-  const preferCatalogImages = sessionRole === "OPERATIONS";
+  const canUseRecentEstimates = getSessionRole(session) === "SALES";
   const [activeTab, setActiveTab] = useState<CalculatorTab>(() => {
     const queryTab = searchParams.get("tab");
     return isCalculatorTab(queryTab) ? queryTab : initialTab;
@@ -2325,23 +2329,17 @@ export function CalculatorPageClient({
 
     async function loadProductFromQuery() {
       try {
-        const product = await fetchInventoryProductByCode(codeToLoad);
+        const product = await fetchInventoryProductWithAllMedia(codeToLoad);
         if (!product) return;
 
-        loadInventoryProduct(
-          normalizeInventoryProductEstimate(
-            product,
-            settings,
-            preferCatalogImages,
-          ),
-        );
+        loadInventoryProduct(normalizeInventoryProductEstimate(product, settings));
       } catch {
         loadedProductCodeRef.current = null;
       }
     }
 
     loadProductFromQuery();
-  }, [hasRestoredPersistedForm, preferCatalogImages, searchParams, settings]);
+  }, [hasRestoredPersistedForm, searchParams, settings]);
 
   return (
     <RequireInternalAuth>
@@ -2367,7 +2365,6 @@ export function CalculatorPageClient({
               settings={settings}
               onLoadProduct={loadInventoryProduct}
               canUseRecentEstimates={canUseRecentEstimates}
-              preferCatalog={preferCatalogImages}
             />
           </div>
         ) : (
