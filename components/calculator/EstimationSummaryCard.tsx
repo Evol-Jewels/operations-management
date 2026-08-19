@@ -387,14 +387,10 @@ async function inlineProductImages(card: HTMLElement) {
         const credentials = isInventoryMediaProxyUrl(source)
           ? "include"
           : "same-origin";
-        let response = await fetch(source, {
+        const response = await fetch(source, {
           credentials,
-          cache: "force-cache",
+          cache: "no-store",
         });
-        if (!response.ok) {
-          await waitForAnimationFrame();
-          response = await fetch(source, { credentials, cache: "reload" });
-        }
         if (!response.ok) throw new Error("Unable to load the product image");
         return [source, await blobToDataUrl(await response.blob())] as const;
       }),
