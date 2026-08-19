@@ -46,9 +46,8 @@ export function parseInventoryNumber(
 
 export function getInventoryPrimaryImage(
   product: InventoryProduct,
-  preferCatalog = false,
 ): InventoryMedia | undefined {
-  const images = getInventoryImages(product, preferCatalog);
+  const images = getInventoryImages(product);
   return images[0];
 }
 
@@ -116,12 +115,11 @@ export function buildInventoryCalculatorStones(
 export function buildInventoryCalculatorForm(
   product: InventoryProduct,
   settings: CalculatorSettings,
-  preferCatalog = false,
 ): CalculatorFormState {
   const netGoldWeight = parseInventoryNumber(product.netWeight);
 
-  const primaryImage = getInventoryPrimaryImage(product, preferCatalog);
-  const productImages = getInventoryImages(product, preferCatalog);
+  const primaryImage = getInventoryPrimaryImage(product);
+  const productImages = getInventoryImages(product);
 
   return {
     netGoldWeight,
@@ -214,7 +212,6 @@ function buildBackendPricingBreakdown(
 export function normalizeInventoryProductEstimate(
   product: InventoryProduct,
   settings: CalculatorSettings,
-  preferCatalog = false,
 ): ProductEstimateResult {
   const stones: ProductLookupStoneLine[] = (product.stones ?? []).map(
     (stone) => ({
@@ -230,10 +227,8 @@ export function normalizeInventoryProductEstimate(
     }),
   );
 
-  const primaryImage = getInventoryPrimaryImage(product, preferCatalog);
-  const imageUrls = getInventoryImages(product, preferCatalog).map(
-    getInventoryMediaUrl,
-  );
+  const primaryImage = getInventoryPrimaryImage(product);
+  const imageUrls = getInventoryImages(product).map(getInventoryMediaUrl);
 
   return {
     product: {

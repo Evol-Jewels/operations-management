@@ -48,7 +48,7 @@ function ProductSaleCard({
   priority?: boolean;
 }) {
   const image = sale.product
-    ? getInventoryPrimaryImage(sale.product, true)
+    ? getInventoryPrimaryImage(sale.product)
     : undefined;
   const product = sale.product;
   const city =

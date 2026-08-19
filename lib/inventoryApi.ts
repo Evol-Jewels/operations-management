@@ -167,6 +167,38 @@ export function fetchInventoryProductByCode(productCode: string) {
   ).then(normalizeProductDetail);
 }
 
+function mergeProductMedia(
+  product: InventoryProduct,
+  candidates: InventoryProduct[],
+) {
+  const media = new Map(
+    [product, ...candidates]
+      .flatMap((candidate) => candidate.media ?? [])
+      .map((item) => [item.id || item.storageKey, item]),
+  );
+
+  return { ...product, media: Array.from(media.values()) };
+}
+
+export async function fetchInventoryProductWithAllMedia(
+  productCode: string,
+  knownProducts: InventoryProduct[] = [],
+) {
+  const [detailProduct, searchResponse] = await Promise.all([
+    fetchInventoryProductByCode(productCode),
+    knownProducts.length > 0
+      ? Promise.resolve({ data: knownProducts, total: knownProducts.length })
+      : fetchInventoryProducts({ code: productCode, limit: 10 }),
+  ]);
+  const matchingProducts = searchResponse.data.filter(
+    (product) =>
+      product.productCode.toUpperCase() === productCode.toUpperCase(),
+  );
+  const product = detailProduct ?? matchingProducts[0] ?? null;
+
+  return product ? mergeProductMedia(product, matchingProducts) : null;
+}
+
 export function syncInventoryProducts() {
   return apiFetch<unknown>(buildUrl("api/v1/products/sync/catalog"), {
     method: "POST",
