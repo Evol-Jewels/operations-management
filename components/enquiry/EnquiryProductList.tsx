@@ -6,8 +6,9 @@ import {
   Download,
   FileImage,
   FileText,
+  Loader2,
+  MessageCircle,
   Package,
-  Share2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -38,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
+import { sharePngToWhatsApp } from "@/lib/share-image";
 import { cn } from "@/lib/utils";
 import type {
   CalculatorSettings,
@@ -308,11 +310,21 @@ function RequirementCarouselCard({
     try {
       const dataUrl = await createExportPngDataUrl();
       const blob = dataUrlToBlob(dataUrl);
-      await sharePngBlob(
+      const result = await sharePngToWhatsApp({
         blob,
-        `${recordType}-${enquiryRefCode}-${slugifyFilePart(item.title)}.png`,
-        item.title,
-      );
+        filename: `${recordType}-${enquiryRefCode}-${slugifyFilePart(item.title)}.png`,
+        title: item.title,
+      });
+      if (result === "whatsapp-clipboard") {
+        toast.success("PNG copied. Paste it into the WhatsApp chat (Ctrl+V).", {
+          duration: 7000,
+        });
+      }
+      if (result === "whatsapp-download") {
+        toast.success("PNG downloaded. Attach it in the WhatsApp chat.", {
+          duration: 7000,
+        });
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
 
@@ -353,14 +365,14 @@ function RequirementCarouselCard({
 
   return (
     <article className="overflow-hidden rounded-lg border border-border">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-3 py-2.5">
         <p className="text-sm font-medium uppercase tracking-wide text-foreground">
           Item {activeIndex + 1}{" "}
           <span className="font-normal text-muted-foreground">
             of {totalCount}
           </span>
         </p>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           {item.kind === "custom" && vendorDetails ? (
             <Label className="flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground">
               <Checkbox
@@ -380,12 +392,16 @@ function RequirementCarouselCard({
             size="sm"
             onClick={() => void handleSharePng()}
             disabled={isSharing}
-            className="h-8 gap-1.5 rounded-md px-2.5 text-xs sm:hidden"
+            className="h-8 gap-1.5 rounded-md px-2.5 text-xs"
+            aria-label="Share requirement PNG on WhatsApp"
+            title="Mobile: choose WhatsApp. Web: paste the copied PNG with Ctrl+V."
           >
-            <Share2 className="size-3.5" />
-            <span className="hidden sm:inline">
-              {isSharing ? "Sharing..." : "Share PNG"}
-            </span>
+            {isSharing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <MessageCircle className="size-3.5" />
+            )}
+            <span>{isSharing ? "Preparing…" : "WhatsApp"}</span>
           </Button>
           <Popover
             open={isDownloadMenuOpen}
@@ -520,20 +536,6 @@ function dataUrlToBlob(dataUrl: string) {
   }
 
   return new Blob([bytes], { type: mimeType });
-}
-
-async function sharePngBlob(blob: Blob, filename: string, title: string) {
-  const file = new File([blob], filename, { type: "image/png" });
-  const shareData = {
-    files: [file],
-    title,
-  };
-
-  if (!navigator.canShare?.(shareData)) {
-    throw new Error("File sharing is not supported on this device.");
-  }
-
-  await navigator.share(shareData);
 }
 
 function slugifyFilePart(value: string) {

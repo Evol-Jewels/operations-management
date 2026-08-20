@@ -13,7 +13,7 @@ import {
   ListChevronsDownUp,
   ListChevronsUpDown,
   Loader2,
-  Share2,
+  MessageCircle,
 } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { isInventoryMediaProxyUrl } from "@/lib/inventory-media";
+import { sharePngToWhatsApp } from "@/lib/share-image";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   CalculatorFormState,
@@ -479,20 +480,6 @@ async function saveSummaryImage(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-async function shareImageFile(blob: Blob, filename: string, title: string) {
-  const file = new File([blob], filename, { type: "image/png" });
-  const shareData = {
-    files: [file],
-    title,
-  };
-
-  if (!navigator.canShare?.(shareData)) {
-    throw new Error("File sharing is not supported on this device.");
-  }
-
-  await navigator.share(shareData);
-}
-
 export function EstimationSummaryShareButton({
   shareSummaryPng,
   isSharing,
@@ -509,17 +496,18 @@ export function EstimationSummaryShareButton({
       type="button"
       variant="outline"
       size="sm"
-      className={cn("h-8 shrink-0 rounded-md px-2.5 sm:hidden", className)}
+      className={cn("h-8 shrink-0 rounded-md px-2.5", className)}
       onClick={() => void shareSummaryPng()}
       disabled={isSharing || isDownloading}
-      aria-label="Share summary PNG"
+      aria-label="Share summary PNG on WhatsApp"
+      title="Mobile: choose WhatsApp. Web: paste the copied PNG with Ctrl+V."
     >
       {isSharing ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
-        <Share2 className="h-4 w-4" />
+        <MessageCircle className="h-4 w-4" />
       )}
-      <span className="hidden sm:inline">Share PNG</span>
+      <span>{isSharing ? "Preparing…" : "WhatsApp"}</span>
     </Button>
   );
 }
@@ -1033,11 +1021,21 @@ export function EstimationSummaryCard({
     setIsSharing(true);
     try {
       const blob = await createSummaryPngBlob();
-      await shareImageFile(
+      const result = await sharePngToWhatsApp({
         blob,
-        getSummaryPngFilename(),
-        displayName || "Estimate summary",
-      );
+        filename: getSummaryPngFilename(),
+        title: displayName || "Estimate summary",
+      });
+      if (result === "whatsapp-clipboard") {
+        toast.success("PNG copied. Paste it into the WhatsApp chat (Ctrl+V).", {
+          duration: 7000,
+        });
+      }
+      if (result === "whatsapp-download") {
+        toast.success("PNG downloaded. Attach it in the WhatsApp chat.", {
+          duration: 7000,
+        });
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
 
