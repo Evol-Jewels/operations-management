@@ -25,7 +25,6 @@ import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import {
   EstimationSummaryCard,
   EstimationSummaryDownloadButton,
-  EstimationSummaryShareButton,
 } from "@/components/calculator/EstimationSummaryCard";
 import { StoneTypeCombobox as SharedStoneTypeCombobox } from "@/components/stone-type-combobox";
 import { Button } from "@/components/ui/button";
@@ -1318,16 +1317,12 @@ function RecentEstimateSummaryDialog({
                 isSharing,
               }) => (
                 <div className="flex flex-wrap items-center justify-end gap-2.5">
-                  <EstimationSummaryShareButton
-                    shareSummaryPng={shareSummaryPng}
-                    isSharing={isSharing}
-                    isDownloading={isDownloading}
-                    className="h-11 justify-center rounded-lg"
-                  />
                   <EstimationSummaryDownloadButton
                     downloadSummaryPdf={downloadSummaryPdf}
                     downloadSummaryPng={downloadSummaryPng}
+                    shareSummaryPng={shareSummaryPng}
                     isDownloading={isDownloading}
+                    isSharing={isSharing}
                     className="h-11 justify-center rounded-lg"
                   />
                   <Button

@@ -6,12 +6,13 @@ import {
   Download,
   FileImage,
   FileText,
+  Loader2,
   Package,
-  Share2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { EnquiryEstimationPrintView } from "@/components/enquiry/EnquiryEstimationPrintView";
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import {
   type OrderVendorDetailsDisplay,
   RequirementDetailsPanel,
@@ -38,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
+import { sharePngToWhatsApp } from "@/lib/share-image";
 import { cn } from "@/lib/utils";
 import type {
   CalculatorSettings,
@@ -308,11 +310,21 @@ function RequirementCarouselCard({
     try {
       const dataUrl = await createExportPngDataUrl();
       const blob = dataUrlToBlob(dataUrl);
-      await sharePngBlob(
+      const result = await sharePngToWhatsApp({
         blob,
-        `${recordType}-${enquiryRefCode}-${slugifyFilePart(item.title)}.png`,
-        item.title,
-      );
+        filename: `${recordType}-${enquiryRefCode}-${slugifyFilePart(item.title)}.png`,
+        title: item.title,
+      });
+      if (result === "whatsapp-clipboard") {
+        toast.success("PNG copied. Paste it into the WhatsApp chat (Ctrl+V).", {
+          duration: 7000,
+        });
+      }
+      if (result === "whatsapp-download") {
+        toast.success("PNG downloaded. Attach it in the WhatsApp chat.", {
+          duration: 7000,
+        });
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
 
@@ -351,16 +363,21 @@ function RequirementCarouselCard({
     void handleDownloadPng();
   }
 
+  function handleWhatsAppShare() {
+    setIsDownloadMenuOpen(false);
+    void handleSharePng();
+  }
+
   return (
     <article className="overflow-hidden rounded-lg border border-border">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-3 py-2.5">
         <p className="text-sm font-medium uppercase tracking-wide text-foreground">
           Item {activeIndex + 1}{" "}
           <span className="font-normal text-muted-foreground">
             of {totalCount}
           </span>
         </p>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           {item.kind === "custom" && vendorDetails ? (
             <Label className="flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground">
               <Checkbox
@@ -374,19 +391,6 @@ function RequirementCarouselCard({
               <span className="sm:hidden">Hide vendor</span>
             </Label>
           ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void handleSharePng()}
-            disabled={isSharing}
-            className="h-8 gap-1.5 rounded-md px-2.5 text-xs sm:hidden"
-          >
-            <Share2 className="size-3.5" />
-            <span className="hidden sm:inline">
-              {isSharing ? "Sharing..." : "Share PNG"}
-            </span>
-          </Button>
           <Popover
             open={isDownloadMenuOpen}
             onOpenChange={setIsDownloadMenuOpen}
@@ -397,9 +401,14 @@ function RequirementCarouselCard({
                 variant="ghost"
                 size="sm"
                 onClick={handlePrimaryDownload}
+                disabled={isSharing}
                 className="h-8 gap-1.5 rounded-none border-0 px-2.5 text-xs shadow-none hover:bg-accent"
               >
-                <Download className="size-3.5" />
+                {isSharing ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Download className="size-3.5" />
+                )}
                 <span className="hidden sm:inline">
                   Download .{downloadFormat}
                 </span>
@@ -411,13 +420,14 @@ function RequirementCarouselCard({
                   variant="ghost"
                   size="icon-sm"
                   className="h-8 w-7 rounded-none border-0 border-l border-input shadow-none hover:bg-accent"
-                  aria-label="Choose download format"
+                  disabled={isSharing}
+                  aria-label="Choose download or sharing action"
                 >
                   <ChevronDown className="size-3.5 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
             </div>
-            <PopoverContent align="end" className="w-48 p-1">
+            <PopoverContent align="end" className="w-56 p-1">
               <button
                 type="button"
                 onClick={() => handleFormatDownload("pdf")}
@@ -435,6 +445,22 @@ function RequirementCarouselCard({
                 <FileImage className="size-4 text-muted-foreground" />
                 <span className="flex-1">Download as .png</span>
                 {downloadFormat === "png" ? <Check className="size-4" /> : null}
+              </button>
+              <div className="my-1 h-px bg-border" />
+              <button
+                type="button"
+                onClick={handleWhatsAppShare}
+                disabled={isSharing}
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+              >
+                {isSharing ? (
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <WhatsAppIcon className="size-4 text-[#25D366]" />
+                )}
+                <span className="flex-1">
+                  {isSharing ? "Preparing PNG…" : "Share on WhatsApp"}
+                </span>
               </button>
             </PopoverContent>
           </Popover>
@@ -520,20 +546,6 @@ function dataUrlToBlob(dataUrl: string) {
   }
 
   return new Blob([bytes], { type: mimeType });
-}
-
-async function sharePngBlob(blob: Blob, filename: string, title: string) {
-  const file = new File([blob], filename, { type: "image/png" });
-  const shareData = {
-    files: [file],
-    title,
-  };
-
-  if (!navigator.canShare?.(shareData)) {
-    throw new Error("File sharing is not supported on this device.");
-  }
-
-  await navigator.share(shareData);
 }
 
 function slugifyFilePart(value: string) {
