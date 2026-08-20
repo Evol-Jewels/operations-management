@@ -13,13 +13,13 @@ import {
   ListChevronsDownUp,
   ListChevronsUpDown,
   Loader2,
-  MessageCircle,
 } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import {
   Popover,
   PopoverContent,
@@ -480,47 +480,19 @@ async function saveSummaryImage(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function EstimationSummaryShareButton({
-  shareSummaryPng,
-  isSharing,
-  isDownloading,
-  className,
-}: {
-  shareSummaryPng: () => Promise<void>;
-  isSharing: boolean;
-  isDownloading?: boolean;
-  className?: string;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className={cn("h-8 shrink-0 rounded-md px-2.5", className)}
-      onClick={() => void shareSummaryPng()}
-      disabled={isSharing || isDownloading}
-      aria-label="Share summary PNG on WhatsApp"
-      title="Mobile: choose WhatsApp. Web: paste the copied PNG with Ctrl+V."
-    >
-      {isSharing ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <MessageCircle className="h-4 w-4" />
-      )}
-      <span>{isSharing ? "Preparing…" : "WhatsApp"}</span>
-    </Button>
-  );
-}
-
 export function EstimationSummaryDownloadButton({
   downloadSummaryPdf,
   downloadSummaryPng,
+  shareSummaryPng,
   isDownloading,
+  isSharing,
   className,
 }: {
   downloadSummaryPdf: () => Promise<void>;
   downloadSummaryPng: () => Promise<void>;
+  shareSummaryPng: () => Promise<void>;
   isDownloading: boolean;
+  isSharing: boolean;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -561,6 +533,11 @@ export function EstimationSummaryDownloadButton({
     void downloadSummaryPng();
   }
 
+  function shareOnWhatsApp() {
+    setOpen(false);
+    void shareSummaryPng();
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <div className="inline-flex overflow-hidden rounded-md border border-input shadow-xs">
@@ -573,7 +550,7 @@ export function EstimationSummaryDownloadButton({
             className,
           )}
           onClick={downloadSelectedFormat}
-          disabled={isDownloading}
+          disabled={isDownloading || isSharing}
           aria-label="Download summary"
         >
           {isDownloading ? (
@@ -590,14 +567,14 @@ export function EstimationSummaryDownloadButton({
             variant="ghost"
             size="icon-sm"
             className="h-8 w-7 rounded-none border-0 border-l border-input shadow-none hover:bg-accent"
-            disabled={isDownloading}
-            aria-label="Choose download format"
+            disabled={isDownloading || isSharing}
+            aria-label="Choose download or sharing action"
           >
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           </Button>
         </PopoverTrigger>
       </div>
-      <PopoverContent align="end" className="w-48 p-1">
+      <PopoverContent align="end" className="w-56 p-1">
         <button
           type="button"
           onClick={() => downloadFormatOption("pdf")}
@@ -615,6 +592,22 @@ export function EstimationSummaryDownloadButton({
           <FileImage className="h-4 w-4 text-muted-foreground" />
           <span className="flex-1">Download as .png</span>
           {downloadFormat === "png" ? <Check className="h-4 w-4" /> : null}
+        </button>
+        <div className="my-1 h-px bg-border" />
+        <button
+          type="button"
+          onClick={shareOnWhatsApp}
+          disabled={isSharing}
+          className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+        >
+          {isSharing ? (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : (
+            <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
+          )}
+          <span className="flex-1">
+            {isSharing ? "Preparing PNG…" : "Share on WhatsApp"}
+          </span>
         </button>
       </PopoverContent>
     </Popover>
@@ -1076,7 +1069,6 @@ export function EstimationSummaryCard({
                 {renderHeaderActions?.(downloadProps)}
                 {showDownloadButton ? (
                   <>
-                    <EstimationSummaryShareButton {...downloadProps} />
                     {showFormatToggle ? (
                       <fieldset
                         aria-label="Estimation summary format"
