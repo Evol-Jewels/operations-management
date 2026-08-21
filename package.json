@@ -2,10 +2,14 @@
   "name": "evol-order-dash",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.29.3",
   "scripts": {
     "dev": "next dev -p 4000",
     "build": "next build",
     "start": "next start -p 4000",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "lint": "biome check",
     "format": "biome format --write"
   },
@@ -14,6 +18,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@intl-tel-input/react": "^28.0.4",
+    "@opennextjs/cloudflare": "^1.20.2",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -33,7 +38,7 @@
     "intl-tel-input": "^28.0.4",
     "lucide-react": "^0.574.0",
     "motion": "^12.38.0",
-    "next": "16.1.6",
+    "next": "16.2.11",
     "posthog-js": "^1.396.4",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
@@ -54,6 +59,7 @@
     "shadcn": "^3.8.5",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.4.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.125.0"
   }
 }
