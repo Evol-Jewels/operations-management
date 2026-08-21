@@ -10,6 +10,11 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": "https://internal-evol-staging.arihant-jain.workers.dev",
+    "NEXT_PUBLIC_API_BASE_URL": "https://evol-backend-staging.onrender.com",
+    "NEXT_PUBLIC_AUTH_BASE_URL": "https://evol-backend-staging.onrender.com/api/v1/auth"
+  },
   "observability": {
     "enabled": true
   }
