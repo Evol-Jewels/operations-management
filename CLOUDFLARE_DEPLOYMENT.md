@@ -20,10 +20,11 @@ NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 
 ```bash
 pnpm build
+pnpm build:cloudflare
 pnpm preview
 ```
 
-`pnpm preview` builds with OpenNext and runs the result in Cloudflare's local Workers runtime.
+`pnpm build` creates the standard `.next` output. `pnpm build:cloudflare` converts it into `.open-next/worker.js`, which Wrangler deploys. `pnpm preview` performs the Cloudflare build and runs it in the local Workers runtime.
 
 ## Deploy from a local machine
 
@@ -41,8 +42,9 @@ Wrangler prints the resulting `workers.dev` URL. Set `NEXT_PUBLIC_APP_URL` to th
 Connect the Git repository in the Cloudflare dashboard and use:
 
 ```text
-Build command: pnpm build
-Deploy command: pnpm deploy
+Build command: pnpm build:cloudflare
+Deploy command: pnpm exec wrangler deploy
+Root directory: /
 ```
 
-Add the required build variables above in the Cloudflare dashboard. The repository should use the `fix/cloudflare-deployment` branch until these changes are merged into `main`.
+Do not use `pnpm build` as the Workers build command: it does not generate `.open-next/worker.js`. Add the required build variables above in the Cloudflare dashboard. The repository should use the `fix/cloudflare-deployment` branch until these changes are merged into `main`.
