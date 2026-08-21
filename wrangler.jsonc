@@ -1,7 +1,9 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "evol-order-dash",
+  "name": "internal-evol-staging",
+  "account_id": "b688d3fbe276f621033a23dce40c22fa",
   "main": ".open-next/worker.js",
+  "workers_dev": true,
   "compatibility_date": "2026-08-21",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
