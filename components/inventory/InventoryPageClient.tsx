@@ -624,9 +624,14 @@ function ProductListItem({
                 {product.productCode}
               </p>
             </div>
-            <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{city}</span>
+            <div className="flex min-w-0 items-end justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{city}</span>
+              </div>
+              <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                {formatCurrency(product.price.total)}
+              </p>
             </div>
           </>
         ) : (
@@ -657,6 +662,22 @@ function ProductListItem({
             </div>
           </div>
         )}
+
+        {!compact ? (
+          <div className="mt-3 flex items-end justify-between gap-3 border-t border-border/70 pt-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Estimated price
+              </p>
+              <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight text-foreground">
+                {formatCurrency(product.price.total)}
+              </p>
+            </div>
+            <p className="pb-0.5 text-[11px] font-medium text-muted-foreground">
+              Incl. {product.price.gstPercentage}% GST
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -743,7 +764,7 @@ function ProductDetail({
               <InventoryStat label="Location" value={product.location.city} />
               <InventoryStat
                 label="Price"
-                value={formatCurrency(estimateResult.pricing.total)}
+                value={formatCurrency(product.price.total)}
                 emphasis
                 onClick={scrollToEstimation}
               />
@@ -943,6 +964,7 @@ function ProductListSkeleton() {
               <Skeleton className="h-5 w-10 rounded-full" />
               <Skeleton className="h-5 w-20 rounded-full" />
             </div>
+            <Skeleton className="mt-3 h-7 w-28" />
           </div>
         </div>
       ))}
@@ -971,6 +993,7 @@ function ProductGridSkeleton() {
               <Skeleton className="h-5 w-10 rounded-full" />
               <Skeleton className="h-5 w-20 rounded-full" />
             </div>
+            <Skeleton className="mt-3 h-7 w-28" />
           </div>
         </div>
       ))}
