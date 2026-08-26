@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import assert from "node:assert/strict";
+import { describe, test } from "node:test";
 import type { InventoryProduct } from "@/types/inventory-api";
 import { createRefillOrderSeed } from "./order-form-utils";
 
@@ -60,7 +61,7 @@ function inventoryProduct(
 
 describe("createRefillOrderSeed", () => {
   test("maps inventory details needed by an existing-product order", () => {
-    expect(createRefillOrderSeed(inventoryProduct())).toEqual({
+    assert.deepEqual(createRefillOrderSeed(inventoryProduct()), {
       name: "Solitaire Ring",
       productCode: "EV-1001",
       category: "Ring",
@@ -88,13 +89,11 @@ describe("createRefillOrderSeed", () => {
       }),
     );
 
-    expect(seed).toMatchObject({
-      notes: "Classic solitaire ring",
-      vendor: "",
-    });
-    expect(seed.imageUrl).toBeUndefined();
-    expect(seed.size).toBeUndefined();
-    expect(seed.metalNetWeight).toBeUndefined();
-    expect(seed.metalGrossWeight).toBeUndefined();
+    assert.equal(seed.notes, "Classic solitaire ring");
+    assert.equal(seed.vendor, "");
+    assert.equal(seed.imageUrl, undefined);
+    assert.equal(seed.size, undefined);
+    assert.equal(seed.metalNetWeight, undefined);
+    assert.equal(seed.metalGrossWeight, undefined);
   });
 });

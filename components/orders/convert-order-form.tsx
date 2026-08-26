@@ -49,6 +49,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { enquiryKeys, useEnquiryDetails } from "@/hooks/useEnquiries";
 import { useCreateOrders } from "@/hooks/useOrders";
@@ -337,6 +338,8 @@ export function ConvertOrderForm({
   );
 
   useEffect(() => {
+    void safeStep;
+    void activeRequirementId;
     window.requestAnimationFrame(() => {
       document
         .getElementById("app-content")
@@ -443,6 +446,7 @@ export function ConvertOrderForm({
 
   useEffect(() => {
     if (!isRefill) return;
+    void refillLoadAttempt;
 
     let ignore = false;
     setRefillLoadState("loading");
@@ -1701,11 +1705,19 @@ function RequirementConversionCard({
   ];
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: the selectable card contains its own form controls, so it cannot be a native checkbox input.
     <div
-      role={isSelectionLocked ? undefined : "checkbox"}
-      aria-checked={isSelectionLocked ? undefined : isSelected}
-      tabIndex={isSelectionLocked ? undefined : 0}
-      onClick={() => {
+      role="checkbox"
+      aria-checked={isSelected}
+      aria-disabled={isSelectionLocked}
+      tabIndex={isSelectionLocked ? -1 : 0}
+      onClick={(event) => {
+        const interactiveTarget = (event.target as Element).closest(
+          "button, input, [data-ignore-selection]",
+        );
+        if (interactiveTarget && interactiveTarget !== event.currentTarget) {
+          return;
+        }
         if (!isSelectionLocked) onSelectionChange?.(!isSelected);
       }}
       onKeyDown={(event) => {
@@ -1725,38 +1737,39 @@ function RequirementConversionCard({
     >
       <div className="flex gap-3">
         {!isSelectionLocked && (
-          <div onClick={(event) => event.stopPropagation()}>
-            <Checkbox
-              checked={isSelected}
-              onCheckedChange={(checked) =>
-                onSelectionChange?.(checked === true)
-              }
-              aria-label={`Select requirement ${index + 1}`}
-              className="mt-1"
-            />
-          </div>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={(checked) => onSelectionChange?.(checked === true)}
+            aria-label={`Select requirement ${index + 1}`}
+            className="mt-1"
+          />
         )}
         <RequirementSnapshot item={item} index={index} />
       </div>
 
       {isSelected && (
         <div
+          data-ignore-selection
           className="grid gap-4 border-t border-border pt-4 md:grid-cols-[minmax(0,1fr)_220px]"
-          onClick={(event) => event.stopPropagation()}
         >
           <div className="space-y-1.5">
             <p className="text-sm font-medium text-foreground">CAD approval</p>
-            <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 text-sm transition-colors hover:bg-muted/35">
+            <Label
+              htmlFor={`cad-approval-${item.id}`}
+              className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 text-sm transition-colors hover:bg-muted/35"
+            >
               <Checkbox
+                id={`cad-approval-${item.id}`}
                 checked={item.cadApprovalRequired}
                 onCheckedChange={(checked) =>
                   updateItemCadApproval(item.id, checked === true)
                 }
+                aria-label="Customer requires CAD"
               />
               <span className="font-medium text-foreground">
                 Customer requires CAD
               </span>
-            </label>
+            </Label>
           </div>
           <FormField label="Estimated delivery date" required>
             <DatePicker

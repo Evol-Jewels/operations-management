@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight, ExternalLink, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { EnquiryColorStone, EnquiryDiamond } from "@/types";
 import {
@@ -90,12 +90,14 @@ export function RequirementDetailsPanel({
       </div>
 
       <MiniCarousel
+        key={`diamonds-${item.id}`}
         title="Diamond Details"
         items={item.diamonds.filter(hasRecordValues)}
         renderItem={(diamond) => <DiamondCard diamond={diamond} />}
       />
 
       <MiniCarousel
+        key={`color-stones-${item.id}`}
         title="Color Stone Details"
         items={item.colorStones.filter(hasRecordValues)}
         renderItem={(stone) => <ColorStoneCard stone={stone} />}
@@ -155,11 +157,8 @@ function MiniCarousel<T>({
 }) {
   const [index, setIndex] = useState(0);
   const hasMany = items.length > 1;
-  const selectedItem = items[Math.min(index, items.length - 1)];
-
-  useEffect(() => {
-    setIndex(0);
-  }, [items.length]);
+  const safeIndex = Math.min(index, Math.max(items.length - 1, 0));
+  const selectedItem = items[safeIndex];
 
   if (items.length === 0) return null;
 
@@ -167,7 +166,7 @@ function MiniCarousel<T>({
     <section className="space-y-2">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-muted-foreground">
-          {title} ({index + 1} item of {items.length})
+          {title} ({safeIndex + 1} item of {items.length})
         </p>
         <div className="flex items-center gap-2">
           {hasMany ? (
@@ -178,7 +177,9 @@ function MiniCarousel<T>({
                 size="icon-xs"
                 onClick={() =>
                   setIndex((value) =>
-                    value === 0 ? items.length - 1 : value - 1,
+                    Math.min(value, items.length - 1) === 0
+                      ? items.length - 1
+                      : Math.min(value, items.length - 1) - 1,
                   )
                 }
                 aria-label={`Previous ${title}`}
@@ -192,7 +193,9 @@ function MiniCarousel<T>({
                 size="icon-xs"
                 onClick={() =>
                   setIndex((value) =>
-                    value === items.length - 1 ? 0 : value + 1,
+                    Math.min(value, items.length - 1) === items.length - 1
+                      ? 0
+                      : Math.min(value, items.length - 1) + 1,
                   )
                 }
                 aria-label={`Next ${title}`}
