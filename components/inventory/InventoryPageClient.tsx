@@ -570,7 +570,7 @@ function ProductListItem({
     <div
       className={cn(
         "relative w-full rounded-xl border bg-card text-left shadow-sm transition-colors hover:border-foreground/25 hover:bg-muted/20 has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring has-[button:focus-visible]:ring-offset-2",
-        compact ? "flex items-stretch gap-2.5 p-2.5" : "flex flex-col p-3",
+        compact ? "flex items-stretch gap-2.5 p-2.5" : "flex flex-col p-2.5",
         selected
           ? "border-foreground/60 ring-1 ring-foreground/10"
           : "border-border",
@@ -611,13 +611,16 @@ function ProductListItem({
       <div
         className={cn(
           "pointer-events-none relative z-10 min-w-0",
-          compact ? "flex flex-1 flex-col justify-between py-0.5" : "pt-3",
+          compact ? "flex flex-1 flex-col justify-between py-0.5" : "pt-2",
         )}
       >
         {compact ? (
           <>
             <div className="min-w-0">
-              <h3 className="truncate text-base font-semibold text-foreground">
+              <h3
+                className="truncate text-base font-semibold text-foreground"
+                title={product.name}
+              >
                 {product.name}
               </h3>
               <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
@@ -635,49 +638,35 @@ function ProductListItem({
             </div>
           </>
         ) : (
-          <div className="flex items-start justify-between gap-3 max-[420px]:flex-col">
-            <div className="min-w-0">
-              <h3 className="truncate text-base font-semibold text-foreground">
-                {product.name}
-              </h3>
-              <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-                {product.productCode}
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-col items-end gap-1.5 max-[420px]:items-start">
-              <div className="flex gap-1.5">
-                <Badge variant="secondary" className="gap-1 font-normal">
-                  <Gem className="size-3" aria-hidden="true" />
-                  {product.purity}K
-                </Badge>
-                <Badge variant="secondary" className="gap-1 font-normal">
-                  <Palette className="size-3" aria-hidden="true" />
-                  {colorLabel}
-                </Badge>
-              </div>
-              <Badge variant="outline" className="gap-1 font-normal">
-                <MapPin className="size-3" aria-hidden="true" />
-                {city}
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto_auto] gap-x-3 gap-y-1 max-[420px]:flex max-[420px]:flex-col">
+            <h3
+              className="col-start-1 row-start-1 truncate text-base font-semibold text-foreground max-[420px]:order-1"
+              title={product.name}
+            >
+              {product.name}
+            </h3>
+            <p className="col-start-1 row-start-2 truncate font-mono text-xs text-muted-foreground max-[420px]:order-2">
+              {product.productCode}
+            </p>
+            <p className="col-start-2 row-span-2 row-start-1 self-center text-lg font-bold tabular-nums tracking-tight text-foreground max-[420px]:order-3">
+              {formatCurrency(product.price.total)}
+            </p>
+            <div className="col-start-1 row-start-3 flex gap-1.5 pt-1 max-[420px]:order-4">
+              <Badge variant="secondary" className="gap-1 font-normal">
+                <Gem className="size-3" aria-hidden="true" />
+                {product.purity}K
+              </Badge>
+              <Badge variant="secondary" className="gap-1 font-normal">
+                <Palette className="size-3" aria-hidden="true" />
+                {colorLabel}
               </Badge>
             </div>
+            <Badge variant="outline" className="col-start-2 row-start-3 justify-self-end gap-1 font-normal max-[420px]:order-5">
+                <MapPin className="size-3" aria-hidden="true" />
+                {city}
+            </Badge>
           </div>
         )}
-
-        {!compact ? (
-          <div className="mt-3 flex items-end justify-between gap-3 border-t border-border/70 pt-3">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Estimated price
-              </p>
-              <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight text-foreground">
-                {formatCurrency(product.price.total)}
-              </p>
-            </div>
-            <p className="pb-0.5 text-[11px] font-medium text-muted-foreground">
-              Incl. {product.price.gstPercentage}% GST
-            </p>
-          </div>
-        ) : null}
       </div>
     </div>
   );
