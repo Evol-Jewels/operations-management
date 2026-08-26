@@ -53,7 +53,7 @@ export function RequirementDetailsPanel({
             value={getDisplayMetalPurity(item.metalPurity)}
           />
           <DetailRow label="Metal color" value={item.details.metalColor} />
-          <DetailRow label="Gold weight" value={item.metalWeight} />
+          <DetailRow label="Metal weight" value={item.metalWeight} />
           <DetailRow label="Certification" value={item.details.certification} />
           <DetailRow label="Polish" value={item.details.polish} />
         </DetailSection>
