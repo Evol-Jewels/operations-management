@@ -4,14 +4,18 @@ import {
   Gem,
   IndianRupee,
   MapPin,
+  PackagePlus,
   PackageSearch,
   Palette,
   UserRound,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import type { RefObject } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { captureProductEvent } from "@/lib/analytics";
 import { getInventoryMediaUrl } from "@/lib/inventory-media";
 import { getInventoryPrimaryImage } from "@/lib/inventoryProductMapping";
 import { formatCurrency } from "@/lib/utils";
@@ -132,6 +136,29 @@ function ProductSaleCard({
           </div>
         </div>
       </div>
+
+      <div className="mt-3 border-t border-border pt-3">
+        {product ? (
+          <Button asChild className="min-h-11 w-full gap-2" variant="outline">
+            <Link
+              href={`/orders/new?refill=${encodeURIComponent(sale.productCode)}`}
+              onClick={() =>
+                captureProductEvent("recent_sale_refill_started", {
+                  inventory_resolution: sale.inventoryResolution,
+                })
+              }
+            >
+              <PackagePlus className="size-4" aria-hidden="true" />
+              Refill product
+            </Link>
+          </Button>
+        ) : (
+          <Button className="min-h-11 w-full gap-2" variant="outline" disabled>
+            <PackageSearch className="size-4" aria-hidden="true" />
+            Refill unavailable
+          </Button>
+        )}
+      </div>
     </article>
   );
 }
@@ -160,6 +187,7 @@ function ProductSaleSkeleton() {
           </div>
         </div>
       </div>
+      <Skeleton className="mt-3 h-11 w-full" />
     </div>
   );
 }

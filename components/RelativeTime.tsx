@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import * as React from "react";
 import { formatRelativeTime } from "@/lib/utils";
 
-export function RelativeTime({ isoString }: { isoString: string }) {
-  const [relativeTime, setRelativeTime] = useState("");
+const subscribe = () => () => undefined;
 
-  useEffect(() => {
-    setRelativeTime(formatRelativeTime(isoString));
-  }, [isoString]);
+export function RelativeTime({ isoString }: { isoString: string }) {
+  const relativeTime = React.useSyncExternalStore(
+    subscribe,
+    () => formatRelativeTime(isoString),
+    () => "",
+  );
 
   return <span>{relativeTime}</span>;
 }

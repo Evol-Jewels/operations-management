@@ -5,6 +5,7 @@ import * as React from "react";
 export type Theme = "light" | "dark";
 
 const THEME_STORAGE_KEY = "theme";
+const THEME_CHANGE_EVENT = "evol-theme-change";
 
 type ThemeContextValue = {
   theme: Theme;
@@ -28,31 +29,30 @@ function getStoredTheme(): Theme | null {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>("light");
-  const hydratedRef = React.useRef(false);
+  const theme = React.useSyncExternalStore<Theme>(
+    (onChange) => {
+      window.addEventListener("storage", onChange);
+      window.addEventListener(THEME_CHANGE_EVENT, onChange);
+      return () => {
+        window.removeEventListener("storage", onChange);
+        window.removeEventListener(THEME_CHANGE_EVENT, onChange);
+      };
+    },
+    () => getStoredTheme() ?? "light",
+    (): Theme => "light",
+  );
 
-  React.useEffect(() => {
-    const storedTheme = getStoredTheme();
-    const nextTheme = storedTheme ?? "light";
-    setThemeState(nextTheme);
-    applyTheme(nextTheme);
-    hydratedRef.current = true;
-  }, []);
+  React.useEffect(() => applyTheme(theme), [theme]);
 
   const setTheme = React.useCallback((nextTheme: Theme) => {
-    setThemeState(nextTheme);
     applyTheme(nextTheme);
     window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   }, []);
 
   const toggleTheme = React.useCallback(() => {
     setTheme(theme === "dark" ? "light" : "dark");
   }, [setTheme, theme]);
-
-  React.useEffect(() => {
-    if (!hydratedRef.current) return;
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-  }, [theme]);
 
   const value = React.useMemo(
     () => ({

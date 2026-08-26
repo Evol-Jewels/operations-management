@@ -2,6 +2,12 @@
 
 import { ConvertOrderForm } from "./convert-order-form";
 
-export function CreateOrderForm() {
-  return <ConvertOrderForm mode="create" />;
+export function CreateOrderForm({
+  refillProductCode,
+}: {
+  refillProductCode?: string;
+}) {
+  return (
+    <ConvertOrderForm mode="create" refillProductCode={refillProductCode} />
+  );
 }

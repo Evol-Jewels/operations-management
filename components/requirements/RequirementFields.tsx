@@ -4,7 +4,6 @@ import { Check } from "lucide-react";
 import {
   type HTMLAttributes,
   type ReactNode,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -114,11 +113,14 @@ export function OptionTextField({
       .sort((a, b) => a.rank - b.rank || a.index - b.index)
       .map(({ option }) => option);
   }, [options, searchValue]);
-
-  useEffect(() => setActiveIndex(0), [searchValue]);
+  const safeActiveIndex = Math.min(
+    activeIndex,
+    Math.max(rankedOptions.length - 1, 0),
+  );
 
   const selectOption = (option: string) => {
     onChange(option);
+    setActiveIndex(0);
     setOpen(false);
     inputRef.current?.focus();
   };
@@ -135,6 +137,7 @@ export function OptionTextField({
             onFocus={() => setOpen(true)}
             onChange={(event) => {
               onChange(event.target.value);
+              setActiveIndex(0);
               setOpen(true);
             }}
             onKeyDown={(event) => {
@@ -153,9 +156,13 @@ export function OptionTextField({
                 event.preventDefault();
                 setActiveIndex((current) => Math.max(current - 1, 0));
               }
-              if (event.key === "Enter" && open && rankedOptions[activeIndex]) {
+              if (
+                event.key === "Enter" &&
+                open &&
+                rankedOptions[safeActiveIndex]
+              ) {
                 event.preventDefault();
-                selectOption(rankedOptions[activeIndex]);
+                selectOption(rankedOptions[safeActiveIndex]);
               }
             }}
             className="h-9"
@@ -186,7 +193,7 @@ export function OptionTextField({
                   onClick={() => selectOption(option)}
                   className={cn(
                     "flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm transition-colors",
-                    (selected || index === activeIndex) &&
+                    (selected || index === safeActiveIndex) &&
                       "bg-accent text-accent-foreground",
                   )}
                 >
