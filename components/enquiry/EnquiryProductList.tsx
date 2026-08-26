@@ -9,7 +9,7 @@ import {
   Loader2,
   Package,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { EnquiryEstimationPrintView } from "@/components/enquiry/EnquiryEstimationPrintView";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
@@ -109,17 +109,11 @@ export function EnquiryProductList({
     statusFilter === "ALL"
       ? items
       : items.filter((item) => item.status === statusFilter);
-  const activeItem = filteredItems[activeIndex];
-
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [statusFilter]);
-
-  useEffect(() => {
-    if (activeIndex > Math.max(filteredItems.length - 1, 0)) {
-      setActiveIndex(0);
-    }
-  }, [activeIndex, filteredItems.length]);
+  const safeActiveIndex = Math.min(
+    activeIndex,
+    Math.max(filteredItems.length - 1, 0),
+  );
+  const activeItem = filteredItems[safeActiveIndex];
 
   return (
     <div className="space-y-4">
@@ -127,7 +121,10 @@ export function EnquiryProductList({
         <Header
           totalCount={items.length}
           statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
+          onStatusFilterChange={(nextFilter) => {
+            setStatusFilter(nextFilter);
+            setActiveIndex(0);
+          }}
         />
       ) : null}
 
@@ -140,8 +137,9 @@ export function EnquiryProductList({
           item={activeItem}
           enquiryRefCode={enquiryRefCode}
           recordType={recordType}
-          activeIndex={activeIndex}
+          activeIndex={safeActiveIndex}
           totalCount={filteredItems.length}
+          itemIds={filteredItems.map((filteredItem) => filteredItem.id)}
           settings={settings}
           isFinalized={isFinalized}
           isSavingEstimation={isSavingEstimation}
@@ -190,6 +188,7 @@ function RequirementCarouselCard({
   recordType,
   activeIndex,
   totalCount,
+  itemIds,
   settings,
   isFinalized,
   isSavingEstimation,
@@ -202,6 +201,7 @@ function RequirementCarouselCard({
   recordType: RecordType;
   activeIndex: number;
   totalCount: number;
+  itemIds: string[];
   settings: CalculatorSettings;
   isFinalized: boolean;
   isSavingEstimation?: boolean;
@@ -216,12 +216,15 @@ function RequirementCarouselCard({
   const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>("pdf");
   const printViewRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const storedFormat = localStorage.getItem(ENQUIRY_DOWNLOAD_FORMAT_KEY);
-    if (storedFormat === "pdf" || storedFormat === "png") {
-      setDownloadFormat(storedFormat);
+  function handleDownloadMenuOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      const storedFormat = localStorage.getItem(ENQUIRY_DOWNLOAD_FORMAT_KEY);
+      if (storedFormat === "pdf" || storedFormat === "png") {
+        setDownloadFormat(storedFormat);
+      }
     }
-  }, []);
+    setIsDownloadMenuOpen(nextOpen);
+  }
 
   async function handleDownloadPdf() {
     const printView = printViewRef.current;
@@ -393,7 +396,7 @@ function RequirementCarouselCard({
           ) : null}
           <Popover
             open={isDownloadMenuOpen}
-            onOpenChange={setIsDownloadMenuOpen}
+            onOpenChange={handleDownloadMenuOpenChange}
           >
             <div className="inline-flex overflow-hidden rounded-md border border-input shadow-xs">
               <Button
@@ -466,10 +469,10 @@ function RequirementCarouselCard({
           </Popover>
           {hasMany ? (
             <div className="hidden items-center gap-1.5 sm:flex">
-              {Array.from({ length: totalCount }).map((_, index) => (
+              {itemIds.map((itemId, index) => (
                 <button
                   type="button"
-                  key={index}
+                  key={itemId}
                   onClick={() => onSelectItem(index)}
                   aria-label={`Show requirement ${index + 1}`}
                   className={cn(

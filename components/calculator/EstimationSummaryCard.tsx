@@ -121,8 +121,7 @@ function SummaryMediaControls({
       <div
         className={cn(
           "pointer-events-auto absolute inset-x-0 bottom-0 flex translate-y-0 items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3 pb-3 pt-10 opacity-100 transition-all duration-200 sm:pointer-events-none sm:translate-y-1 sm:opacity-0",
-          isVisible &&
-            "sm:pointer-events-auto sm:translate-y-0 sm:opacity-100",
+          isVisible && "sm:pointer-events-auto sm:translate-y-0 sm:opacity-100",
         )}
       >
         <div className="scrollbar-none flex min-w-0 gap-1.5 overflow-x-auto">
@@ -498,14 +497,17 @@ export function EstimationSummaryDownloadButton({
   const [open, setOpen] = useState(false);
   const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>("png");
 
-  useEffect(() => {
-    const storedFormat = localStorage.getItem(
-      ESTIMATION_SUMMARY_DOWNLOAD_FORMAT_KEY,
-    );
-    if (storedFormat === "pdf" || storedFormat === "png") {
-      setDownloadFormat(storedFormat);
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      const storedFormat = localStorage.getItem(
+        ESTIMATION_SUMMARY_DOWNLOAD_FORMAT_KEY,
+      );
+      if (storedFormat === "pdf" || storedFormat === "png") {
+        setDownloadFormat(storedFormat);
+      }
     }
-  }, []);
+    setOpen(nextOpen);
+  }
 
   function selectDownloadFormat(format: DownloadFormat) {
     setDownloadFormat(format);
@@ -539,7 +541,7 @@ export function EstimationSummaryDownloadButton({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <div className="inline-flex overflow-hidden rounded-md border border-input shadow-xs">
         <Button
           type="button"

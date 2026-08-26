@@ -1,7 +1,13 @@
+import { getInventoryMediaUrl } from "@/lib/inventory-media";
+import {
+  getInventoryPrimaryImage,
+  mapInventoryProductToEnquiryProduct,
+} from "@/lib/inventoryProductMapping";
 import type {
   BackendEnquiryMedia,
   BackendEnquiryStone,
 } from "@/types/enquiry-api";
+import type { InventoryProduct } from "@/types/inventory-api";
 import type { BackendCustomProductDetails } from "@/types/order-api";
 import type {
   NewProduct,
@@ -11,6 +17,43 @@ import type {
 export const METAL_WEIGHT_PATTERN = /^\d+(\.\d{1,3})?$/;
 export const METAL_WEIGHT_ERROR =
   "Enter a weight using digits with up to 3 decimal places, for example 5.800";
+
+export interface RefillOrderSeed {
+  name: string;
+  productCode: string;
+  category: string;
+  metalType: string;
+  metalPurity: string;
+  metalNetWeight?: string;
+  metalGrossWeight?: string;
+  size?: string;
+  imageUrl?: string;
+  basePrice?: number;
+  notes?: string;
+  vendor: string;
+}
+
+export function createRefillOrderSeed(
+  product: InventoryProduct,
+): RefillOrderSeed {
+  const mappedProduct = mapInventoryProductToEnquiryProduct(product);
+  const primaryImage = getInventoryPrimaryImage(product);
+
+  return {
+    name: mappedProduct.name,
+    productCode: mappedProduct.productCode,
+    category: mappedProduct.category,
+    metalType: mappedProduct.metalType,
+    metalPurity: mappedProduct.metalPurity,
+    metalNetWeight: product.netWeight || undefined,
+    metalGrossWeight: product.grossWeight || undefined,
+    size: product.size || undefined,
+    imageUrl: primaryImage ? getInventoryMediaUrl(primaryImage) : undefined,
+    basePrice: product.price?.total,
+    notes: product.notes || product.description || undefined,
+    vendor: product.vendor?.trim() || "",
+  };
+}
 
 export function addDaysDateString(baseDate: Date, days: number) {
   const next = new Date(baseDate);

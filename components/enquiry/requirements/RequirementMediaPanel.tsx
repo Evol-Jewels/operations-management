@@ -2,7 +2,7 @@
 
 import { Calculator, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { EnquiryEstimationDialog } from "@/components/enquiry/EnquiryEstimationDialog";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
@@ -24,7 +24,7 @@ export function RequirementMediaPanel({
 }) {
   return (
     <div className="space-y-4">
-      <RequirementImageCarousel item={item} />
+      <RequirementImageCarousel key={item.id} item={item} />
       {!isFinalized ? (
         <div className="flex justify-center">
           <EnquiryEstimationDialog
@@ -49,15 +49,8 @@ function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
     (image): image is typeof image & { url: string } => Boolean(image.url),
   );
   const hasMany = images.length > 1;
-  const image = images[index];
-
-  useEffect(() => {
-    setIndex(0);
-  }, [item.id]);
-
-  useEffect(() => {
-    if (index > Math.max(images.length - 1, 0)) setIndex(0);
-  }, [images.length, index]);
+  const safeIndex = Math.min(index, Math.max(images.length - 1, 0));
+  const image = images[safeIndex];
 
   if (!image?.url) {
     return (
@@ -113,7 +106,7 @@ function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
               onClick={() => setIndex(imageIndex)}
               className={cn(
                 "relative size-12 shrink-0 overflow-hidden rounded-md border transition-all",
-                imageIndex === index
+                imageIndex === safeIndex
                   ? "border-foreground"
                   : "border-border opacity-65 hover:opacity-100",
               )}

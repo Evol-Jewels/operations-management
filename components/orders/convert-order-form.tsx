@@ -2,17 +2,22 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  LoaderCircle,
+  PackagePlus,
   Pencil,
   Plus,
+  RefreshCw,
   ScanLine,
   Search,
   Trash2,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
@@ -44,6 +49,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { enquiryKeys, useEnquiryDetails } from "@/hooks/useEnquiries";
 import { useCreateOrders } from "@/hooks/useOrders";
@@ -51,7 +57,10 @@ import { captureProductEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import { uploadEnquiryImage } from "@/lib/enquiriesApi";
-import { fetchInventoryProducts } from "@/lib/inventoryApi";
+import {
+  fetchInventoryProducts,
+  fetchInventoryProductWithAllMedia,
+} from "@/lib/inventoryApi";
 import { mapInventoryProductToEnquiryProduct } from "@/lib/inventoryProductMapping";
 import { isSupportedImageFile } from "@/lib/prepareImageUpload";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -62,11 +71,12 @@ import type {
 import {
   addDaysDateString,
   cleanOptionalText,
+  createRefillOrderSeed,
   isIsoDateString,
   isValidMetalWeight,
+  METAL_WEIGHT_ERROR,
   mapCategoryToBackend,
   mapMetalColorToBackend,
-  METAL_WEIGHT_ERROR,
 } from "./order-form-utils";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -228,18 +238,24 @@ function orderItemToCustomRequirement(item: OrderItem): NewProduct {
 export function ConvertOrderForm({
   enquiryId,
   mode = "convert",
+  refillProductCode,
 }: {
   enquiryId?: string;
   mode?: "convert" | "create";
+  refillProductCode?: string;
 }) {
   const isConversion = mode === "convert";
+  const normalizedRefillProductCode = refillProductCode?.trim() ?? "";
+  const isRefill = !isConversion && Boolean(normalizedRefillProductCode);
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
   const createOrdersMutation = useCreateOrders();
   const createdAtRef = useRef(new Date());
   const directItemRef = useRef<OrderItem | null>(
-    isConversion ? null : createDirectOrderItem(createdAtRef.current),
+    isConversion || isRefill
+      ? null
+      : createDirectOrderItem(createdAtRef.current),
   );
   const {
     data: enquiryDetails,
@@ -253,6 +269,11 @@ export function ConvertOrderForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState("");
+  const [refillLoadAttempt, setRefillLoadAttempt] = useState(0);
+  const [refillLoadState, setRefillLoadState] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >(isRefill ? "loading" : "idle");
+  const [refillLoadError, setRefillLoadError] = useState("");
 
   // Form state
   const [form, setForm] = useState<ConvertFormData>(() => {
@@ -317,6 +338,8 @@ export function ConvertOrderForm({
   );
 
   useEffect(() => {
+    void safeStep;
+    void activeRequirementId;
     window.requestAnimationFrame(() => {
       document
         .getElementById("app-content")
@@ -325,7 +348,7 @@ export function ConvertOrderForm({
     });
   }, [safeStep, activeRequirementId]);
 
-  // Pre-fill only conversion orders. Direct orders begin with an empty list.
+  // Pre-fill enquiry conversions from their selected requirements.
   useEffect(() => {
     if (!isConversion) return;
     if (!enquiryDetails) return;
@@ -420,6 +443,60 @@ export function ConvertOrderForm({
     });
     setSelectedItemIds(orderItems.map((item) => item.id));
   }, [enquiryDetails, isConversion]);
+
+  useEffect(() => {
+    if (!isRefill) return;
+    void refillLoadAttempt;
+
+    let ignore = false;
+    setRefillLoadState("loading");
+    setRefillLoadError("");
+
+    async function loadRefillProduct() {
+      try {
+        const product = await fetchInventoryProductWithAllMedia(
+          normalizedRefillProductCode,
+        );
+        if (!product)
+          throw new Error("This product is no longer in inventory.");
+        if (ignore) return;
+
+        const seed = createRefillOrderSeed(product);
+        const item: OrderItem = {
+          id: generateId(),
+          source: "new-existing",
+          ...seed,
+          cadApprovalRequired: false,
+          estimatedDelivery: addDaysDateString(createdAtRef.current, 17),
+        };
+
+        setForm((current) => ({ ...current, items: [item] }));
+        setSelectedItemIds([item.id]);
+        setRefillLoadState("ready");
+        captureProductEvent("recent_sale_refill_loaded", {
+          has_image: Boolean(item.imageUrl),
+          has_vendor: Boolean(item.vendor),
+        });
+      } catch (error) {
+        if (ignore) return;
+        setRefillLoadState("error");
+        setRefillLoadError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load this product from inventory.",
+        );
+        captureProductEvent("recent_sale_refill_load_failed", {
+          error_name: error instanceof Error ? error.name : "UnknownError",
+          browser_online: navigator.onLine,
+        });
+      }
+    }
+
+    void loadRefillProduct();
+    return () => {
+      ignore = true;
+    };
+  }, [isRefill, normalizedRefillProductCode, refillLoadAttempt]);
 
   // Cleanup object URLs
   useEffect(() => {
@@ -1010,7 +1087,11 @@ export function ConvertOrderForm({
       captureProductEvent("order_created", {
         order_count: response.refCodes?.length ?? selectedItems.length,
         product_count: selectedItems.length,
-        source: isConversion ? "enquiry_conversion" : "direct",
+        source: isConversion
+          ? "enquiry_conversion"
+          : isRefill
+            ? "recent_sale_refill"
+            : "direct",
       });
       if (isConversion && enquiryId && sourceRefCode) {
         void queryClient.invalidateQueries({
@@ -1030,7 +1111,11 @@ export function ConvertOrderForm({
     } catch (error) {
       captureProductEvent("order_creation_failed", {
         product_count: selectedItems.length,
-        source: isConversion ? "enquiry_conversion" : "direct",
+        source: isConversion
+          ? "enquiry_conversion"
+          : isRefill
+            ? "recent_sale_refill"
+            : "direct",
         error_name: error instanceof Error ? error.name : "UnknownError",
         browser_online: navigator.onLine,
       });
@@ -1058,6 +1143,65 @@ export function ConvertOrderForm({
         <p className="text-sm text-muted-foreground">
           Unable to load enquiry details. Please go back and try again.
         </p>
+      </div>
+    );
+  }
+
+  if (isRefill && refillLoadState === "loading") {
+    return (
+      <div
+        className="mx-auto flex min-h-[55vh] max-w-lg flex-col items-center justify-center gap-4 px-4 text-center"
+        aria-live="polite"
+      >
+        <div className="flex size-12 items-center justify-center rounded-lg border border-border bg-card shadow-sm">
+          <LoaderCircle
+            className="size-5 animate-spin text-muted-foreground"
+            aria-hidden="true"
+          />
+        </div>
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">
+            Preparing refill order
+          </h1>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            Loading the latest inventory details for{" "}
+            {normalizedRefillProductCode}.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isRefill && refillLoadState === "error") {
+    return (
+      <div
+        className="mx-auto flex min-h-[55vh] max-w-lg flex-col items-center justify-center gap-5 px-4 text-center"
+        role="alert"
+      >
+        <div className="flex size-12 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10">
+          <AlertCircle className="size-5 text-destructive" aria-hidden="true" />
+        </div>
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">
+            Could not prepare this refill
+          </h1>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {refillLoadError}
+          </p>
+        </div>
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+          <Button
+            type="button"
+            className="min-h-11 gap-2"
+            onClick={() => setRefillLoadAttempt((attempt) => attempt + 1)}
+          >
+            <RefreshCw className="size-4" aria-hidden="true" />
+            Retry
+          </Button>
+          <Button asChild type="button" variant="outline" className="min-h-11">
+            <Link href="/orders/new">Create order manually</Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -1101,7 +1245,11 @@ export function ConvertOrderForm({
           className="-ml-2 gap-1.5 text-muted-foreground"
         >
           <ArrowLeft className="size-3.5" />
-          {isConversion ? "Back to enquiry" : "Back to orders"}
+          {isConversion
+            ? "Back to enquiry"
+            : isRefill
+              ? "Back to recent sales"
+              : "Back to orders"}
         </Button>
       </div>
 
@@ -1126,6 +1274,14 @@ export function ConvertOrderForm({
               submitError={submitError}
               updateItem={updateItem}
               updateItemCadApproval={updateItemCadApproval}
+            />
+          ) : isRefill ? (
+            <RefillDetailsStep
+              item={selectedItems[0]}
+              updateItem={updateItem}
+              updateItemCadApproval={updateItemCadApproval}
+              errors={errors}
+              submitError={submitError}
             />
           ) : (
             <RequirementDetailsStep
@@ -1202,6 +1358,8 @@ export function ConvertOrderForm({
             canEditSelection={!isConversion || form.items.length > 1}
             submitError={submitError}
             errors={errors}
+            isConversion={isConversion}
+            isRefill={isRefill}
             onEditRequirements={() => {
               setAnimDir("backward");
               setCurrentStep(0);
@@ -1286,6 +1444,65 @@ export function ConvertOrderForm({
 }
 
 // ─── Products Step ──────────────────────────────────────────────────────────
+
+function RefillDetailsStep({
+  item,
+  updateItem,
+  updateItemCadApproval,
+  errors,
+  submitError,
+}: {
+  item?: OrderItem;
+  updateItem: (
+    id: string,
+    patch: Partial<
+      Pick<OrderItem, "vendor" | "estimatedDelivery" | "cadApprovalRequired">
+    >,
+  ) => void;
+  updateItemCadApproval: (itemId: string, cadApprovalRequired: boolean) => void;
+  errors: Record<string, string>;
+  submitError: string;
+}) {
+  if (!item) return null;
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-5">
+      <div className="flex items-start gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card shadow-sm">
+          <PackagePlus className="size-4 text-primary" aria-hidden="true" />
+        </div>
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+            Review refill details
+          </h1>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            Product and vendor details were loaded from inventory. Confirm the
+            delivery settings before continuing.
+          </p>
+        </div>
+      </div>
+
+      <OrderItemCard
+        item={item}
+        updateItem={updateItem}
+        updateItemCadApproval={updateItemCadApproval}
+        removeItem={() => undefined}
+        canRemove={false}
+      />
+
+      {errors.estimatedDelivery ? (
+        <p className="text-sm text-destructive" role="alert">
+          {errors.estimatedDelivery}
+        </p>
+      ) : null}
+      {submitError ? (
+        <p className="text-sm text-destructive" role="alert">
+          {submitError}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 function RequirementConfirmationStep({
   form,
@@ -1488,11 +1705,19 @@ function RequirementConversionCard({
   ];
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: the selectable card contains its own form controls, so it cannot be a native checkbox input.
     <div
-      role={isSelectionLocked ? undefined : "checkbox"}
-      aria-checked={isSelectionLocked ? undefined : isSelected}
-      tabIndex={isSelectionLocked ? undefined : 0}
-      onClick={() => {
+      role="checkbox"
+      aria-checked={isSelected}
+      aria-disabled={isSelectionLocked}
+      tabIndex={isSelectionLocked ? -1 : 0}
+      onClick={(event) => {
+        const interactiveTarget = (event.target as Element).closest(
+          "button, input, [data-ignore-selection]",
+        );
+        if (interactiveTarget && interactiveTarget !== event.currentTarget) {
+          return;
+        }
         if (!isSelectionLocked) onSelectionChange?.(!isSelected);
       }}
       onKeyDown={(event) => {
@@ -1512,38 +1737,39 @@ function RequirementConversionCard({
     >
       <div className="flex gap-3">
         {!isSelectionLocked && (
-          <div onClick={(event) => event.stopPropagation()}>
-            <Checkbox
-              checked={isSelected}
-              onCheckedChange={(checked) =>
-                onSelectionChange?.(checked === true)
-              }
-              aria-label={`Select requirement ${index + 1}`}
-              className="mt-1"
-            />
-          </div>
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={(checked) => onSelectionChange?.(checked === true)}
+            aria-label={`Select requirement ${index + 1}`}
+            className="mt-1"
+          />
         )}
         <RequirementSnapshot item={item} index={index} />
       </div>
 
       {isSelected && (
         <div
+          data-ignore-selection
           className="grid gap-4 border-t border-border pt-4 md:grid-cols-[minmax(0,1fr)_220px]"
-          onClick={(event) => event.stopPropagation()}
         >
           <div className="space-y-1.5">
             <p className="text-sm font-medium text-foreground">CAD approval</p>
-            <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 text-sm transition-colors hover:bg-muted/35">
+            <Label
+              htmlFor={`cad-approval-${item.id}`}
+              className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 text-sm transition-colors hover:bg-muted/35"
+            >
               <Checkbox
+                id={`cad-approval-${item.id}`}
                 checked={item.cadApprovalRequired}
                 onCheckedChange={(checked) =>
                   updateItemCadApproval(item.id, checked === true)
                 }
+                aria-label="Customer requires CAD"
               />
               <span className="font-medium text-foreground">
                 Customer requires CAD
               </span>
-            </label>
+            </Label>
           </div>
           <FormField label="Estimated delivery date" required>
             <DatePicker
@@ -1793,6 +2019,7 @@ function OrderItemCard({
   updateItem,
   updateItemCadApproval,
   removeItem,
+  canRemove = true,
 }: {
   item: OrderItem;
   updateItem: (
@@ -1803,6 +2030,7 @@ function OrderItemCard({
   ) => void;
   updateItemCadApproval: (itemId: string, cadApprovalRequired: boolean) => void;
   removeItem: (id: string) => void;
+  canRemove?: boolean;
 }) {
   const isNew = item.source === "new-existing" || item.source === "new-custom";
   const deliveryOptions = [
@@ -1856,15 +2084,18 @@ function OrderItemCard({
             </span>
           </div>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            onClick={() => removeItem(item.id)}
-            className="shrink-0 text-muted-foreground/60 hover:text-destructive"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          {canRemove ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => removeItem(item.id)}
+              className="shrink-0 text-muted-foreground/60 hover:text-destructive"
+              aria-label={`Remove ${item.name}`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -1991,6 +2222,8 @@ function ReviewStep({
   items,
   submitError,
   errors,
+  isConversion,
+  isRefill,
   canEditSelection,
   onEditRequirements,
   onEditDetails,
@@ -2000,6 +2233,8 @@ function ReviewStep({
   items: OrderItem[];
   submitError: string;
   errors: Record<string, string>;
+  isConversion: boolean;
+  isRefill: boolean;
   canEditSelection: boolean;
   onEditRequirements: () => void;
   onEditDetails: (itemId: string) => void;
@@ -2042,7 +2277,7 @@ function ReviewStep({
       <div className="space-y-3 rounded-lg border border-border bg-card p-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-foreground">
-            Requirements to convert
+            {isConversion ? "Requirements to convert" : "Order products"}
           </p>
           {canEditSelection && (
             <Button
@@ -2053,7 +2288,7 @@ function ReviewStep({
               className="gap-1.5"
             >
               <Pencil className="h-3.5 w-3.5" />
-              Selection
+              {isConversion ? "Selection" : "Edit"}
             </Button>
           )}
         </div>
@@ -2063,17 +2298,29 @@ function ReviewStep({
             className="space-y-3 rounded-md border border-border bg-muted/10 p-4"
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  {index + 1}. {item.name}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {item.source === "enquiry-existing" ||
-                  item.source === "new-existing"
-                    ? "Existing product"
-                    : "Custom product"}
-                  {item.productCode ? ` · ${item.productCode}` : ""}
-                </p>
+              <div className="flex min-w-0 items-center gap-3">
+                {item.imageUrl ? (
+                  // biome-ignore lint/performance/noImgElement: remote inventory image
+                  <img
+                    src={item.imageUrl}
+                    alt=""
+                    className="size-11 shrink-0 rounded-md border border-border bg-muted object-cover"
+                  />
+                ) : null}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {index + 1}. {item.name}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {isRefill
+                      ? "Refill product"
+                      : item.source === "enquiry-existing" ||
+                          item.source === "new-existing"
+                        ? "Existing product"
+                        : "Custom product"}
+                    {item.productCode ? ` · ${item.productCode}` : ""}
+                  </p>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 {item.source === "enquiry-custom" ||
@@ -2091,7 +2338,7 @@ function ReviewStep({
                 ) : null}
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <ReviewField
                 label="Delivery date"
                 value={item.estimatedDelivery}
@@ -2108,6 +2355,7 @@ function ReviewStep({
                 label="Net weight"
                 value={item.metalNetWeight || "Not set"}
               />
+              <ReviewField label="Vendor" value={item.vendor || "Not set"} />
               <div className="flex items-end justify-start lg:justify-end">
                 <span className="w-fit rounded-md border border-border bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   {item.cadApprovalRequired

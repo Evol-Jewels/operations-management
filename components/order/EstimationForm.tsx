@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -73,12 +73,6 @@ export function EstimationForm({
     (state) => state.addProductEstimation,
   );
 
-  useEffect(() => {
-    if (metalWeight || stoneDetails.length > 0) {
-      setFinalAmount(calculateEstimationAmount());
-    }
-  }, [metalWeight, stoneDetails]);
-
   function addStone() {
     setStoneDetails([
       ...stoneDetails,
@@ -89,6 +83,7 @@ export function EstimationForm({
         pieces: 0,
       },
     ]);
+    setFinalAmount(calculateEstimationAmount());
   }
 
   function updateStone(
@@ -99,10 +94,12 @@ export function EstimationForm({
     const updated = [...stoneDetails];
     updated[index] = { ...updated[index], [field]: value };
     setStoneDetails(updated);
+    setFinalAmount(calculateEstimationAmount());
   }
 
   function removeStone(index: number) {
     setStoneDetails(stoneDetails.filter((_, i) => i !== index));
+    setFinalAmount(calculateEstimationAmount());
   }
 
   function handleSubmit() {
@@ -155,7 +152,10 @@ export function EstimationForm({
               id="metal-weight"
               type="number"
               value={metalWeight}
-              onChange={(e) => setMetalWeight(e.target.value)}
+              onChange={(e) => {
+                setMetalWeight(e.target.value);
+                setFinalAmount(calculateEstimationAmount());
+              }}
               placeholder="Enter metal weight"
             />
           </div>
@@ -218,7 +218,9 @@ export function EstimationForm({
                     <StoneTypeCombobox
                       options={stoneTypesQuery.options}
                       value={stone.type || ""}
-                      onValueChange={(value) => updateStone(index, "type", value)}
+                      onValueChange={(value) =>
+                        updateStone(index, "type", value)
+                      }
                       loading={stoneTypesQuery.isLoading}
                       placeholder="Select"
                       className="h-8 text-xs"
@@ -249,7 +251,7 @@ export function EstimationForm({
                         updateStone(
                           index,
                           "pieces",
-                          parseInt(e.target.value) || 0,
+                          parseInt(e.target.value, 10) || 0,
                         )
                       }
                       placeholder="0"
