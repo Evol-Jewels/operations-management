@@ -9,8 +9,8 @@ import {
 import type { RequirementDraft } from "./requirement-form-types";
 import {
   CERTIFICATIONS,
-  METAL_COLOURS,
-  METAL_PURITIES,
+  getMetalColours,
+  getMetalPurities,
   METAL_TYPES,
   POLISH_OPTIONS,
 } from "./requirement-options";
@@ -24,6 +24,32 @@ export function MetalDetailsSection({
 }) {
   const updateDetails = (patch: Partial<RequirementDraft["details"]>) =>
     onChange({ ...value, details: { ...value.details, ...patch } });
+  const metalColours = getMetalColours(value.metalType);
+  const metalPurities = getMetalPurities(value.metalType);
+
+  const updateMetalType = (metalType: string) => {
+    const nextColours = getMetalColours(metalType);
+    const nextPurities = getMetalPurities(metalType);
+    const fixedMetalDetails = metalType === "Silver" || metalType === "Platinum";
+
+    onChange({
+      ...value,
+      metalType,
+      metalPurity: nextPurities.includes(value.metalPurity)
+        ? value.metalPurity
+        : fixedMetalDetails
+          ? (nextPurities[0] ?? "")
+          : "",
+      details: {
+        ...value.details,
+        metalColor: nextColours.includes(value.details.metalColor ?? "")
+          ? value.details.metalColor
+          : fixedMetalDetails
+            ? (nextColours[0] ?? "")
+            : "",
+      },
+    });
+  };
 
   return (
     <SectionShell eyebrow="Metal" title="Metal, polish and requirement notes">
@@ -32,17 +58,17 @@ export function MetalDetailsSection({
           label="Metal type"
           value={value.metalType}
           options={METAL_TYPES}
-          onChange={(metalType) => onChange({ ...value, metalType })}
+          onChange={updateMetalType}
           required
         />
         <OptionTextField
           label="Metal color"
           value={value.details.metalColor}
-          options={METAL_COLOURS}
+          options={metalColours}
           onChange={(metalColor) => updateDetails({ metalColor })}
         />
         <TextField
-          label="Gold weight (in gms)"
+          label="Metal weight (in gms)"
           value={value.metalWeight}
           placeholder="5.800"
           inputMode="decimal"
@@ -52,7 +78,7 @@ export function MetalDetailsSection({
         <OptionTextField
           label="Metal KT / purity"
           value={value.metalPurity}
-          options={METAL_PURITIES}
+          options={metalPurities}
           onChange={(metalPurity) => onChange({ ...value, metalPurity })}
         />
         <OptionTextField
