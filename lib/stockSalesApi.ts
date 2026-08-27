@@ -81,7 +81,11 @@ export function fetchStockSalesAnalytics(
   return apiFetch<StockSalesAnalyticsResponse>(
     buildUrl("api/v1/stock-sales/sales-analytics", {
       period: query.period,
-      saleMonth: query.period === "month" ? query.saleMonth : undefined,
+      range: query.range,
+      saleMonth:
+        !query.range && query.period === "month" ? query.saleMonth : undefined,
+      saleYear:
+        !query.range && query.period === "year" ? query.saleYear : undefined,
     }),
   );
 }
@@ -92,7 +96,11 @@ export function fetchStockSalesLeaderboard(
   return apiFetch<StockSalesLeaderboardResponse>(
     buildUrl("api/v1/stock-sales/leaderboard", {
       period: query.period,
-      saleMonth: query.period === "month" ? query.saleMonth : undefined,
+      range: query.range,
+      saleMonth:
+        !query.range && query.period === "month" ? query.saleMonth : undefined,
+      saleYear:
+        !query.range && query.period === "year" ? query.saleYear : undefined,
     }),
   );
 }
@@ -101,7 +109,11 @@ export function fetchMyStockSales(query: StockSalesAnalyticsQuery = {}) {
   return apiFetch<StockSalesMeResponse>(
     buildUrl("api/v1/stock-sales/me", {
       period: query.period,
-      saleMonth: query.period === "month" ? query.saleMonth : undefined,
+      range: query.range,
+      saleMonth:
+        !query.range && query.period === "month" ? query.saleMonth : undefined,
+      saleYear:
+        !query.range && query.period === "year" ? query.saleYear : undefined,
     }),
   );
 }
@@ -114,7 +126,13 @@ export function fetchSalesPersonStockSales(
       `api/v1/stock-sales/sales-analytics/salesperson/${query.salesPersonId}`,
       {
         period: query.period,
-        saleMonth: query.period === "month" ? query.saleMonth : undefined,
+        range: query.range,
+        saleMonth:
+          !query.range && query.period === "month"
+            ? query.saleMonth
+            : undefined,
+        saleYear:
+          !query.range && query.period === "year" ? query.saleYear : undefined,
       },
     ),
   );
