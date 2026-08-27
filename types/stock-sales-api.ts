@@ -67,12 +67,15 @@ export interface RecentProductSalesPageResponse {
   };
 }
 
-export type StockSalesAnalyticsPeriod = "month" | "allTime";
+export type StockSalesAnalyticsPeriod = "month" | "year" | "allTime";
+export type StockSalesAnalyticsRange = "30" | "90" | "360" | "thisYear";
 export type StockSalesMoneyValue = string | number;
 
 export interface StockSalesAnalyticsQuery {
   period?: StockSalesAnalyticsPeriod;
+  range?: StockSalesAnalyticsRange;
   saleMonth?: string;
+  saleYear?: string;
 }
 
 export interface StockSalesPersonAnalyticsQuery
@@ -94,7 +97,7 @@ export interface StockSalesAnalyticsBreakdownRow {
   revenue: string;
   target: string | null;
   revenueShare: string;
-  incentive: {
+  incentive?: {
     eligible: boolean;
     earnedAmount: string;
     payableAmount: string;
