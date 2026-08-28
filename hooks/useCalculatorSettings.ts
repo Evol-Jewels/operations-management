@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_CALCULATOR_SETTINGS } from "@/lib/calculator/constants";
+import { calculateGoldRate } from "@/lib/calculator/pricing";
 import {
   fetchAllStoneSlabs,
   fetchAllStoneTypes,
@@ -10,6 +11,7 @@ import {
 import { fetchGoldRate, fetchSystemConfigs } from "@/lib/systemConfigApi";
 import type {
   CalculatorSettings,
+  CalculatorMetalType,
   CalculatorStoneSlab,
   CalculatorStoneType,
   MetalPurity,
@@ -40,6 +42,11 @@ function toNumber(value: unknown, fallback: number) {
     if (Number.isFinite(parsed)) return parsed;
   }
   return fallback;
+}
+
+function toConfiguredPrice(value: unknown) {
+  const price = toNumber(value, Number.NaN);
+  return Number.isFinite(price) && price >= 0 ? price : null;
 }
 
 function normalizeGstRate(value: unknown, fallback: number) {
@@ -140,6 +147,34 @@ function getFirstConfigValue(configs: SystemConfig[], keys: string[]) {
   return undefined;
 }
 
+function parseMetalTypes(value: unknown): CalculatorMetalType[] | null {
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    const metals = parsed.filter((metal): metal is CalculatorMetalType => {
+      if (!metal || typeof metal !== "object") return false;
+      const candidate = metal as Partial<CalculatorMetalType>;
+      return (
+        typeof candidate.id === "string" &&
+        typeof candidate.name === "string" &&
+        Array.isArray(candidate.purities) &&
+        candidate.purities.every(
+          (purity) =>
+            purity &&
+            typeof purity.id === "string" &&
+            typeof purity.label === "string" &&
+            typeof purity.ratePerGram === "number" &&
+            Number.isFinite(purity.ratePerGram),
+        )
+      );
+    });
+    return metals.length ? metals : null;
+  } catch {
+    return null;
+  }
+}
+
 function upsertConfig(
   configs: SystemConfig[],
   key: string,
@@ -168,6 +203,40 @@ function upsertConfig(
 
 function mapSystemConfigs(configs: SystemConfig[]) {
   const defaults = DEFAULT_CALCULATOR_SETTINGS;
+  const configuredMetals = parseMetalTypes(
+    getFirstConfigValue(configs, ["calculatorMetals", "metalTypes"]),
+  );
+  const fallbackMetals = defaults.metalTypes.map((metal) => ({
+    ...metal,
+    purities: metal.purities.map((purity) => ({ ...purity })),
+  }));
+  const configuredMetalPrices = new Map<string, number | null>([
+    ["silver", toConfiguredPrice(getConfigValue(configs, "silverPrice"))],
+    ["platinum", toConfiguredPrice(getConfigValue(configs, "platinumPrice"))],
+  ]);
+  const baseMetalTypes = configuredMetals
+    ? [
+        ...configuredMetals,
+        ...fallbackMetals.filter(
+          (fallbackMetal) =>
+            !configuredMetals.some(
+              (configuredMetal) => configuredMetal.id === fallbackMetal.id,
+            ),
+        ),
+      ]
+    : fallbackMetals;
+  const metalTypes = baseMetalTypes
+    .map((metal) => {
+      const configuredPrice = configuredMetalPrices.get(metal.id);
+      return {
+        ...metal,
+        purities: metal.purities.map((purity) => ({
+          ...purity,
+          ratePerGram: configuredPrice ?? purity.ratePerGram,
+        })),
+      };
+    })
+    .filter((metal) => configuredMetalPrices.get(metal.id) !== null);
 
   return {
     makingChargeFlat: toNumber(
@@ -187,20 +256,24 @@ function mapSystemConfigs(configs: SystemConfig[]) {
     ),
     purityPercentages: {
       ...defaults.purityPercentages,
+      "9K": toNumber(
+        getFirstConfigValue(configs, ["purity_9", "purity9K"]),
+        defaults.purityPercentages["9K"],
+      ),
       "24K": toNumber(
-        getConfigValue(configs, "purity24K"),
+        getFirstConfigValue(configs, ["purity_24", "purity24K"]),
         defaults.purityPercentages["24K"],
       ),
       "22K": toNumber(
-        getConfigValue(configs, "purity22K"),
+        getFirstConfigValue(configs, ["purity_22", "purity22K"]),
         defaults.purityPercentages["22K"],
       ),
       "18K": toNumber(
-        getConfigValue(configs, "purity18K"),
+        getFirstConfigValue(configs, ["purity_18", "purity18K"]),
         defaults.purityPercentages["18K"],
       ),
       "14K": toNumber(
-        getConfigValue(configs, "purity14K"),
+        getFirstConfigValue(configs, ["purity_14", "purity14K"]),
         defaults.purityPercentages["14K"],
       ),
       Other: toNumber(
@@ -208,6 +281,7 @@ function mapSystemConfigs(configs: SystemConfig[]) {
         defaults.purityPercentages.Other,
       ),
     } satisfies Record<MetalPurity, number>,
+    metalTypes,
   };
 }
 
@@ -269,6 +343,12 @@ function systemConfigsFromSettings(
   );
   configs = upsertConfig(
     configs,
+    "purity_9",
+    String(settings.purityPercentages["9K"]),
+    now,
+  );
+  configs = upsertConfig(
+    configs,
     "purity24K",
     String(settings.purityPercentages["24K"]),
     now,
@@ -297,7 +377,6 @@ function systemConfigsFromSettings(
     String(settings.purityPercentages.Other),
     now,
   );
-
   return configs;
 }
 
@@ -405,13 +484,9 @@ export function useCalculatorSettings() {
 
     async function refreshCachedSettings() {
       try {
-        const systemConfigsPromise = missingSystemConfigs
-          ? fetchSystemConfigs()
-          : Promise.resolve(systemConfigs);
-
         const [systemConfigsResult, stoneTypesResult, stoneSlabsResult] =
           await Promise.all([
-            systemConfigsPromise,
+            fetchSystemConfigs(),
             fetchAllStoneTypes(),
             fetchAllStoneSlabs(),
           ]);
@@ -454,6 +529,21 @@ export function useCalculatorSettings() {
     return {
       ...configSettings,
       goldRate24k,
+      metalTypes: configSettings.metalTypes.map((metal) =>
+        metal.id === "gold"
+          ? {
+              ...metal,
+              purities: metal.purities.map((purity) => ({
+                ...purity,
+                ratePerGram: calculateGoldRate(
+                  goldRate24k,
+                  purity.id as MetalPurity,
+                  configSettings.purityPercentages,
+                ),
+              })),
+            }
+          : metal,
+      ),
       stoneTypes: mappedStoneTypes,
     };
   }, [goldRateQuery.data, stoneSlabs, stoneTypes, systemConfigs]);

@@ -9,8 +9,16 @@ import { CreateOrderForm } from "@/components/orders/create-order-form";
 function OrderFormWrapper() {
   const searchParams = useSearchParams();
   const enquiryId = searchParams.get("from");
+  const refillProductCode = searchParams.get("refill")?.trim() || undefined;
 
-  if (!enquiryId) return <CreateOrderForm />;
+  if (!enquiryId) {
+    return (
+      <CreateOrderForm
+        key={refillProductCode ?? "direct-order"}
+        refillProductCode={refillProductCode}
+      />
+    );
+  }
 
   return <ConvertOrderForm enquiryId={enquiryId} />;
 }

@@ -35,16 +35,41 @@ export const METAL_TYPES: readonly string[] = [
   "White Gold",
   "Rose Gold",
   "Silver",
+  "Platinum",
   "Others",
 ];
 
-export const METAL_PURITIES: MetalPurity[] = [
+export const METAL_PURITIES: readonly string[] = [
+  "9K",
   "14K",
   "18K",
   "22K",
   "24K",
   "Other",
 ];
+
+export const METAL_COLORS = [
+  "Yellow",
+  "Rose",
+  "White",
+  "Rose + Yellow",
+  "Rose + White",
+  "Yellow + White",
+  "Rose + Yellow + White",
+] as const;
+
+export function getMetalPurities(metalType: string): readonly string[] {
+  if (metalType === "Silver") return ["925"];
+  if (metalType === "Platinum") return ["950"];
+  return METAL_PURITIES;
+}
+
+export function getMetalColors(metalType: string): readonly string[] {
+  if (metalType === "Silver" || metalType === "Platinum") return ["White"];
+  if (metalType === "White Gold") return ["White"];
+  if (metalType === "Rose Gold") return ["Rose"];
+  return METAL_COLORS;
+}
 
 export const STONE_CUTS = [
   "Round Brilliant",

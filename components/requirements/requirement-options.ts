@@ -17,9 +17,11 @@ export const ORDER_TYPES = [
   "Estimation",
 ] as const;
 
-export const METAL_TYPES = ["Gold", "Silver"] as const;
+export const METAL_TYPES = ["Gold", "Silver", "Platinum"] as const;
 
-export const METAL_PURITIES = ["14KT", "18KT", "22KT"] as const;
+export const GOLD_PURITIES = ["9KT", "14KT", "18KT", "22KT", "24KT"] as const;
+export const SILVER_PURITIES = ["925"] as const;
+export const PLATINUM_PURITIES = ["950"] as const;
 
 export const METAL_COLOURS = [
   "Rose",
@@ -30,6 +32,17 @@ export const METAL_COLOURS = [
   "Yellow + White",
   "Rose + Yellow + White",
 ] as const;
+
+export function getMetalPurities(metalType: string): readonly string[] {
+  if (metalType === "Silver") return SILVER_PURITIES;
+  if (metalType === "Platinum") return PLATINUM_PURITIES;
+  return GOLD_PURITIES;
+}
+
+export function getMetalColours(metalType: string): readonly string[] {
+  if (metalType === "Silver" || metalType === "Platinum") return ["White"];
+  return METAL_COLOURS;
+}
 
 export const DIAMOND_TYPES = ["Lab Grown", "Mine Diamond"] as const;
 export const DIAMOND_METHODS = ["CVD", "HPHT"] as const;

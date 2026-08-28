@@ -1,4 +1,8 @@
 import type { Product } from "@/components/enquiries/enquiry-form-types";
+import {
+  getInventoryImages,
+  getInventoryMediaUrl,
+} from "@/lib/inventory-media";
 import type {
   CalculatorFormState,
   CalculatorPricingBreakdown,
@@ -43,12 +47,13 @@ export function parseInventoryNumber(
 export function getInventoryPrimaryImage(
   product: InventoryProduct,
 ): InventoryMedia | undefined {
-  return product.media.find((item) => item.isPrimary) ?? product.media[0];
+  const images = getInventoryImages(product);
+  return images[0];
 }
 
 export function getInventoryPurity(product: InventoryProduct): MetalPurity {
   const purity = `${product.purity}K`;
-  return ["14K", "18K", "22K", "24K"].includes(purity)
+  return ["9K", "14K", "18K", "22K", "24K"].includes(purity)
     ? (purity as MetalPurity)
     : "Other";
 }
@@ -113,6 +118,9 @@ export function buildInventoryCalculatorForm(
 ): CalculatorFormState {
   const netGoldWeight = parseInventoryNumber(product.netWeight);
 
+  const primaryImage = getInventoryPrimaryImage(product);
+  const productImages = getInventoryImages(product);
+
   return {
     netGoldWeight,
     purity: getInventoryPurity(product),
@@ -123,7 +131,10 @@ export function buildInventoryCalculatorForm(
     makingCharge: estimationMakingCharge(product, settings, netGoldWeight),
     productName: product.name,
     productNote: product.notes ?? "",
-    productImageUrl: getInventoryPrimaryImage(product)?.storageKey,
+    productImageUrl: primaryImage
+      ? getInventoryMediaUrl(primaryImage)
+      : undefined,
+    productImageUrls: productImages.map(getInventoryMediaUrl),
   };
 }
 
@@ -216,6 +227,9 @@ export function normalizeInventoryProductEstimate(
     }),
   );
 
+  const primaryImage = getInventoryPrimaryImage(product);
+  const imageUrls = getInventoryImages(product).map(getInventoryMediaUrl);
+
   return {
     product: {
       lookupKey: `${product.id}:${product.productCode}`,
@@ -224,7 +238,8 @@ export function normalizeInventoryProductEstimate(
       productName: product.name,
       description: product.description ?? "",
       note: product.notes ?? "",
-      imageUrl: getInventoryPrimaryImage(product)?.storageKey ?? null,
+      imageUrl: primaryImage ? getInventoryMediaUrl(primaryImage) : null,
+      imageUrls,
       purity: getInventoryPurity(product),
       netGoldWeight: parseInventoryNumber(product.netWeight),
       grossWeight: parseInventoryNumber(product.grossWeight),

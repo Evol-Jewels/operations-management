@@ -27,6 +27,7 @@ function estimationToApiInput(estimation: ProductEstimation) {
     stones: estimation.stoneDetails.map((stone) => ({
       stoneType: stone.type,
       weight: toDecimal(stone.netWeight, 3),
+      pieces: stone.pieces,
     })),
     makingCost: toDecimal(estimation.makingCost ?? 0),
     vendorName: estimation.vendorName?.trim() || undefined,

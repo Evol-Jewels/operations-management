@@ -3,11 +3,65 @@ import type {
   CalculatorPricedStoneDetail,
   CalculatorPricingBreakdown,
   CalculatorSettings,
+  CalculatorMetalInput,
   CalculatorStoneInput,
   CalculatorStoneSlab,
   CalculatorStoneType,
   MetalPurity,
 } from "@/types";
+
+export function computeMetalDetails(
+  settings: CalculatorSettings,
+  metals: CalculatorMetalInput[],
+) {
+  return metals.map((metal) => {
+    const metalType = settings.metalTypes.find(
+      (candidate) => candidate.id === metal.metalTypeId,
+    );
+    const purity = metalType?.purities.find(
+      (candidate) => candidate.id === metal.purityId,
+    );
+    const ratePerGram = metal.rateOverride ?? resolveMetalRate(settings, metal);
+
+    return {
+      ...metal,
+      metalName: metalType?.name ?? "Metal",
+      purityLabel: purity?.label ?? metal.purityId,
+      ratePerGram,
+      totalCost: normalizeWeight(metal.weight) * ratePerGram,
+    };
+  });
+}
+
+export function resolveMetalRate(
+  settings: CalculatorSettings,
+  metal: Pick<CalculatorMetalInput, "metalTypeId" | "purityId">,
+) {
+  const metalType = settings.metalTypes.find(
+    (candidate) => candidate.id === metal.metalTypeId,
+  );
+  const fixedPurity = metalType?.purities.find(
+    (candidate) => candidate.id === metal.purityId,
+  );
+  if (fixedPurity) return fixedPurity.ratePerGram;
+  if (metal.metalTypeId !== "gold")
+    return metalType?.purities[0]?.ratePerGram ?? 0;
+
+  const normalizedPurity = metal.purityId.trim().toUpperCase();
+  const numericPurity = Number.parseFloat(normalizedPurity);
+  if (!Number.isFinite(numericPurity) || numericPurity <= 0) return 0;
+
+  const gold24kRate =
+    metalType?.purities.find((purity) => purity.id === "24K")?.ratePerGram ??
+    settings.goldRate24k;
+  const purityRatio = normalizedPurity.includes("%")
+    ? numericPurity / 100
+    : numericPurity > 24
+      ? numericPurity / 1000
+      : numericPurity / 24;
+
+  return Math.round(gold24kRate * Math.min(purityRatio, 1));
+}
 
 function normalizeWeight(weight: number): number {
   return Number(weight.toFixed(3));
@@ -70,9 +124,13 @@ export function computeEstimateFromInputs(
     goldRateOverride?: number;
     makingCostOverride?: number;
     gstRateOverride?: number;
+    metals?: CalculatorMetalInput[];
   } = {},
 ): CalculatorPricingBreakdown {
   const normalizedNetGoldWeight = normalizeWeight(netGoldWeight);
+  const metalDetails = options.metals?.length
+    ? computeMetalDetails(settings, options.metals)
+    : undefined;
   const goldRateValue =
     options.goldRateOverride !== undefined && options.goldRateOverride > 0
       ? options.goldRateOverride
@@ -86,8 +144,14 @@ export function computeEstimateFromInputs(
     0,
   );
   const totalStoneWeightInGrams = totalStoneWeightInCarats * CARAT_TO_GRAM;
-  const grossWeight = normalizedNetGoldWeight + totalStoneWeightInGrams;
-  const goldCost = normalizedNetGoldWeight * goldRateValue;
+  const totalMetalWeight = metalDetails
+    ? metalDetails.reduce((sum, metal) => sum + metal.weight, 0)
+    : normalizedNetGoldWeight;
+  const grossWeight =
+    normalizeWeight(totalMetalWeight) + totalStoneWeightInGrams;
+  const goldCost = metalDetails
+    ? metalDetails.reduce((sum, metal) => sum + metal.totalCost, 0)
+    : normalizedNetGoldWeight * goldRateValue;
   const makingCost =
     options.makingCostOverride ??
     calculateMakingCharge(
@@ -131,6 +195,7 @@ export function computeEstimateFromInputs(
     grossWeight,
     goldRateValue,
     goldCost,
+    metalDetails,
     makingCost,
     stoneDetails,
     totalStoneCost,

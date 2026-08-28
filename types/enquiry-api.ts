@@ -14,6 +14,7 @@ export interface BackendEnquiryStone {
   stoneType: string;
   slabId?: string;
   weight?: string;
+  pieces?: number;
 }
 
 export interface BackendEnquiryDiamond {

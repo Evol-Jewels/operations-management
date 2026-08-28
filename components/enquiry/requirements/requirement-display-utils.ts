@@ -37,9 +37,10 @@ export function getItemStatus(status?: EnquiryItemStatus): EnquiryItemStatus {
 }
 
 export function getDefaultPurity(value?: string): MetalPurity {
-  return value && ["14K", "18K", "22K", "24K"].includes(value)
-    ? (value as MetalPurity)
-    : "22K";
+  const normalized = value?.trim().toUpperCase();
+  const karat = normalized?.match(/^(9|14|18|22|24)\s*K(?:T)?$/)?.[1];
+
+  return karat ? (`${karat}K` as MetalPurity) : "22K";
 }
 
 export function normalizeRequirementItems({
@@ -53,7 +54,12 @@ export function normalizeRequirementItems({
 }): RequirementDisplayItem[] {
   const existingItems = selectedProducts.map((product) => {
     const references = product.references ?? imageReference(product.imageUrl);
-    const metal = [product.metalType, product.metalPurity].filter(Boolean).join(" ");
+    const metal = [
+      product.metalType,
+      getDisplayMetalPurity(product.metalPurity),
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     return {
       id: product.id,
@@ -79,7 +85,12 @@ export function normalizeRequirementItems({
 
   const customItems = customProducts.map((product) => {
     const details = product.details ?? {};
-    const metal = [product.metalType, product.metalPurity].filter(Boolean).join(" ");
+    const metal = [
+      product.metalType,
+      getDisplayMetalPurity(product.metalPurity),
+    ]
+      .filter(Boolean)
+      .join(" ");
     const title = product.category || "Custom requirement";
 
     return {
@@ -131,6 +142,14 @@ function imageReference(imageUrl?: string): EnquiryReference[] {
 
 export function hasValue(value: unknown) {
   return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+export function getDisplayMetalPurity(value?: string | null) {
+  if (!hasValue(value) || value?.trim().toLowerCase() === "other") {
+    return undefined;
+  }
+
+  return value;
 }
 
 export function compactUrl(url?: string) {

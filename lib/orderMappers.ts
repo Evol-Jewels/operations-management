@@ -1,8 +1,8 @@
 import { mergeActivityFeed } from "@/lib/enquiryMappers";
 import { normalizePerson } from "@/lib/people";
 import type {
-  EnquiryCustomProduct,
   CertificationType,
+  EnquiryCustomProduct,
   EnquiryReference,
   EnquirySelectedProduct,
   JewelleryCategory,
@@ -50,14 +50,17 @@ function normalizeMetalType(value?: string | null): MetalType {
 
 function normalizeMetalPurity(value?: string | number | null): MetalPurity {
   if (!value) return "Other";
-  const str = String(value).trim();
-  if (["14K", "18K", "22K", "24K", "Other"].includes(str)) {
-    return str as MetalPurity;
+
+  const normalized = String(value).trim().toUpperCase();
+  if (normalized === "OTHER") return "Other";
+
+  const karat =
+    normalized.match(/^(9|14|18|22|24)\s*K(?:T)?$/)?.[1] ??
+    normalized.match(/^(9|14|18|22|24)$/)?.[1];
+  if (karat) {
+    return `${karat}K` as MetalPurity;
   }
-  const num = Number(str);
-  if (!Number.isNaN(num) && [14, 18, 22, 24].includes(num)) {
-    return `${num}K` as MetalPurity;
-  }
+
   return "Other";
 }
 
@@ -79,9 +82,7 @@ export function mapBackendOrderStatusToStage(
   return ORDER_STATUS_TO_STAGE[status];
 }
 
-function mapProductDetailsCategory(
-  category?: string,
-): JewelleryCategory {
+function mapProductDetailsCategory(category?: string): JewelleryCategory {
   const map: Record<string, JewelleryCategory> = {
     RING: "Ring",
     NECKLACE: "Necklace",
@@ -140,7 +141,7 @@ function isBackendProductDetails(
 function isBackendCustomProductDetails(
   product: BackendOrderRow["productDetails"],
 ): product is BackendCustomProductDetails {
-  return Boolean(product && "metalNetWeight" in product);
+  return Boolean(product && !("productCode" in product));
 }
 
 function getOrderCustomProduct(
@@ -154,7 +155,9 @@ function getOrderCustomProduct(
   return null;
 }
 
-function mapOrderCustomProduct(order: BackendOrderRow): EnquiryCustomProduct | null {
+function mapOrderCustomProduct(
+  order: BackendOrderRow,
+): EnquiryCustomProduct | null {
   const product = getOrderCustomProduct(order);
   if (!product) return null;
 
@@ -196,7 +199,9 @@ function mapOrderCustomProduct(order: BackendOrderRow): EnquiryCustomProduct | n
   };
 }
 
-function mapOrderSelectedProduct(order: BackendOrderRow): EnquirySelectedProduct | null {
+function mapOrderSelectedProduct(
+  order: BackendOrderRow,
+): EnquirySelectedProduct | null {
   if (order.productType !== "EXISTING") return null;
   const product = order.productDetails;
   if (!isBackendProductDetails(product)) return null;
@@ -236,6 +241,7 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
       salespersonName: order?.salesPerson?.name,
       createdBy: normalizePerson(order.createdBy, order?.salesPerson?.name),
       vendorName: order.vendor ?? undefined,
+      vendorDeliveryDate: order.vendorDeliveryDate ?? undefined,
       category: mapProductDetailsCategory(productDetails.category),
       metalType: normalizeMetalType(productDetails.color),
       metalPurity: normalizeMetalPurity(productDetails.purity),
@@ -276,6 +282,7 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
     salespersonName: order?.salesPerson?.name,
     createdBy: normalizePerson(order.createdBy, order?.salesPerson?.name),
     vendorName: order.vendor ?? undefined,
+    vendorDeliveryDate: order.vendorDeliveryDate ?? undefined,
     category: normalizeCategory(custom?.category),
     metalType: normalizeMetalType(custom?.metalType),
     metalPurity: normalizeMetalPurity(custom?.metalPurity),

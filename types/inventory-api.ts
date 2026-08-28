@@ -5,6 +5,7 @@ export type InventoryMedia = {
   altText: string;
   sortOrder: number;
   isPrimary: boolean;
+  source?: "CATALOG" | "LINE_SHEET";
 };
 
 export type InventoryStone = {
@@ -47,6 +48,15 @@ export type InventoryProductEstimation = {
   issues: InventoryEstimationIssue[];
 };
 
+export type InventoryProductPrice = {
+  goldCost: number;
+  nonGoldCost: number;
+  subtotal: number;
+  gstPercentage: number;
+  gst: number;
+  total: number;
+};
+
 export type ProductColor = "YELLOW" | "ROSE" | "WHITE" | "OTHERS";
 
 export const PRODUCT_COLOR_VALUES: readonly ProductColor[] = [
@@ -86,6 +96,7 @@ export type InventoryProduct = {
   totalStoneWeight: string;
   notes: string | null;
   media: InventoryMedia[];
+  price: InventoryProductPrice;
   stones: InventoryStone[];
   stonesMappingStatus?: InventoryStonesMappingStatus;
   estimation?: InventoryProductEstimation;
@@ -105,6 +116,8 @@ export type InventoryProductListQuery = {
   isCustomerProduct?: boolean;
   netWeightFrom?: number;
   netWeightTo?: number;
+  priceFrom?: number;
+  priceTo?: number;
   sourceCreatedFrom?: string;
   sourceCreatedTo?: string;
   limit?: number;
@@ -157,6 +170,8 @@ export type InventoryAnalyticsResponse = {
     totalNetWeight: number;
     totalGrossWeight: number;
     averageNetWeight: number;
+    totalEstimatedPrice: number;
+    averageEstimatedPrice: number;
   };
   breakdowns: {
     byCategory: InventoryAnalyticsBucket[];

@@ -57,7 +57,7 @@ interface SettingsViewProps {
   syncError: string | null;
 }
 
-const GOLD_PURITIES: MetalPurity[] = ["24K", "22K", "18K", "14K"];
+const GOLD_PURITIES: MetalPurity[] = ["24K", "22K", "18K", "14K", "9K"];
 const settingsCardClass = "rounded-lg border border-border py-0";
 const sectionTriggerClass =
   "flex min-h-16 w-full items-center justify-between gap-3 rounded-lg px-4 py-3.5 text-left transition-colors hover:bg-muted/50 sm:px-5";
@@ -255,7 +255,7 @@ export function SettingsView({
           <Collapsible open={goldExpanded} onOpenChange={setGoldExpanded}>
             <CollapsibleTrigger asChild>
               <button type="button" className={sectionTriggerClass}>
-                <span className={sectionTitleClass}>Gold Rates</span>
+                <span className={sectionTitleClass}>Metal Rates</span>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="text-xs text-muted-foreground">
                     Live: {formatCurrency(settings.goldRate24k)}/g
@@ -311,6 +311,38 @@ export function SettingsView({
                       </span>
                     </div>
                   ))}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Other metals
+                  </p>
+                  {settings.metalTypes
+                    .filter((metal) => metal.id !== "gold")
+                    .flatMap((metal) =>
+                      metal.purities.map((purity) => (
+                        <div
+                          key={`${metal.id}-${purity.id}`}
+                          className="grid grid-cols-[minmax(0,1fr)_minmax(120px,auto)] items-center gap-3 rounded-md bg-muted/50 px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              {metal.name}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Purity {purity.label}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <span className="text-sm font-mono tabular-nums text-foreground">
+                              {formatCurrency(purity.ratePerGram)}/g
+                            </span>
+                            <Badge variant="outline" className="font-normal">
+                              System config
+                            </Badge>
+                          </div>
+                        </div>
+                      )),
+                    )}
                 </div>
               </div>
             </CollapsibleContent>

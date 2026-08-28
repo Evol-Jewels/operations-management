@@ -1,16 +1,22 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Input } from "@/components/ui/input";
+import {
+  type HTMLAttributes,
+  type ReactNode,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { DatePicker } from "@/components/ui/date-picker";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import { FormField } from "@/components/ui/form-field";
 import { cn } from "@/lib/utils";
 
 export function TextField({
@@ -19,19 +25,28 @@ export function TextField({
   onChange,
   placeholder,
   required,
+  optional,
   type = "text",
+  inputMode,
 }: {
   label: string;
   value?: string;
   onChange: (value: string) => void;
   placeholder?: string;
   required?: boolean;
+  optional?: boolean;
   type?: string;
+  inputMode?: HTMLAttributes<HTMLInputElement>["inputMode"];
 }) {
   const id = `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 
   return (
-    <FormField label={label} htmlFor={id} required={required}>
+    <FormField
+      label={label}
+      htmlFor={id}
+      required={required}
+      optional={optional}
+    >
       {type === "date" ? (
         <DatePicker
           id={id}
@@ -43,6 +58,7 @@ export function TextField({
         <Input
           id={id}
           type={type}
+          inputMode={inputMode}
           value={value ?? ""}
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
@@ -97,11 +113,14 @@ export function OptionTextField({
       .sort((a, b) => a.rank - b.rank || a.index - b.index)
       .map(({ option }) => option);
   }, [options, searchValue]);
-
-  useEffect(() => setActiveIndex(0), [searchValue]);
+  const safeActiveIndex = Math.min(
+    activeIndex,
+    Math.max(rankedOptions.length - 1, 0),
+  );
 
   const selectOption = (option: string) => {
     onChange(option);
+    setActiveIndex(0);
     setOpen(false);
     inputRef.current?.focus();
   };
@@ -118,6 +137,7 @@ export function OptionTextField({
             onFocus={() => setOpen(true)}
             onChange={(event) => {
               onChange(event.target.value);
+              setActiveIndex(0);
               setOpen(true);
             }}
             onKeyDown={(event) => {
@@ -136,9 +156,13 @@ export function OptionTextField({
                 event.preventDefault();
                 setActiveIndex((current) => Math.max(current - 1, 0));
               }
-              if (event.key === "Enter" && open && rankedOptions[activeIndex]) {
+              if (
+                event.key === "Enter" &&
+                open &&
+                rankedOptions[safeActiveIndex]
+              ) {
                 event.preventDefault();
-                selectOption(rankedOptions[activeIndex]);
+                selectOption(rankedOptions[safeActiveIndex]);
               }
             }}
             className="h-9"
@@ -169,7 +193,7 @@ export function OptionTextField({
                   onClick={() => selectOption(option)}
                   className={cn(
                     "flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm transition-colors",
-                    (selected || index === activeIndex) &&
+                    (selected || index === safeActiveIndex) &&
                       "bg-accent text-accent-foreground",
                   )}
                 >

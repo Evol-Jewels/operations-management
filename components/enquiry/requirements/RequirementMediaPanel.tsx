@@ -2,7 +2,7 @@
 
 import { Calculator, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { EnquiryEstimationDialog } from "@/components/enquiry/EnquiryEstimationDialog";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
@@ -24,7 +24,7 @@ export function RequirementMediaPanel({
 }) {
   return (
     <div className="space-y-4">
-      <RequirementImageCarousel item={item} />
+      <RequirementImageCarousel key={item.id} item={item} />
       {!isFinalized ? (
         <div className="flex justify-center">
           <EnquiryEstimationDialog
@@ -49,15 +49,8 @@ function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
     (image): image is typeof image & { url: string } => Boolean(image.url),
   );
   const hasMany = images.length > 1;
-  const image = images[index];
-
-  useEffect(() => {
-    setIndex(0);
-  }, [item.id]);
-
-  useEffect(() => {
-    if (index > Math.max(images.length - 1, 0)) setIndex(0);
-  }, [images.length, index]);
+  const safeIndex = Math.min(index, Math.max(images.length - 1, 0));
+  const image = images[safeIndex];
 
   if (!image?.url) {
     return (
@@ -104,7 +97,7 @@ function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
           </div>
         ) : null}
       </div>
-      {images.length > 0 ? (
+      {hasMany ? (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {images.map((imageItem, imageIndex) => (
             <button
@@ -113,7 +106,7 @@ function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
               onClick={() => setIndex(imageIndex)}
               className={cn(
                 "relative size-12 shrink-0 overflow-hidden rounded-md border transition-all",
-                imageIndex === index
+                imageIndex === safeIndex
                   ? "border-foreground"
                   : "border-border opacity-65 hover:opacity-100",
               )}
@@ -183,7 +176,33 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
           {estimation.notes ? <p className="mt-1">{estimation.notes}</p> : null}
         </div>
       ) : null}
+      <dl className="mt-3 grid gap-1.5 border-t border-dashed border-border pt-3 text-xs">
+        {estimation.makingCost !== undefined ? (
+          <EstimateDetail
+            label="Making charge"
+            value={formatCurrency(estimation.makingCost)}
+          />
+        ) : null}
+        {estimation.stoneDetails.map((stone, index) => (
+          <EstimateDetail
+            key={stone.id}
+            label={`Stone ${index + 1}`}
+            value={`${stone.type} · ${stone.netWeight} ct · ${stone.pieces} pcs`}
+          />
+        ))}
+      </dl>
       <Calculator className="mt-3 size-4 text-muted-foreground/50" />
+    </div>
+  );
+}
+
+function EstimateDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-2">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 break-words text-right font-medium text-foreground">
+        {value}
+      </dd>
     </div>
   );
 }

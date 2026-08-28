@@ -426,7 +426,7 @@
   body {
     background: white !important;
     color: black !important;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
     font-size: 11pt;
     line-height: 1.5;
     margin: 0;
@@ -444,8 +444,16 @@
 
   body:has(> #enquiry-print-root) #enquiry-print-root {
     display: block !important;
+    font-family: var(--font-geist-sans), "Segoe UI", sans-serif !important;
     position: static !important;
     width: 100%;
+  }
+
+  body:has(> #enquiry-print-root) #enquiry-print-root,
+  body:has(> #enquiry-print-root) #enquiry-print-root * {
+    box-sizing: border-box;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
   body:has(> #estimation-summary-print-root)

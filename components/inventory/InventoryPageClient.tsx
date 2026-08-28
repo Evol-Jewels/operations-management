@@ -4,12 +4,12 @@ import {
   AlertCircle,
   ArrowLeft,
   Calculator,
-  Columns2,
-  Columns3,
   Diamond,
   Download,
+  Gem,
   MapPin,
   PackageSearch,
+  Palette,
   RefreshCw,
   ScanLine,
   Search,
@@ -31,6 +31,14 @@ import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import { EstimationSummaryCard } from "@/components/calculator/EstimationSummaryCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Carousel,
+  type CarouselApi,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -62,6 +70,11 @@ import { useLocations } from "@/hooks/useManageProducts";
 import { captureProductEvent } from "@/lib/analytics";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
+  getInventoryImages,
+  getInventoryMediaUrl,
+  isInventoryMediaProxyUrl,
+} from "@/lib/inventory-media";
+import {
   getInventoryPrimaryImage,
   normalizeInventoryProductEstimate,
 } from "@/lib/inventoryProductMapping";
@@ -86,8 +99,7 @@ type InventoryCategory =
   | "OTHER";
 type SourceFilter = "ALL" | "CUSTOMER" | "STOCK";
 type ColorFilter = "ALL" | ProductColor;
-type PurityFilter = "ALL" | "14" | "18" | "24";
-type InventoryGridColumns = 2 | 3;
+type PurityFilter = "ALL" | "9" | "14" | "18" | "22" | "24";
 type ActiveFilterChip = {
   key: string;
   label: string;
@@ -115,7 +127,12 @@ function InventoryImageDownloadButton({
     setIsDownloading(true);
 
     try {
-      const response = await fetch(imageUrl);
+      const response = await fetch(imageUrl, {
+        credentials: isInventoryMediaProxyUrl(imageUrl)
+          ? "include"
+          : "same-origin",
+        cache: "no-store",
+      });
       if (!response.ok) throw new Error("Image request failed");
 
       const blob = await response.blob();
@@ -194,8 +211,10 @@ const COLOR_LABELS: Record<ProductColor, string> = {
 };
 
 const PURITY_LABELS: Record<Exclude<PurityFilter, "ALL">, string> = {
+  "9": "9K",
   "14": "14K",
   "18": "18K",
+  "22": "22K",
   "24": "24K",
 };
 
@@ -210,9 +229,10 @@ const QUERY_PARAM_KEYS = {
   location: "locationId",
   netWeightFrom: "netWeightFrom",
   netWeightTo: "netWeightTo",
+  priceFrom: "priceFrom",
+  priceTo: "priceTo",
   sourceCreatedFrom: "sourceCreatedFrom",
   sourceCreatedTo: "sourceCreatedTo",
-  columns: "columns",
 } as const;
 
 function formatWeight(value: string | number, unit: string) {
@@ -259,10 +279,6 @@ function getSourceQueryValue(params: URLSearchParams) {
   return value === "CUSTOMER" || value === "STOCK" ? value : "ALL";
 }
 
-function getColumnsQueryValue(params: URLSearchParams): InventoryGridColumns {
-  return params.get(QUERY_PARAM_KEYS.columns) === "2" ? 2 : 3;
-}
-
 function getMetalLabel(product: InventoryProduct) {
   const color = product.color.trim().toLowerCase();
   const metalColor = color.includes("rose")
@@ -303,13 +319,11 @@ function InventoryProductImage({
   className: string;
   showLabel?: boolean;
 }) {
-  const [hasError, setHasError] = useState(false);
+  const imageUrl = image ? getInventoryMediaUrl(image) : null;
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const hasError = Boolean(imageUrl && failedUrl === imageUrl);
 
-  useEffect(() => {
-    setHasError(false);
-  }, [image?.storageKey]);
-
-  if (!image || hasError) {
+  if (!image || !imageUrl || hasError) {
     return (
       <div
         role="img"
@@ -331,26 +345,153 @@ function InventoryProductImage({
 
   return (
     <Image
-      src={image.storageKey}
+      src={imageUrl}
       alt={image.altText}
       fill
       unoptimized
       sizes={sizes}
       className={className}
-      onError={() => setHasError(true)}
+      onError={() => setFailedUrl(imageUrl)}
     />
   );
 }
 
-function getInventoryGridClass({
-  columns,
-  hasSelectedProduct,
-}: {
-  columns: InventoryGridColumns;
-  hasSelectedProduct: boolean;
-}) {
+function ProductMediaCarousel({ product }: { product: InventoryProduct }) {
+  const images = useMemo(
+    () => getInventoryImages(product),
+    [product],
+  );
+  const [api, setApi] = useState<CarouselApi>();
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+
+    const updateSelection = () => setSelectedIndex(api.selectedScrollSnap());
+    updateSelection();
+    api.on("select", updateSelection);
+    api.on("reInit", updateSelection);
+
+    return () => {
+      api.off("select", updateSelection);
+      api.off("reInit", updateSelection);
+    };
+  }, [api]);
+
+  if (!images.length) {
+    return (
+      <div className="relative flex aspect-[4/3] min-h-72 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-[radial-gradient(circle_at_50%_36%,color-mix(in_oklab,var(--muted-foreground)_12%,transparent),transparent_58%)] lg:min-h-[30rem]">
+        <div className="absolute inset-4 rounded-lg border border-dashed border-border/70" />
+        <div className="relative flex flex-col items-center gap-3 text-muted-foreground">
+          <div className="flex size-14 items-center justify-center rounded-full border border-border bg-background/70 shadow-sm backdrop-blur-sm">
+            <PackageSearch className="size-6 opacity-50" />
+          </div>
+          <p className="text-xs font-medium uppercase tracking-[0.18em]">
+            Images unavailable
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (images.length === 1) {
+    const image = images[0];
+    if (!image) return null;
+
+    return (
+      <div className="bg-muted/20 p-3 sm:p-4">
+        <div className="group/image relative aspect-[4/3] overflow-hidden rounded-xl border border-border/70 bg-background shadow-sm">
+          <InventoryProductImage
+            image={image}
+            sizes="(min-width: 1280px) 50vw, 100vw"
+            className="object-contain p-2 transition-transform duration-300 ease-out group-hover/image:scale-[1.01] motion-reduce:transition-none sm:p-3"
+            showLabel
+          />
+          <InventoryImageDownloadButton
+            imageUrl={getInventoryMediaUrl(image)}
+            productCode={product.productCode}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-w-0 flex-col gap-3 bg-muted/20 p-3 sm:p-4">
+      <Carousel
+        setApi={setApi}
+        opts={{ loop: images.length > 1 }}
+        className="min-w-0"
+        aria-label={`${product.name} product images`}
+      >
+        <CarouselContent className="ml-0">
+          {images.map((image) => (
+            <CarouselItem key={image.id} className="pl-0">
+              <div className="group/image relative aspect-[4/3] overflow-hidden rounded-xl border border-border/70 bg-background shadow-sm">
+                <InventoryProductImage
+                  image={image}
+                  sizes="(min-width: 1280px) 50vw, 100vw"
+                  className="object-contain p-2 transition-transform duration-300 ease-out group-hover/image:scale-[1.01] motion-reduce:transition-none sm:p-3"
+                  showLabel
+                />
+                <InventoryImageDownloadButton
+                  imageUrl={getInventoryMediaUrl(image)}
+                  productCode={product.productCode}
+                />
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+
+        <div className="absolute top-3 left-3 z-20 rounded-full border border-border/70 bg-background/90 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-foreground shadow-sm backdrop-blur-md">
+          {selectedIndex + 1} / {images.length}
+        </div>
+        <CarouselPrevious
+          variant="secondary"
+          className="left-3 z-30 size-11 cursor-pointer border-border/70 bg-background/90 shadow-md backdrop-blur-md hover:bg-background"
+        />
+        <CarouselNext
+          variant="secondary"
+          className="right-3 z-30 size-11 cursor-pointer border-border/70 bg-background/90 shadow-md backdrop-blur-md hover:bg-background"
+        />
+      </Carousel>
+
+      <nav
+        className="scrollbar-none flex gap-2 overflow-x-auto pb-0.5"
+        aria-label="Choose a product image"
+      >
+        {images.map((image, index) => (
+          <button
+            key={image.id}
+            type="button"
+            aria-label={`Show image ${index + 1} of ${images.length}`}
+            aria-current={selectedIndex === index ? "true" : undefined}
+            onClick={() => api?.scrollTo(index)}
+            className={cn(
+              "relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-lg border bg-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:size-[4.5rem]",
+              selectedIndex === index
+                ? "border-foreground ring-1 ring-foreground/15"
+                : "border-border/80 opacity-65 hover:border-foreground/40 hover:opacity-100",
+            )}
+          >
+            <Image
+              src={getInventoryMediaUrl(image)}
+              alt=""
+              fill
+              unoptimized
+              sizes="72px"
+              className="object-contain p-1"
+            />
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+function getInventoryGridClass(hasSelectedProduct: boolean) {
   if (hasSelectedProduct) return "grid-cols-1";
-  return columns === 3 ? "md:grid-cols-2 xl:grid-cols-3" : "md:grid-cols-2";
+  return "sm:grid-cols-2 lg:grid-cols-3";
 }
 
 function InventoryStat({
@@ -421,15 +562,15 @@ function ProductListItem({
   onSelect: () => void;
 }) {
   const image = getInventoryPrimaryImage(product);
-  const stonePieces = getTotalStonePieces(product);
-  const stoneCarat = getTotalStoneCarat(product);
-  const hasStoneInfo = stonePieces > 0 || stoneCarat > 0;
+  const city = product.location.city?.trim() || "City unavailable";
+  const colorLabel =
+    COLOR_LABELS[product.color as ProductColor] ?? product.color;
 
   return (
     <div
       className={cn(
-        "relative flex w-full items-start gap-3 rounded-xl border bg-card p-3 text-left shadow-sm transition-colors hover:border-foreground/25 hover:bg-muted/20 has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring has-[button:focus-visible]:ring-offset-2",
-        compact && "gap-2.5 p-2.5",
+        "relative w-full rounded-xl border bg-card text-left shadow-sm transition-colors hover:border-foreground/25 hover:bg-muted/20 has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring has-[button:focus-visible]:ring-offset-2",
+        compact ? "flex items-stretch gap-2.5 p-2.5" : "flex flex-col p-2.5",
         selected
           ? "border-foreground/60 ring-1 ring-foreground/10"
           : "border-border",
@@ -443,23 +584,23 @@ function ProductListItem({
       />
       <div
         className={cn(
-          "group/image pointer-events-none relative z-10 h-[5.5rem] w-[5.5rem] shrink-0 overflow-hidden rounded-xl border border-border bg-muted/60 sm:h-24 sm:w-24",
+          "group/image pointer-events-none relative z-10 aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted/60",
           compact && "h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20",
         )}
       >
         {image ? (
           <>
             <Image
-              src={image.storageKey}
+              src={getInventoryMediaUrl(image)}
               alt={image.altText}
               fill
               unoptimized
-              sizes="96px"
-              className="object-contain p-1.5"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className={compact ? "object-contain p-1" : "object-cover"}
             />
             <div className="pointer-events-auto">
               <InventoryImageDownloadButton
-                imageUrl={image.storageKey}
+                imageUrl={getInventoryMediaUrl(image)}
                 productCode={product.productCode}
               />
             </div>
@@ -469,59 +610,63 @@ function ProductListItem({
 
       <div
         className={cn(
-          "pointer-events-none relative z-10 min-w-0 flex-1 space-y-2",
-          compact && "space-y-1.5",
+          "pointer-events-none relative z-10 min-w-0",
+          compact ? "flex flex-1 flex-col justify-between py-0.5" : "pt-2",
         )}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-foreground">
+        {compact ? (
+          <>
+            <div className="min-w-0">
+              <h3
+                className="truncate text-base font-semibold text-foreground"
+                title={product.name}
+              >
+                {product.name}
+              </h3>
+              <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+                {product.productCode}
+              </p>
+            </div>
+            <div className="flex min-w-0 items-end justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{city}</span>
+              </div>
+              <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                {formatCurrency(product.price.total)}
+              </p>
+            </div>
+          </>
+        ) : (
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto_auto] gap-x-3 gap-y-1 max-[420px]:flex max-[420px]:flex-col">
+            <h3
+              className="col-start-1 row-start-1 truncate text-base font-semibold text-foreground max-[420px]:order-1"
+              title={product.name}
+            >
               {product.name}
             </h3>
-            <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+            <p className="col-start-1 row-start-2 truncate font-mono text-xs text-muted-foreground max-[420px]:order-2">
               {product.productCode}
             </p>
-          </div>
-          {!compact ? (
-            <Badge
-              variant={product.isCustomerProduct ? "default" : "outline"}
-              className="shrink-0"
-            >
-              {product.isCustomerProduct ? "Customer" : "Stock"}
+            <p className="col-start-2 row-span-2 row-start-1 self-center text-lg font-bold tabular-nums tracking-tight text-foreground max-[420px]:order-3">
+              {formatCurrency(product.price.total)}
+            </p>
+            <div className="col-start-1 row-start-3 flex gap-1.5 pt-1 max-[420px]:order-4">
+              <Badge variant="secondary" className="gap-1 font-normal">
+                <Gem className="size-3" aria-hidden="true" />
+                {product.purity}K
+              </Badge>
+              <Badge variant="secondary" className="gap-1 font-normal">
+                <Palette className="size-3" aria-hidden="true" />
+                {colorLabel}
+              </Badge>
+            </div>
+            <Badge variant="outline" className="col-start-2 row-start-3 justify-self-end gap-1 font-normal max-[420px]:order-5">
+                <MapPin className="size-3" aria-hidden="true" />
+                {city}
             </Badge>
-          ) : null}
-        </div>
-
-        <p className="line-clamp-1 text-sm text-muted-foreground">
-          {getMetalLabel(product)}
-        </p>
-
-        {!compact ? (
-          <div className="flex flex-wrap gap-1.5">
-            <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground">
-              Net {formatWeight(product.netWeight, "g")}
-            </span>
-            <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
-              Gross {formatWeight(product.grossWeight, "g")}
-            </span>
-            {hasStoneInfo ? (
-              <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground">
-                Stones{" "}
-                {stoneCarat > 0
-                  ? formatWeight(stoneCarat, "ct")
-                  : `${stonePieces.toLocaleString("en-IN")} pcs`}
-              </span>
-            ) : null}
           </div>
-        ) : null}
-
-        <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">
-            {product.location.name}
-            {product.location.city ? `, ${product.location.city}` : ""}
-          </span>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -536,7 +681,6 @@ function ProductDetail({
   settings: CalculatorSettings;
   estimationSectionRef: RefObject<HTMLElement | null>;
 }) {
-  const image = getInventoryPrimaryImage(product);
   const estimateResult = useMemo(
     () => normalizeInventoryProductEstimate(product, settings),
     [product, settings],
@@ -555,30 +699,9 @@ function ProductDetail({
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-      <div className="grid lg:min-h-[26rem] lg:grid-cols-[minmax(280px,0.95fr)_minmax(300px,1fr)]">
-        <div className="group/image relative aspect-[4/3] min-h-72 bg-muted/40 lg:aspect-auto lg:min-h-full">
-          {image ? (
-            <>
-              <Image
-                src={image.storageKey}
-                alt={image.altText}
-                fill
-                unoptimized
-                sizes="(min-width: 1024px) 45vw, 100vw"
-                className="object-cover"
-              />
-              <InventoryImageDownloadButton
-                imageUrl={image.storageKey}
-                productCode={product.productCode}
-              />
-            </>
-          ) : (
-            <div className="flex h-full min-h-72 items-center justify-center">
-              <PackageSearch className="h-8 w-8 text-muted-foreground/40" />
-            </div>
-          )}
-        </div>
+    <section className="@container overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="grid @min-[56rem]:grid-cols-[minmax(0,1.12fr)_minmax(19rem,0.88fr)]">
+        <ProductMediaCarousel product={product} />
 
         <div className="flex flex-col justify-between p-5 lg:p-6">
           <div>
@@ -630,7 +753,7 @@ function ProductDetail({
               <InventoryStat label="Location" value={product.location.city} />
               <InventoryStat
                 label="Price"
-                value={formatCurrency(estimateResult.pricing.total)}
+                value={formatCurrency(product.price.total)}
                 emphasis
                 onClick={scrollToEstimation}
               />
@@ -817,19 +940,20 @@ function ProductListSkeleton() {
       {rows.map((row) => (
         <div
           key={row}
-          className="flex w-full items-start gap-3 rounded-xl border border-border bg-card p-3 shadow-sm"
+          className="rounded-xl border border-border bg-card p-3 shadow-sm"
         >
-          <Skeleton className="h-20 w-20 shrink-0 rounded-xl" />
-          <div className="min-w-0 flex-1 space-y-3">
-            <div className="flex justify-between gap-3">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-36" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-              <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="aspect-square w-full rounded-lg" />
+          <div className="mt-3 space-y-2">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-3 w-24" />
             </div>
-            <Skeleton className="h-3 w-48" />
-            <Skeleton className="h-3 w-32" />
+            <div className="flex gap-1.5 pt-1">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-10 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            <Skeleton className="mt-3 h-7 w-28" />
           </div>
         </div>
       ))}
@@ -837,32 +961,28 @@ function ProductListSkeleton() {
   );
 }
 
-function ProductGridSkeleton({ columns }: { columns: InventoryGridColumns }) {
+function ProductGridSkeleton() {
   const rows = ["row-1", "row-2", "row-3", "row-4", "row-5", "row-6"];
 
   return (
-    <div
-      className={cn(
-        "grid gap-3",
-        getInventoryGridClass({ columns, hasSelectedProduct: false }),
-      )}
-    >
+    <div className={cn("grid gap-3", getInventoryGridClass(false))}>
       {rows.map((row) => (
         <div
           key={row}
-          className="flex w-full items-start gap-3 rounded-xl border border-border bg-card p-3 shadow-sm"
+          className="rounded-xl border border-border bg-card p-3 shadow-sm"
         >
-          <Skeleton className="h-20 w-20 shrink-0 rounded-xl" />
-          <div className="min-w-0 flex-1 space-y-3">
-            <div className="flex justify-between gap-3">
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-36" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-              <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="aspect-square w-full rounded-lg" />
+          <div className="mt-3 space-y-2">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-3 w-24" />
             </div>
-            <Skeleton className="h-3 w-48" />
-            <Skeleton className="h-3 w-32" />
+            <div className="flex gap-1.5 pt-1">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-10 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            <Skeleton className="mt-3 h-7 w-28" />
           </div>
         </div>
       ))}
@@ -954,6 +1074,12 @@ export function InventoryPageClient() {
   const [netWeightTo, setNetWeightTo] = useState(() =>
     getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightTo),
   );
+  const [priceFrom, setPriceFrom] = useState(() =>
+    getQueryValue(searchParams, QUERY_PARAM_KEYS.priceFrom),
+  );
+  const [priceTo, setPriceTo] = useState(() =>
+    getQueryValue(searchParams, QUERY_PARAM_KEYS.priceTo),
+  );
   const [sourceCreatedFrom, setSourceCreatedFrom] = useState(() =>
     getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedFrom),
   );
@@ -963,9 +1089,6 @@ export function InventoryPageClient() {
 
   const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [gridColumns, setGridColumns] = useState<InventoryGridColumns>(() =>
-    getColumnsQueryValue(searchParams),
-  );
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const estimationSectionRef = useRef<HTMLElement | null>(null);
   const { settings } = useCalculatorSettings();
@@ -991,6 +1114,8 @@ export function InventoryPageClient() {
         isCustomerProduct,
         netWeightFrom: netWeightFrom ? Number(netWeightFrom) : undefined,
         netWeightTo: netWeightTo ? Number(netWeightTo) : undefined,
+        priceFrom: priceFrom ? Number(priceFrom) : undefined,
+        priceTo: priceTo ? Number(priceTo) : undefined,
         sourceCreatedFrom: sourceCreatedFrom || undefined,
         sourceCreatedTo: sourceCreatedTo || undefined,
       };
@@ -1002,6 +1127,8 @@ export function InventoryPageClient() {
       locationFilter,
       netWeightFrom,
       netWeightTo,
+      priceFrom,
+      priceTo,
       purityFilter,
       sourceCreatedFrom,
       sourceCreatedTo,
@@ -1076,13 +1203,14 @@ export function InventoryPageClient() {
       getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightFrom),
     );
     setNetWeightTo(getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightTo));
+    setPriceFrom(getQueryValue(searchParams, QUERY_PARAM_KEYS.priceFrom));
+    setPriceTo(getQueryValue(searchParams, QUERY_PARAM_KEYS.priceTo));
     setSourceCreatedFrom(
       getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedFrom),
     );
     setSourceCreatedTo(
       getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedTo),
     );
-    setGridColumns(getColumnsQueryValue(searchParams));
   }, [searchParams]);
 
   function selectProduct(productCode: string) {
@@ -1123,6 +1251,8 @@ export function InventoryPageClient() {
     setLocationFilter("ALL");
     setNetWeightFrom("");
     setNetWeightTo("");
+    setPriceFrom("");
+    setPriceTo("");
     setSourceCreatedFrom("");
     setSourceCreatedTo("");
     updateSearchParams((params) => {
@@ -1133,6 +1263,8 @@ export function InventoryPageClient() {
       params.delete(QUERY_PARAM_KEYS.location);
       params.delete(QUERY_PARAM_KEYS.netWeightFrom);
       params.delete(QUERY_PARAM_KEYS.netWeightTo);
+      params.delete(QUERY_PARAM_KEYS.priceFrom);
+      params.delete(QUERY_PARAM_KEYS.priceTo);
       params.delete(QUERY_PARAM_KEYS.sourceCreatedFrom);
       params.delete(QUERY_PARAM_KEYS.sourceCreatedTo);
     });
@@ -1187,6 +1319,8 @@ export function InventoryPageClient() {
     (locationFilter !== "ALL" ? 1 : 0) +
     (netWeightFrom ? 1 : 0) +
     (netWeightTo ? 1 : 0) +
+    (priceFrom ? 1 : 0) +
+    (priceTo ? 1 : 0) +
     (sourceCreatedFrom ? 1 : 0) +
     (sourceCreatedTo ? 1 : 0);
 
@@ -1289,6 +1423,28 @@ export function InventoryPageClient() {
       });
     }
 
+    if (priceFrom) {
+      chips.push({
+        key: QUERY_PARAM_KEYS.priceFrom,
+        label: `Price from: ${formatCurrency(Number(priceFrom))}`,
+        onRemove: () => {
+          setPriceFrom("");
+          clearQueryParam(QUERY_PARAM_KEYS.priceFrom);
+        },
+      });
+    }
+
+    if (priceTo) {
+      chips.push({
+        key: QUERY_PARAM_KEYS.priceTo,
+        label: `Price to: ${formatCurrency(Number(priceTo))}`,
+        onRemove: () => {
+          setPriceTo("");
+          clearQueryParam(QUERY_PARAM_KEYS.priceTo);
+        },
+      });
+    }
+
     if (sourceCreatedFrom) {
       chips.push({
         key: QUERY_PARAM_KEYS.sourceCreatedFrom,
@@ -1320,6 +1476,8 @@ export function InventoryPageClient() {
     locationLabel,
     netWeightFrom,
     netWeightTo,
+    priceFrom,
+    priceTo,
     purityFilter,
     sourceCreatedFrom,
     sourceCreatedTo,
@@ -1540,38 +1698,6 @@ export function InventoryPageClient() {
               </Badge>
             ) : null}
           </Button>
-          {!hasSelectedProduct ? (
-            <div className="hidden h-10 shrink-0 items-center rounded-md border border-border bg-background p-1 lg:flex">
-              <Button
-                type="button"
-                variant={gridColumns === 2 ? "secondary" : "ghost"}
-                size="icon"
-                aria-label="Show 2 columns"
-                aria-pressed={gridColumns === 2}
-                onClick={() => {
-                  setGridColumns(2);
-                  updateQueryParam(QUERY_PARAM_KEYS.columns, "2", "3");
-                }}
-                className="size-8"
-              >
-                <Columns2 className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant={gridColumns === 3 ? "secondary" : "ghost"}
-                size="icon"
-                aria-label="Show 3 columns"
-                aria-pressed={gridColumns === 3}
-                onClick={() => {
-                  setGridColumns(3);
-                  updateQueryParam(QUERY_PARAM_KEYS.columns, "3", "3");
-                }}
-                className="size-8"
-              >
-                <Columns3 className="size-4" />
-              </Button>
-            </div>
-          ) : null}
         </div>
       </section>
 
@@ -1614,7 +1740,7 @@ export function InventoryPageClient() {
             <div className="px-5 pt-5 sm:px-6 sm:pt-6">
               <DialogTitle>Filters</DialogTitle>
               <DialogDescription className="mt-2">
-                Refine inventory results by product attributes, location,
+                Refine inventory results by product attributes, location, price,
                 weight, and source date.
               </DialogDescription>
             </div>
@@ -1626,6 +1752,42 @@ export function InventoryPageClient() {
             </div>
 
             <div className="space-y-5">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Estimated price (₹)
+                </Label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="1"
+                    value={priceFrom}
+                    onChange={(event) => {
+                      const { value } = event.target;
+                      setPriceFrom(value);
+                      updateQueryParam(QUERY_PARAM_KEYS.priceFrom, value, "");
+                    }}
+                    placeholder="Minimum price"
+                    aria-label="Minimum estimated price"
+                  />
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="1"
+                    value={priceTo}
+                    onChange={(event) => {
+                      const { value } = event.target;
+                      setPriceTo(value);
+                      updateQueryParam(QUERY_PARAM_KEYS.priceTo, value, "");
+                    }}
+                    placeholder="Maximum price"
+                    aria-label="Maximum estimated price"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Net weight (g)</Label>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1710,7 +1872,7 @@ export function InventoryPageClient() {
         className={cn(
           "grid min-h-0 w-full flex-1 gap-3",
           hasSelectedProduct
-            ? "lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)] lg:overflow-hidden"
+            ? "lg:grid-cols-[minmax(0,1fr)_17rem] lg:overflow-hidden"
             : "overflow-hidden",
         )}
       >
@@ -1718,15 +1880,27 @@ export function InventoryPageClient() {
           className={cn(
             "min-h-0 rounded-md",
             hasSelectedProduct &&
-              "hidden lg:block lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-3",
+              "order-2 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pl-3",
             !hasSelectedProduct && "overflow-y-auto pr-3",
           )}
         >
+          {hasSelectedProduct ? (
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-foreground">
+                More products
+              </h2>
+              {formattedTotalProducts ? (
+                <span className="text-xs text-muted-foreground">
+                  {formattedTotalProducts} items
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           {listQuery.isLoading ? (
             hasSelectedProduct ? (
               <ProductListSkeleton />
             ) : (
-              <ProductGridSkeleton columns={gridColumns} />
+              <ProductGridSkeleton />
             )
           ) : listQuery.isError ? (
             <ErrorPanel
@@ -1737,10 +1911,7 @@ export function InventoryPageClient() {
             <div
               className={cn(
                 "grid gap-3",
-                getInventoryGridClass({
-                  columns: gridColumns,
-                  hasSelectedProduct,
-                }),
+                getInventoryGridClass(hasSelectedProduct),
               )}
             >
               {products.map((product) => (
@@ -1748,7 +1919,7 @@ export function InventoryPageClient() {
                   key={product.id}
                   product={product}
                   selected={product.productCode === selectedProductCode}
-                  compact={hasSelectedProduct}
+                  compact={false}
                   onSelect={() => selectProduct(product.productCode)}
                 />
               ))}
@@ -1777,7 +1948,7 @@ export function InventoryPageClient() {
         </section>
 
         {hasSelectedProduct ? (
-          <div className="min-w-0 space-y-3 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-3">
+          <div className="order-1 min-w-0 space-y-3 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-3">
             <div>
               <Button
                 type="button"

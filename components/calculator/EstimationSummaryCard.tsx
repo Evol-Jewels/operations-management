@@ -2,8 +2,10 @@
 
 import { toBlob } from "html-to-image";
 import {
-  ChevronDown,
   Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Download,
   FileImage,
   FileText,
@@ -11,19 +13,21 @@ import {
   ListChevronsDownUp,
   ListChevronsUpDown,
   Loader2,
-  Share2,
 } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { isInventoryMediaProxyUrl } from "@/lib/inventory-media";
+import { sharePngToWhatsApp } from "@/lib/share-image";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   CalculatorFormState,
@@ -36,11 +40,13 @@ interface SharedSummaryData {
   code: string;
   note: string;
   imageUrl?: string | null;
+  imageUrls: string[];
   grossWeight: number;
   netGoldWeight: number;
   purity: string;
   goldRateValue: number;
   goldCost: number;
+  metalDetails?: NonNullable<CalculatorPricingBreakdown["metalDetails"]>;
   makingCost: number;
   stoneDetails: CalculatorPricingBreakdown["stoneDetails"];
   diamondColor: string;
@@ -52,6 +58,106 @@ interface SharedSummaryData {
   gstRate: number;
 }
 
+interface SummaryMediaControlsProps {
+  imageUrls: string[];
+  selectedIndex: number;
+  onSelect: (imageUrl: string) => void;
+  onPrevious: () => void;
+  onNext: () => void;
+}
+
+const EMPTY_IMAGE_URLS: string[] = [];
+
+function SummaryMediaControls({
+  imageUrls,
+  selectedIndex,
+  onSelect,
+  onPrevious,
+  onNext,
+}: SummaryMediaControlsProps) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <fieldset
+      className="absolute inset-0 z-10"
+      aria-label="Product image controls"
+      data-estimation-summary-media-controls
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
+      onFocusCapture={() => setIsVisible(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsVisible(false);
+        }
+      }}
+    >
+      <div
+        className={cn(
+          "pointer-events-auto absolute inset-0 flex items-center justify-between px-2 opacity-100 transition-opacity duration-200 sm:pointer-events-none sm:opacity-0",
+          isVisible && "sm:pointer-events-auto sm:opacity-100",
+        )}
+      >
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="size-10 cursor-pointer rounded-full border border-white/15 bg-black/65 text-white shadow-lg backdrop-blur-sm hover:bg-black/80 hover:text-white"
+          aria-label="Show previous product image"
+          onClick={onPrevious}
+        >
+          <ChevronLeft className="size-5" />
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          className="size-10 cursor-pointer rounded-full border border-white/15 bg-black/65 text-white shadow-lg backdrop-blur-sm hover:bg-black/80 hover:text-white"
+          aria-label="Show next product image"
+          onClick={onNext}
+        >
+          <ChevronRight className="size-5" />
+        </Button>
+      </div>
+      <div
+        className={cn(
+          "pointer-events-auto absolute inset-x-0 bottom-0 flex translate-y-0 items-end justify-between gap-2 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-3 pb-3 pt-10 opacity-100 transition-all duration-200 sm:pointer-events-none sm:translate-y-1 sm:opacity-0",
+          isVisible && "sm:pointer-events-auto sm:translate-y-0 sm:opacity-100",
+        )}
+      >
+        <div className="scrollbar-none flex min-w-0 gap-1.5 overflow-x-auto">
+          {imageUrls.map((imageUrl, index) => (
+            <button
+              key={imageUrl}
+              type="button"
+              aria-label={`Use product image ${index + 1}`}
+              aria-current={selectedIndex === index ? "true" : undefined}
+              onClick={() => onSelect(imageUrl)}
+              className={cn(
+                "relative size-10 shrink-0 cursor-pointer overflow-hidden rounded border bg-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
+                selectedIndex === index
+                  ? "border-white opacity-100 ring-1 ring-white"
+                  : "border-white/35 opacity-65 hover:opacity-100",
+              )}
+            >
+              <Image
+                src={imageUrl}
+                alt=""
+                fill
+                sizes="40px"
+                className="object-contain"
+                unoptimized
+              />
+            </button>
+          ))}
+        </div>
+        <span className="shrink-0 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold tabular text-white backdrop-blur-sm">
+          {selectedIndex + 1} / {imageUrls.length}
+        </span>
+      </div>
+    </fieldset>
+  );
+}
+
 interface EstimationSummaryCardProps {
   className?: string;
   compact?: boolean;
@@ -60,6 +166,7 @@ interface EstimationSummaryCardProps {
   downloadFilename?: string;
   title?: string;
   showFormatToggle?: boolean;
+  onImageSelect?: (imageUrl: string) => void;
   renderActions?: (props: {
     downloadSummary: () => Promise<void>;
     downloadSummaryPdf: () => Promise<void>;
@@ -139,11 +246,13 @@ function getSummaryData(
       code: "",
       note: data.form.productNote.trim(),
       imageUrl: data.form.productImageUrl,
+      imageUrls: data.form.productImageUrls ?? EMPTY_IMAGE_URLS,
       grossWeight: data.breakdown.grossWeight,
       netGoldWeight: data.form.netGoldWeight,
       purity: data.form.purity,
       goldRateValue: data.breakdown.goldRateValue,
       goldCost: data.breakdown.goldCost,
+      metalDetails: data.breakdown.metalDetails,
       makingCost: data.breakdown.makingCost,
       stoneDetails: data.breakdown.stoneDetails,
       diamondColor: data.form.diamondColor.trim(),
@@ -165,6 +274,7 @@ function getSummaryData(
     code: data.result.product.productCode,
     note: data.result.product.note.trim(),
     imageUrl: data.result.product.imageUrl,
+    imageUrls: data.result.product.imageUrls ?? EMPTY_IMAGE_URLS,
     grossWeight: data.result.pricing.grossWeight,
     netGoldWeight: data.result.product.netGoldWeight,
     purity: data.result.product.purity,
@@ -247,6 +357,69 @@ function imageToPngDataUrl(image: HTMLImageElement) {
   return canvas.toDataURL("image/png");
 }
 
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result)), {
+      once: true,
+    });
+    reader.addEventListener("error", () => reject(reader.error), {
+      once: true,
+    });
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function inlineProductImages(card: HTMLElement) {
+  const images = Array.from(
+    card.querySelectorAll<HTMLImageElement>(
+      "[data-estimation-summary-media-product], [data-estimation-summary-media-backdrop]",
+    ),
+  );
+  const originalSources = images.map((image) => image.src);
+  const originalSrcsets = images.map((image) => image.getAttribute("srcset"));
+  const sources = Array.from(
+    new Set(images.map((image) => image.currentSrc || image.src)),
+  );
+  const inlinedSources = new Map(
+    await Promise.all(
+      sources.map(async (source) => {
+        const credentials = isInventoryMediaProxyUrl(source)
+          ? "include"
+          : "same-origin";
+        const response = await fetch(source, {
+          credentials,
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("Unable to load the product image");
+        return [source, await blobToDataUrl(await response.blob())] as const;
+      }),
+    ),
+  );
+
+  await Promise.all(
+    images.map(async (image) => {
+      const source = image.currentSrc || image.src;
+      const dataUrl = inlinedSources.get(source);
+      if (!dataUrl) return;
+      image.src = dataUrl;
+      image.removeAttribute("srcset");
+      await image.decode().catch(() => undefined);
+    }),
+  );
+
+  await waitForCardImages(card);
+
+  return () => {
+    images.forEach((image, index) => {
+      image.src = originalSources[index];
+      if (originalSrcsets[index]) {
+        image.setAttribute("srcset", originalSrcsets[index]);
+      }
+    });
+  };
+}
+
 function inlineDownloadLogos(card: HTMLElement) {
   const logos = Array.from(
     card.querySelectorAll<HTMLImageElement>("[data-download-logo]"),
@@ -306,73 +479,35 @@ async function saveSummaryImage(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-async function shareImageFile(blob: Blob, filename: string, title: string) {
-  const file = new File([blob], filename, { type: "image/png" });
-  const shareData = {
-    files: [file],
-    title,
-  };
-
-  if (!navigator.canShare?.(shareData)) {
-    throw new Error("File sharing is not supported on this device.");
-  }
-
-  await navigator.share(shareData);
-}
-
-export function EstimationSummaryShareButton({
-  shareSummaryPng,
-  isSharing,
-  isDownloading,
-  className,
-}: {
-  shareSummaryPng: () => Promise<void>;
-  isSharing: boolean;
-  isDownloading?: boolean;
-  className?: string;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className={cn("h-8 shrink-0 rounded-md px-2.5 sm:hidden", className)}
-      onClick={() => void shareSummaryPng()}
-      disabled={isSharing || isDownloading}
-      aria-label="Share summary PNG"
-    >
-      {isSharing ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <Share2 className="h-4 w-4" />
-      )}
-      <span className="hidden sm:inline">Share PNG</span>
-    </Button>
-  );
-}
-
 export function EstimationSummaryDownloadButton({
   downloadSummaryPdf,
   downloadSummaryPng,
+  shareSummaryPng,
   isDownloading,
+  isSharing,
   className,
 }: {
   downloadSummaryPdf: () => Promise<void>;
   downloadSummaryPng: () => Promise<void>;
+  shareSummaryPng: () => Promise<void>;
   isDownloading: boolean;
+  isSharing: boolean;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>("png");
 
-  useEffect(() => {
-    const storedFormat = localStorage.getItem(
-      ESTIMATION_SUMMARY_DOWNLOAD_FORMAT_KEY,
-    );
-    if (storedFormat === "pdf" || storedFormat === "png") {
-      setDownloadFormat(storedFormat);
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      const storedFormat = localStorage.getItem(
+        ESTIMATION_SUMMARY_DOWNLOAD_FORMAT_KEY,
+      );
+      if (storedFormat === "pdf" || storedFormat === "png") {
+        setDownloadFormat(storedFormat);
+      }
     }
-  }, []);
+    setOpen(nextOpen);
+  }
 
   function selectDownloadFormat(format: DownloadFormat) {
     setDownloadFormat(format);
@@ -400,8 +535,13 @@ export function EstimationSummaryDownloadButton({
     void downloadSummaryPng();
   }
 
+  function shareOnWhatsApp() {
+    setOpen(false);
+    void shareSummaryPng();
+  }
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <div className="inline-flex overflow-hidden rounded-md border border-input shadow-xs">
         <Button
           type="button"
@@ -412,7 +552,7 @@ export function EstimationSummaryDownloadButton({
             className,
           )}
           onClick={downloadSelectedFormat}
-          disabled={isDownloading}
+          disabled={isDownloading || isSharing}
           aria-label="Download summary"
         >
           {isDownloading ? (
@@ -429,14 +569,14 @@ export function EstimationSummaryDownloadButton({
             variant="ghost"
             size="icon-sm"
             className="h-8 w-7 rounded-none border-0 border-l border-input shadow-none hover:bg-accent"
-            disabled={isDownloading}
-            aria-label="Choose download format"
+            disabled={isDownloading || isSharing}
+            aria-label="Choose download or sharing action"
           >
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           </Button>
         </PopoverTrigger>
       </div>
-      <PopoverContent align="end" className="w-48 p-1">
+      <PopoverContent align="end" className="w-56 p-1">
         <button
           type="button"
           onClick={() => downloadFormatOption("pdf")}
@@ -455,12 +595,34 @@ export function EstimationSummaryDownloadButton({
           <span className="flex-1">Download as .png</span>
           {downloadFormat === "png" ? <Check className="h-4 w-4" /> : null}
         </button>
+        <div className="my-1 h-px bg-border" />
+        <button
+          type="button"
+          onClick={shareOnWhatsApp}
+          disabled={isSharing}
+          className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+        >
+          {isSharing ? (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : (
+            <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
+          )}
+          <span className="flex-1">
+            {isSharing ? "Preparing PNG…" : "Share on WhatsApp"}
+          </span>
+        </button>
       </PopoverContent>
     </Popover>
   );
 }
 
-function CompactSummary({ summary }: { summary: SharedSummaryData }) {
+function CompactSummary({
+  summary,
+  mediaControls,
+}: {
+  summary: SharedSummaryData;
+  mediaControls?: ReactNode;
+}) {
   const stoneCategoryGroups = getStoneCategoryGroups(summary.stoneDetails);
   const hasDiamondColor = Boolean(summary.diamondColor);
   const hasDiamondClarity = Boolean(summary.diamondClarity);
@@ -470,7 +632,7 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
 
   return (
     <div
-      className="grid grid-cols-1 sm:grid-cols-[minmax(0,1.18fr)_minmax(240px,0.82fr)]"
+      className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.18fr)_minmax(240px,0.82fr)]"
       data-estimation-summary-compact
     >
       <div className="min-w-0" data-estimation-summary-compact-breakup>
@@ -499,15 +661,31 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
                 —
               </td>
             </tr>
-            <tr>
-              <td className="px-4 py-2.5">Net Metal · {summary.purity}</td>
-              <td className="px-2 py-2.5 font-medium tabular">
-                {formatWeight(summary.netGoldWeight, "g")}
-              </td>
-              <td className="px-4 py-2.5 text-right font-semibold tabular">
-                {formatCurrency(summary.goldCost)}
-              </td>
-            </tr>
+            {summary.metalDetails?.length ? (
+              summary.metalDetails.map((metal) => (
+                <tr key={metal.id}>
+                  <td className="px-4 py-2.5">
+                    {metal.metalName} · {metal.purityLabel}
+                  </td>
+                  <td className="px-2 py-2.5 font-medium tabular">
+                    {formatWeight(metal.weight, "g")}
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-semibold tabular">
+                    {formatCurrency(metal.totalCost)}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td className="px-4 py-2.5">Gold · {summary.purity}</td>
+                <td className="px-2 py-2.5 font-medium tabular">
+                  {formatWeight(summary.netGoldWeight, "g")}
+                </td>
+                <td className="px-4 py-2.5 text-right font-semibold tabular">
+                  {formatCurrency(summary.goldCost)}
+                </td>
+              </tr>
+            )}
             <tr>
               <td className="px-4 py-2.5">Making</td>
               <td className="px-2 py-2.5 font-medium tabular">
@@ -589,7 +767,7 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
       </div>
 
       <div
-        className="flex min-w-0 flex-col border-t border-border sm:border-t-0 sm:border-l"
+        className="flex min-w-0 flex-col border-t border-border lg:border-t-0 lg:border-l"
         data-estimation-summary-compact-product
       >
         <div className="border-b border-border bg-muted/35 px-4 py-2.5 text-center">
@@ -598,7 +776,10 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
           </p>
         </div>
         <div
-          className="relative flex min-h-64 flex-1 items-center justify-center overflow-hidden bg-muted/60"
+          className={cn(
+            "group relative flex min-h-40 flex-1 items-center justify-center overflow-hidden bg-muted/60 lg:min-h-64",
+            !summary.imageUrl && "hidden lg:flex",
+          )}
           data-estimation-summary-compact-media
         >
           {summary.imageUrl ? (
@@ -609,6 +790,7 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
                 fill
                 aria-hidden="true"
                 className="scale-110 object-cover opacity-30 blur-md"
+                data-estimation-summary-media-backdrop
                 unoptimized
               />
               <div className="absolute inset-0 bg-black/5" aria-hidden="true" />
@@ -616,9 +798,11 @@ function CompactSummary({ summary }: { summary: SharedSummaryData }) {
                 src={summary.imageUrl}
                 alt={summary.name || "Jewellery product"}
                 fill
-                className="object-contain"
+                className="object-cover"
+                data-estimation-summary-media-product
                 unoptimized
               />
+              {mediaControls}
             </>
           ) : (
             <ImageIcon className="h-9 w-9 text-muted-foreground/35" />
@@ -650,6 +834,7 @@ export function EstimationSummaryCard({
   showFormatToggle = true,
   renderActions,
   renderHeaderActions,
+  onImageSelect,
   data,
 }: EstimationSummaryCardProps) {
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -658,7 +843,29 @@ export function EstimationSummaryCard({
   const [summaryFormat, setSummaryFormat] = useState<"detailed" | "compact">(
     data.kind === "calculator" ? "compact" : "detailed",
   );
-  const summary = getSummaryData(data);
+  const summaryData = getSummaryData(data);
+  const availableImages = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          [...summaryData.imageUrls, summaryData.imageUrl].filter(
+            (imageUrl): imageUrl is string => Boolean(imageUrl),
+          ),
+        ),
+      ),
+    [summaryData.imageUrl, summaryData.imageUrls],
+  );
+  const [selectedImageUrl, setSelectedImageUrl] = useState(
+    summaryData.imageUrl ?? availableImages[0] ?? null,
+  );
+  const selectedImageIndex = Math.max(
+    0,
+    availableImages.indexOf(selectedImageUrl ?? ""),
+  );
+  const summary = {
+    ...summaryData,
+    imageUrl: selectedImageUrl ?? summaryData.imageUrl,
+  };
   const stoneCategoryGroups = getStoneCategoryGroups(summary.stoneDetails);
   const hasStones = stoneCategoryGroups.length > 0;
   const displayName = summary.name || "";
@@ -667,6 +874,38 @@ export function EstimationSummaryCard({
   const displaySubtotal = summary.subTotal;
   const displayGst = summary.gst;
   const displayTotal = summary.total;
+
+  useEffect(() => {
+    if (selectedImageUrl && availableImages.includes(selectedImageUrl)) {
+      return;
+    }
+
+    setSelectedImageUrl(summaryData.imageUrl ?? availableImages[0] ?? null);
+  }, [availableImages, selectedImageUrl, summaryData.imageUrl]);
+
+  function selectImage(imageUrl: string) {
+    setSelectedImageUrl(imageUrl);
+    onImageSelect?.(imageUrl);
+  }
+
+  function selectRelativeImage(offset: number) {
+    if (availableImages.length < 2) return;
+    const nextIndex =
+      (selectedImageIndex + offset + availableImages.length) %
+      availableImages.length;
+    selectImage(availableImages[nextIndex]);
+  }
+
+  const mediaControls =
+    availableImages.length > 1 ? (
+      <SummaryMediaControls
+        imageUrls={availableImages}
+        selectedIndex={selectedImageIndex}
+        onSelect={selectImage}
+        onPrevious={() => selectRelativeImage(-1)}
+        onNext={() => selectRelativeImage(1)}
+      />
+    ) : null;
 
   async function downloadSummaryPdf() {
     if (!cardRef.current) return;
@@ -678,6 +917,11 @@ export function EstimationSummaryCard({
     printRoot.id = "estimation-summary-print-root";
     const printableCard = cardRef.current.cloneNode(true) as HTMLElement;
     printableCard.setAttribute("data-estimation-summary-printing", "true");
+    printableCard
+      .querySelectorAll("[data-estimation-summary-media-controls]")
+      .forEach((control) => {
+        control.remove();
+      });
     printRoot.appendChild(printableCard);
     document.body.appendChild(printRoot);
 
@@ -705,16 +949,35 @@ export function EstimationSummaryCard({
     if (!cardRef.current) throw new Error("Unable to prepare summary image");
 
     await waitForCardImages(cardRef.current);
+    await document.fonts?.ready;
+    const restoreProductImages = await inlineProductImages(cardRef.current);
     const restoreBlobImages = inlineBlobImages(cardRef.current);
     const restoreLogos = inlineDownloadLogos(cardRef.current);
 
-    const blob = await toBlob(cardRef.current, {
+    const exportOptions = {
       pixelRatio: 2,
-      cacheBust: true,
-    }).finally(() => {
+      cacheBust: false,
+      filter: (node: HTMLElement) =>
+        !node.hasAttribute?.("data-estimation-summary-media-controls"),
+    };
+
+    let blob: Blob | null = null;
+    try {
+      await waitForAnimationFrame();
+      try {
+        blob = await toBlob(cardRef.current, exportOptions);
+      } catch {
+        blob = null;
+      }
+      if (!blob) {
+        await waitForAnimationFrame();
+        blob = await toBlob(cardRef.current, exportOptions);
+      }
+    } finally {
       restoreLogos();
       restoreBlobImages();
-    });
+      restoreProductImages();
+    }
 
     if (!blob) throw new Error("Unable to create summary image");
     return blob;
@@ -753,11 +1016,21 @@ export function EstimationSummaryCard({
     setIsSharing(true);
     try {
       const blob = await createSummaryPngBlob();
-      await shareImageFile(
+      const result = await sharePngToWhatsApp({
         blob,
-        getSummaryPngFilename(),
-        displayName || "Estimate summary",
-      );
+        filename: getSummaryPngFilename(),
+        title: displayName || "Estimate summary",
+      });
+      if (result === "whatsapp-clipboard") {
+        toast.success("PNG copied. Paste it into the WhatsApp chat (Ctrl+V).", {
+          duration: 7000,
+        });
+      }
+      if (result === "whatsapp-download") {
+        toast.success("PNG downloaded. Attach it in the WhatsApp chat.", {
+          duration: 7000,
+        });
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
 
@@ -792,20 +1065,14 @@ export function EstimationSummaryCard({
           <div className="mb-4 flex flex-wrap items-start gap-4">
             <div className="min-w-0 flex-1">
               <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Estimation as per values, share with customers using the
-                download button
-              </p>
             </div>
             {showDownloadButton || renderHeaderActions ? (
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                 {renderHeaderActions?.(downloadProps)}
                 {showDownloadButton ? (
                   <>
-                    <EstimationSummaryShareButton {...downloadProps} />
                     {showFormatToggle ? (
-                      <div
-                        role="group"
+                      <fieldset
                         aria-label="Estimation summary format"
                         className="inline-flex shrink-0 overflow-hidden rounded-md border border-input shadow-xs"
                       >
@@ -843,7 +1110,7 @@ export function EstimationSummaryCard({
                         >
                           <ListChevronsDownUp className="h-4 w-4" />
                         </Button>
-                      </div>
+                      </fieldset>
                     ) : null}
                     <EstimationSummaryDownloadButton {...downloadProps} />
                   </>
@@ -896,15 +1163,18 @@ export function EstimationSummaryCard({
         </div>
 
         {summaryFormat === "compact" ? (
-          <CompactSummary summary={summary} />
+          <CompactSummary summary={summary} mediaControls={mediaControls} />
         ) : (
           <>
             <div
-              className="grid grid-cols-1 sm:grid-cols-2"
+              className="grid grid-cols-1 lg:grid-cols-2"
               data-estimation-summary-hero
             >
               <div
-                className="relative flex min-h-48 items-center justify-center overflow-hidden bg-muted/60 sm:aspect-square sm:min-h-0"
+                className={cn(
+                  "group relative flex min-h-40 items-center justify-center overflow-hidden bg-muted/60 lg:aspect-square lg:min-h-0",
+                  !summary.imageUrl && "hidden lg:flex",
+                )}
                 data-estimation-summary-media
               >
                 {summary.imageUrl ? (
@@ -926,10 +1196,11 @@ export function EstimationSummaryCard({
                       src={summary.imageUrl}
                       alt={displayName}
                       fill
-                      className="object-contain"
+                      className="object-cover"
                       data-estimation-summary-media-product
                       unoptimized
                     />
+                    {mediaControls}
                   </>
                 ) : (
                   <ImageIcon className="h-9 w-9 text-muted-foreground/35" />
@@ -938,7 +1209,8 @@ export function EstimationSummaryCard({
 
               <div
                 className={cn(
-                  "flex min-h-48 min-w-0 flex-col justify-between border-t border-border px-4 sm:min-h-0 sm:border-t-0 sm:border-l",
+                  "flex min-h-36 min-w-0 flex-col justify-between border-t border-border px-4 lg:min-h-0 lg:border-t-0 lg:border-l",
+                  !summary.imageUrl && "border-t-0",
                   compact ? "py-3" : "py-4",
                 )}
                 data-estimation-summary-intro
@@ -1006,19 +1278,41 @@ export function EstimationSummaryCard({
               data-estimation-summary-section
             >
               <div className={cn(compact ? "space-y-2" : "space-y-3")}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">Gold</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      {formatWeight(summary.netGoldWeight, "g")} -{" "}
-                      {summary.purity} - {formatCurrency(summary.goldRateValue)}
-                      /g
-                    </p>
+                {summary.metalDetails?.length ? (
+                  summary.metalDetails.map((metal) => (
+                    <div
+                      key={metal.id}
+                      className="flex items-start justify-between gap-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {metal.metalName} · {metal.purityLabel}
+                        </p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {formatWeight(metal.weight, "g")} ·{" "}
+                          {formatCurrency(metal.ratePerGram)}/g
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-semibold tabular">
+                        {formatCurrency(metal.totalCost)}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">Gold</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {formatWeight(summary.netGoldWeight, "g")} ·{" "}
+                        {summary.purity} ·{" "}
+                        {formatCurrency(summary.goldRateValue)}/g
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold tabular">
+                      {formatCurrency(summary.goldCost)}
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold tabular">
-                    {formatCurrency(summary.goldCost)}
-                  </span>
-                </div>
+                )}
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-sm font-medium">Making Charges</span>
                   <span className="text-sm font-semibold tabular">
@@ -1164,8 +1458,8 @@ export function EstimationSummaryCard({
             )}
           >
             <li>
-              Gold weight estimated might be slightly higher than actual product
-              weight. Invoicing will be as per actuals.
+              Metal weight estimated might be slightly higher than actual
+              product weight. Invoicing will be as per actuals.
             </li>
             <li>
               Prices quoted are indicative and subject to rate fluctuations on

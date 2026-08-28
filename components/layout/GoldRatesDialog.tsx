@@ -15,19 +15,36 @@ import { calculateGoldRate } from "@/lib/calculator/pricing";
 import { formatCurrency } from "@/lib/utils";
 import type { MetalPurity } from "@/types";
 
-const PURITIES: MetalPurity[] = ["24K", "22K", "18K", "14K"];
+const PURITIES: MetalPurity[] = ["24K", "22K", "18K", "14K", "9K"];
+
+const OTHER_METALS = [
+  { key: "silverPrice", label: "Silver", purity: "925" },
+  { key: "platinumPrice", label: "Platinum", purity: "950" },
+] as const;
 
 function configuredPercentage(
   configs: { key: string; value: string }[],
   purity: MetalPurity,
 ) {
+  const karat = purity.replace("K", "");
   const configured = Number(
-    configs.find((config) => config.key === `purity${purity}`)?.value,
+    configs.find(
+      (config) =>
+        config.key === `purity_${karat}` || config.key === `purity${purity}`,
+    )?.value,
   );
 
   return Number.isFinite(configured)
     ? configured
     : DEFAULT_CALCULATOR_SETTINGS.purityPercentages[purity];
+}
+
+function configuredMetalRate(
+  configs: { key: string; value: string }[],
+  key: string,
+) {
+  const value = Number(configs.find((config) => config.key === key)?.value);
+  return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 export function GoldRatesDialog({ trigger }: { trigger: ReactNode }) {
@@ -59,6 +76,14 @@ export function GoldRatesDialog({ trigger }: { trigger: ReactNode }) {
     }));
   }, [configsQuery.data, goldRateQuery.data?.goldRate24k]);
 
+  const otherMetalRates = useMemo(() => {
+    const configs = configsQuery.data ?? [];
+    return OTHER_METALS.map((metal) => ({
+      ...metal,
+      rate: configuredMetalRate(configs, metal.key),
+    }));
+  }, [configsQuery.data]);
+
   const isLoading = goldRateQuery.isLoading || configsQuery.isLoading;
 
   return (
@@ -66,47 +91,93 @@ export function GoldRatesDialog({ trigger }: { trigger: ReactNode }) {
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-md gap-5">
         <DialogHeader className="pr-6 text-left">
-          <DialogTitle>Gold rates per gram</DialogTitle>
+          <DialogTitle>Metal rates per gram</DialogTitle>
           <DialogDescription>
-            Based on the current 24K gold rate and configured purity values.
+            Current gold, silver, and platinum rates from system config.
           </DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-3" aria-label="Loading gold rates">
-            {PURITIES.map((purity) => (
-              <div
-                key={purity}
-                className="h-24 animate-pulse rounded-xl border bg-muted/50"
-              />
-            ))}
-          </div>
-        ) : rates.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3">
-            {rates.map(({ purity, percentage, rate }) => (
-              <div
-                key={purity}
-                className="rounded-xl border bg-muted/30 p-4"
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-semibold">{purity}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {percentage}%
-                  </span>
-                </div>
-                <p className="mt-3 text-lg font-semibold tabular-nums">
-                  {formatCurrency(rate)}
-                  <span className="ml-1 text-xs font-normal text-muted-foreground">
-                    /g
-                  </span>
-                </p>
-              </div>
-            ))}
+          <div
+            className="grid grid-cols-2 gap-3"
+            aria-label="Loading metal rates"
+          >
+            {[...PURITIES, ...OTHER_METALS.map((metal) => metal.key)].map(
+              (rateKey) => (
+                <div
+                  key={rateKey}
+                  className="h-24 animate-pulse rounded-xl border bg-muted/50"
+                />
+              ),
+            )}
           </div>
         ) : (
-          <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
-            Gold rates are currently unavailable.
-          </p>
+          <div className="space-y-4">
+            <section aria-labelledby="gold-rates-heading">
+              <h3
+                id="gold-rates-heading"
+                className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+              >
+                Gold
+              </h3>
+              {rates.length > 0 ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {rates.map(({ purity, percentage, rate }) => (
+                    <div
+                      key={purity}
+                      className="rounded-xl border bg-muted/30 p-4"
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="font-semibold">{purity}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {percentage}%
+                        </span>
+                      </div>
+                      <p className="mt-3 text-lg font-semibold tabular-nums">
+                        {formatCurrency(rate)}
+                        <span className="ml-1 text-xs font-normal text-muted-foreground">
+                          /g
+                        </span>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+                  Gold rates are currently unavailable.
+                </p>
+              )}
+            </section>
+
+            <section aria-labelledby="other-metal-rates-heading">
+              <h3
+                id="other-metal-rates-heading"
+                className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+              >
+                Other metals
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {otherMetalRates.map(({ key, label, purity, rate }) => (
+                  <div key={key} className="rounded-xl border bg-muted/30 p-4">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-semibold">{label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {purity}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-lg font-semibold tabular-nums">
+                      {rate === null ? "Unavailable" : formatCurrency(rate)}
+                      {rate !== null ? (
+                        <span className="ml-1 text-xs font-normal text-muted-foreground">
+                          /g
+                        </span>
+                      ) : null}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
         )}
       </DialogContent>
     </Dialog>

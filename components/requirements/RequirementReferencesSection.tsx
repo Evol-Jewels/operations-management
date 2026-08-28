@@ -21,6 +21,7 @@ import { useInventoryProductByCode } from "@/hooks/useInventoryProducts";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import { fetchInventoryProducts } from "@/lib/inventoryApi";
 import { getInventoryPrimaryImage } from "@/lib/inventoryProductMapping";
+import { isSupportedImageFile } from "@/lib/prepareImageUpload";
 import type { InventoryProduct } from "@/types/inventory-api";
 import { SectionShell } from "./RequirementFields";
 import { ImagePreviewDialog } from "./ImagePreviewDialog";
@@ -49,7 +50,7 @@ export function RequirementReferencesSection({
   function addFiles(files: FileList | null) {
     if (!files?.length) return;
     const next = Array.from(files)
-      .filter((file) => file.type.startsWith("image/"))
+      .filter(isSupportedImageFile)
       .map((file) => ({
         id: generateRequirementId(),
         type: "image" as const,

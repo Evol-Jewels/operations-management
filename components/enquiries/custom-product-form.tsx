@@ -16,8 +16,9 @@ import { cn } from "@/lib/utils";
 import {
   CATEGORIES,
   createEmptyNewProductStone,
+  getMetalColors,
+  getMetalPurities,
   hasValidCustomProductRequirement,
-  METAL_PURITIES,
   METAL_TYPES,
   type NewProduct,
   type ProductReference,
@@ -67,6 +68,34 @@ export function CustomProductForm({
 
   const showStoneLoadingState =
     stoneTypesQuery.isLoading && stoneTypesQuery.options.length === 0;
+  const metalColors = getMetalColors(draft.metalType);
+  const metalPurities = getMetalPurities(draft.metalType);
+
+  function updateMetalType(metalType: string) {
+    const nextColors = getMetalColors(metalType);
+    const nextPurities = getMetalPurities(metalType);
+    const fixedMetalDetails = [
+      "Silver",
+      "Platinum",
+      "White Gold",
+      "Rose Gold",
+    ].includes(metalType);
+
+    setDraft((prev) => ({
+      ...prev,
+      metalType,
+      metalPurity: nextPurities.includes(prev.metalPurity)
+        ? prev.metalPurity
+        : metalType === "Silver" || metalType === "Platinum"
+          ? (nextPurities[0] ?? "")
+          : "",
+      metalColor: nextColors.includes(prev.metalColor)
+        ? prev.metalColor
+        : fixedMetalDetails
+          ? (nextColors[0] ?? "")
+          : "",
+    }));
+  }
 
   function updateStone(
     stoneId: string,
@@ -144,18 +173,26 @@ export function CustomProductForm({
               options={METAL_TYPES}
               required
               placeholder="Select metal"
-              onChange={(metalType) =>
-                setDraft((prev) => ({ ...prev, metalType }))
-              }
+              onChange={updateMetalType}
             />
             <SelectField
               label="Purity"
               value={draft.metalPurity}
-              options={METAL_PURITIES}
+              options={metalPurities}
               optional
               placeholder="Select purity"
               onChange={(metalPurity) =>
                 setDraft((prev) => ({ ...prev, metalPurity }))
+              }
+            />
+            <SelectField
+              label="Metal color"
+              value={draft.metalColor}
+              options={metalColors}
+              optional
+              placeholder="Select color"
+              onChange={(metalColor) =>
+                setDraft((prev) => ({ ...prev, metalColor }))
               }
             />
             <FormField label="Approx weight" optional>

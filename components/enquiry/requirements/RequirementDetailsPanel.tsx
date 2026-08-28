@@ -1,24 +1,24 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import type { EnquiryColorStone, EnquiryDiamond } from "@/types";
 import {
   compactUrl,
+  getDisplayMetalPurity,
   hasValue,
   type RequirementDisplayItem,
 } from "./requirement-display-utils";
 
 export function RequirementDetailsPanel({
   item,
+  vendorDetails,
 }: {
   item: RequirementDisplayItem;
+  vendorDetails?: OrderVendorDetailsDisplay;
 }) {
-  const metal = [item.metalType, item.metalPurity].filter(Boolean).join(" ");
-
   return (
     <div className="space-y-4">
       <div>
@@ -42,32 +42,64 @@ export function RequirementDetailsPanel({
           <DetailRow label="Category" value={item.title} />
           <DetailRow label="Subcategory" value={item.details.subcategory} />
           <DetailRow label="Product size" value={item.details.productSize} />
-          <DetailRow label="Budget range" value={item.details.budgetRange} />
           <DetailRow label="Setting type" value={item.details.settingType} />
           <DetailRow label="Finding type" value={item.details.findingType} />
-          <DetailRow label="Delivery date" value={item.details.deliveryDate} />
         </DetailSection>
 
         <DetailSection title="Metal">
-          <DetailRow label="Metal" value={metal} />
+          <DetailRow label="Metal" value={item.metalType} />
+          <DetailRow
+            label="Metal purity"
+            value={getDisplayMetalPurity(item.metalPurity)}
+          />
           <DetailRow label="Metal color" value={item.details.metalColor} />
-          <DetailRow label="Gold weight" value={item.metalWeight} />
+          <DetailRow label="Metal weight" value={item.metalWeight} />
           <DetailRow label="Certification" value={item.details.certification} />
           <DetailRow label="Polish" value={item.details.polish} />
         </DetailSection>
+
+        {item.kind === "custom" && vendorDetails ? (
+          <section className="space-y-2 xl:col-span-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-muted-foreground">
+                Vendor details
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={vendorDetails.onEdit}
+                className="h-8 gap-1.5 px-2.5 text-xs"
+              >
+                <Pencil className="size-3.5" />
+                Edit
+              </Button>
+            </div>
+            <dl className="grid gap-1.5 sm:grid-cols-2">
+              <DetailRow
+                label="Vendor name"
+                value={vendorDetails.name || "Not added"}
+              />
+              <DetailRow
+                label="Vendor delivery date"
+                value={vendorDetails.deliveryDate || "Not added"}
+              />
+            </dl>
+          </section>
+        ) : null}
       </div>
 
       <MiniCarousel
+        key={`diamonds-${item.id}`}
         title="Diamond Details"
         items={item.diamonds.filter(hasRecordValues)}
-        emptyLabel="No diamond details added."
         renderItem={(diamond) => <DiamondCard diamond={diamond} />}
       />
 
       <MiniCarousel
+        key={`color-stones-${item.id}`}
         title="Color Stone Details"
         items={item.colorStones.filter(hasRecordValues)}
-        emptyLabel="No colour stone details added."
         renderItem={(stone) => <ColorStoneCard stone={stone} />}
       />
 
@@ -86,7 +118,9 @@ export function RequirementDetailsPanel({
                     className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:border-primary/30 hover:text-primary"
                   >
                     <ExternalLink className="size-3" />
-                    <span className="truncate">{compactUrl(reference.url)}</span>
+                    <span className="truncate">
+                      {compactUrl(reference.url)}
+                    </span>
                   </a>
                 ) : null,
               )}
@@ -94,7 +128,9 @@ export function RequirementDetailsPanel({
           ) : null}
           {item.notes ? (
             <p className="text-sm leading-5 text-muted-foreground">
-              <span className="font-medium text-foreground">Special notes:</span>{" "}
+              <span className="font-medium text-foreground">
+                Special notes:
+              </span>{" "}
               {item.notes}
             </p>
           ) : null}
@@ -104,38 +140,33 @@ export function RequirementDetailsPanel({
   );
 }
 
+export interface OrderVendorDetailsDisplay {
+  name?: string;
+  deliveryDate?: string;
+  onEdit: () => void;
+}
+
 function MiniCarousel<T>({
   title,
   items,
-  emptyLabel,
   renderItem,
 }: {
   title: string;
   items: T[];
-  emptyLabel: string;
   renderItem: (item: T) => ReactNode;
 }) {
   const [index, setIndex] = useState(0);
   const hasMany = items.length > 1;
-  const selectedItem = items[Math.min(index, items.length - 1)];
+  const safeIndex = Math.min(index, Math.max(items.length - 1, 0));
+  const selectedItem = items[safeIndex];
 
-  useEffect(() => {
-    setIndex(0);
-  }, [items.length]);
-
-  if (items.length === 0) {
-    return (
-      <DetailSection title={title}>
-        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
-      </DetailSection>
-    );
-  }
+  if (items.length === 0) return null;
 
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-muted-foreground">
-          {title} ({index + 1} item of {items.length})
+          {title} ({safeIndex + 1} item of {items.length})
         </p>
         <div className="flex items-center gap-2">
           {hasMany ? (
@@ -145,7 +176,11 @@ function MiniCarousel<T>({
                 variant="ghost"
                 size="icon-xs"
                 onClick={() =>
-                  setIndex((value) => (value === 0 ? items.length - 1 : value - 1))
+                  setIndex((value) =>
+                    Math.min(value, items.length - 1) === 0
+                      ? items.length - 1
+                      : Math.min(value, items.length - 1) - 1,
+                  )
                 }
                 aria-label={`Previous ${title}`}
                 className="text-muted-foreground hover:bg-transparent hover:text-foreground"
@@ -157,7 +192,11 @@ function MiniCarousel<T>({
                 variant="ghost"
                 size="icon-xs"
                 onClick={() =>
-                  setIndex((value) => (value === items.length - 1 ? 0 : value + 1))
+                  setIndex((value) =>
+                    Math.min(value, items.length - 1) === items.length - 1
+                      ? 0
+                      : Math.min(value, items.length - 1) + 1,
+                  )
                 }
                 aria-label={`Next ${title}`}
                 className="text-muted-foreground hover:bg-transparent hover:text-foreground"
@@ -168,9 +207,7 @@ function MiniCarousel<T>({
           ) : null}
         </div>
       </div>
-      <div>
-        {selectedItem ? renderItem(selectedItem) : null}
-      </div>
+      <div>{selectedItem ? renderItem(selectedItem) : null}</div>
     </section>
   );
 }
@@ -213,9 +250,7 @@ function DetailSection({
 }) {
   return (
     <section className="space-y-2">
-      <p className="text-sm font-semibold text-muted-foreground">
-        {title}
-      </p>
+      <p className="text-sm font-semibold text-muted-foreground">{title}</p>
       <dl className="grid gap-1.5">{children}</dl>
     </section>
   );

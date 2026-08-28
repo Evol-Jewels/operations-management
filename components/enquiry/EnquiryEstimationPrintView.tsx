@@ -1,14 +1,18 @@
+import { forwardRef } from "react";
 import {
   compactUrl,
+  getDisplayMetalPurity,
   type RequirementDisplayItem,
 } from "@/components/enquiry/requirements/requirement-display-utils";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { forwardRef } from "react";
 import type {
   EnquiryColorStone,
   EnquiryDiamond,
   ProductEstimation,
+  RecordType,
 } from "@/types";
+
+const PRINT_FONT = 'var(--font-geist-sans), "Segoe UI", sans-serif';
 
 function hasValue(value: unknown) {
   return value !== null && value !== undefined && String(value).trim() !== "";
@@ -54,7 +58,7 @@ function PrintSection({
         style={{
           borderBottom: "1px solid #d9d9d9",
           color: "#111111",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "10.5pt",
           fontWeight: 700,
           lineHeight: 1.25,
@@ -95,7 +99,7 @@ function DetailRow({
       <dt
         style={{
           color: "#555555",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "8.5pt",
           lineHeight: 1.3,
           textTransform: "uppercase",
@@ -106,7 +110,7 @@ function DetailRow({
       <dd
         style={{
           color: "#111111",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "9.5pt",
           fontWeight: 700,
           lineHeight: 1.35,
@@ -123,11 +127,7 @@ function DetailRow({
   );
 }
 
-function DetailGrid({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DetailGrid({ children }: { children: React.ReactNode }) {
   return (
     <dl
       style={{
@@ -163,7 +163,7 @@ function StoneCard({
       <p
         style={{
           color: "#111111",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "9.5pt",
           fontWeight: 700,
           margin: "0 0 4px",
@@ -217,7 +217,7 @@ function MediaPanel({ item }: { item: RequirementDisplayItem }) {
           <span
             style={{
               color: "#666666",
-              fontFamily: "Arial, Helvetica, sans-serif",
+              fontFamily: PRINT_FONT,
               fontSize: "9pt",
             }}
           >
@@ -270,11 +270,7 @@ function MediaPanel({ item }: { item: RequirementDisplayItem }) {
   );
 }
 
-function ReferenceLinks({
-  links,
-}: {
-  links: RequirementDisplayItem["links"];
-}) {
+function ReferenceLinks({ links }: { links: RequirementDisplayItem["links"] }) {
   return (
     <div
       style={{
@@ -287,7 +283,7 @@ function ReferenceLinks({
       <p
         style={{
           color: "#555555",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "7.5pt",
           fontWeight: 700,
           letterSpacing: 0,
@@ -309,7 +305,7 @@ function ReferenceLinks({
                 borderBottom: "1px dotted #cfcfcf",
                 color: "#111111",
                 display: "grid",
-                fontFamily: "Arial, Helvetica, sans-serif",
+                fontFamily: PRINT_FONT,
                 fontSize: "8.5pt",
                 fontWeight: 700,
                 gap: 6,
@@ -351,7 +347,7 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
       <p
         style={{
           color: "#555555",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "7.5pt",
           fontWeight: 700,
           letterSpacing: "0.2em",
@@ -364,7 +360,7 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
       <p
         style={{
           color: "#111111",
-          fontFamily: "Arial, Helvetica, sans-serif",
+          fontFamily: PRINT_FONT,
           fontSize: "15pt",
           fontWeight: 700,
           margin: "4px 0",
@@ -372,32 +368,31 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
       >
         {formatCurrency(estimation.finalAmount)}
       </p>
-      <p
-        style={{
-          color: "#555555",
-          fontFamily: "Arial, Helvetica, sans-serif",
-          fontSize: "9pt",
-          margin: 0,
-        }}
-      >
-        {estimation.metalWeight}g {estimation.purity} -{" "}
-        {formatDate(estimation.createdAt)}
-      </p>
-      {estimation.vendorName || estimation.notes ? (
-        <p
-          style={{
-            borderTop: "1px dotted #cfcfcf",
-            color: "#555555",
-            fontFamily: "Arial, Helvetica, sans-serif",
-            fontSize: "9pt",
-            margin: "10px 0 0",
-            overflowWrap: "anywhere",
-            paddingTop: 10,
-          }}
-        >
-          {[estimation.vendorName, estimation.notes].filter(Boolean).join(" - ")}
-        </p>
-      ) : null}
+      <dl style={{ margin: "8px 0 0" }}>
+        <DetailRow label="Metal weight" value={`${estimation.metalWeight} g`} />
+        <DetailRow label="Purity" value={estimation.purity} />
+        <DetailRow
+          label="Making charge"
+          value={
+            estimation.makingCost !== undefined
+              ? formatCurrency(estimation.makingCost)
+              : undefined
+          }
+        />
+        <DetailRow
+          label="Estimated on"
+          value={formatDate(estimation.createdAt)}
+        />
+        <DetailRow label="Vendor" value={estimation.vendorName} />
+        {estimation.stoneDetails.map((stone, index) => (
+          <DetailRow
+            key={stone.id}
+            label={`Stone ${index + 1}`}
+            value={`${stone.type} - ${stone.netWeight} ct - ${stone.pieces} pcs`}
+          />
+        ))}
+        <DetailRow label="Notes" value={estimation.notes} />
+      </dl>
     </div>
   );
 }
@@ -458,13 +453,24 @@ function ColorStoneDetails({ stones }: { stones: EnquiryColorStone[] }) {
 interface EnquiryEstimationPrintViewProps {
   item: RequirementDisplayItem;
   enquiryRefCode: number;
+  recordType: RecordType;
+  vendorDetails?: {
+    name?: string;
+    deliveryDate?: string;
+  };
 }
 
 export const EnquiryEstimationPrintView = forwardRef<
   HTMLDivElement,
   EnquiryEstimationPrintViewProps
->(function EnquiryEstimationPrintView({ item, enquiryRefCode }, ref) {
-  const metal = joinValues([item.metalType, item.metalPurity]);
+>(function EnquiryEstimationPrintView(
+  { item, enquiryRefCode, recordType, vendorDetails },
+  ref,
+) {
+  const metal = joinValues([
+    item.metalType,
+    getDisplayMetalPurity(item.metalPurity),
+  ]);
   const printDate = formatPrintDate(new Date());
   const visibleDiamonds = item.diamonds.filter(hasRecordValues);
   const visibleColorStones = item.colorStones.filter(hasRecordValues);
@@ -477,18 +483,21 @@ export const EnquiryEstimationPrintView = forwardRef<
         background: "#ffffff",
         color: "#111111",
         display: "none",
-        fontFamily: "Arial, Helvetica, sans-serif",
+        fontFamily: PRINT_FONT,
         padding: 0,
       }}
     >
       <article
         style={{
           background: "#ffffff",
+          boxSizing: "border-box",
           color: "#111111",
           display: "block",
+          fontFamily: PRINT_FONT,
           margin: "0 auto",
           maxWidth: "680px",
           padding: "0 0 12px",
+          width: "680px",
         }}
       >
         <header
@@ -530,14 +539,14 @@ export const EnquiryEstimationPrintView = forwardRef<
               alignItems: "center",
               color: "#111111",
               display: "flex",
-              fontFamily: "Arial, Helvetica, sans-serif",
+              fontFamily: PRINT_FONT,
               fontSize: "9pt",
               fontWeight: 700,
               justifyContent: "space-between",
               marginTop: 10,
             }}
           >
-            <span>{`Enquiry No: #${enquiryRefCode}`}</span>
+            <span>{`${recordType === "order" ? "Order" : "Enquiry"} No: #${enquiryRefCode}`}</span>
             <span>{`Date: ${printDate}`}</span>
           </div>
         </header>
@@ -590,15 +599,60 @@ export const EnquiryEstimationPrintView = forwardRef<
               gridTemplateColumns: "1fr",
             }}
           >
+            <PrintSection title="Overview">
+              <DetailGrid>
+                <DetailRow
+                  label="Type of order"
+                  value={item.details.orderType}
+                />
+                <DetailRow label="Category" value={item.title} />
+                <DetailRow
+                  label="Subcategory"
+                  value={item.details.subcategory}
+                />
+                <DetailRow
+                  label="Product size"
+                  value={item.details.productSize}
+                />
+                <DetailRow
+                  label="Setting type"
+                  value={item.details.settingType}
+                />
+                <DetailRow
+                  label="Finding type"
+                  value={item.details.findingType}
+                />
+              </DetailGrid>
+            </PrintSection>
             <PrintSection title="Metal">
               <DetailGrid>
                 <DetailRow label="Metal" value={metal} />
-                <DetailRow label="Metal color" value={item.details.metalColor} />
-                <DetailRow label="Gold weight" value={item.metalWeight} />
-                <DetailRow label="Certification" value={item.details.certification} />
+                <DetailRow
+                  label="Metal color"
+                  value={item.details.metalColor}
+                />
+                <DetailRow label="Metal weight" value={item.metalWeight} />
+                <DetailRow
+                  label="Certification"
+                  value={item.details.certification}
+                />
                 <DetailRow label="Polish" value={item.details.polish} />
               </DetailGrid>
             </PrintSection>
+            {item.kind === "custom" && vendorDetails ? (
+              <PrintSection title="Vendor details">
+                <DetailGrid>
+                  <DetailRow
+                    label="Vendor name"
+                    value={vendorDetails.name || "Not added"}
+                  />
+                  <DetailRow
+                    label="Vendor delivery date"
+                    value={vendorDetails.deliveryDate || "Not added"}
+                  />
+                </DetailGrid>
+              </PrintSection>
+            ) : null}
           </div>
 
           {visibleDiamonds.length > 0 ? (

@@ -1,7 +1,9 @@
 "use client";
 
-import { AlertCircle, UserRound, Wrench } from "lucide-react";
+import { AlertCircle, Pencil, Truck, UserRound, Wrench } from "lucide-react";
+import { getDisplayMetalPurity } from "@/components/enquiry/requirements/requirement-display-utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Order } from "@/types";
 
@@ -60,19 +62,24 @@ function BadgeGroup({
 function SpecSection({
   icon: Icon,
   title,
+  action,
   children,
 }: {
   icon: React.ElementType;
   title: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-2.5">
-      <div className="flex items-center gap-1.5">
-        <Icon className="h-3 w-3 text-muted-foreground/60" />
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-          {title}
-        </span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5">
+          <Icon className="h-3 w-3 text-muted-foreground/60" />
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+            {title}
+          </span>
+        </div>
+        {action}
       </div>
       <div className="space-y-2">{children}</div>
     </div>
@@ -81,9 +88,13 @@ function SpecSection({
 
 interface ProductionSpecCardProps {
   order: Order;
+  onEditVendor: () => void;
 }
 
-export function ProductionSpecCard({ order }: ProductionSpecCardProps) {
+export function ProductionSpecCard({
+  order,
+  onEditVendor,
+}: ProductionSpecCardProps) {
   const customProduct = order.customProducts?.[0];
   const customDetails = customProduct?.details;
 
@@ -108,7 +119,10 @@ export function ProductionSpecCard({ order }: ProductionSpecCardProps) {
                 <BadgeGroup
                   items={[
                     { label: "Metal", value: order.metalType },
-                    { label: "Purity", value: order.metalPurity },
+                    {
+                      label: "Purity",
+                      value: getDisplayMetalPurity(order.metalPurity),
+                    },
                     {
                       label: "Net weight",
                       value: order.metalWeight
@@ -133,13 +147,45 @@ export function ProductionSpecCard({ order }: ProductionSpecCardProps) {
             />
             <SpecLine label="Setting" value={customDetails?.settingType} />
             <SpecLine label="Finding" value={customDetails?.findingType} />
-            <SpecLine label="Budget" value={customDetails?.budgetRange} />
+            <SpecLine
+              label="Budget range"
+              value={order.budgetRange ?? customDetails?.budgetRange}
+            />
+            <SpecLine label="Delivery date" value={order.deliveryDate} />
             <SpecLine
               label="Customer need CAD Design"
               value={order.cadDesignRequired ? "Required" : "Not required"}
             />
             <SpecLine label="Salesperson" value={order.salespersonName} />
           </SpecSection>
+
+          {!customProduct ? (
+            <SpecSection
+              icon={Truck}
+              title="Vendor details"
+              action={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={onEditVendor}
+                  className="h-7 gap-1.5 px-2 text-xs"
+                >
+                  <Pencil className="size-3" />
+                  Edit
+                </Button>
+              }
+            >
+              <SpecLine
+                label="Vendor name"
+                value={order.vendorName || "Not added"}
+              />
+              <SpecLine
+                label="Vendor delivery"
+                value={order.vendorDeliveryDate || "Not added"}
+              />
+            </SpecSection>
+          ) : null}
 
           {notes && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3.5 py-3">

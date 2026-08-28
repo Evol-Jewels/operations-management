@@ -2,6 +2,7 @@ import { apiFetch, buildUrl } from "@/lib/apiClient";
 import type {
   BackendStockSaleRow,
   ListStockSalesQuery,
+  RecentProductSalesPageResponse,
   StockSalesAnalyticsQuery,
   StockSalesAnalyticsResponse,
   StockSalesLeaderboardResponse,
@@ -12,6 +13,7 @@ import type {
 } from "@/types/stock-sales-api";
 
 export const STOCK_SALES_LIST_DEFAULT_LIMIT = 40;
+export const RECENT_PRODUCT_SALES_DEFAULT_LIMIT = 12;
 
 function normalizeStockSalesList(response: unknown): StockSalesListResponse {
   if (Array.isArray(response)) {
@@ -65,13 +67,25 @@ export function fetchStockSales(query: ListStockSalesQuery = {}) {
   ).then(normalizeStockSalesList);
 }
 
+export function fetchRecentProductSales(
+  query: { limit?: number; cursor?: string } = {},
+) {
+  return apiFetch<RecentProductSalesPageResponse>(
+    buildUrl("api/v1/stock-sales/recent-products", query),
+  );
+}
+
 export function fetchStockSalesAnalytics(
   query: StockSalesAnalyticsQuery = { period: "month" },
 ) {
   return apiFetch<StockSalesAnalyticsResponse>(
     buildUrl("api/v1/stock-sales/sales-analytics", {
       period: query.period,
-      saleMonth: query.period === "month" ? query.saleMonth : undefined,
+      range: query.range,
+      saleMonth:
+        !query.range && query.period === "month" ? query.saleMonth : undefined,
+      saleYear:
+        !query.range && query.period === "year" ? query.saleYear : undefined,
     }),
   );
 }
@@ -82,7 +96,11 @@ export function fetchStockSalesLeaderboard(
   return apiFetch<StockSalesLeaderboardResponse>(
     buildUrl("api/v1/stock-sales/leaderboard", {
       period: query.period,
-      saleMonth: query.period === "month" ? query.saleMonth : undefined,
+      range: query.range,
+      saleMonth:
+        !query.range && query.period === "month" ? query.saleMonth : undefined,
+      saleYear:
+        !query.range && query.period === "year" ? query.saleYear : undefined,
     }),
   );
 }
@@ -91,7 +109,11 @@ export function fetchMyStockSales(query: StockSalesAnalyticsQuery = {}) {
   return apiFetch<StockSalesMeResponse>(
     buildUrl("api/v1/stock-sales/me", {
       period: query.period,
-      saleMonth: query.period === "month" ? query.saleMonth : undefined,
+      range: query.range,
+      saleMonth:
+        !query.range && query.period === "month" ? query.saleMonth : undefined,
+      saleYear:
+        !query.range && query.period === "year" ? query.saleYear : undefined,
     }),
   );
 }
@@ -104,7 +126,13 @@ export function fetchSalesPersonStockSales(
       `api/v1/stock-sales/sales-analytics/salesperson/${query.salesPersonId}`,
       {
         period: query.period,
-        saleMonth: query.period === "month" ? query.saleMonth : undefined,
+        range: query.range,
+        saleMonth:
+          !query.range && query.period === "month"
+            ? query.saleMonth
+            : undefined,
+        saleYear:
+          !query.range && query.period === "year" ? query.saleYear : undefined,
       },
     ),
   );

@@ -132,7 +132,7 @@ export type MetalType =
   | "Rose Gold"
   | "White Gold";
 
-export type MetalPurity = "14K" | "18K" | "22K" | "24K" | "Other";
+export type MetalPurity = "9K" | "14K" | "18K" | "22K" | "24K" | "Other";
 
 export type CertificationType = "Jewellery" | "GIA" | "IGI" | "SGL" | "None";
 
@@ -340,13 +340,34 @@ export interface CalculatorStoneType {
   slabs: CalculatorStoneSlab[];
 }
 
+export interface CalculatorMetalPurityOption {
+  id: string;
+  label: string;
+  ratePerGram: number;
+}
+
+export interface CalculatorMetalType {
+  id: string;
+  name: string;
+  purities: CalculatorMetalPurityOption[];
+}
+
 export interface CalculatorSettings {
   goldRate24k: number;
   makingChargeFlat: number;
   makingChargePerGram: number;
   gstRate: number;
   purityPercentages: Record<MetalPurity, number>;
+  metalTypes: CalculatorMetalType[];
   stoneTypes: CalculatorStoneType[];
+}
+
+export interface CalculatorMetalInput {
+  id: string;
+  metalTypeId: string;
+  purityId: string;
+  weight: number;
+  rateOverride?: number;
 }
 
 export interface CalculatorStoneInput {
@@ -361,6 +382,7 @@ export interface CalculatorStoneInput {
 export interface CalculatorFormState {
   netGoldWeight: number;
   purity: MetalPurity;
+  metals?: CalculatorMetalInput[];
   stones: CalculatorStoneInput[];
   diamondColor: string;
   diamondClarity: string;
@@ -370,6 +392,7 @@ export interface CalculatorFormState {
   productName: string;
   productNote: string;
   productImageUrl?: string;
+  productImageUrls?: string[];
 }
 
 export interface CalculatorPricedStoneDetail extends CalculatorStoneInput {
@@ -382,6 +405,14 @@ export interface CalculatorPricingBreakdown {
   grossWeight: number;
   goldRateValue: number;
   goldCost: number;
+  metalDetails?: Array<
+    CalculatorMetalInput & {
+      metalName: string;
+      purityLabel: string;
+      ratePerGram: number;
+      totalCost: number;
+    }
+  >;
   makingCost: number;
   stoneDetails: CalculatorPricedStoneDetail[];
   totalStoneCost: number;
@@ -448,6 +479,7 @@ export interface Order {
   salespersonName: string;
   createdBy?: PersonSummary;
   vendorName?: string;
+  vendorDeliveryDate?: string;
 
   // Financial
   budget?: number;
@@ -529,6 +561,7 @@ export interface ProductLookupProduct {
   description: string;
   note: string;
   imageUrl: string | null;
+  imageUrls?: string[];
   purity: string;
   netGoldWeight: number;
   grossWeight: number;

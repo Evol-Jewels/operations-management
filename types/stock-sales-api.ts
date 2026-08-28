@@ -1,3 +1,5 @@
+import type { InventoryProduct } from "@/types/inventory-api";
+
 export interface BackendStockSaleUserSummary {
   id: string;
   name: string | null;
@@ -43,12 +45,37 @@ export interface StockSalesListResponse {
   total: number;
 }
 
-export type StockSalesAnalyticsPeriod = "month" | "allTime";
+export interface RecentProductSale {
+  saleItemId: string;
+  transactionId: string;
+  productCode: string;
+  saleMonth: string | null;
+  sellingPrice: string;
+  salesPerson: BackendStockSaleUserSummary | null;
+  location: BackendStockSaleLocationSummary | null;
+  storeName: string | null;
+  inventoryResolution: "FOUND" | "NOT_FOUND";
+  product: InventoryProduct | null;
+}
+
+export interface RecentProductSalesPageResponse {
+  data: RecentProductSale[];
+  total: number;
+  pageInfo: {
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
+}
+
+export type StockSalesAnalyticsPeriod = "month" | "year" | "allTime";
+export type StockSalesAnalyticsRange = "30" | "90" | "360" | "thisYear";
 export type StockSalesMoneyValue = string | number;
 
 export interface StockSalesAnalyticsQuery {
   period?: StockSalesAnalyticsPeriod;
+  range?: StockSalesAnalyticsRange;
   saleMonth?: string;
+  saleYear?: string;
 }
 
 export interface StockSalesPersonAnalyticsQuery
@@ -70,7 +97,7 @@ export interface StockSalesAnalyticsBreakdownRow {
   revenue: string;
   target: string | null;
   revenueShare: string;
-  incentive: {
+  incentive?: {
     eligible: boolean;
     earnedAmount: string;
     payableAmount: string;

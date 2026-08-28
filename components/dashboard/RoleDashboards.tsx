@@ -39,13 +39,6 @@ import type { ChartConfig } from "@/components/evilcharts/ui/chart";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -81,11 +74,16 @@ import type { BackendOrderStatus } from "@/types/order-api";
 import type { OrdersEnquiriesAnalyticsResponse } from "@/types/orders-enquiries-analytics-api";
 import type {
   StockSalesAnalyticsBreakdownRow,
-  StockSalesAnalyticsPeriod,
+  StockSalesAnalyticsQuery,
+  StockSalesAnalyticsRange,
   StockSalesLeaderboardRow,
   StockSalesMeResponse,
 } from "@/types/stock-sales-api";
 import { RecentActivities } from "./RecentActivities";
+import {
+  SalesAnalyticsDateFilter,
+  type SalesAnalyticsView,
+} from "./SalesAnalyticsDateFilter";
 import { SalesTargetMeter } from "./SalesTargetMeter";
 
 export type SalesTab =
@@ -211,14 +209,15 @@ const ADMIN_DASHBOARD_TABS = new Set<AdminDashboardTab>([
   "sales-analytics",
 ]);
 
-const SALE_MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => {
-  const date = new Date(2026, index, 1);
-
-  return {
-    value: String(index + 1).padStart(2, "0"),
-    label: date.toLocaleDateString("en-IN", { month: "long" }),
-  };
-});
+const SALES_ANALYTICS_VIEWS = new Set<SalesAnalyticsView>([
+  "month",
+  "year",
+  "30",
+  "90",
+  "360",
+  "thisYear",
+  "allTime",
+]);
 const SALES_LEADERBOARD_SKELETON_ROWS = ["first", "second", "third"] as const;
 const ANALYTICS_TABLE_SKELETON_ROWS = [
   "first",
@@ -736,15 +735,6 @@ function getSaleYearOptions(selectedYear: string) {
   return Array.from(years).sort((a, b) => Number(b) - Number(a));
 }
 
-function getSearchParamValue(
-  searchParams: URLSearchParams,
-  key: string,
-  fallback: string,
-) {
-  const value = searchParams.get(key);
-  return value?.trim() || fallback;
-}
-
 function getAdminDashboardTab(searchParams: URLSearchParams) {
   const tab = searchParams.get("tab");
   return ADMIN_DASHBOARD_TABS.has(tab as AdminDashboardTab)
@@ -754,8 +744,8 @@ function getAdminDashboardTab(searchParams: URLSearchParams) {
 
 function getSaleMonthFromSearchParams(searchParams: URLSearchParams) {
   const current = getCurrentSaleMonthParts();
-  const queryMonth = getSearchParamValue(searchParams, "month", current.month);
-  const queryYear = getSearchParamValue(searchParams, "year", current.year);
+  const queryMonth = searchParams.get("month")?.trim() || current.month;
+  const queryYear = searchParams.get("year")?.trim() || current.year;
   const month = /^(0[1-9]|1[0-2])$/.test(queryMonth)
     ? queryMonth
     : current.month;
@@ -764,8 +754,15 @@ function getSaleMonthFromSearchParams(searchParams: URLSearchParams) {
   return { month, year, saleMonth: `${year}-${month}` };
 }
 
-function getSalesAnalyticsPeriod(searchParams: URLSearchParams) {
-  return searchParams.get("year") === "allTime" ? "allTime" : "month";
+function getSalesAnalyticsView(searchParams: URLSearchParams) {
+  const view = searchParams.get("salesRange");
+  if (view === "thisYear") return "year";
+
+  if (SALES_ANALYTICS_VIEWS.has(view as SalesAnalyticsView)) {
+    return view as SalesAnalyticsView;
+  }
+
+  return searchParams.has("month") || searchParams.has("year") ? "month" : "30";
 }
 
 function formatSaleMonthLabel(saleMonth: string) {
@@ -808,21 +805,38 @@ function getTargetProgress(
   };
 }
 
-function getAnalyticsPeriodTitle(saleMonth: string) {
-  return `Sales Analytics for ${formatSaleMonthLabel(saleMonth)}`;
-}
-
-function getAnalyticsTitle(
-  period: StockSalesAnalyticsPeriod,
+function getSalesAnalyticsViewLabel(
+  view: SalesAnalyticsView,
   saleMonth: string,
 ) {
-  return period === "allTime"
-    ? "Sales Analytics for All Time"
-    : getAnalyticsPeriodTitle(saleMonth);
+  if (view === "month") {
+    return formatSaleMonthLabel(saleMonth);
+  }
+
+  if (view === "year") return saleMonth.slice(0, 4);
+
+  if (view === "allTime") return "All Time";
+
+  const rangeLabels: Record<StockSalesAnalyticsRange, string> = {
+    "30": "Last 30 days",
+    "90": "Last 90 days",
+    "360": "Last 360 days",
+    thisYear: "This year",
+  };
+
+  return rangeLabels[view];
+}
+
+function formatSalesAnalyticsPeriodLabel(period: string) {
+  return /^\d{4}-\d{2}$/.test(period) ? formatSaleMonthLabel(period) : period;
 }
 
 function getLeaderboardPeriodLabel(period: string) {
-  return `Based on performance for ${formatSaleMonthLabel(period).split(" ")[0]} month`;
+  if (/^\d{4}-\d{2}$/.test(period)) {
+    return `Based on performance for ${formatSaleMonthLabel(period).split(" ")[0]} month`;
+  }
+
+  return `Based on performance for ${period.toLowerCase()}`;
 }
 
 function SalesAnalyticsValue({
@@ -918,23 +932,23 @@ function SalesPerformanceCards({
   analytics,
   compact = false,
   isLoading,
-  monthLabel,
+  periodLabel,
 }: {
   analytics?: StockSalesMeResponse;
   compact?: boolean;
   isLoading: boolean;
-  monthLabel: string;
+  periodLabel: string;
 }) {
   const target = analytics?.target;
   const revenue = analytics?.revenue ?? "0";
-  const earnedIncentiveAmount = analytics?.incentive.earnedAmount ?? "0";
-  const payableIncentiveAmount = analytics?.incentive.payableAmount ?? "0";
-  const incentiveMultiplier = analytics?.incentive.multiplier ?? "0.00";
+  const earnedIncentiveAmount = analytics?.incentive?.earnedAmount ?? "0";
+  const payableIncentiveAmount = analytics?.incentive?.payableAmount ?? "0";
+  const incentiveMultiplier = analytics?.incentive?.multiplier ?? "0.00";
   const progress = getTargetProgress(revenue, target);
   const progressValue = progress?.displayProgress ?? 0;
   const fillHeight = progress?.fillHeight ?? 0;
   const isIncentiveEligible =
-    analytics?.incentive.eligible ?? progressValue >= 100;
+    analytics?.incentive?.eligible ?? progressValue >= 100;
   const nextMilestone =
     progress == null
       ? "Target not set"
@@ -950,7 +964,7 @@ function SalesPerformanceCards({
     <section className="rounded-lg border border-border/70 bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h2 className="text-sm font-semibold text-foreground">
-          Sales Performance this {monthLabel}
+          Sales Performance for {periodLabel}
         </h2>
         <Badge
           variant="outline"
@@ -986,7 +1000,7 @@ function SalesPerformanceCards({
           <div className="grid gap-3 sm:grid-cols-2">
             <SalesMetricTile>
               <p className="text-sm font-medium text-muted-foreground">
-                Monthly Target
+                Period Target
               </p>
               <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
                 {isLoading
@@ -1111,32 +1125,32 @@ function MySalesAnalyticsCards() {
     <SalesPerformanceCards
       analytics={salesQuery.data}
       isLoading={salesQuery.isLoading}
-      monthLabel={monthLabel}
+      periodLabel={monthLabel}
     />
   );
 }
 
 function AdminSalesPerformanceCards({
   compact,
+  query,
   selectedSalesPersonId,
 }: {
   compact?: boolean;
+  query: StockSalesAnalyticsQuery;
   selectedSalesPersonId: string;
 }) {
-  const saleMonth = getCurrentSaleMonth();
   const performanceQuery = useSalesPersonStockSales(
     {
-      period: "month",
-      saleMonth,
+      ...query,
       salesPersonId: selectedSalesPersonId,
     },
     {
       enabled: Boolean(selectedSalesPersonId),
     },
   );
-  const monthLabel = formatSaleMonthLabel(
-    performanceQuery.data?.period ?? saleMonth,
-  ).split(" ")[0];
+  const periodLabel = performanceQuery.data?.period
+    ? formatSalesAnalyticsPeriodLabel(performanceQuery.data.period)
+    : "selected period";
 
   if (!selectedSalesPersonId) {
     return (
@@ -1159,7 +1173,7 @@ function AdminSalesPerformanceCards({
       analytics={performanceQuery.data}
       compact={compact}
       isLoading={performanceQuery.isLoading}
-      monthLabel={monthLabel}
+      periodLabel={periodLabel}
     />
   );
 }
@@ -1191,29 +1205,26 @@ function SalesLeaderboardCard({
   className,
   highlightCurrentUser = true,
   onSelectedSalesPersonChange,
+  query,
   selectedSalesPersonId,
   title = "Sales Leaderboard",
 }: {
   className?: string;
   highlightCurrentUser?: boolean;
   onSelectedSalesPersonChange?: (row: StockSalesLeaderboardRow) => void;
+  query?: StockSalesAnalyticsQuery;
   selectedSalesPersonId?: string;
   title?: string;
 }) {
   const saleMonth = getCurrentSaleMonth();
-  const leaderboardQuery = useStockSalesLeaderboard({
+  const analyticsQuery = query ?? {
     period: "month",
     saleMonth,
+  };
+  const leaderboardQuery = useStockSalesLeaderboard(analyticsQuery);
+  const mySalesQuery = useMyStockSales(analyticsQuery, {
+    enabled: highlightCurrentUser,
   });
-  const mySalesQuery = useMyStockSales(
-    {
-      period: "month",
-      saleMonth,
-    },
-    {
-      enabled: highlightCurrentUser,
-    },
-  );
   const leaderboard = leaderboardQuery.data?.leaderboard ?? [];
   const currentSalesPersonId = highlightCurrentUser
     ? mySalesQuery.data?.salesPerson.id
@@ -1429,53 +1440,70 @@ function StockSalesAnalyticsSection({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [selectedSalesPersonId, setSelectedSalesPersonId] = useState("");
-  const period = getSalesAnalyticsPeriod(
-    new URLSearchParams(searchParams.toString()),
-  );
-  const { month, year, saleMonth } = getSaleMonthFromSearchParams(
-    new URLSearchParams(searchParams.toString()),
-  );
+  const currentParams = new URLSearchParams(searchParams.toString());
+  const view = getSalesAnalyticsView(currentParams);
+  const { month, year, saleMonth } =
+    getSaleMonthFromSearchParams(currentParams);
   const yearOptions = useMemo(() => getSaleYearOptions(year), [year]);
-  const analyticsQuery = useStockSalesAnalytics(
-    period === "allTime" ? { period } : { period, saleMonth },
-  );
+  const currentYear = getCurrentSaleMonthParts().year;
+  const salesAnalyticsQuery: StockSalesAnalyticsQuery =
+    view === "month"
+      ? { period: "month", saleMonth }
+      : view === "year"
+        ? year === currentYear
+          ? { range: "thisYear" }
+          : { period: "year", saleYear: year }
+        : view === "allTime"
+          ? { period: "allTime" }
+          : { range: view };
+  const analyticsQuery = useStockSalesAnalytics(salesAnalyticsQuery);
   const analytics = analyticsQuery.data;
   const salesBreakdown = analytics?.salesBreakdown ?? [];
-  const isAllTime = period === "allTime";
-  const updateSalesAnalyticsParams = useCallback(
-    (nextValues: {
-      month?: string;
-      period?: StockSalesAnalyticsPeriod;
-      year?: string;
-    }) => {
+  const isAllTime = view === "allTime";
+  const periodLabel = analytics?.period
+    ? formatSalesAnalyticsPeriodLabel(analytics.period)
+    : getSalesAnalyticsViewLabel(view, saleMonth);
+  const updateSalesAnalyticsView = useCallback(
+    (nextView: SalesAnalyticsView) => {
       const nextParams = new URLSearchParams(searchParams.toString());
-      const nextPeriod =
-        nextValues.year === "allTime"
-          ? "allTime"
-          : (nextValues.period ?? period);
-
       nextParams.set("tab", "sales-analytics");
+      nextParams.set("salesRange", nextView);
       nextParams.delete("period");
 
-      if (nextPeriod === "month") {
-        nextParams.set("month", nextValues.month ?? month);
-        nextParams.set("year", nextValues.year ?? year);
+      if (nextView === "month" || nextView === "year") {
+        if (nextView === "month") nextParams.set("month", month);
+        else nextParams.delete("month");
+        nextParams.set("year", year);
       } else {
         nextParams.delete("month");
-        nextParams.set("year", "allTime");
+        nextParams.delete("year");
       }
 
       router.replace(`${pathname}?${nextParams.toString()}`, {
         scroll: false,
       });
     },
-    [month, pathname, period, router, searchParams, year],
+    [month, pathname, router, searchParams, year],
   );
-  const updateSaleMonthParams = useCallback(
+  const updateCalendarPeriod = useCallback(
     (nextValues: { month?: string; year?: string }) => {
-      updateSalesAnalyticsParams({ ...nextValues, period: "month" });
+      const nextParams = new URLSearchParams(searchParams.toString());
+      const calendarView = view === "year" ? "year" : "month";
+      nextParams.set("tab", "sales-analytics");
+      nextParams.set("salesRange", calendarView);
+      if (calendarView === "month") {
+        nextParams.set("month", nextValues.month ?? month);
+      } else {
+        nextParams.delete("month");
+      }
+      nextParams.set("year", nextValues.year ?? year);
+      nextParams.delete("period");
+
+      router.replace(`${pathname}?${nextParams.toString()}`, {
+        scroll: false,
+      });
     },
-    [updateSalesAnalyticsParams],
+    [month, pathname, router, searchParams, view, year],
   );
   const handleSelectedSalesPersonChange = useCallback(
     (row: StockSalesLeaderboardRow) => {
@@ -1518,50 +1546,20 @@ function StockSalesAnalyticsSection({
             Sales Analytics
           </h2>
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            {getAnalyticsTitle(period, saleMonth)}
+            Sales Analytics for {periodLabel}
           </p>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          {period === "month" && (
-            <Select
-              value={month}
-              onValueChange={(value) => updateSaleMonthParams({ month: value })}
-            >
-              <SelectTrigger aria-label="Sale month" className="w-full sm:w-40">
-                <SelectValue placeholder="Month" />
-              </SelectTrigger>
-              <SelectContent>
-                {SALE_MONTH_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <Select
-            value={period === "allTime" ? "allTime" : year}
-            onValueChange={(value) =>
-              updateSalesAnalyticsParams({
-                period: value === "allTime" ? "allTime" : "month",
-                year: value,
-              })
-            }
-          >
-            <SelectTrigger aria-label="Sale year" className="w-full sm:w-32">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="allTime">All Time</SelectItem>
-              {yearOptions.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <SalesAnalyticsDateFilter
+          label={periodLabel}
+          month={month}
+          onMonthChange={(value) => updateCalendarPeriod({ month: value })}
+          onViewChange={updateSalesAnalyticsView}
+          onYearChange={(value) => updateCalendarPeriod({ year: value })}
+          view={view}
+          year={year}
+          yearOptions={yearOptions}
+        />
       </div>
 
       <MetricsGrid>
@@ -1697,11 +1695,13 @@ function StockSalesAnalyticsSection({
             className="max-w-none"
             highlightCurrentUser={false}
             onSelectedSalesPersonChange={handleSelectedSalesPersonChange}
+            query={salesAnalyticsQuery}
             selectedSalesPersonId={selectedSalesPersonId}
-            title={`Sales Leaderboard for ${formatSaleMonthLabel(getCurrentSaleMonth())}`}
+            title="Sales Leaderboard"
           />
           <AdminSalesPerformanceCards
             compact={isActivityOpen}
+            query={salesAnalyticsQuery}
             selectedSalesPersonId={selectedSalesPersonId}
           />
         </div>

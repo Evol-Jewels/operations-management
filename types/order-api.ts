@@ -50,7 +50,7 @@ export interface BackendCustomProductDetails {
   metalPurity?: string;
   metalColor?: "YELLOW" | "ROSE" | "WHITE" | "OTHERS";
   size?: number;
-  metalNetWeight: string;
+  metalNetWeight?: string;
   metalGrossWeight?: string;
   referenceProductCode?: string | null;
   stones: BackendOrderStone[];
@@ -121,6 +121,7 @@ export interface BackendOrderRow {
   isCadRequired: boolean;
   estimatedDeliveryDate: string | null;
   vendor: string | null;
+  vendorDeliveryDate: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -181,12 +182,15 @@ export interface ListOrdersQuery {
 export interface UpdateOrderInput {
   estimatedDeliveryDate?: string | null;
   vendor?: string | null;
+  vendorDeliveryDate?: string | null;
   notes?: string | null;
   isCadRequired?: boolean;
 }
 
 export interface UpdateOrderStatusInput {
   status: BackendOrderStatus;
+  vendor?: string | null;
+  vendorDeliveryDate?: string | null;
 }
 
 export interface CreateOrdersResponse {

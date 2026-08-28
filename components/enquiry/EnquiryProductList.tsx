@@ -1,23 +1,30 @@
 "use client";
 
 import {
-  ChevronDown,
   Check,
+  ChevronDown,
   Download,
   FileImage,
   FileText,
+  Loader2,
   Package,
-  Share2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { EnquiryEstimationPrintView } from "@/components/enquiry/EnquiryEstimationPrintView";
-import { RequirementDetailsPanel } from "@/components/enquiry/requirements/RequirementDetailsPanel";
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
+import {
+  type OrderVendorDetailsDisplay,
+  RequirementDetailsPanel,
+} from "@/components/enquiry/requirements/RequirementDetailsPanel";
 import { RequirementMediaPanel } from "@/components/enquiry/requirements/RequirementMediaPanel";
 import {
   normalizeRequirementItems,
   type RequirementDisplayItem,
 } from "@/components/enquiry/requirements/requirement-display-utils";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
@@ -32,8 +39,8 @@ import {
 } from "@/components/ui/select";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
+import { sharePngToWhatsApp } from "@/lib/share-image";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import type {
   CalculatorSettings,
   CalculatorStoneInput,
@@ -41,6 +48,7 @@ import type {
   EnquiryItemStatus,
   EnquirySelectedProduct,
   ProductEstimation,
+  RecordType,
 } from "@/types";
 
 type StatusFilter = "ALL" | EnquiryItemStatus;
@@ -52,26 +60,33 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "ESTIMATED", label: "Estimated" },
 ];
 const ENQUIRY_DOWNLOAD_FORMAT_KEY = "evol:enquiry-item-download-format";
+const PNG_EXPORT_CONTENT_WIDTH = 680;
+const PNG_EXPORT_PADDING = 32;
+const PNG_EXPORT_WIDTH = PNG_EXPORT_CONTENT_WIDTH + PNG_EXPORT_PADDING * 2;
 
 interface EnquiryProductListProps {
   enquiryRefCode: number;
+  recordType?: RecordType;
   selectedProducts: EnquirySelectedProduct[];
   customProducts: EnquiryCustomProduct[];
   estimations: ProductEstimation[];
   isFinalized: boolean;
   isSavingEstimation?: boolean;
   showHeader?: boolean;
+  vendorDetails?: OrderVendorDetailsDisplay;
   onSaveEstimation: (estimation: ProductEstimation) => void;
 }
 
 export function EnquiryProductList({
   enquiryRefCode,
+  recordType = "enquiry",
   selectedProducts,
   customProducts,
   estimations,
   isFinalized,
   isSavingEstimation,
   showHeader = true,
+  vendorDetails,
   onSaveEstimation,
 }: EnquiryProductListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -94,17 +109,11 @@ export function EnquiryProductList({
     statusFilter === "ALL"
       ? items
       : items.filter((item) => item.status === statusFilter);
-  const activeItem = filteredItems[activeIndex];
-
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [statusFilter]);
-
-  useEffect(() => {
-    if (activeIndex > Math.max(filteredItems.length - 1, 0)) {
-      setActiveIndex(0);
-    }
-  }, [activeIndex, filteredItems.length]);
+  const safeActiveIndex = Math.min(
+    activeIndex,
+    Math.max(filteredItems.length - 1, 0),
+  );
+  const activeItem = filteredItems[safeActiveIndex];
 
   return (
     <div className="space-y-4">
@@ -112,7 +121,10 @@ export function EnquiryProductList({
         <Header
           totalCount={items.length}
           statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
+          onStatusFilterChange={(nextFilter) => {
+            setStatusFilter(nextFilter);
+            setActiveIndex(0);
+          }}
         />
       ) : null}
 
@@ -124,11 +136,14 @@ export function EnquiryProductList({
         <RequirementCarouselCard
           item={activeItem}
           enquiryRefCode={enquiryRefCode}
-          activeIndex={activeIndex}
+          recordType={recordType}
+          activeIndex={safeActiveIndex}
           totalCount={filteredItems.length}
+          itemIds={filteredItems.map((filteredItem) => filteredItem.id)}
           settings={settings}
           isFinalized={isFinalized}
           isSavingEstimation={isSavingEstimation}
+          vendorDetails={vendorDetails}
           onSaveEstimation={onSaveEstimation}
           onSelectItem={setActiveIndex}
         />
@@ -170,36 +185,46 @@ function Header({
 function RequirementCarouselCard({
   item,
   enquiryRefCode,
+  recordType,
   activeIndex,
   totalCount,
+  itemIds,
   settings,
   isFinalized,
   isSavingEstimation,
+  vendorDetails,
   onSaveEstimation,
   onSelectItem,
 }: {
   item: RequirementDisplayItem;
   enquiryRefCode: number;
+  recordType: RecordType;
   activeIndex: number;
   totalCount: number;
+  itemIds: string[];
   settings: CalculatorSettings;
   isFinalized: boolean;
   isSavingEstimation?: boolean;
+  vendorDetails?: OrderVendorDetailsDisplay;
   onSaveEstimation: (estimation: ProductEstimation) => void;
   onSelectItem: (index: number) => void;
 }) {
   const hasMany = totalCount > 1;
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [hideVendorDetails, setHideVendorDetails] = useState(false);
   const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>("pdf");
   const printViewRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const storedFormat = localStorage.getItem(ENQUIRY_DOWNLOAD_FORMAT_KEY);
-    if (storedFormat === "pdf" || storedFormat === "png") {
-      setDownloadFormat(storedFormat);
+  function handleDownloadMenuOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      const storedFormat = localStorage.getItem(ENQUIRY_DOWNLOAD_FORMAT_KEY);
+      if (storedFormat === "pdf" || storedFormat === "png") {
+        setDownloadFormat(storedFormat);
+      }
     }
-  }, []);
+    setIsDownloadMenuOpen(nextOpen);
+  }
 
   async function handleDownloadPdf() {
     const printView = printViewRef.current;
@@ -238,7 +263,7 @@ function RequirementCarouselCard({
       const dataUrl = await createExportPngDataUrl();
       downloadDataUrl(
         dataUrl,
-        `enquiry-${enquiryRefCode}-${slugifyFilePart(item.title)}.png`,
+        `${recordType}-${enquiryRefCode}-${slugifyFilePart(item.title)}.png`,
       );
       toast.success("PNG downloaded");
     } catch {
@@ -276,7 +301,7 @@ function RequirementCarouselCard({
         backgroundColor: "#ffffff",
         cacheBust: true,
         pixelRatio: 2,
-        width: 680,
+        width: PNG_EXPORT_WIDTH,
       });
     } finally {
       container.remove();
@@ -288,11 +313,21 @@ function RequirementCarouselCard({
     try {
       const dataUrl = await createExportPngDataUrl();
       const blob = dataUrlToBlob(dataUrl);
-      await sharePngBlob(
+      const result = await sharePngToWhatsApp({
         blob,
-        `enquiry-${enquiryRefCode}-${slugifyFilePart(item.title)}.png`,
-        item.title,
-      );
+        filename: `${recordType}-${enquiryRefCode}-${slugifyFilePart(item.title)}.png`,
+        title: item.title,
+      });
+      if (result === "whatsapp-clipboard") {
+        toast.success("PNG copied. Paste it into the WhatsApp chat (Ctrl+V).", {
+          duration: 7000,
+        });
+      }
+      if (result === "whatsapp-download") {
+        toast.success("PNG downloaded. Attach it in the WhatsApp chat.", {
+          duration: 7000,
+        });
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
 
@@ -331,32 +366,37 @@ function RequirementCarouselCard({
     void handleDownloadPng();
   }
 
+  function handleWhatsAppShare() {
+    setIsDownloadMenuOpen(false);
+    void handleSharePng();
+  }
+
   return (
     <article className="overflow-hidden rounded-lg border border-border">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-3 py-2.5">
         <p className="text-sm font-medium uppercase tracking-wide text-foreground">
           Item {activeIndex + 1}{" "}
           <span className="font-normal text-muted-foreground">
             of {totalCount}
           </span>
         </p>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void handleSharePng()}
-            disabled={isSharing}
-            className="h-8 gap-1.5 rounded-md px-2.5 text-xs sm:hidden"
-          >
-            <Share2 className="size-3.5" />
-            <span className="hidden sm:inline">
-              {isSharing ? "Sharing..." : "Share PNG"}
-            </span>
-          </Button>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          {item.kind === "custom" && vendorDetails ? (
+            <Label className="flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground">
+              <Checkbox
+                checked={hideVendorDetails}
+                onCheckedChange={(checked) =>
+                  setHideVendorDetails(checked === true)
+                }
+                aria-label="Hide vendor details"
+              />
+              <span className="hidden sm:inline">Hide vendor details</span>
+              <span className="sm:hidden">Hide vendor</span>
+            </Label>
+          ) : null}
           <Popover
             open={isDownloadMenuOpen}
-            onOpenChange={setIsDownloadMenuOpen}
+            onOpenChange={handleDownloadMenuOpenChange}
           >
             <div className="inline-flex overflow-hidden rounded-md border border-input shadow-xs">
               <Button
@@ -364,9 +404,14 @@ function RequirementCarouselCard({
                 variant="ghost"
                 size="sm"
                 onClick={handlePrimaryDownload}
+                disabled={isSharing}
                 className="h-8 gap-1.5 rounded-none border-0 px-2.5 text-xs shadow-none hover:bg-accent"
               >
-                <Download className="size-3.5" />
+                {isSharing ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Download className="size-3.5" />
+                )}
                 <span className="hidden sm:inline">
                   Download .{downloadFormat}
                 </span>
@@ -378,13 +423,14 @@ function RequirementCarouselCard({
                   variant="ghost"
                   size="icon-sm"
                   className="h-8 w-7 rounded-none border-0 border-l border-input shadow-none hover:bg-accent"
-                  aria-label="Choose download format"
+                  disabled={isSharing}
+                  aria-label="Choose download or sharing action"
                 >
                   <ChevronDown className="size-3.5 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
             </div>
-            <PopoverContent align="end" className="w-48 p-1">
+            <PopoverContent align="end" className="w-56 p-1">
               <button
                 type="button"
                 onClick={() => handleFormatDownload("pdf")}
@@ -403,14 +449,30 @@ function RequirementCarouselCard({
                 <span className="flex-1">Download as .png</span>
                 {downloadFormat === "png" ? <Check className="size-4" /> : null}
               </button>
+              <div className="my-1 h-px bg-border" />
+              <button
+                type="button"
+                onClick={handleWhatsAppShare}
+                disabled={isSharing}
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+              >
+                {isSharing ? (
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <WhatsAppIcon className="size-4 text-[#25D366]" />
+                )}
+                <span className="flex-1">
+                  {isSharing ? "Preparing PNG…" : "Share on WhatsApp"}
+                </span>
+              </button>
             </PopoverContent>
           </Popover>
           {hasMany ? (
             <div className="hidden items-center gap-1.5 sm:flex">
-              {Array.from({ length: totalCount }).map((_, index) => (
+              {itemIds.map((itemId, index) => (
                 <button
                   type="button"
-                  key={index}
+                  key={itemId}
                   onClick={() => onSelectItem(index)}
                   aria-label={`Show requirement ${index + 1}`}
                   className={cn(
@@ -426,7 +488,7 @@ function RequirementCarouselCard({
         </div>
       </div>
 
-      <div className="grid gap-4 p-3 lg:grid-cols-[minmax(15rem,1fr)_minmax(0,2fr)] lg:p-4">
+      <div className="grid gap-4 p-3 xl:grid-cols-[minmax(15rem,1fr)_minmax(0,2fr)] xl:p-4">
         <RequirementMediaPanel
           item={item}
           settings={settings}
@@ -434,12 +496,17 @@ function RequirementCarouselCard({
           isSavingEstimation={isSavingEstimation}
           onSaveEstimation={onSaveEstimation}
         />
-        <RequirementDetailsPanel item={item} />
+        <RequirementDetailsPanel
+          item={item}
+          vendorDetails={hideVendorDetails ? undefined : vendorDetails}
+        />
       </div>
       <EnquiryEstimationPrintView
         ref={printViewRef}
         item={item}
         enquiryRefCode={enquiryRefCode}
+        recordType={recordType}
+        vendorDetails={hideVendorDetails ? undefined : vendorDetails}
       />
     </article>
   );
@@ -447,10 +514,14 @@ function RequirementCarouselCard({
 
 function prepareExportNode(exportNode: HTMLElement) {
   exportNode.style.background = "#ffffff";
+  exportNode.style.boxSizing = "border-box";
   exportNode.style.color = "#111111";
   exportNode.style.display = "block";
-  exportNode.style.maxWidth = "680px";
-  exportNode.style.width = "680px";
+  exportNode.style.fontFamily =
+    'var(--font-geist-sans), "Segoe UI", sans-serif';
+  exportNode.style.maxWidth = `${PNG_EXPORT_WIDTH}px`;
+  exportNode.style.padding = `${PNG_EXPORT_PADDING}px`;
+  exportNode.style.width = `${PNG_EXPORT_WIDTH}px`;
 
   exportNode.querySelectorAll<HTMLElement>("*").forEach((node) => {
     const computedColor = window.getComputedStyle(node).color;
@@ -480,20 +551,6 @@ function dataUrlToBlob(dataUrl: string) {
   return new Blob([bytes], { type: mimeType });
 }
 
-async function sharePngBlob(blob: Blob, filename: string, title: string) {
-  const file = new File([blob], filename, { type: "image/png" });
-  const shareData = {
-    files: [file],
-    title,
-  };
-
-  if (!navigator.canShare?.(shareData)) {
-    throw new Error("File sharing is not supported on this device.");
-  }
-
-  await navigator.share(shareData);
-}
-
 function slugifyFilePart(value: string) {
   return (
     value
@@ -505,6 +562,7 @@ function slugifyFilePart(value: string) {
 }
 
 async function waitForImages(container: HTMLElement) {
+  await document.fonts.ready;
   const images = Array.from(container.querySelectorAll("img"));
 
   await Promise.all(
