@@ -398,11 +398,14 @@ export function ConvertOrderForm({
                 ? "link"
                 : media.type === "VIDEO"
                   ? "video"
-                  : "image",
+                  : media.type === "AUDIO"
+                    ? "audio"
+                    : "image",
             url: media.url,
             name: media.name || `Reference ${index + 1}`,
             mimeType: media.mimeType,
             size: media.size,
+            durationSeconds: media.durationSeconds,
           })),
           notes: item.notes || "",
         };
@@ -957,11 +960,16 @@ export function ConvertOrderForm({
           throw new Error("Upload the reference before converting this order.");
         }
         return {
-          type: reference.type.toUpperCase() as "IMAGE" | "VIDEO" | "LINK",
+          type: reference.type.toUpperCase() as
+            | "IMAGE"
+            | "VIDEO"
+            | "AUDIO"
+            | "LINK",
           url: reference.url,
           name: cleanOptionalText(reference.name),
           mimeType: cleanOptionalText(reference.mimeType),
           size: reference.size,
+          durationSeconds: reference.durationSeconds,
         };
       }),
     );

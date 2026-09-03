@@ -1,15 +1,17 @@
 "use client";
 
 import {
-  ExternalLink,
   Expand,
+  ExternalLink,
   ImageIcon,
   Link2,
   LoaderCircle,
+  Mic,
   Plus,
   ScanLine,
   Search,
   Upload,
+  Video,
   X,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
@@ -22,10 +24,20 @@ import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import { fetchInventoryProducts } from "@/lib/inventoryApi";
 import { getInventoryPrimaryImage } from "@/lib/inventoryProductMapping";
 import { isSupportedImageFile } from "@/lib/prepareImageUpload";
-import type { InventoryProduct } from "@/types/inventory-api";
-import { SectionShell } from "./RequirementFields";
-import { ImagePreviewDialog } from "./ImagePreviewDialog";
 import {
+  deleteEnquiryMedia,
+  saveEnquiryMedia,
+} from "@/lib/storage/enquiry-media";
+import type { InventoryProduct } from "@/types/inventory-api";
+import { AudioPreviewPlayer } from "./AudioPreviewPlayer";
+import { ImagePreviewDialog } from "./ImagePreviewDialog";
+import { SectionShell } from "./RequirementFields";
+import {
+  type RecordingKind,
+  RequirementMediaRecorder,
+} from "./RequirementMediaRecorder";
+import {
+  formatFileSize,
   generateRequirementId,
   isValidReferenceLink,
   normalizeReferenceLink,
@@ -43,8 +55,12 @@ export function RequirementReferencesSection({
   onReferencesChange: (references: ProductReference[]) => void;
 }) {
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [recorderKind, setRecorderKind] = useState<RecordingKind | null>(null);
   const productQuery = useInventoryProductByCode(productCode || null);
   const imageReferences = references.filter((item) => item.type === "image");
+  const recordedReferences = references.filter(
+    (item) => item.type === "video" || item.type === "audio",
+  );
   const linkReferences = references.filter((item) => item.type === "link");
 
   function addFiles(files: FileList | null) {
@@ -63,6 +79,41 @@ export function RequirementReferencesSection({
     if (next.length) onReferencesChange([...references, ...next]);
   }
 
+  async function addRecording(
+    file: File,
+    kind: RecordingKind,
+    durationSeconds: number,
+  ) {
+    const id = generateRequirementId();
+    let mediaId: string | undefined;
+    try {
+      const stored = await saveEnquiryMedia({
+        enquiryId: "new-enquiry-v2-draft",
+        productId: productCode || "custom-requirement",
+        file,
+        type: kind,
+      });
+      mediaId = stored.id;
+    } catch {
+      // The recording remains available for this session if device storage fails.
+    }
+
+    onReferencesChange([
+      ...references,
+      {
+        id,
+        type: kind,
+        url: URL.createObjectURL(file),
+        name: file.name,
+        mimeType: file.type,
+        size: file.size,
+        durationSeconds,
+        mediaId,
+        file,
+      },
+    ]);
+  }
+
   function addLink(rawValue: string) {
     const url = normalizeReferenceLink(rawValue);
     if (!isValidReferenceLink(url)) return false;
@@ -75,9 +126,14 @@ export function RequirementReferencesSection({
 
   function removeReference(id: string) {
     const reference = references.find((item) => item.id === id);
-    if (reference?.type === "image" && reference.url.startsWith("blob:")) {
+    if (
+      reference &&
+      reference.type !== "link" &&
+      reference.url.startsWith("blob:")
+    ) {
       URL.revokeObjectURL(reference.url);
     }
+    if (reference?.mediaId) void deleteEnquiryMedia(reference.mediaId);
     onReferencesChange(references.filter((item) => item.id !== id));
   }
 
@@ -99,6 +155,17 @@ export function RequirementReferencesSection({
           </div>
         </div>
 
+        <div className="grid gap-2 md:grid-cols-2">
+          <RecordButton kind="video" onClick={() => setRecorderKind("video")} />
+          <RecordButton kind="audio" onClick={() => setRecorderKind("audio")} />
+        </div>
+
+        {recordedReferences.length ? (
+          <p className="text-xs text-muted-foreground">
+            Recordings are uploaded when you create the enquiry.
+          </p>
+        ) : null}
+
         {productCode || references.length ? (
           <div className="space-y-3 border-t border-border pt-3">
             {productCode ? (
@@ -117,6 +184,20 @@ export function RequirementReferencesSection({
                 <div className="flex flex-wrap gap-1.5">
                   {imageReferences.map((reference) => (
                     <ImageReferenceCard
+                      key={reference.id}
+                      reference={reference}
+                      onRemove={() => removeReference(reference.id)}
+                    />
+                  ))}
+                </div>
+              </ReferenceGroup>
+            ) : null}
+
+            {recordedReferences.length ? (
+              <ReferenceGroup label="Recordings">
+                <div className="grid items-start gap-3 xl:grid-cols-2">
+                  {recordedReferences.map((reference) => (
+                    <RecordedMediaCard
                       key={reference.id}
                       reference={reference}
                       onRemove={() => removeReference(reference.id)}
@@ -164,7 +245,52 @@ export function RequirementReferencesSection({
           }
         }}
       />
+
+      {recorderKind ? (
+        <RequirementMediaRecorder
+          kind={recorderKind}
+          open
+          onOpenChange={(open) => {
+            if (!open) setRecorderKind(null);
+          }}
+          onRecorded={(file, durationSeconds) =>
+            addRecording(file, recorderKind, durationSeconds)
+          }
+        />
+      ) : null}
     </SectionShell>
+  );
+}
+
+function RecordButton({
+  kind,
+  onClick,
+}: {
+  kind: RecordingKind;
+  onClick: () => void;
+}) {
+  const isVideo = kind === "video";
+  const Icon = isVideo ? Video : Mic;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-border bg-muted/15 px-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-xs">
+        <Icon className="size-4 text-muted-foreground" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-foreground">
+          Record {kind}
+        </span>
+        <span className="block text-xs text-muted-foreground">
+          {isVideo
+            ? "Camera + microphone · max 10 MB"
+            : "Microphone only · max 3 MB"}
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -245,7 +371,12 @@ function ProductSearch({
             className="h-10 pl-9"
           />
         </div>
-        <Button type="button" variant="outline" onClick={onScan} className="h-10 shrink-0">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onScan}
+          className="h-10 shrink-0"
+        >
           <ScanLine className="size-4" />
           <span className="hidden sm:inline">Scan</span>
         </Button>
@@ -258,9 +389,15 @@ function ProductSearch({
               <LoaderCircle className="size-4 animate-spin" /> Searching...
             </div>
           ) : null}
-          {error ? <p className="px-3 py-2 text-sm text-destructive">Search unavailable.</p> : null}
+          {error ? (
+            <p className="px-3 py-2 text-sm text-destructive">
+              Search unavailable.
+            </p>
+          ) : null}
           {!loading && !error && results.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-muted-foreground">No products found.</p>
+            <p className="px-3 py-2 text-sm text-muted-foreground">
+              No products found.
+            </p>
           ) : null}
           {results.map((product) => {
             const image = getInventoryPrimaryImage(product);
@@ -275,10 +412,17 @@ function ProductSearch({
                 }}
                 className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
               >
-                <ProductThumb src={image?.storageKey} alt={image?.altText || product.name} />
+                <ProductThumb
+                  src={image?.storageKey}
+                  alt={image?.altText || product.name}
+                />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{product.name || product.productCode}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{product.productCode} · {product.color} {product.purity}K</span>
+                  <span className="block truncate text-sm font-medium">
+                    {product.name || product.productCode}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {product.productCode} · {product.color} {product.purity}K
+                  </span>
                 </span>
               </button>
             );
@@ -312,7 +456,13 @@ function LinkInput({ onAdd }: { onAdd: (value: string) => boolean }) {
           className="h-10 pl-9"
         />
       </div>
-      <Button type="button" variant="outline" className="h-10 shrink-0" disabled={!value.trim()} onClick={submit}>
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 shrink-0"
+        disabled={!value.trim()}
+        onClick={submit}
+      >
         <Plus className="size-4" />
         <span className="hidden sm:inline">Add</span>
       </Button>
@@ -334,10 +484,23 @@ function ProductReferenceCard({
   const image = product ? getInventoryPrimaryImage(product) : undefined;
   return (
     <div className="flex h-14 max-w-sm items-center gap-2 rounded-lg border border-border bg-muted/15 p-1.5">
-      {loading ? <LoaderCircle className="mx-3 size-4 animate-spin text-muted-foreground" /> : <ProductThumb src={image?.storageKey} alt={image?.altText || product?.name || productCode} />}
+      {loading ? (
+        <LoaderCircle className="mx-3 size-4 animate-spin text-muted-foreground" />
+      ) : (
+        <ProductThumb
+          src={image?.storageKey}
+          alt={image?.altText || product?.name || productCode}
+        />
+      )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{product?.name || productCode}</p>
-        {product ? <p className="truncate text-xs text-muted-foreground">{product.productCode} · {product.color} {product.purity}K</p> : null}
+        <p className="truncate text-sm font-medium">
+          {product?.name || productCode}
+        </p>
+        {product ? (
+          <p className="truncate text-xs text-muted-foreground">
+            {product.productCode} · {product.color} {product.purity}K
+          </p>
+        ) : null}
       </div>
       <RemoveButton label="Remove product reference" onClick={onRemove} />
     </div>
@@ -347,7 +510,11 @@ function ProductReferenceCard({
 function ProductThumb({ src, alt }: { src?: string; alt: string }) {
   return src ? (
     // biome-ignore lint/performance/noImgElement: inventory URLs may be remote or temporary.
-    <img src={src} alt={alt} className="size-10 shrink-0 rounded-md border border-border object-cover" />
+    <img
+      src={src}
+      alt={alt}
+      className="size-10 shrink-0 rounded-md border border-border object-cover"
+    />
   ) : (
     <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-muted">
       <ImageIcon className="size-4 text-muted-foreground" />
@@ -355,7 +522,13 @@ function ProductThumb({ src, alt }: { src?: string; alt: string }) {
   );
 }
 
-function ImageReferenceCard({ reference, onRemove }: { reference: ProductReference; onRemove: () => void }) {
+function ImageReferenceCard({
+  reference,
+  onRemove,
+}: {
+  reference: ProductReference;
+  onRemove: () => void;
+}) {
   return (
     <div className="group relative size-14 overflow-hidden rounded-md border border-border bg-muted">
       <ImagePreviewDialog src={reference.url} alt={reference.name}>
@@ -371,18 +544,102 @@ function ImageReferenceCard({ reference, onRemove }: { reference: ProductReferen
           </span>
         </button>
       </ImagePreviewDialog>
-      <RemoveButton label="Remove image" onClick={onRemove} className="absolute top-0.5 right-0.5 size-6 bg-background/85 opacity-90" />
+      <RemoveButton
+        label="Remove image"
+        onClick={onRemove}
+        className="absolute top-0.5 right-0.5 size-6 bg-background/85 opacity-90"
+      />
     </div>
   );
 }
 
-function LinkReferenceCard({ reference, onRemove }: { reference: ProductReference; onRemove: () => void }) {
+function RecordedMediaCard({
+  reference,
+  onRemove,
+}: {
+  reference: ProductReference;
+  onRemove: () => void;
+}) {
+  const isVideo = reference.type === "video";
+  return (
+    <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-muted/15 shadow-xs">
+      {isVideo ? (
+        <video
+          src={reference.url}
+          controls
+          playsInline
+          preload="metadata"
+          className="aspect-video w-full bg-black object-contain"
+        >
+          <track kind="captions" />
+        </video>
+      ) : (
+        <div className="p-2.5 pb-1 sm:p-3 sm:pb-1">
+          <AudioPreviewPlayer
+            src={reference.url}
+            durationSeconds={reference.durationSeconds}
+            className="border-0 bg-muted/35"
+          />
+        </div>
+      )}
+      <div className="flex min-w-0 items-center gap-2 px-2.5 py-2 sm:px-3 sm:py-2.5">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+          {isVideo ? (
+            <Video className="size-4 text-muted-foreground" />
+          ) : (
+            <Mic className="size-4 text-muted-foreground" />
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-medium">
+            {isVideo ? "Video recording" : "Audio recording"}
+          </span>
+          <span className="block truncate text-[10px] leading-4 text-muted-foreground">
+            {reference.durationSeconds
+              ? `${formatRecordingDuration(reference.durationSeconds)} · `
+              : ""}
+            {formatFileSize(reference.size)} · Ready to upload
+          </span>
+        </span>
+        <RemoveButton
+          label={`Remove ${reference.type} recording`}
+          onClick={onRemove}
+          className="size-10 shrink-0"
+        />
+      </div>
+    </div>
+  );
+}
+
+function formatRecordingDuration(value: number) {
+  const minutes = Math.floor(value / 60);
+  const seconds = Math.max(0, Math.round(value)) % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function LinkReferenceCard({
+  reference,
+  onRemove,
+}: {
+  reference: ProductReference;
+  onRemove: () => void;
+}) {
   return (
     <div className="flex h-11 min-w-0 items-center gap-1.5 rounded-md border border-border bg-muted/15 px-1.5">
-      <div className="flex size-7 shrink-0 items-center justify-center rounded bg-muted"><Link2 className="size-3.5 text-muted-foreground" /></div>
+      <div className="flex size-7 shrink-0 items-center justify-center rounded bg-muted">
+        <Link2 className="size-3.5 text-muted-foreground" />
+      </div>
       <span className="min-w-0 flex-1 truncate text-xs">{reference.name}</span>
-      <Button asChild type="button" variant="ghost" size="icon-xs" aria-label="Open reference link">
-        <a href={reference.url} target="_blank" rel="noopener noreferrer"><ExternalLink className="size-3.5" /></a>
+      <Button
+        asChild
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Open reference link"
+      >
+        <a href={reference.url} target="_blank" rel="noopener noreferrer">
+          <ExternalLink className="size-3.5" />
+        </a>
       </Button>
       <RemoveButton label="Remove link" onClick={onRemove} />
     </div>
@@ -397,7 +654,7 @@ function ReferenceGroup({
   children: ReactNode;
 }) {
   return (
-    <div className="grid gap-2 sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:items-start">
+    <div className="grid gap-2 lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-start">
       <p className="pt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </p>
@@ -406,9 +663,24 @@ function ReferenceGroup({
   );
 }
 
-function RemoveButton({ label, onClick, className }: { label: string; onClick: () => void; className?: string }) {
+function RemoveButton({
+  label,
+  onClick,
+  className,
+}: {
+  label: string;
+  onClick: () => void;
+  className?: string;
+}) {
   return (
-    <Button type="button" variant="ghost" size="icon-xs" aria-label={label} onClick={onClick} className={className}>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-xs"
+      aria-label={label}
+      onClick={onClick}
+      className={className}
+    >
       <X className="size-3.5" />
     </Button>
   );

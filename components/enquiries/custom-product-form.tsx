@@ -1,6 +1,16 @@
-import { ArrowLeft, Link2, Plus, Trash2, Upload, Video, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  ArrowLeft,
+  Link2,
+  Mic,
+  Plus,
+  Trash2,
+  Upload,
+  Video,
+  X,
+} from "lucide-react";
+import { ExistingProductReferenceField } from "@/components/requirements/ExistingProductReferenceField";
 import { StoneTypeCombobox } from "@/components/stone-type-combobox";
+import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,7 +34,6 @@ import {
   type ProductReference,
 } from "./enquiry-form-types";
 import { formatFileSize, getReferenceIcon } from "./enquiry-form-utils";
-import { ExistingProductReferenceField } from "@/components/requirements/ExistingProductReferenceField";
 
 interface CustomProductFormProps {
   draft: NewProduct;
@@ -524,6 +533,10 @@ function ReferenceItem({
       ) : reference.type === "video" ? (
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted">
           <Video className="h-4 w-4 text-muted-foreground" />
+        </div>
+      ) : reference.type === "audio" ? (
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted">
+          <Mic className="h-4 w-4 text-muted-foreground" />
         </div>
       ) : (
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-muted text-muted-foreground">

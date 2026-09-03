@@ -11,7 +11,7 @@ export interface StoredEnquiryMedia {
   name: string;
   mimeType: string;
   size: number;
-  type: "image" | "video";
+  type: "image" | "video" | "audio";
   createdAt: string;
   blob: Blob;
 }
@@ -73,7 +73,7 @@ export async function saveEnquiryMedia(input: {
   enquiryId: string;
   productId: string;
   file: File;
-  type: "image" | "video";
+  type: "image" | "video" | "audio";
 }): Promise<StoredEnquiryMediaMeta> {
   const record: StoredEnquiryMedia = {
     id: generateMediaId(),

@@ -88,8 +88,17 @@ export function referenceToOrderMedia(
 
   if (reference.url.startsWith("http")) {
     return {
-      type: reference.type === "image" ? "IMAGE" : "VIDEO",
+      type:
+        reference.type === "image"
+          ? "IMAGE"
+          : reference.type === "video"
+            ? "VIDEO"
+            : "AUDIO",
       url: reference.url,
+      name: reference.name,
+      mimeType: reference.mimeType,
+      size: reference.size,
+      durationSeconds: reference.durationSeconds,
     };
   }
 

@@ -1,4 +1,8 @@
 import { apiFetch, buildUrl } from "@/lib/apiClient";
+import {
+  type EnquiryRecordingKind,
+  getEnquiryMediaSizeError,
+} from "@/lib/enquiryMedia";
 import { prepareImageForUpload } from "@/lib/prepareImageUpload";
 import type {
   BackendEnquiryDetails,
@@ -70,6 +74,41 @@ export async function uploadEnquiryImage(file: File) {
 
     return apiFetch<BackendEnquiryMedia>(
       buildUrl("api/v1/uploads/enquiry-image"),
+      {
+        method: "POST",
+        body,
+      },
+    );
+  });
+}
+
+export async function uploadEnquiryRecording(
+  file: File,
+  kind: EnquiryRecordingKind,
+) {
+  const sizeError = getEnquiryMediaSizeError(file, kind);
+  if (sizeError) throw new Error(sizeError);
+  if (!file.type.startsWith(`${kind}/`)) {
+    throw new Error(
+      `This file is not recognized as ${kind === "video" ? "a video" : "an audio recording"}. Please record it again.`,
+    );
+  }
+
+  return withImageUploadSlot(async () => {
+    const normalizedMimeType = file.type.split(";", 1)[0].toLowerCase();
+    const uploadFile =
+      normalizedMimeType === file.type
+        ? file
+        : new File([file], file.name, {
+            type: normalizedMimeType,
+            lastModified: file.lastModified,
+          });
+    const body = new FormData();
+    body.set("file", uploadFile);
+    body.set("kind", kind);
+
+    return apiFetch<BackendEnquiryMedia>(
+      buildUrl("api/v1/uploads/enquiry-media"),
       {
         method: "POST",
         body,

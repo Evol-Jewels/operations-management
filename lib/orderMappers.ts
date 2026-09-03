@@ -129,6 +129,7 @@ function mapOrderReferences(
     url: reference.url,
     mimeType: reference.mimeType,
     size: reference.size,
+    durationSeconds: reference.durationSeconds,
   }));
 }
 

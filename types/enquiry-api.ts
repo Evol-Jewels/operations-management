@@ -59,12 +59,13 @@ export interface BackendEnquiryItemDetails {
 }
 
 export interface BackendEnquiryMedia {
-  type: "IMAGE" | "VIDEO" | "LINK";
+  type: "IMAGE" | "VIDEO" | "AUDIO" | "LINK";
   url: string;
   publicId?: string;
   name?: string;
   mimeType?: string;
   size?: number;
+  durationSeconds?: number;
 }
 
 export interface BackendUserSummary {
