@@ -39,8 +39,16 @@ export function sanitizeReferences(
   references: ProductReference[],
 ): ProductReference[] {
   return references
-    .filter((reference) => reference.type === "link")
-    .map(({ file: _file, ...reference }) => reference);
+    .filter(
+      (reference) =>
+        reference.type === "link" ||
+        Boolean(reference.mediaId) ||
+        reference.url.startsWith("http"),
+    )
+    .map(({ file: _file, ...reference }) => ({
+      ...reference,
+      url: reference.url.startsWith("blob:") ? "" : reference.url,
+    }));
 }
 
 export function sanitizeNewProduct(product: NewProduct): NewProduct {

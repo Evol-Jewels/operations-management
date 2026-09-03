@@ -58,7 +58,7 @@ function toNetworkError(error: unknown) {
   }
 
   return new NetworkRequestError(
-    "Could not reach the server. Check your connection and try again. If you attached photos, try again or use a smaller image.",
+    "Could not reach the server. Check your connection and try again. If you attached media, retry or use a smaller file.",
   );
 }
 

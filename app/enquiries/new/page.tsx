@@ -1,8 +1,8 @@
 "use client";
 
-import { CheckCircle2, ChevronLeft } from "lucide-react";
+import { CheckCircle2, ChevronLeft, CircleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import {
   readDraft,
@@ -11,8 +11,8 @@ import {
   writeDraft,
 } from "@/components/enquiries/form-draft-storage";
 import {
-  type CustomerDraft,
   CustomerDetailsStep,
+  type CustomerDraft,
 } from "@/components/enquiries-v2/CustomerDetailsStep";
 import {
   EnquiryCreateHeader,
@@ -37,7 +37,11 @@ import { validatePhone } from "@/components/ui/phone-input";
 import { useCreateEnquiry } from "@/hooks/useEnquiries";
 import { captureProductEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
-import { uploadEnquiryImage } from "@/lib/enquiriesApi";
+import { uploadEnquiryImage, uploadEnquiryRecording } from "@/lib/enquiriesApi";
+import {
+  deleteEnquiryMedia,
+  getEnquiryMedia,
+} from "@/lib/storage/enquiry-media";
 import type {
   BackendEnquiryMedia,
   CreateEnquiryItemInput,
@@ -84,26 +88,45 @@ function EnquiryCreateForm() {
   const [requirementDraft, setRequirementDraft] = useState<RequirementDraft>(
     createEmptyRequirement,
   );
-  const [editingRequirementId, setEditingRequirementId] = useState<string | null>(
-    null,
-  );
+  const [editingRequirementId, setEditingRequirementId] = useState<
+    string | null
+  >(null);
   const [isRequirementFormOpen, setIsRequirementFormOpen] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [draftHydrated, setDraftHydrated] = useState(false);
+  const cleanupDraftReferencesRef = useRef(requirementDraft.references);
+  const cleanupRequirementsRef = useRef(requirements);
+  cleanupDraftReferencesRef.current = requirementDraft.references;
+  cleanupRequirementsRef.current = requirements;
 
   useEffect(() => {
-    const draft = readDraft<NewEnquiryDraft>(NEW_ENQUIRY_V2_DRAFT_KEY);
-    if (draft) {
-      setStep(draft.step);
-      setCustomer(draft.customer);
-      setRequirements(draft.requirements);
-      setRequirementDraft(draft.requirementDraft);
-      setEditingRequirementId(draft.editingRequirementId);
-      setIsRequirementFormOpen(draft.isRequirementFormOpen);
+    let active = true;
+
+    async function hydrateDraft() {
+      const draft = readDraft<NewEnquiryDraft>(NEW_ENQUIRY_V2_DRAFT_KEY);
+      if (draft) {
+        const [restoredRequirements, restoredRequirementDraft] =
+          await Promise.all([
+            Promise.all(draft.requirements.map(restoreRequirementMedia)),
+            restoreRequirementMedia(draft.requirementDraft),
+          ]);
+        if (!active) return;
+        setStep(draft.step);
+        setCustomer(draft.customer);
+        setRequirements(restoredRequirements);
+        setRequirementDraft(restoredRequirementDraft);
+        setEditingRequirementId(draft.editingRequirementId);
+        setIsRequirementFormOpen(draft.isRequirementFormOpen);
+      }
+      if (active) setDraftHydrated(true);
     }
-    setDraftHydrated(true);
+
+    void hydrateDraft();
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -130,12 +153,12 @@ function EnquiryCreateForm() {
 
   useEffect(() => {
     return () => {
-      revokeReferenceUrls(requirementDraft.references);
-      for (const requirement of requirements) {
+      revokeReferenceUrls(cleanupDraftReferencesRef.current);
+      for (const requirement of cleanupRequirementsRef.current) {
         revokeReferenceUrls(requirement.references);
       }
     };
-  }, [requirementDraft.references, requirements]);
+  }, []);
 
   function validateCustomer() {
     const nextErrors: Record<string, string> = {};
@@ -149,7 +172,8 @@ function EnquiryCreateForm() {
 
   function validateRequirement(value: RequirementDraft) {
     const nextErrors: Record<string, string> = {};
-    if (!value.category.trim()) nextErrors.requirement = "Select a product category";
+    if (!value.category.trim())
+      nextErrors.requirement = "Select a product category";
     if (!value.metalType.trim()) nextErrors.requirement = "Select a metal type";
     if (value.colorStones.some(hasColorStoneDetailsWithoutType)) {
       nextErrors.requirement = "Select a color stone type";
@@ -207,7 +231,7 @@ function EnquiryCreateForm() {
   function removeRequirement(id: string) {
     setRequirements((prev) => {
       const removed = prev.find((item) => item.id === id);
-      if (removed) revokeReferenceUrls(removed.references);
+      if (removed) discardLocalReferences(removed.references);
       return prev.filter((item) => item.id !== id);
     });
   }
@@ -217,6 +241,30 @@ function EnquiryCreateForm() {
   ): Promise<BackendEnquiryMedia | null> {
     if (reference.type === "image" && reference.file) {
       return uploadEnquiryImage(reference.file);
+    }
+    if (
+      (reference.type === "video" || reference.type === "audio") &&
+      reference.file
+    ) {
+      try {
+        const uploaded = await uploadEnquiryRecording(
+          reference.file,
+          reference.type,
+        );
+        return {
+          ...uploaded,
+          durationSeconds:
+            reference.durationSeconds ?? uploaded.durationSeconds,
+        };
+      } catch (error) {
+        const reason =
+          error instanceof Error
+            ? error.message
+            : "The server did not accept the recording.";
+        throw new Error(
+          `${reference.type === "video" ? "Video" : "Audio"} “${reference.name}” could not be uploaded. ${reason}`,
+        );
+      }
     }
     return mediaFromReference(reference);
   }
@@ -292,7 +340,11 @@ function EnquiryCreateForm() {
 
       setSubmitted(true);
       removeDraft(NEW_ENQUIRY_V2_DRAFT_KEY);
-      setTimeout(() => router.push(`/enquiries/${created.enquiry.refCode}`), 900);
+      await clearStoredMedia(requirements);
+      setTimeout(
+        () => router.push(`/enquiries/${created.enquiry.refCode}`),
+        900,
+      );
     } catch (error) {
       captureProductEvent("enquiry_creation_failed", {
         requirement_count: requirements.length,
@@ -335,6 +387,7 @@ function EnquiryCreateForm() {
           editingRequirementId={editingRequirementId}
           onBack={() => {
             if (isRequirementFormOpen && requirements.length > 0) {
+              discardLocalReferences(requirementDraft.references);
               setRequirementDraft(createEmptyRequirement());
               setEditingRequirementId(null);
               setErrors({});
@@ -425,7 +478,16 @@ function RequirementStepPanel({
               onRemove={onRemove}
             />
             {errors.submit ? (
-              <p className="text-sm text-destructive">{errors.submit}</p>
+              <div
+                role="alert"
+                className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2.5 text-sm text-destructive"
+              >
+                <CircleAlert className="mt-0.5 size-4 shrink-0" />
+                <div>
+                  <p className="font-medium">Couldn&apos;t save the enquiry</p>
+                  <p className="mt-0.5 text-xs leading-5">{errors.submit}</p>
+                </div>
+              </div>
             ) : null}
           </div>
         )}
@@ -500,9 +562,64 @@ function hasColorStoneDetailsWithoutType(
   );
 }
 
-function sanitizeRequirementDraft(requirement: RequirementDraft): RequirementDraft {
+function sanitizeRequirementDraft(
+  requirement: RequirementDraft,
+): RequirementDraft {
   return {
     ...requirement,
     references: sanitizeReferences(requirement.references),
   };
+}
+
+async function restoreRequirementMedia(
+  requirement: RequirementDraft,
+): Promise<RequirementDraft> {
+  const references = await Promise.all(
+    requirement.references.map(async (reference) => {
+      if (!reference.mediaId) return reference.url ? reference : null;
+
+      try {
+        const stored = await getEnquiryMedia(reference.mediaId);
+        if (!stored) return reference.url ? reference : null;
+        const file = new File([stored.blob], stored.name, {
+          type: stored.mimeType,
+          lastModified: Date.parse(stored.createdAt),
+        });
+        return {
+          ...reference,
+          name: stored.name,
+          mimeType: stored.mimeType,
+          size: stored.size,
+          url: URL.createObjectURL(stored.blob),
+          file,
+        };
+      } catch {
+        return reference.url ? reference : null;
+      }
+    }),
+  );
+
+  return {
+    ...requirement,
+    references: references.filter(
+      (reference): reference is NonNullable<typeof reference> =>
+        Boolean(reference),
+    ),
+  };
+}
+
+function discardLocalReferences(references: RequirementDraft["references"]) {
+  revokeReferenceUrls(references);
+  for (const reference of references) {
+    if (reference.mediaId) void deleteEnquiryMedia(reference.mediaId);
+  }
+}
+
+async function clearStoredMedia(requirements: RequirementDraft[]) {
+  const mediaIds = requirements.flatMap((requirement) =>
+    requirement.references.flatMap((reference) =>
+      reference.mediaId ? [reference.mediaId] : [],
+    ),
+  );
+  await Promise.allSettled(mediaIds.map(deleteEnquiryMedia));
 }

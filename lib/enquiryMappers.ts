@@ -63,6 +63,7 @@ function mapReferences(
     publicId: item.publicId,
     mimeType: item.mimeType,
     size: item.size,
+    durationSeconds: item.durationSeconds,
   }));
 }
 

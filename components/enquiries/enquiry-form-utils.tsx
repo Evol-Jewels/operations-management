@@ -1,4 +1,4 @@
-import { ImageIcon, Link2, Video } from "lucide-react";
+import { ImageIcon, Link2, Mic, Video } from "lucide-react";
 import type {
   Product,
   ProductReference,
@@ -181,5 +181,6 @@ export function ProductThumbnail({
 export function getReferenceIcon(type: ProductReferenceType) {
   if (type === "image") return <ImageIcon className="h-4 w-4" />;
   if (type === "video") return <Video className="h-4 w-4" />;
+  if (type === "audio") return <Mic className="h-4 w-4" />;
   return <Link2 className="h-4 w-4" />;
 }

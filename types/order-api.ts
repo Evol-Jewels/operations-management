@@ -62,11 +62,12 @@ export interface BackendCustomProductDetails {
 
 export interface CustomProductRequirementSpecification {
   references?: Array<{
-    type: "IMAGE" | "VIDEO" | "LINK";
+    type: "IMAGE" | "VIDEO" | "AUDIO" | "LINK";
     url: string;
     name?: string;
     mimeType?: string;
     size?: number;
+    durationSeconds?: number;
   }>;
   diamonds?: Array<Record<string, string | undefined>>;
   colorStones?: Array<Record<string, string | undefined>>;
