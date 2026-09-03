@@ -182,7 +182,7 @@ export interface ActivityEntry {
 
 export type CustomerCategory = "VIP" | "Middle" | "Lower";
 
-export type EnquiryReferenceType = "link" | "image" | "video";
+export type EnquiryReferenceType = "link" | "image" | "video" | "audio";
 
 export interface EnquiryReference {
   id: string;
@@ -193,6 +193,7 @@ export interface EnquiryReference {
   mediaId?: string;
   mimeType?: string;
   size?: number;
+  durationSeconds?: number;
 }
 
 export interface EnquiryDiamond {

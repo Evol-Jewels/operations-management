@@ -189,14 +189,21 @@ export function cleanColorStone(stone: RequirementColorStone) {
   };
 }
 
-export function mediaFromReference(reference: ProductReference): BackendEnquiryMedia | null {
+export function mediaFromReference(
+  reference: ProductReference,
+): BackendEnquiryMedia | null {
   if (reference.type === "link") {
     return { type: "LINK", url: reference.url, name: reference.name };
   }
   if (!reference.url.startsWith("http")) return null;
 
   return {
-    type: reference.type === "image" ? "IMAGE" : "VIDEO",
+    type:
+      reference.type === "image"
+        ? "IMAGE"
+        : reference.type === "video"
+          ? "VIDEO"
+          : "AUDIO",
     url: reference.url,
     name: reference.name,
     mimeType: reference.mimeType,

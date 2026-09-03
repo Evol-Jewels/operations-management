@@ -21,6 +21,8 @@ export interface RequirementDisplayItem {
   defaultPurity: MetalPurity;
   references: EnquiryReference[];
   images: EnquiryReference[];
+  videos: EnquiryReference[];
+  audios: EnquiryReference[];
   links: EnquiryReference[];
   diamonds: EnquiryDiamond[];
   colorStones: EnquiryColorStone[];
@@ -72,6 +74,8 @@ export function normalizeRequirementItems({
       defaultPurity: product.metalPurity,
       references,
       images: references.filter((item) => item.type === "image"),
+      videos: references.filter((item) => item.type === "video"),
+      audios: references.filter((item) => item.type === "audio"),
       links: references.filter((item) => item.type === "link"),
       diamonds: product.diamonds ?? [],
       colorStones: product.colorStones ?? [],
@@ -111,7 +115,15 @@ export function normalizeRequirementItems({
       status: getItemStatus(product.status),
       defaultPurity: getDefaultPurity(product.metalPurity),
       references: product.references ?? [],
-      images: (product.references ?? []).filter((item) => item.type === "image"),
+      images: (product.references ?? []).filter(
+        (item) => item.type === "image",
+      ),
+      videos: (product.references ?? []).filter(
+        (item) => item.type === "video",
+      ),
+      audios: (product.references ?? []).filter(
+        (item) => item.type === "audio",
+      ),
       links: (product.references ?? []).filter((item) => item.type === "link"),
       diamonds: product.diamonds ?? [],
       colorStones: product.colorStones ?? [],

@@ -1,9 +1,16 @@
 "use client";
 
-import { Calculator, ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
+import {
+  Calculator,
+  ChevronLeft,
+  ChevronRight,
+  ImageIcon,
+  Mic,
+} from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { EnquiryEstimationDialog } from "@/components/enquiry/EnquiryEstimationDialog";
+import { AudioPreviewPlayer } from "@/components/requirements/AudioPreviewPlayer";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { CalculatorSettings, ProductEstimation } from "@/types";
@@ -25,6 +32,7 @@ export function RequirementMediaPanel({
   return (
     <div className="space-y-4">
       <RequirementImageCarousel key={item.id} item={item} />
+      <RequirementRecordedMedia item={item} />
       {!isFinalized ? (
         <div className="flex justify-center">
           <EnquiryEstimationDialog
@@ -53,6 +61,7 @@ function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
   const image = images[safeIndex];
 
   if (!image?.url) {
+    if (item.videos.length > 0 || item.audios.length > 0) return null;
     return (
       <div className="flex aspect-square w-full items-center justify-center rounded-xl border border-border bg-muted/30">
         <div className="text-center text-muted-foreground">
@@ -124,6 +133,58 @@ function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function RequirementRecordedMedia({ item }: { item: RequirementDisplayItem }) {
+  const videos = item.videos.filter(
+    (reference): reference is typeof reference & { url: string } =>
+      Boolean(reference.url),
+  );
+  const audios = item.audios.filter(
+    (reference): reference is typeof reference & { url: string } =>
+      Boolean(reference.url),
+  );
+
+  if (videos.length === 0 && audios.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      {videos.map((reference) => (
+        <div
+          key={reference.id}
+          className="overflow-hidden rounded-xl border border-border bg-black"
+        >
+          <video
+            src={reference.url}
+            controls
+            playsInline
+            preload="metadata"
+            className="aspect-video w-full object-contain"
+          >
+            <track kind="captions" />
+          </video>
+        </div>
+      ))}
+      {audios.map((reference) => (
+        <div
+          key={reference.id}
+          className="space-y-2 rounded-xl border border-border bg-muted/20 p-3"
+        >
+          <div className="flex min-w-0 items-center gap-2 text-xs font-medium">
+            <Mic className="size-4 shrink-0 text-muted-foreground" />
+            <span className="truncate">
+              {reference.name || "Audio recording"}
+            </span>
+          </div>
+          <AudioPreviewPlayer
+            src={reference.url}
+            durationSeconds={reference.durationSeconds}
+            className="border-0 bg-background"
+          />
+        </div>
+      ))}
     </div>
   );
 }

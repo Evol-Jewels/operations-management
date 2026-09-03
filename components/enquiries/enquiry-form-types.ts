@@ -140,7 +140,7 @@ export interface CustomerDetails {
   budget?: number;
 }
 
-export type ProductReferenceType = "link" | "image" | "video";
+export type ProductReferenceType = "link" | "image" | "video" | "audio";
 
 export interface ProductReference {
   id: string;
@@ -149,6 +149,8 @@ export interface ProductReference {
   name: string;
   mimeType?: string;
   size?: number;
+  durationSeconds?: number;
+  mediaId?: string;
   file?: File;
 }
 
