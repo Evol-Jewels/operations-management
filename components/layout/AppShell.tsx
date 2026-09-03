@@ -20,9 +20,18 @@ function Loading() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const showSidebar = pathname !== "/login";
+  const isCustomerConfirmation = pathname.startsWith("/customer/orders/");
+  const showSidebar = pathname !== "/login" && !isCustomerConfirmation;
 
   if (!showSidebar) {
+    if (isCustomerConfirmation) {
+      return (
+        <div className="min-h-svh">
+          <Suspense fallback={<Loading />}>{children}</Suspense>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-svh">
         <div className="mx-auto w-full max-w-400 px-4 py-5 sm:px-6 sm:py-6 lg:px-8">

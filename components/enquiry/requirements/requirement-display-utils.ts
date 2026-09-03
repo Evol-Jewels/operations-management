@@ -1,6 +1,7 @@
 import type {
   EnquiryColorStone,
   EnquiryCustomProduct,
+  EnquiryCustomStone,
   EnquiryDiamond,
   EnquiryItemDetails,
   EnquiryItemStatus,
@@ -27,6 +28,8 @@ export interface RequirementDisplayItem {
   diamonds: EnquiryDiamond[];
   colorStones: EnquiryColorStone[];
   details: EnquiryItemDetails;
+  stones: EnquiryCustomStone[];
+  referenceProductCode?: string;
   metalType?: string;
   metalPurity?: string;
   metalWeight?: string;
@@ -80,6 +83,8 @@ export function normalizeRequirementItems({
       diamonds: product.diamonds ?? [],
       colorStones: product.colorStones ?? [],
       details: product.details ?? {},
+      stones: [],
+      referenceProductCode: product.productCode,
       metalType: product.metalType,
       metalPurity: product.metalPurity,
       notes: product.description,
@@ -128,6 +133,8 @@ export function normalizeRequirementItems({
       diamonds: product.diamonds ?? [],
       colorStones: product.colorStones ?? [],
       details,
+      stones: product.stones ?? [],
+      referenceProductCode: product.referenceProductCode,
       metalType: product.metalType,
       metalPurity: product.metalPurity,
       metalWeight: product.metalWeight,
