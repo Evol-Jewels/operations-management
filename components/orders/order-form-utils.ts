@@ -151,8 +151,7 @@ export function mapMetalColorToBackend(
   if (normalized === "YELLOW") return "YELLOW";
   if (normalized === "ROSE") return "ROSE";
   if (normalized === "WHITE") return "WHITE";
-  if (normalized === "OTHERS" || normalized === "OTHER") return "OTHERS";
-  return undefined;
+  return normalized ? "OTHERS" : undefined;
 }
 
 export function customProductDetails(

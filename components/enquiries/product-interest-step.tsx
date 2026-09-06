@@ -227,7 +227,8 @@ function AddedProducts({
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">
                 {product.category ? `${product.category} - ` : ""}
-                {formatMetalTypeLabel(product.metalType)} {product.metalPurity}
+                {formatMetalTypeLabel(product.metalType, product.metalColor)}{" "}
+                {product.metalPurity}
               </p>
               <p className="truncate text-xs text-muted-foreground">
                 {[

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { formatMetalTypeLabel } from "@/lib/metalDisplay";
 import type { EnquiryColorStone, EnquiryDiamond } from "@/types";
 import {
   compactUrl,
@@ -47,7 +48,13 @@ export function RequirementDetailsPanel({
         </DetailSection>
 
         <DetailSection title="Metal">
-          <DetailRow label="Metal" value={item.metalType} />
+          <DetailRow
+            label="Metal"
+            value={formatMetalTypeLabel(
+              item.metalType ?? "",
+              item.details.metalColor,
+            )}
+          />
           <DetailRow
             label="Metal purity"
             value={getDisplayMetalPurity(item.metalPurity)}

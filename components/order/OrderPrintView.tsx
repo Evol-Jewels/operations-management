@@ -7,6 +7,7 @@
  * no dark-mode classes, no animations, no interactive elements.
  */
 
+import { formatMetalTypeLabel } from "@/lib/metalDisplay";
 import { getFirstName, getInitials } from "@/lib/people";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import {
@@ -307,6 +308,7 @@ function PrintStagePipeline({ order }: { order: Order }) {
 // ─── Order Details ────────────────────────────────────────────────────────────
 
 function PrintOrderDetails({ order }: { order: Order }) {
+  const metalColor = order.customProducts?.[0]?.details?.metalColor;
   const stoneSummary = [
     order.stoneDescription,
     order.stoneCut && `${order.stoneCut} cut`,
@@ -317,7 +319,7 @@ function PrintOrderDetails({ order }: { order: Order }) {
     .join(", ");
 
   const metalSummary = [
-    order.metalType,
+    formatMetalTypeLabel(order.metalType, metalColor),
     order.metalPurity,
     order.metalWeight && `${order.metalWeight}g`,
   ]
@@ -423,8 +425,9 @@ function PrintOrderDetails({ order }: { order: Order }) {
 function PrintProductionSpec({ order }: { order: Order }) {
   if (order.type !== "order") return null;
 
+  const metalColor = order.customProducts?.[0]?.details?.metalColor;
   const metalLine = [
-    order.metalType,
+    formatMetalTypeLabel(order.metalType, metalColor),
     order.metalPurity,
     order.metalWeight ? `${order.metalWeight}g` : null,
   ]

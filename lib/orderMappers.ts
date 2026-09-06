@@ -1,4 +1,5 @@
 import { mergeActivityFeed } from "@/lib/enquiryMappers";
+import { normalizeMetalType } from "@/lib/metalDisplay";
 import { normalizePerson } from "@/lib/people";
 import type {
   CertificationType,
@@ -7,7 +8,6 @@ import type {
   EnquirySelectedProduct,
   JewelleryCategory,
   MetalPurity,
-  MetalType,
   Order,
   Stage,
 } from "@/types";
@@ -31,22 +31,6 @@ const ORDER_STATUS_TO_STAGE: Record<BackendOrderStatus, Stage> = {
   CLOSED: "Closed",
   CANCELLED: "Cancelled",
 };
-
-function normalizeMetalType(value?: string | null): MetalType {
-  if (!value) return "Gold";
-  const upper = value.trim().toUpperCase();
-  if (upper === "YELLOW") return "Gold";
-  if (upper === "WHITE") return "White Gold";
-  if (upper === "ROSE") return "Rose Gold";
-  if (
-    ["Gold", "Silver", "Platinum", "Rose Gold", "White Gold"].includes(
-      value.trim(),
-    )
-  ) {
-    return value.trim() as MetalType;
-  }
-  return "Gold";
-}
 
 function normalizeMetalPurity(value?: string | number | null): MetalPurity {
   if (!value) return "Other";

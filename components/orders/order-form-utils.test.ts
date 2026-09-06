@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import type { InventoryProduct } from "@/types/inventory-api";
-import { createRefillOrderSeed } from "./order-form-utils";
+import {
+  createRefillOrderSeed,
+  mapMetalColorToBackend,
+} from "./order-form-utils";
 
 function inventoryProduct(
   overrides: Partial<InventoryProduct> = {},
@@ -95,5 +98,22 @@ describe("createRefillOrderSeed", () => {
     assert.equal(seed.size, undefined);
     assert.equal(seed.metalNetWeight, undefined);
     assert.equal(seed.metalGrossWeight, undefined);
+  });
+});
+
+describe("mapMetalColorToBackend", () => {
+  test("preserves supported single colors", () => {
+    assert.equal(mapMetalColorToBackend("Yellow"), "YELLOW");
+    assert.equal(mapMetalColorToBackend("Rose"), "ROSE");
+    assert.equal(mapMetalColorToBackend("White"), "WHITE");
+  });
+
+  test("sends mixed colors as others instead of dropping the selection", () => {
+    assert.equal(mapMetalColorToBackend("Rose + Yellow"), "OTHERS");
+    assert.equal(mapMetalColorToBackend("Rose + Yellow + White"), "OTHERS");
+  });
+
+  test("omits an empty selection", () => {
+    assert.equal(mapMetalColorToBackend(""), undefined);
   });
 });

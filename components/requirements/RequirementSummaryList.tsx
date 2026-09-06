@@ -2,6 +2,7 @@
 
 import { Gem, ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatMetalTypeLabel } from "@/lib/metalDisplay";
 import type { RequirementDraft } from "./requirement-form-types";
 
 export function RequirementSummaryList({
@@ -46,7 +47,13 @@ export function RequirementSummaryList({
               </p>
               <p className="truncate text-xs text-muted-foreground">
                 {[
-                  [requirement.metalType, requirement.metalPurity]
+                  [
+                    formatMetalTypeLabel(
+                      requirement.metalType,
+                      requirement.details.metalColor,
+                    ),
+                    requirement.metalPurity,
+                  ]
                     .filter(Boolean)
                     .join(" "),
                   `${filledCount(requirement.diamonds)} diamond`,
