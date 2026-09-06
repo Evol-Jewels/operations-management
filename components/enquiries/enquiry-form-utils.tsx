@@ -6,6 +6,8 @@ import type {
   StepId,
 } from "./enquiry-form-types";
 
+export { formatMetalTypeLabel } from "@/lib/metalDisplay";
+
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
 }
@@ -53,10 +55,6 @@ export function revokeObjectUrls(references: ProductReference[]) {
   for (const reference of references) {
     if (reference.type !== "link") URL.revokeObjectURL(reference.url);
   }
-}
-
-export function formatMetalTypeLabel(metalType: string): string {
-  return metalType === "Gold" ? "Yellow Gold" : metalType;
 }
 
 export function parseVisitDateTime(value: string): {

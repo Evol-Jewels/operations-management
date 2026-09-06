@@ -157,8 +157,8 @@ function createOrderItemFromNewCustom(
     source: "new-custom",
     referenceProductCode: product.referenceProductCode || undefined,
     name: product.category
-      ? `${product.category} - ${formatMetalTypeLabel(product.metalType)} ${product.metalPurity}`
-      : `${formatMetalTypeLabel(product.metalType)} ${product.metalPurity}`,
+      ? `${product.category} - ${formatMetalTypeLabel(product.metalType, product.metalColor)} ${product.metalPurity}`
+      : `${formatMetalTypeLabel(product.metalType, product.metalColor)} ${product.metalPurity}`,
     category: product.category,
     metalType: product.metalType,
     metalPurity: product.metalPurity,
@@ -565,7 +565,7 @@ export function ConvertOrderForm({
               ...item,
               name:
                 draft.category ||
-                `${formatMetalTypeLabel(draft.metalType)} ${draft.metalPurity}`.trim() ||
+                `${formatMetalTypeLabel(draft.metalType, draft.metalColor)} ${draft.metalPurity}`.trim() ||
                 "Custom product",
               category: draft.category,
               referenceProductCode: draft.referenceProductCode || undefined,
@@ -1826,7 +1826,10 @@ function RequirementSnapshot({
   item: OrderItem;
   index: number;
 }) {
-  const metal = [formatMetalTypeLabel(item.metalType || ""), item.metalPurity]
+  const metal = [
+    formatMetalTypeLabel(item.metalType || "", item.metalColor),
+    item.metalPurity,
+  ]
     .filter(Boolean)
     .join(" ");
 
@@ -2073,7 +2076,8 @@ function OrderItemCard({
             <p className="text-sm font-medium">{item.name}</p>
             <p className="text-xs text-muted-foreground">
               {item.productCode ? `${item.productCode} · ` : ""}
-              {formatMetalTypeLabel(item.metalType || "")} {item.metalPurity}
+              {formatMetalTypeLabel(item.metalType || "", item.metalColor)}{" "}
+              {item.metalPurity}
               {item.basePrice ? ` · ${formatCurrency(item.basePrice)}` : ""}
             </p>
           </div>
@@ -2354,7 +2358,13 @@ function ReviewStep({
               <ReviewField
                 label="Metal"
                 value={
-                  [formatMetalTypeLabel(item.metalType || ""), item.metalPurity]
+                  [
+                    formatMetalTypeLabel(
+                      item.metalType || "",
+                      item.metalColor,
+                    ),
+                    item.metalPurity,
+                  ]
                     .filter(Boolean)
                     .join(" ") || "Not set"
                 }

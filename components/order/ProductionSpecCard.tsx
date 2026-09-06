@@ -4,6 +4,7 @@ import { AlertCircle, Pencil, Truck, UserRound, Wrench } from "lucide-react";
 import { getDisplayMetalPurity } from "@/components/enquiry/requirements/requirement-display-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatMetalTypeLabel } from "@/lib/metalDisplay";
 import { cn } from "@/lib/utils";
 import type { Order } from "@/types";
 
@@ -118,7 +119,13 @@ export function ProductionSpecCard({
               value={
                 <BadgeGroup
                   items={[
-                    { label: "Metal", value: order.metalType },
+                    {
+                      label: "Metal",
+                      value: formatMetalTypeLabel(
+                        order.metalType,
+                        customDetails?.metalColor,
+                      ),
+                    },
                     {
                       label: "Purity",
                       value: getDisplayMetalPurity(order.metalPurity),

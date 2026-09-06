@@ -9,6 +9,7 @@ import type {
   MetalPurity,
   ProductEstimation,
 } from "@/types";
+import { formatMetalTypeLabel } from "@/lib/metalDisplay";
 
 export type RequirementKind = "existing" | "custom";
 
@@ -57,7 +58,7 @@ export function normalizeRequirementItems({
   const existingItems = selectedProducts.map((product) => {
     const references = product.references ?? imageReference(product.imageUrl);
     const metal = [
-      product.metalType,
+      formatMetalTypeLabel(product.metalType),
       getDisplayMetalPurity(product.metalPurity),
     ]
       .filter(Boolean)
@@ -90,7 +91,7 @@ export function normalizeRequirementItems({
   const customItems = customProducts.map((product) => {
     const details = product.details ?? {};
     const metal = [
-      product.metalType,
+      formatMetalTypeLabel(product.metalType, details.metalColor),
       getDisplayMetalPurity(product.metalPurity),
     ]
       .filter(Boolean)

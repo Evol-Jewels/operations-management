@@ -4,6 +4,7 @@ import {
   getDisplayMetalPurity,
   type RequirementDisplayItem,
 } from "@/components/enquiry/requirements/requirement-display-utils";
+import { formatMetalTypeLabel } from "@/lib/metalDisplay";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type {
   EnquiryColorStone,
@@ -468,7 +469,7 @@ export const EnquiryEstimationPrintView = forwardRef<
   ref,
 ) {
   const metal = joinValues([
-    item.metalType,
+    formatMetalTypeLabel(item.metalType ?? "", item.details.metalColor),
     getDisplayMetalPurity(item.metalPurity),
   ]);
   const printDate = formatPrintDate(new Date());

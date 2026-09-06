@@ -1,3 +1,4 @@
+import { normalizeMetalType } from "@/lib/metalDisplay";
 import { normalizePerson } from "@/lib/people";
 import type {
   ActivityEntry,
@@ -6,7 +7,6 @@ import type {
   EnquirySelectedProduct,
   JewelleryCategory,
   MetalPurity,
-  MetalType,
   Order,
   ProductEstimation,
 } from "@/types";
@@ -21,18 +21,6 @@ import type {
   BackendEnquiryListItem,
   BackendEstimationRow,
 } from "@/types/enquiry-api";
-
-function normalizeMetalType(value?: string | null): MetalType {
-  const normalized = (value || "Gold").trim();
-  if (
-    ["Gold", "Silver", "Platinum", "Rose Gold", "White Gold"].includes(
-      normalized,
-    )
-  ) {
-    return normalized as MetalType;
-  }
-  return "Gold";
-}
 
 function normalizeMetalPurity(value?: string | null): MetalPurity {
   if (!value) return "Other";
