@@ -15,6 +15,7 @@ import type {
   ProductLookupStoneLine,
 } from "@/types";
 import type { InventoryMedia, InventoryProduct } from "@/types/inventory-api";
+import { getStoneType } from "@/lib/calculator/pricing";
 
 const CATEGORY_MAP: Record<string, JewelleryCategory> = {
   ring: "Ring",
@@ -177,18 +178,24 @@ function estimationMakingCharge(
 
 function buildBackendPricingBreakdown(
   product: InventoryProduct,
+  settings: CalculatorSettings,
 ): CalculatorPricingBreakdown {
   const estimation = product.estimation;
-  const stoneDetails = (product.stones ?? []).map((stone) => ({
-    id: stone.id,
-    stoneTypeId: "",
-    weight: stone.netWeight,
-    quantity: Math.max(1, stone.pieces),
-    fixedRatePerCarat: stone.ratePerCarat,
-    sourceStoneName: stone.stoneName ?? stone.slabName,
-    totalCost: stone.amount,
-    slabInfo: null,
-  }));
+  const stoneDetails = (product.stones ?? []).map((stone) => {
+    const stoneTypeId = findStoneTypeIdByName(settings, stone.stoneName);
+
+    return {
+      id: stone.id,
+      stoneTypeId,
+      stoneType: getStoneType(settings, stoneTypeId),
+      weight: stone.netWeight,
+      quantity: Math.max(1, stone.pieces),
+      fixedRatePerCarat: stone.ratePerCarat,
+      sourceStoneName: stone.stoneName ?? stone.slabName,
+      totalCost: stone.amount,
+      slabInfo: null,
+    };
+  });
 
   return {
     grossWeight: parseInventoryNumber(product.grossWeight),
@@ -253,7 +260,7 @@ export function normalizeInventoryProductEstimate(
       stones,
     },
     stones: buildInventoryCalculatorStones(product, settings),
-    pricing: buildBackendPricingBreakdown(product),
+    pricing: buildBackendPricingBreakdown(product, settings),
     issues:
       product.estimation?.issues?.map((issue) => ({
         code: issue.code,
