@@ -39,11 +39,11 @@ import {
 } from "@/components/ui/select";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
+import { estimationStoneToCalculator } from "@/lib/enquiryEstimation";
 import { sharePngToWhatsApp } from "@/lib/share-image";
 import { cn } from "@/lib/utils";
 import type {
   CalculatorSettings,
-  CalculatorStoneInput,
   EnquiryCustomProduct,
   EnquiryItemStatus,
   EnquirySelectedProduct,
@@ -595,29 +595,6 @@ function EmptyState({ label, dashed }: { label: string; dashed?: boolean }) {
   );
 }
 
-function getStoneTypeIdByName(settings: CalculatorSettings, name: string) {
-  const normalizedName = name.trim().toLowerCase();
-  return (
-    settings.stoneTypes.find(
-      (stone) => stone.name.trim().toLowerCase() === normalizedName,
-    )?.stoneId ??
-    settings.stoneTypes[0]?.stoneId ??
-    ""
-  );
-}
-
-function estimationToCalculatorStones(
-  estimation: ProductEstimation,
-  settings: CalculatorSettings,
-): CalculatorStoneInput[] {
-  return estimation.stoneDetails.map((stone) => ({
-    id: stone.id,
-    stoneTypeId: getStoneTypeIdByName(settings, stone.type),
-    weight: stone.netWeight,
-    quantity: stone.pieces,
-  }));
-}
-
 function recomputeEstimationTotal(
   estimation: ProductEstimation | undefined,
   settings: CalculatorSettings,
@@ -628,7 +605,9 @@ function recomputeEstimationTotal(
     settings,
     estimation.metalWeight,
     estimation.purity,
-    estimationToCalculatorStones(estimation, settings),
+    estimation.stoneDetails.map((stone) =>
+      estimationStoneToCalculator(stone, settings),
+    ),
     { makingCostOverride: estimation.makingCost ?? 0 },
   );
 

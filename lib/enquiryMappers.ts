@@ -66,6 +66,10 @@ export function mapBackendEstimationToProductEstimation(
     stoneDetails: estimation.stones.map((stone, index) => ({
       id: `${estimation.id}-stone-${index}`,
       type: stone.stoneType,
+      ratePerCarat:
+        stone.ratePerCarat === undefined
+          ? undefined
+          : Number(stone.ratePerCarat),
       netWeight: Number(stone.weight ?? 0),
       pieces: stone.pieces ?? 1,
     })),

@@ -31,6 +31,10 @@ import {
   getStoneType,
   resolveAutoSlab,
 } from "@/lib/calculator/pricing";
+import {
+  estimationStoneToCalculator,
+  isEstimationStoneComplete,
+} from "@/lib/enquiryEstimation";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   CalculatorFormState,
@@ -55,17 +59,6 @@ function createStone(settings: CalculatorSettings): CalculatorStoneInput {
   };
 }
 
-function getStoneTypeIdByName(settings: CalculatorSettings, name: string) {
-  const normalizedName = name.trim().toLowerCase();
-  return (
-    settings.stoneTypes.find(
-      (stone) => stone.name.trim().toLowerCase() === normalizedName,
-    )?.stoneId ??
-    settings.stoneTypes[0]?.stoneId ??
-    ""
-  );
-}
-
 function formatWeight(value: number) {
   return value.toFixed(3).replace(/\.?0+$/, "");
 }
@@ -83,12 +76,9 @@ function buildInitialForm(
     purity: existingEstimation?.purity ?? defaultPurity,
     stones:
       existingEstimation && existingEstimation.stoneDetails.length > 0
-        ? existingEstimation.stoneDetails.map((stone) => ({
-            id: stone.id || generateId(),
-            stoneTypeId: getStoneTypeIdByName(settings, stone.type),
-            weight: stone.netWeight,
-            quantity: stone.pieces,
-          }))
+        ? existingEstimation.stoneDetails.map((stone) =>
+            estimationStoneToCalculator(stone, settings),
+          )
         : [createStone(settings)],
     diamondColor: "",
     diamondClarity: "",
@@ -181,8 +171,14 @@ export function EnquiryEstimationDialog({
     [form.netGoldWeight, form.purity, form.stones, makingCost, settings],
   );
 
+  const activeStones = form.stones.filter(
+    (stone) =>
+      stone.weight !== 0 ||
+      (!stone.stoneTypeId && Boolean(stone.sourceStoneName)),
+  );
   const canSave =
-    form.netGoldWeight > 0 || form.stones.some((stone) => stone.weight > 0);
+    activeStones.every(isEstimationStoneComplete) &&
+    (form.netGoldWeight > 0 || activeStones.length > 0);
 
   function updateForm<K extends keyof CalculatorFormState>(
     key: K,
@@ -229,7 +225,8 @@ export function EnquiryEstimationDialog({
         .filter((stone) => stone.weight > 0)
         .map((stone) => ({
           id: stone.id,
-          type: stone.stoneType?.name ?? "Stone",
+          type: stone.sourceStoneName || stone.stoneType?.name || "Stone",
+          ratePerCarat: stone.fixedRatePerCarat,
           netWeight: stone.weight,
           pieces: stone.quantity,
         })),
@@ -362,7 +359,8 @@ export function EnquiryEstimationDialog({
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                           Stone {index + 1}
                         </p>
-                        {resolvedSlab ? (
+                        {resolvedSlab &&
+                        stone.fixedRatePerCarat === undefined ? (
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {formatWeight(resolvedSlab.fromWeight)}-
                             {formatWeight(resolvedSlab.toWeight)} ct slab ·{" "}
@@ -390,8 +388,22 @@ export function EnquiryEstimationDialog({
                           category: item.category,
                         }))}
                         value={stone.stoneTypeId}
+                        customValue={
+                          !stone.stoneTypeId ? stone.sourceStoneName : undefined
+                        }
+                        onCustomValueChange={(name) =>
+                          updateStone(stone.id, {
+                            stoneTypeId: "",
+                            sourceStoneName: name,
+                            fixedRatePerCarat: undefined,
+                          })
+                        }
                         onValueChange={(stoneTypeId) =>
-                          updateStone(stone.id, { stoneTypeId })
+                          updateStone(stone.id, {
+                            stoneTypeId,
+                            sourceStoneName: undefined,
+                            fixedRatePerCarat: undefined,
+                          })
                         }
                         placeholder="Select stone"
                         className="bg-background"
@@ -408,6 +420,7 @@ export function EnquiryEstimationDialog({
                           })
                         }
                         placeholder="ct"
+                        aria-label={`Stone ${index + 1} weight in carats`}
                       />
                       <Input
                         type="number"
@@ -424,8 +437,39 @@ export function EnquiryEstimationDialog({
                           })
                         }
                         placeholder="pcs"
+                        aria-label={`Stone ${index + 1} quantity`}
                       />
                     </div>
+                    {((!stone.stoneTypeId && stone.sourceStoneName) ||
+                      stone.fixedRatePerCarat !== undefined) && (
+                      <div className="grid gap-2 sm:max-w-56">
+                        <Label htmlFor={`stone-rate-${stone.id}`}>
+                          Rate per carat (₹)
+                        </Label>
+                        <Input
+                          id={`stone-rate-${stone.id}`}
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          step={0.01}
+                          value={stone.fixedRatePerCarat ?? ""}
+                          onChange={(event) =>
+                            updateStone(stone.id, {
+                              fixedRatePerCarat:
+                                event.target.value === ""
+                                  ? undefined
+                                  : Math.round(
+                                      Number(event.target.value) * 100,
+                                    ) / 100,
+                            })
+                          }
+                          placeholder="Enter rate per ct"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Enter weight, quantity and a rate to price this stone.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
