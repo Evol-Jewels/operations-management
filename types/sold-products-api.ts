@@ -16,6 +16,7 @@ export type SoldProductsQuery = {
   color?: string;
   category?: string;
   locationId?: string;
+  location?: string;
   ownership?: string;
   monthFrom?: string;
   monthTo?: string;

@@ -20,7 +20,7 @@ const columns: { label: string; sort?: SoldProductsSort; numeric?: boolean }[] =
     { label: "SKU", sort: "productCode" },
     { label: "Sale month", sort: "saleMonth" },
     { label: "Category", sort: "category" },
-    { label: "Ownership" },
+    { label: "Product type" },
     { label: "Purity", sort: "purity", numeric: true },
     { label: "Net weight", sort: "netWeight", numeric: true },
     { label: "Color", sort: "color" },

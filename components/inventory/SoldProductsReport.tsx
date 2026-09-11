@@ -1,13 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Download, LoaderCircle, Search } from "lucide-react";
+
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
-import { toast } from "sonner";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -17,8 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLocations } from "@/hooks/useManageProducts";
-import { downloadSoldProducts, fetchSoldProducts } from "@/lib/soldProductsApi";
+import {
+  fetchSoldProducts,
+  fetchSoldProductLocations,
+} from "@/lib/soldProductsApi";
 import type {
   SoldProductsQuery,
   SoldProductsSort,
@@ -30,6 +31,9 @@ import {
   PURITY_LABELS,
   type PurityFilter,
 } from "./AnalyticsFilterControls";
+import { AnalyticsFilterPopover } from "./AnalyticsFilterPopover";
+import { SoldProductsSearch } from "./SoldProductsSearch";
+import { MonthPicker, isValidMonth } from "./MonthPicker";
 import { SoldProductsTable } from "./SoldProductsTable";
 
 const categories = [
@@ -60,6 +64,7 @@ const reportKeys = [
   "soldSearch",
   "soldCategory",
   "soldOwnership",
+  "soldLocation",
   "monthFrom",
   "monthTo",
   "soldSort",
@@ -75,8 +80,11 @@ export function SoldProductsReport() {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const [downloading, setDownloading] = useState(false);
-  const locations = useLocations({ limit: 100 });
+  const locations = useQuery({
+    queryKey: ["stock-sales", "sold-product-locations"],
+    queryFn: ({ signal }) => fetchSoldProductLocations(signal),
+    staleTime: 60_000,
+  });
   const color = params.get("color") ?? "ALL";
   const purity = params.get("purity") ?? "ALL";
   const category = params.get("soldCategory") ?? "ALL";
@@ -94,11 +102,9 @@ export function SoldProductsReport() {
   const sortBy =
     sorts.find((sort) => sort === params.get("soldSort")) ?? "saleMonth";
   const sortOrder = params.get("soldOrder") === "asc" ? "asc" : "desc";
-  const validMonth = (value: string) =>
-    !value || /^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(value);
   const invalidRange =
-    !validMonth(monthFrom) ||
-    !validMonth(monthTo) ||
+    Boolean(monthFrom && !isValidMonth(monthFrom)) ||
+    Boolean(monthTo && !isValidMonth(monthTo)) ||
     Boolean(monthFrom && monthTo && monthFrom > monthTo);
   const query: SoldProductsQuery = {
     search: search || undefined,
@@ -107,7 +113,7 @@ export function SoldProductsReport() {
     category: categories.includes(category) ? category : undefined,
     ownership:
       ownership === "STOCK" || ownership === "CUSTOMER" ? ownership : undefined,
-    locationId: params.get("locationId") || undefined,
+    location: params.get("soldLocation") || undefined,
     monthFrom: monthFrom || undefined,
     monthTo: monthTo || undefined,
     sortBy,
@@ -137,30 +143,6 @@ export function SoldProductsReport() {
     router.replace(`${pathname}?${next}`, { scroll: false });
   }
 
-  async function download() {
-    setDownloading(true);
-    try {
-      const blob = await downloadSoldProducts(query);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "sold-products.csv";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success("Sold products downloaded");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to download sold products",
-      );
-    } finally {
-      setDownloading(false);
-    }
-  }
-
   return (
     <section aria-label="Sold products" className="min-w-0 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -172,148 +154,140 @@ export function SoldProductsReport() {
             </Badge>
           )}
         </div>
-        <Button
-          variant="outline"
-          className="h-11 gap-2"
-          disabled={
-            downloading ||
-            invalidRange ||
-            report.isFetching ||
-            report.isError ||
-            !report.data?.total
-          }
-          onClick={() => void download()}
-        >
-          {downloading ? (
-            <LoaderCircle className="size-4 animate-spin" />
-          ) : (
-            <Download className="size-4" />
-          )}
-          {downloading ? "Preparing CSV…" : "Download CSV"}
-        </Button>
-      </div>
-      <div className="space-y-3 rounded-md border bg-card p-4">
-        <div className="grid gap-3 xl:grid-cols-2">
-          <form
-            key={search}
-            className="flex gap-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              update({
-                soldSearch: String(
-                  new FormData(event.currentTarget).get("search") ?? "",
-                ).trim(),
-              });
-            }}
-          >
-            <Input
-              name="search"
-              aria-label="Search product name or SKU"
-              placeholder="Search product name or SKU"
-              defaultValue={search}
-              maxLength={255}
-              className="h-10"
-            />
-            <Button type="submit" variant="outline" className="h-10 gap-2">
-              <Search className="size-4" />
-              <span className="sr-only sm:not-sr-only">Search</span>
-            </Button>
-          </form>
-          <AnalyticsFilterControls
-            color={(color in COLOR_LABELS ? color : "ALL") as ColorFilter}
-            purity={(purity in PURITY_LABELS ? purity : "ALL") as PurityFilter}
-            location={params.get("locationId") ?? "ALL"}
-            locations={locations.data?.data ?? []}
-            locationsLoading={locations.isLoading}
-            onFilterChange={(key, value) => update({ [key]: value })}
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <SoldProductsSearch
+            value={search}
+            onSearch={(value) => update({ soldSearch: value })}
           />
-        </div>
-        <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
-          <div className="space-y-2">
-            <Label htmlFor="sold-category">Category</Label>
-            <Select
-              value={categories.includes(category) ? category : "ALL"}
-              onValueChange={(value) => update({ soldCategory: value })}
-            >
-              <SelectTrigger id="sold-category" className="h-10 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All categories</SelectItem>
-                {categories.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {value.charAt(0) + value.slice(1).toLowerCase()}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="sold-ownership">Ownership</Label>
-            <Select
-              value={
-                ownership === "STOCK" || ownership === "CUSTOMER"
-                  ? ownership
-                  : "ALL"
-              }
-              onValueChange={(value) => update({ soldOwnership: value })}
-            >
-              <SelectTrigger id="sold-ownership" className="h-10 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All ownership</SelectItem>
-                <SelectItem value="STOCK">Stock</SelectItem>
-                <SelectItem value="CUSTOMER">Customer</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="sold-from">From month</Label>
-            <Input
-              id="sold-from"
-              type="month"
-              value={monthFrom}
-              max={monthTo || "9999-12"}
-              min="1000-01"
-              className="h-10"
-              aria-invalid={invalidRange}
-              aria-describedby={invalidRange ? "sold-range-error" : undefined}
-              onChange={(event) => update({ monthFrom: event.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="sold-to">To month</Label>
-            <Input
-              id="sold-to"
-              type="month"
-              value={monthTo}
-              min={monthFrom || "1000-01"}
-              max="9999-12"
-              className="h-10"
-              aria-invalid={invalidRange}
-              aria-describedby={invalidRange ? "sold-range-error" : undefined}
-              onChange={(event) => update({ monthTo: event.target.value })}
-            />
-          </div>
-          <Button variant="ghost" className="h-10" onClick={reset}>
-            Reset filters
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Location filters the sale location. Months are inclusive; leave both
-          empty for all history.
-        </p>
-        {invalidRange && (
-          <p
-            id="sold-range-error"
-            role="alert"
-            className="text-sm text-destructive"
+          <AnalyticsFilterPopover
+            count={
+              [
+                query.purity,
+                query.color,
+                query.category,
+                query.ownership,
+                query.location,
+                query.monthFrom,
+                query.monthTo,
+              ].filter(Boolean).length
+            }
+            onReset={() =>
+              update({
+                purity: "",
+                color: "",
+                soldLocation: "",
+                soldCategory: "",
+                soldOwnership: "",
+                monthFrom: "",
+                monthTo: "",
+              })
+            }
           >
-            Choose a valid month range with From month on or before To month.
-          </p>
-        )}
+            <AnalyticsFilterControls
+              color={(color in COLOR_LABELS ? color : "ALL") as ColorFilter}
+              purity={
+                (purity in PURITY_LABELS ? purity : "ALL") as PurityFilter
+              }
+              location={params.get("soldLocation") ?? "ALL"}
+              locationLabel="Sale location"
+              locations={(locations.data ?? []).map((name) => ({
+                id: name,
+                name,
+              }))}
+              locationsLoading={locations.isLoading || locations.isError}
+              onFilterChange={(key, value) =>
+                update({ [key === "locationId" ? "soldLocation" : key]: value })
+              }
+            />
+            {locations.isError && (
+              <div
+                role="alert"
+                className="flex items-center justify-between gap-2 text-sm text-destructive"
+              >
+                <span>Unable to load sale locations.</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void locations.refetch()}
+                >
+                  Retry
+                </Button>
+              </div>
+            )}
+            <div className="grid grid-cols-2 items-end gap-3">
+              <div className="min-w-0 space-y-1.5">
+                <Label htmlFor="sold-category">Category</Label>
+                <Select
+                  value={categories.includes(category) ? category : "ALL"}
+                  onValueChange={(value) => update({ soldCategory: value })}
+                >
+                  <SelectTrigger id="sold-category" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All categories</SelectItem>
+                    {categories.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {value.charAt(0) + value.slice(1).toLowerCase()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-0 space-y-1.5">
+                <Label htmlFor="sold-ownership">Product type</Label>
+                <Select
+                  value={
+                    ownership === "STOCK" || ownership === "CUSTOMER"
+                      ? ownership
+                      : "ALL"
+                  }
+                  onValueChange={(value) => update({ soldOwnership: value })}
+                >
+                  <SelectTrigger id="sold-ownership" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All product types</SelectItem>
+                    <SelectItem value="STOCK">Stock</SelectItem>
+                    <SelectItem value="CUSTOMER">Customer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-3 border-t pt-3">
+              <p className="text-sm font-medium">Sale period</p>
+              <div className="grid grid-cols-2 gap-3">
+                <MonthPicker
+                  label="From"
+                  value={monthFrom}
+                  max={isValidMonth(monthTo) ? monthTo : undefined}
+                  onChange={(value) => update({ monthFrom: value })}
+                />
+                <MonthPicker
+                  label="To"
+                  value={monthTo}
+                  min={isValidMonth(monthFrom) ? monthFrom : undefined}
+                  onChange={(value) => update({ monthTo: value })}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Location filters the sale location. Months are inclusive; leave
+              both empty for all history.
+            </p>
+          </AnalyticsFilterPopover>
+        </div>
       </div>
+      {invalidRange && (
+        <p
+          id="sold-range-error"
+          role="alert"
+          className="text-sm text-destructive"
+        >
+          Choose a valid month range with From month on or before To month.
+        </p>
+      )}
       {!invalidRange && (
         <>
           {report.isLoading && (
@@ -366,11 +340,14 @@ export function SoldProductsReport() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground" aria-live="polite">
                   {report.data.total
-                    ? `Page ${page} of ${Math.ceil(report.data.total / pageSize)}`
+                    ? `${report.data.data.length ? (page - 1) * pageSize + 1 : 0}–${report.data.data.length ? (page - 1) * pageSize + report.data.data.length : 0} of ${report.data.total.toLocaleString("en-IN")} products · Page ${page} of ${Math.ceil(report.data.total / pageSize)}`
                     : "0 results"}
                   {report.isFetching ? " · Updating…" : ""}
                 </p>
-                <div className="flex gap-2">
+                <nav
+                  aria-label="Sold products pagination"
+                  className="flex flex-wrap gap-2"
+                >
                   <Button
                     variant="outline"
                     disabled={page === 1 || report.isFetching}
@@ -378,6 +355,41 @@ export function SoldProductsReport() {
                   >
                     Previous
                   </Button>
+                  {Array.from(
+                    new Set([
+                      1,
+                      page - 1,
+                      page,
+                      page + 1,
+                      Math.ceil(report.data.total / pageSize),
+                    ]),
+                  )
+                    .filter(
+                      (number) =>
+                        number >= 1 &&
+                        number <= Math.ceil(report.data.total / pageSize),
+                    )
+                    .sort((a, b) => a - b)
+                    .map((number, index, pages) => (
+                      <span
+                        key={number}
+                        className="hidden items-center gap-2 sm:flex"
+                      >
+                        {index > 0 && number - pages[index - 1] > 1 && (
+                          <span className="px-1 text-muted-foreground">…</span>
+                        )}
+                        <Button
+                          variant={number === page ? "secondary" : "outline"}
+                          size="icon"
+                          aria-label={`Page ${number}`}
+                          aria-current={number === page ? "page" : undefined}
+                          disabled={report.isFetching}
+                          onClick={() => update({ soldPage: String(number) })}
+                        >
+                          {number}
+                        </Button>
+                      </span>
+                    ))}
                   <Button
                     variant="outline"
                     disabled={
@@ -387,7 +399,7 @@ export function SoldProductsReport() {
                   >
                     Next
                   </Button>
-                </div>
+                </nav>
               </div>
             </>
           )}

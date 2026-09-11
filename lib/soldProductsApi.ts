@@ -28,3 +28,10 @@ export async function downloadSoldProducts(query: SoldProductsQuery) {
     );
   return response.blob();
 }
+
+export function fetchSoldProductLocations(signal?: AbortSignal) {
+  return apiFetch<string[]>(
+    buildUrl("api/v1/stock-sales/sold-products/locations"),
+    { signal },
+  );
+}
