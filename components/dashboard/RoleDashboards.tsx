@@ -1,5 +1,6 @@
 "use client";
 
+import { format, subMonths } from "date-fns";
 import {
   ArrowDown,
   ArrowRight,
@@ -762,7 +763,7 @@ function getSalesAnalyticsView(searchParams: URLSearchParams) {
     return view as SalesAnalyticsView;
   }
 
-  return searchParams.has("month") || searchParams.has("year") ? "month" : "30";
+  return "month";
 }
 
 function formatSaleMonthLabel(saleMonth: string) {
@@ -818,8 +819,8 @@ function getSalesAnalyticsViewLabel(
   if (view === "allTime") return "All Time";
 
   const rangeLabels: Record<StockSalesAnalyticsRange, string> = {
-    "30": "Last 30 days",
-    "90": "Last 90 days",
+    "30": "Last month",
+    "90": "Last 3 months",
     "360": "Last 360 days",
     thisYear: "This year",
   };
@@ -828,6 +829,7 @@ function getSalesAnalyticsViewLabel(
 }
 
 function formatSalesAnalyticsPeriodLabel(period: string) {
+  if (/^last 90 days$/i.test(period)) return "Last 3 months";
   return /^\d{4}-\d{2}$/.test(period) ? formatSaleMonthLabel(period) : period;
 }
 
@@ -836,7 +838,7 @@ function getLeaderboardPeriodLabel(period: string) {
     return `Based on performance for ${formatSaleMonthLabel(period).split(" ")[0]} month`;
   }
 
-  return `Based on performance for ${period.toLowerCase()}`;
+  return `Based on performance for ${formatSalesAnalyticsPeriodLabel(period).toLowerCase()}`;
 }
 
 function SalesAnalyticsValue({
@@ -1455,14 +1457,17 @@ function StockSalesAnalyticsSection({
           : { period: "year", saleYear: year }
         : view === "allTime"
           ? { period: "allTime" }
-          : { range: view };
+          : view === "30"
+            ? {
+                period: "month",
+                saleMonth: format(subMonths(new Date(), 1), "yyyy-MM"),
+              }
+            : { range: view };
   const analyticsQuery = useStockSalesAnalytics(salesAnalyticsQuery);
   const analytics = analyticsQuery.data;
   const salesBreakdown = analytics?.salesBreakdown ?? [];
   const isAllTime = view === "allTime";
-  const periodLabel = analytics?.period
-    ? formatSalesAnalyticsPeriodLabel(analytics.period)
-    : getSalesAnalyticsViewLabel(view, saleMonth);
+  const periodLabel = getSalesAnalyticsViewLabel(view, saleMonth);
   const updateSalesAnalyticsView = useCallback(
     (nextView: SalesAnalyticsView) => {
       const nextParams = new URLSearchParams(searchParams.toString());
