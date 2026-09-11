@@ -42,15 +42,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryAnalytics } from "@/hooks/useInventoryProducts";
 import { useLocations } from "@/hooks/useManageProducts";
 import { downloadInventoryAnalyticsCsv } from "@/lib/inventoryApi";
@@ -61,27 +54,19 @@ import type {
   InventoryAnalyticsMatrixCell,
   ProductColor,
 } from "@/types/inventory-api";
+import {
+  AnalyticsFilterControls,
+  COLOR_LABELS,
+  type ColorFilter,
+  type LocationFilter,
+  PURITY_LABELS,
+  type PurityFilter,
+} from "./AnalyticsFilterControls";
+import { AnalyticsFilterPopover } from "./AnalyticsFilterPopover";
+import { SoldProductsReport } from "./SoldProductsReport";
 
 type StatusFilter = "ALL" | "AVAILABLE" | "NOT_AVAILABLE";
-type ColorFilter = "ALL" | ProductColor;
-type PurityFilter = "ALL" | "9" | "14" | "18" | "22" | "24";
-type LocationFilter = "ALL" | string;
 const DEFAULT_STATUS_FILTER: StatusFilter = "AVAILABLE";
-
-const COLOR_LABELS: Record<ProductColor, string> = {
-  YELLOW: "Yellow",
-  ROSE: "Rose",
-  WHITE: "White",
-  OTHERS: "Others",
-};
-
-const PURITY_LABELS: Record<Exclude<PurityFilter, "ALL">, string> = {
-  "9": "9K",
-  "14": "14K",
-  "18": "18K",
-  "22": "22K",
-  "24": "24K",
-};
 
 const inventoryAmber = "oklch(0.78 0.14 75 / 0.58)";
 const inventoryBlue = "oklch(0.7 0.14 258 / 0.56)";
@@ -870,85 +855,6 @@ function ProductDistributionSankeyCard({
   );
 }
 
-function AnalyticsFilterControls({
-  color,
-  location,
-  locations,
-  locationsLoading,
-  purity,
-  onFilterChange,
-}: {
-  color: ColorFilter;
-  location: LocationFilter;
-  locations: { id: string; name: string; city: string }[];
-  locationsLoading: boolean;
-  purity: PurityFilter;
-  onFilterChange: (
-    key: "color" | "locationId" | "purity",
-    value: ColorFilter | LocationFilter | PurityFilter,
-  ) => void;
-}) {
-  return (
-    <div className="grid w-full gap-2 sm:grid-cols-2 md:w-auto md:min-w-[36rem] lg:grid-cols-3">
-      <Select
-        value={purity}
-        onValueChange={(value) =>
-          onFilterChange("purity", value as PurityFilter)
-        }
-      >
-        <SelectTrigger className="h-10 w-full">
-          <SelectValue placeholder="Purity" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="ALL">All purities</SelectItem>
-          {(
-            Object.keys(PURITY_LABELS) as Array<Exclude<PurityFilter, "ALL">>
-          ).map((purityValue) => (
-            <SelectItem key={purityValue} value={purityValue}>
-              {PURITY_LABELS[purityValue]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select
-        value={location}
-        onValueChange={(value) =>
-          onFilterChange("locationId", value as LocationFilter)
-        }
-        disabled={locationsLoading}
-      >
-        <SelectTrigger className="h-10 w-full">
-          <SelectValue placeholder="Location" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="ALL">All locations</SelectItem>
-          {locations.map((locationValue) => (
-            <SelectItem key={locationValue.id} value={locationValue.id}>
-              {locationValue.name}, {locationValue.city}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select
-        value={color}
-        onValueChange={(value) => onFilterChange("color", value as ColorFilter)}
-      >
-        <SelectTrigger className="h-10 w-full">
-          <SelectValue placeholder="Color" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="ALL">All colors</SelectItem>
-          {(Object.keys(COLOR_LABELS) as ProductColor[]).map((colorValue) => (
-            <SelectItem key={colorValue} value={colorValue}>
-              {COLOR_LABELS[colorValue]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
-
 function CategoryLocationExplorer({
   buckets,
   cells,
@@ -1253,7 +1159,7 @@ function ProductMixCard({
   );
 }
 
-export function ProductAnalyticsPageClient() {
+function InventoryAnalyticsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1272,32 +1178,6 @@ export function ProductAnalyticsPageClient() {
   const analyticsQuery = useInventoryAnalytics(analyticsFilters);
   const analytics = analyticsQuery.data;
   const locations = locationsQuery.data?.data ?? [];
-  const stockPercent = analytics
-    ? getPercent(
-        analytics.summary.stockProducts,
-        analytics.summary.totalProducts,
-      )
-    : "0%";
-  const availablePercent = analytics
-    ? getPercent(
-        analytics.summary.availableProducts,
-        analytics.summary.totalProducts,
-      )
-    : "0%";
-
-  function updateStatus(value: StatusFilter) {
-    const params = new URLSearchParams(searchParams);
-    if (value === DEFAULT_STATUS_FILTER) {
-      params.delete("status");
-    } else {
-      params.set("status", value);
-    }
-    const queryString = params.toString();
-    router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`, {
-      scroll: false,
-    });
-  }
-
   function updateAnalyticsFilter(
     key: "color" | "locationId" | "purity",
     value: ColorFilter | LocationFilter | PurityFilter,
@@ -1342,68 +1222,49 @@ export function ProductAnalyticsPageClient() {
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-4 border-b border-border/70 pb-4 md:flex-row md:items-end md:justify-between">
-        <div className="min-w-0">
-          <Button asChild variant="ghost" className="mb-2 h-9 gap-2 px-2">
-            <Link href="/inventory">
-              <ArrowLeft className="size-4" />
-              Back to inventory
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Product Analytics
-          </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>Inventory mix, weight, and location concentration</span>
-            {analytics ? (
-              <>
-                <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/60 sm:block" />
-                <span>{availablePercent} available</span>
-                <span className="hidden h-1 w-1 rounded-full bg-muted-foreground/60 sm:block" />
-                <span>{stockPercent} stock-owned</span>
-              </>
-            ) : null}
-          </div>
+        <div className="space-y-1 text-xs text-muted-foreground">
+          {analytics && (
+            <p>
+              {getPercent(
+                analytics.summary.availableProducts,
+                analytics.summary.totalProducts,
+              )}{" "}
+              available ·{" "}
+              {getPercent(
+                analytics.summary.stockProducts,
+                analytics.summary.totalProducts,
+              )}{" "}
+              stock-owned
+            </p>
+          )}
         </div>
         <div className="flex w-full flex-col items-stretch gap-2 md:w-auto md:items-end">
-          <Tabs
-            value={status}
-            onValueChange={(value) => updateStatus(value as StatusFilter)}
-            className="w-full md:w-auto"
-          >
-            <TabsList className="grid h-11 w-full grid-cols-3 rounded-xl p-1 md:w-auto">
-              <TabsTrigger
-                value="ALL"
-                className={cn(segmentTriggerClassName, "px-4")}
-              >
-                All
-              </TabsTrigger>
-              <TabsTrigger
-                value="AVAILABLE"
-                className={cn(segmentTriggerClassName, "px-4")}
-              >
-                Available
-              </TabsTrigger>
-              <TabsTrigger
-                value="NOT_AVAILABLE"
-                className={cn(segmentTriggerClassName, "px-4")}
-              >
-                Unavailable
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <AnalyticsFilterControls
-              color={color}
-              location={location}
-              locations={locations}
-              locationsLoading={locationsQuery.isLoading}
-              purity={purity}
-              onFilterChange={updateAnalyticsFilter}
-            />
+            <AnalyticsFilterPopover
+              count={
+                [color, purity, location].filter((value) => value !== "ALL")
+                  .length
+              }
+              onReset={() => {
+                const next = new URLSearchParams(searchParams);
+                for (const key of ["color", "purity", "locationId"])
+                  next.delete(key);
+                router.replace(`${pathname}?${next}`, { scroll: false });
+              }}
+            >
+              <AnalyticsFilterControls
+                color={color}
+                location={location}
+                locations={locations}
+                locationsLoading={locationsQuery.isLoading}
+                purity={purity}
+                onFilterChange={updateAnalyticsFilter}
+              />
+            </AnalyticsFilterPopover>
             <Button
               type="button"
               variant="outline"
-              className="h-11 gap-2 sm:shrink-0"
+              className="h-9 gap-2 sm:shrink-0"
               disabled={
                 isDownloading ||
                 analyticsQuery.isLoading ||
@@ -1506,6 +1367,81 @@ export function ProductAnalyticsPageClient() {
           </div>
         </>
       ) : null}
+    </div>
+  );
+}
+
+export function ProductAnalyticsPageClient() {
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tab = params.get("tab") === "sold" ? "sold" : getStatusFilter(params);
+  return (
+    <div className="min-w-0 space-y-3">
+      <div>
+        <Button asChild variant="ghost" className="h-9 gap-2 px-2">
+          <Link href="/inventory">
+            <ArrowLeft className="size-4" />
+            Back to inventory
+          </Link>
+        </Button>
+      </div>
+      <Tabs
+        value={tab}
+        onValueChange={(value) => {
+          const next = new URLSearchParams(params);
+          if (value === "sold") next.set("tab", "sold");
+          else {
+            next.delete("tab");
+            if (value === DEFAULT_STATUS_FILTER) next.delete("status");
+            else next.set("status", value);
+          }
+          router.replace(`${pathname}?${next}`, { scroll: false });
+        }}
+      >
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Product Analytics
+            </h1>
+            {tab !== "sold" && (
+              <p className="text-xs text-muted-foreground">
+                Inventory mix, weight, and location concentration
+              </p>
+            )}
+          </div>
+          <TabsList
+            aria-label="Product analytics views"
+            className="h-auto w-fit max-w-full flex-wrap justify-start gap-0.5 rounded-lg p-1"
+          >
+            {[
+              ["ALL", "All"],
+              ["AVAILABLE", "Available"],
+              ["NOT_AVAILABLE", "Unavailable"],
+              ["sold", "Sold Products"],
+            ].map(([value, label]) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className={cn(
+                  segmentTriggerClassName,
+                  "h-11 flex-none px-3 sm:h-8",
+                )}
+              >
+                {label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+        <TabsContent value="sold" className="min-w-0 pt-1">
+          <SoldProductsReport />
+        </TabsContent>
+        {tab !== "sold" && (
+          <TabsContent value={tab} className="min-w-0 pt-1">
+            <InventoryAnalyticsContent />
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }
