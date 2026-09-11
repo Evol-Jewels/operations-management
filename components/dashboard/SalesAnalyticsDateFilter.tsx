@@ -39,8 +39,8 @@ const QUICK_RANGES: ReadonlyArray<{
   label: string;
   value: StockSalesAnalyticsRange | "allTime";
 }> = [
-  { label: "30 days", value: "30" },
-  { label: "90 days", value: "90" },
+  { label: "Last month", value: "30" },
+  { label: "Last 3 months", value: "90" },
   { label: "360 days", value: "360" },
   { label: "All Time", value: "allTime" },
 ];
@@ -77,16 +77,20 @@ export function SalesAnalyticsDateFilter({
       <PopoverTrigger asChild>
         <Button
           aria-label={`Date range: ${label}`}
-          className="h-11 w-full justify-between gap-3 px-3 font-normal sm:w-auto sm:min-w-48"
+          className="h-9 max-w-full justify-between gap-2 self-start px-3 font-normal"
           variant="outline"
         >
           <span className="flex min-w-0 items-center gap-2">
-            <CalendarDays className="size-4 text-muted-foreground" />
+            <CalendarDays
+              aria-hidden="true"
+              className="size-4 text-muted-foreground"
+            />
             <span className="truncate">{label}</span>
           </span>
           <ChevronDown
+            aria-hidden="true"
             className={cn(
-              "size-4 text-muted-foreground transition-transform duration-200",
+              "size-4 text-muted-foreground opacity-50 transition-transform duration-200 motion-reduce:transition-none",
               open && "rotate-180",
             )}
           />
@@ -95,42 +99,51 @@ export function SalesAnalyticsDateFilter({
 
       <PopoverContent
         align="end"
-        className="w-[min(22rem,calc(100vw-2rem))] space-y-4 p-3"
-        sideOffset={8}
+        aria-label="Sales period"
+        className="w-64 max-w-[calc(100vw-2rem)] p-1"
+        collisionPadding={16}
+        sideOffset={4}
       >
-        <div className="grid gap-0.5">
+        <div className="grid">
           {QUICK_RANGES.map((option) => {
             const isSelected = view === option.value;
 
             return (
-              <button
+              <Button
                 aria-pressed={isSelected}
                 className={cn(
-                  "flex min-h-11 w-full cursor-pointer items-center justify-between rounded-md px-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                  "h-8 w-full justify-between rounded-sm px-2 font-normal has-[>svg]:px-2",
                   isSelected && "bg-accent font-medium text-accent-foreground",
                 )}
                 key={option.value}
                 onClick={() => selectQuickRange(option.value)}
+                size="sm"
                 type="button"
+                variant="ghost"
               >
                 {option.label}
                 {isSelected && <Check aria-hidden="true" className="size-4" />}
-              </button>
+              </Button>
             );
           })}
         </div>
 
-        <div className="border-t border-border pt-3">
-          <div className="grid grid-cols-2 rounded-md bg-muted p-1">
+        <div className="mt-1 space-y-2 border-t border-border p-2">
+          <div className="grid grid-cols-2 gap-0.5 rounded-md bg-muted p-0.5">
             {(["year", "month"] as const).map((option) => (
               <Button
                 aria-pressed={view === option}
-                className="h-9"
+                className={cn(
+                  "h-7 rounded-sm text-xs",
+                  view === option
+                    ? "bg-background shadow-xs hover:bg-background"
+                    : "text-muted-foreground",
+                )}
                 key={option}
                 onClick={() => onViewChange(option)}
                 size="sm"
                 type="button"
-                variant={view === option ? "secondary" : "ghost"}
+                variant="ghost"
               >
                 {option === "year" ? "Year" : "Month"}
               </Button>
@@ -140,9 +153,9 @@ export function SalesAnalyticsDateFilter({
           {isCalendarView && (
             <div
               className={cn(
-                "mt-2 grid gap-2",
+                "grid gap-2",
                 view === "month"
-                  ? "grid-cols-[minmax(0,1fr)_7rem]"
+                  ? "grid-cols-[minmax(0,1fr)_5rem]"
                   : "grid-cols-1",
               )}
             >
@@ -150,7 +163,8 @@ export function SalesAnalyticsDateFilter({
                 <Select value={month} onValueChange={onMonthChange}>
                   <SelectTrigger
                     aria-label="Sale month"
-                    className="h-11 w-full"
+                    className="w-full"
+                    size="sm"
                   >
                     <SelectValue placeholder="Month" />
                   </SelectTrigger>
@@ -171,7 +185,11 @@ export function SalesAnalyticsDateFilter({
                   setOpen(false);
                 }}
               >
-                <SelectTrigger aria-label="Sale year" className="h-11 w-full">
+                <SelectTrigger
+                  aria-label="Sale year"
+                  className="w-full"
+                  size="sm"
+                >
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
