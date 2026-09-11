@@ -1,9 +1,9 @@
 "use client";
 
-import { Calculator, Diamond, Plus, Trash2 } from "lucide-react";
+import { Calculator, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { StoneTypeCombobox } from "@/components/stone-type-combobox";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -26,13 +26,12 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
   calculateMakingCharge,
-  calculateGoldRate,
   computeEstimateFromInputs,
   getStoneType,
   resolveAutoSlab,
 } from "@/lib/calculator/pricing";
 import { estimationStoneToCalculator } from "@/lib/enquiryEstimation";
-import { cn, formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import type {
   CalculatorFormState,
   CalculatorSettings,
@@ -41,7 +40,7 @@ import type {
   ProductEstimation,
 } from "@/types";
 
-const PURITY_OPTIONS: MetalPurity[] = ["24K", "22K", "18K", "14K", "9K"];
+type EstimationForm = Omit<CalculatorFormState, "purity"> & { purity: string };
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
@@ -65,7 +64,7 @@ function buildInitialForm(
   productName: string,
   defaultPurity: MetalPurity,
   existingEstimation?: ProductEstimation,
-): CalculatorFormState {
+): EstimationForm {
   const netGoldWeight = existingEstimation?.metalWeight ?? 0;
 
   return {
@@ -96,6 +95,8 @@ interface EnquiryEstimationDialogProps {
   productId: string;
   productName: string;
   defaultPurity: MetalPurity;
+  defaultMetalType?: string;
+  defaultMetalPurity?: string;
   settings: CalculatorSettings;
   existingEstimation?: ProductEstimation;
   onSave: (estimation: ProductEstimation) => void;
@@ -106,13 +107,20 @@ export function EnquiryEstimationDialog({
   productId,
   productName,
   defaultPurity,
+  defaultMetalType = "Gold",
+  defaultMetalPurity,
   settings,
   existingEstimation,
   onSave,
   disabled,
 }: EnquiryEstimationDialogProps) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<CalculatorFormState>(() =>
+  const [metalTypeId, setMetalTypeId] = useState("gold");
+  const selectedMetal = settings.metalTypes.find(
+    (metal) => metal.id === metalTypeId,
+  );
+
+  const [form, setForm] = useState<EstimationForm>(() =>
     buildInitialForm(settings, productName, defaultPurity, existingEstimation),
   );
   const [vendorName, setVendorName] = useState(
@@ -134,21 +142,45 @@ export function EnquiryEstimationDialog({
         existingEstimation,
       ),
     );
+    const metalName = existingEstimation?.metalType ?? defaultMetalType;
+    const metal =
+      settings.metalTypes.find(
+        (item) =>
+          item.id === metalName.toLowerCase() ||
+          item.name.toLowerCase() === metalName.toLowerCase(),
+      ) ?? settings.metalTypes[0];
+    const requestedPurity =
+      existingEstimation?.purity ?? defaultMetalPurity ?? defaultPurity;
+    const purity =
+      existingEstimation?.purity ??
+      metal?.purities.find((item) => item.id === requestedPurity)?.id ??
+      metal?.purities[0]?.id ??
+      "";
+    setMetalTypeId(metal?.id ?? "");
+    setForm((current) => ({ ...current, purity }));
     setVendorName(existingEstimation?.vendorName ?? "");
     setNotes(existingEstimation?.notes ?? "");
     setMakingCost(existingEstimation?.makingCost ?? 0);
     setIsMakingCostEdited(false);
-  }, [defaultPurity, existingEstimation, open, productName, settings]);
+  }, [
+    defaultPurity,
+    defaultMetalType,
+    defaultMetalPurity,
+    existingEstimation,
+    open,
+    productName,
+    settings,
+  ]);
 
   const calculatedMakingCost = useMemo(
     () =>
       computeEstimateFromInputs(
         settings,
         form.netGoldWeight,
-        form.purity,
+        "Other",
         form.stones,
       ).makingCost,
-    [form.netGoldWeight, form.purity, form.stones, settings],
+    [form.netGoldWeight, form.stones, settings],
   );
 
   useEffect(() => {
@@ -161,19 +193,40 @@ export function EnquiryEstimationDialog({
       computeEstimateFromInputs(
         settings,
         form.netGoldWeight,
-        form.purity,
+        "Other",
         form.stones,
-        { makingCostOverride: makingCost },
+        {
+          makingCostOverride: makingCost,
+          metals: [
+            {
+              id: productId,
+              metalTypeId,
+              purityId: form.purity,
+              weight: form.netGoldWeight,
+            },
+          ],
+        },
       ),
-    [form.netGoldWeight, form.purity, form.stones, makingCost, settings],
+    [
+      form.netGoldWeight,
+      form.purity,
+      form.stones,
+      makingCost,
+      settings,
+      productId,
+      metalTypeId,
+    ],
   );
 
   const canSave =
-    form.netGoldWeight > 0 || form.stones.some((stone) => stone.weight > 0);
+    Boolean(selectedMetal && form.purity) &&
+    Number.isFinite(form.netGoldWeight) &&
+    form.netGoldWeight >= 0 &&
+    (form.netGoldWeight > 0 || form.stones.some((stone) => stone.weight > 0));
 
-  function updateForm<K extends keyof CalculatorFormState>(
+  function updateForm<K extends keyof EstimationForm>(
     key: K,
-    value: CalculatorFormState[K],
+    value: EstimationForm[K],
   ) {
     setForm((current) => ({ ...current, [key]: value }));
   }
@@ -212,6 +265,7 @@ export function EnquiryEstimationDialog({
       productId,
       metalWeight: form.netGoldWeight,
       purity: form.purity,
+      metalType: selectedMetal?.name,
       stoneDetails: breakdown.stoneDetails
         .filter((stone) => stone.weight > 0)
         .map((stone) => ({
@@ -255,42 +309,62 @@ export function EnquiryEstimationDialog({
             <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
               Metal
             </p>
-            <div className="grid gap-4 sm:grid-cols-[1fr_12rem]">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {PURITY_OPTIONS.map((purity) => {
-                  const selected = form.purity === purity;
-                  const rate = calculateGoldRate(
-                    settings.goldRate24k,
-                    purity,
-                    settings.purityPercentages,
-                  );
-
-                  return (
-                    <button
-                      key={purity}
-                      type="button"
-                      onClick={() => updateForm("purity", purity)}
-                      className={cn(
-                        "min-h-12 rounded-lg border px-3 py-2 text-center text-sm transition-colors",
-                        selected
-                          ? "border-foreground bg-foreground text-background"
-                          : "border-border bg-background hover:border-foreground/30",
-                      )}
-                    >
-                      <span className="font-semibold">{purity}</span>
-                      <span
-                        className={cn(
-                          "mt-0.5 block text-[0.625rem]",
-                          selected
-                            ? "text-background/70"
-                            : "text-muted-foreground",
-                        )}
-                      >
-                        {formatCurrency(rate)}/g
-                      </span>
-                    </button>
-                  );
-                })}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor={`metal-type-${productId}`}>Metal Type</Label>
+                <Select
+                  value={metalTypeId}
+                  onValueChange={(id) => {
+                    const purity =
+                      settings.metalTypes.find((item) => item.id === id)
+                        ?.purities[0]?.id ?? "";
+                    setMetalTypeId(id);
+                    updateForm("purity", purity);
+                  }}
+                >
+                  <SelectTrigger
+                    id={`metal-type-${productId}`}
+                    className="w-full"
+                  >
+                    <SelectValue placeholder="Select metal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {settings.metalTypes.map((metal) => (
+                      <SelectItem key={metal.id} value={metal.id}>
+                        {metal.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor={`metal-purity-${productId}`}>Purity</Label>
+                <Select
+                  value={form.purity}
+                  onValueChange={(purity) => {
+                    updateForm("purity", purity);
+                  }}
+                >
+                  <SelectTrigger
+                    id={`metal-purity-${productId}`}
+                    className="w-full"
+                  >
+                    <SelectValue placeholder="Select purity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {form.purity &&
+                    !selectedMetal?.purities.some(
+                      (purity) => purity.id === form.purity,
+                    ) ? (
+                      <SelectItem value={form.purity}>{form.purity}</SelectItem>
+                    ) : null}
+                    {selectedMetal?.purities.map((purity) => (
+                      <SelectItem key={purity.id} value={purity.id}>
+                        {purity.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor={`metal-weight-${productId}`}>
@@ -460,7 +534,7 @@ export function EnquiryEstimationDialog({
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <span className="text-sm font-medium text-muted-foreground">
-                Gold + making
+                {selectedMetal?.name ?? "Metal"} + making
               </span>
               <span className="font-medium tabular-nums">
                 {formatCurrency(breakdown.goldCost + breakdown.makingCost)}
