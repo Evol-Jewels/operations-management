@@ -31,6 +31,7 @@ import {
   getStoneType,
   resolveAutoSlab,
 } from "@/lib/calculator/pricing";
+import { estimationStoneToCalculator } from "@/lib/enquiryEstimation";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   CalculatorFormState,
@@ -55,17 +56,6 @@ function createStone(settings: CalculatorSettings): CalculatorStoneInput {
   };
 }
 
-function getStoneTypeIdByName(settings: CalculatorSettings, name: string) {
-  const normalizedName = name.trim().toLowerCase();
-  return (
-    settings.stoneTypes.find(
-      (stone) => stone.name.trim().toLowerCase() === normalizedName,
-    )?.stoneId ??
-    settings.stoneTypes[0]?.stoneId ??
-    ""
-  );
-}
-
 function formatWeight(value: number) {
   return value.toFixed(3).replace(/\.?0+$/, "");
 }
@@ -83,12 +73,9 @@ function buildInitialForm(
     purity: existingEstimation?.purity ?? defaultPurity,
     stones:
       existingEstimation && existingEstimation.stoneDetails.length > 0
-        ? existingEstimation.stoneDetails.map((stone) => ({
-            id: stone.id || generateId(),
-            stoneTypeId: getStoneTypeIdByName(settings, stone.type),
-            weight: stone.netWeight,
-            quantity: stone.pieces,
-          }))
+        ? existingEstimation.stoneDetails.map((stone) =>
+            estimationStoneToCalculator(stone, settings),
+          )
         : [createStone(settings)],
     diamondColor: "",
     diamondClarity: "",
@@ -229,7 +216,7 @@ export function EnquiryEstimationDialog({
         .filter((stone) => stone.weight > 0)
         .map((stone) => ({
           id: stone.id,
-          type: stone.stoneType?.name ?? "Stone",
+          type: stone.sourceStoneName || stone.stoneType?.name || "Stone",
           netWeight: stone.weight,
           pieces: stone.quantity,
         })),
@@ -390,8 +377,20 @@ export function EnquiryEstimationDialog({
                           category: item.category,
                         }))}
                         value={stone.stoneTypeId}
+                        customValue={
+                          !stone.stoneTypeId ? stone.sourceStoneName : undefined
+                        }
+                        onCustomValueChange={(name) =>
+                          updateStone(stone.id, {
+                            stoneTypeId: "",
+                            sourceStoneName: name,
+                          })
+                        }
                         onValueChange={(stoneTypeId) =>
-                          updateStone(stone.id, { stoneTypeId })
+                          updateStone(stone.id, {
+                            stoneTypeId,
+                            sourceStoneName: undefined,
+                          })
                         }
                         placeholder="Select stone"
                         className="bg-background"
@@ -408,6 +407,7 @@ export function EnquiryEstimationDialog({
                           })
                         }
                         placeholder="ct"
+                        aria-label={`Stone ${index + 1} weight in carats`}
                       />
                       <Input
                         type="number"
@@ -424,6 +424,7 @@ export function EnquiryEstimationDialog({
                           })
                         }
                         placeholder="pcs"
+                        aria-label={`Stone ${index + 1} quantity`}
                       />
                     </div>
                   </div>

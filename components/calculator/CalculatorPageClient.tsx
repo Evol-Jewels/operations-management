@@ -445,11 +445,15 @@ function compareStoneTypesBySlabs(
 function StoneTypeCombobox({
   stoneTypes,
   value,
+  customValue,
+  onCustomValueChange,
   onChange,
 }: {
   stoneTypes: CalculatorSettings["stoneTypes"];
   value: string;
   onChange: (stoneTypeId: string) => void;
+  customValue?: string;
+  onCustomValueChange: (name: string) => void;
 }) {
   const priorityStoneTypes: CalculatorSettings["stoneTypes"] = [];
   const priorityStoneIds = new Set<string>();
@@ -485,6 +489,8 @@ function StoneTypeCombobox({
       }))}
       value={value}
       onValueChange={onChange}
+      customValue={customValue}
+      onCustomValueChange={onCustomValueChange}
       showMetadata
       className="border-0 border-b bg-transparent px-0 shadow-none hover:bg-transparent"
     />
@@ -772,6 +778,14 @@ function StoneRow({
           <StoneTypeCombobox
             stoneTypes={settings.stoneTypes}
             value={stone.stoneTypeId}
+            customValue={!stone.stoneTypeId ? stone.sourceStoneName : undefined}
+            onCustomValueChange={(sourceStoneName) =>
+              onChange({
+                stoneTypeId: "",
+                sourceStoneName,
+                fixedRatePerCarat: undefined,
+              })
+            }
             onChange={(stoneTypeId) =>
               onChange({
                 stoneTypeId,
@@ -1991,6 +2005,9 @@ export function CalculatorPageClient({
           (candidate) => candidate.id === stone.id,
         );
 
+        if (!stone.stoneTypeId && stone.sourceStoneName?.trim()) {
+          return stone.weight > 0 && stone.quantity > 0;
+        }
         return Boolean(
           detail?.stoneType &&
             detail.weight > 0 &&
@@ -2047,7 +2064,11 @@ export function CalculatorPageClient({
 
   useEffect(() => {
     setForm((current) => {
-      if (current.stones.some((stone) => stone.stoneTypeId)) return current;
+      if (
+        current.stones.some(
+          (stone) => stone.stoneTypeId || stone.sourceStoneName?.trim(),
+        )
+      ) return current;
       return {
         ...current,
         stones: current.stones.map((stone) => ({
