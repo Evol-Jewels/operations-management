@@ -13,7 +13,6 @@ import type { BackendActivityLog } from "@/types/activity-api";
 export interface BackendEnquiryStone {
   stoneType: string;
   slabId?: string;
-  ratePerCarat?: string;
   weight?: string;
   pieces?: number;
 }

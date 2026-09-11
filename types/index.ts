@@ -295,7 +295,6 @@ export interface EstimationStoneDetail {
   type: string;
   netWeight: number;
   pieces: number;
-  ratePerCarat?: number;
 }
 
 export interface ProductEstimation {

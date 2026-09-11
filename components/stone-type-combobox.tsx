@@ -45,7 +45,7 @@ export function StoneTypeCombobox({
   value,
   onValueChange,
   customValue,
-  onCustomValueChange,
+  onCustomValueChange = onValueChange,
   showMetadata = false,
   placeholder = "Select stone type...",
   searchPlaceholder = "Search stone shape or type...",
@@ -57,9 +57,7 @@ export function StoneTypeCombobox({
   const [search, setSearch] = useState("");
   const customName = search.trim();
   const canAddCustom = Boolean(
-    onCustomValueChange &&
-      customName &&
-      !loading &&
+    customName &&
       !options.some(
         (option) =>
           option.label.trim().toLowerCase() === customName.toLowerCase(),
@@ -93,10 +91,13 @@ export function StoneTypeCombobox({
             <span
               className={cn(
                 "truncate",
-                !selectedStone && !customValue && "text-muted-foreground",
+                !selectedStone &&
+                  !customValue &&
+                  !value &&
+                  "text-muted-foreground",
               )}
             >
-              {customValue || selectedStone?.label || placeholder}
+              {customValue || selectedStone?.label || value || placeholder}
             </span>
           </span>
           <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
@@ -159,13 +160,13 @@ export function StoneTypeCombobox({
                 <CommandItem
                   value={customName}
                   onSelect={() => {
-                    onCustomValueChange?.(customName);
+                    onCustomValueChange(customName);
                     setOpen(false);
                     setSearch("");
                   }}
                   className="cursor-pointer"
                 >
-                  Add “{customName}” as new stone
+                  Use “{customName}”
                 </CommandItem>
               </CommandGroup>
             )}

@@ -13,8 +13,27 @@ import {
 import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
 import { captureProductEvent } from "@/lib/analytics";
 import { mapBackendEnquiryDetailsToOrder } from "@/lib/enquiryMappers";
-import { estimationToApiInput } from "@/lib/enquiryEstimation";
 import type { ProductEstimation } from "@/types";
+
+function toDecimal(value: number, digits = 2) {
+  return value.toFixed(digits);
+}
+
+function estimationToApiInput(estimation: ProductEstimation) {
+  return {
+    metalType: "Gold",
+    metalPurity: estimation.purity,
+    netWeight: toDecimal(estimation.metalWeight, 3),
+    stones: estimation.stoneDetails.map((stone) => ({
+      stoneType: stone.type,
+      weight: toDecimal(stone.netWeight, 3),
+      pieces: stone.pieces,
+    })),
+    makingCost: toDecimal(estimation.makingCost ?? 0),
+    vendorName: estimation.vendorName?.trim() || undefined,
+    notes: estimation.notes?.trim() || undefined,
+  };
+}
 
 function EnquiryPageContent() {
   const params = useParams();
