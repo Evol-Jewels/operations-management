@@ -371,6 +371,7 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
       </p>
       <dl style={{ margin: "8px 0 0" }}>
         <DetailRow label="Metal weight" value={`${estimation.metalWeight} g`} />
+        <DetailRow label="Metal" value={estimation.metalType ?? "Gold"} />
         <DetailRow label="Purity" value={estimation.purity} />
         <DetailRow
           label="Making charge"

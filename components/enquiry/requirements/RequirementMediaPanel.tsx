@@ -39,6 +39,8 @@ export function RequirementMediaPanel({
             productId={item.id}
             productName={item.title}
             defaultPurity={item.defaultPurity}
+            defaultMetalType={item.metalType}
+            defaultMetalPurity={item.metalPurity}
             settings={settings}
             existingEstimation={item.estimation}
             onSave={onSaveEstimation}
@@ -226,7 +228,8 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
         </div>
         <div className="text-right text-xs leading-5 text-muted-foreground">
           <p>
-            {estimation.metalWeight}g {estimation.purity}
+            {estimation.metalWeight}g {estimation.metalType ?? "Gold"}{" "}
+            {estimation.purity}
           </p>
           <p>{formatDate(estimation.createdAt)}</p>
         </div>

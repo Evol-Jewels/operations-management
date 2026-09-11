@@ -604,11 +604,26 @@ function recomputeEstimationTotal(
   const breakdown = computeEstimateFromInputs(
     settings,
     estimation.metalWeight,
-    estimation.purity,
+    "Other",
     estimation.stoneDetails.map((stone) =>
       estimationStoneToCalculator(stone, settings),
     ),
-    { makingCostOverride: estimation.makingCost ?? 0 },
+    {
+      makingCostOverride: estimation.makingCost ?? 0,
+      metals: [
+        {
+          id: estimation.id,
+          metalTypeId:
+            settings.metalTypes.find(
+              (metal) =>
+                metal.name.toLowerCase() ===
+                (estimation.metalType ?? "Gold").toLowerCase(),
+            )?.id ?? (estimation.metalType ?? "gold").toLowerCase(),
+          purityId: estimation.purity,
+          weight: estimation.metalWeight,
+        },
+      ],
+    },
   );
 
   return {

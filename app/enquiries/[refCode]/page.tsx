@@ -21,7 +21,7 @@ function toDecimal(value: number, digits = 2) {
 
 function estimationToApiInput(estimation: ProductEstimation) {
   return {
-    metalType: "Gold",
+    metalType: estimation.metalType ?? "Gold",
     metalPurity: estimation.purity,
     netWeight: toDecimal(estimation.metalWeight, 3),
     stones: estimation.stoneDetails.map((stone) => ({

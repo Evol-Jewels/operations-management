@@ -301,7 +301,8 @@ export interface ProductEstimation {
   id: string;
   productId: string;
   metalWeight: number;
-  purity: MetalPurity;
+  purity: string;
+  metalType?: string;
   stoneDetails: EstimationStoneDetail[];
   finalAmount: number;
   makingCost?: number;

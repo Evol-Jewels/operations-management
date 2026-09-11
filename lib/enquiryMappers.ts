@@ -62,7 +62,8 @@ export function mapBackendEstimationToProductEstimation(
     id: estimation.id,
     productId: estimation.enquiryItemId,
     metalWeight: Number(estimation.netWeight ?? 0),
-    purity: normalizeMetalPurity(estimation.metalPurity),
+    purity: estimation.metalPurity ?? "22K",
+    metalType: estimation.metalType ?? "Gold",
     stoneDetails: estimation.stones.map((stone, index) => ({
       id: `${estimation.id}-stone-${index}`,
       type: stone.stoneType,
