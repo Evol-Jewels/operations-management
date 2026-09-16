@@ -3,18 +3,28 @@
 import { Diamond } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import { getAgentMediaUrl } from "@/lib/inventory-media";
+import { getInventoryMediaUrl } from "@/lib/inventory-media";
+
+function getAgentMediaUrl(
+  mediaId: string | null | undefined,
+  storageKey: string | null | undefined,
+) {
+  if (!storageKey) return null;
+  return getInventoryMediaUrl({ id: mediaId ?? "", storageKey });
+}
 
 export function InventoryCardImage({
   imageId,
+  imageKey,
   code,
   className,
 }: {
   imageId?: string | null;
+  imageKey?: string | null;
   code: string;
   className?: string;
 }) {
-  const imageUrl = getAgentMediaUrl(imageId);
+  const imageUrl = getAgentMediaUrl(imageId, imageKey);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const showImage = imageUrl && failedUrl !== imageUrl;
 

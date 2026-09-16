@@ -12,6 +12,7 @@ export type AgentInventoryItem = {
   price: number;
   vendor?: string | null;
   imageId?: string | null;
+  imageKey?: string | null;
   href: string;
 };
 

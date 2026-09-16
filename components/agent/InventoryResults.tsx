@@ -22,6 +22,7 @@ export function InventoryResults({ result }: { result: AgentInventoryResult }) {
           >
             <InventoryCardImage
               imageId={product.imageId}
+              imageKey={product.imageKey}
               code={product.code}
               className="h-36"
             />
