@@ -13,6 +13,12 @@ export function isInventoryMediaProxyUrl(value: string) {
   return productMediaProxyUrl ? value.startsWith(productMediaProxyUrl) : false;
 }
 
+export function getAgentMediaUrl(mediaId: string | null | undefined) {
+  return productMediaProxyUrl && mediaId
+    ? `${productMediaProxyUrl}${mediaId}`
+    : null;
+}
+
 export function getInventoryMediaUrl(
   image: Pick<InventoryMedia, "id" | "storageKey">,
 ) {

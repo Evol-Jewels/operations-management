@@ -11,6 +11,7 @@ export type AgentInventoryItem = {
   location: string | null;
   price: number;
   vendor?: string | null;
+  imageId?: string | null;
   href: string;
 };
 

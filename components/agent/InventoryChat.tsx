@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { InventoryResults } from "./InventoryResults";
+import { MarkdownText } from "./MarkdownText";
 import { useInventoryChat } from "./useInventoryChat";
 
 const suggestions = [
@@ -174,9 +175,13 @@ export function InventoryChat() {
                     <span className="sr-only">
                       {message.role === "user" ? "You" : "Assistant"}:{" "}
                     </span>
-                    <p className="whitespace-pre-wrap break-words text-sm leading-7">
-                      {message.text}
-                    </p>
+                    {message.role === "user" ? (
+                      <p className="whitespace-pre-wrap break-words text-sm leading-7">
+                        {message.text}
+                      </p>
+                    ) : (
+                      <MarkdownText text={message.text} />
+                    )}
                   </div>
                 )}
               </div>
