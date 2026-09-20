@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/.voice-venv/
 /.pnp
 .pnp.*
 .yarn/*

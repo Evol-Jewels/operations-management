@@ -1,4 +1,5 @@
 import { apiFetch, buildUrl } from "@/lib/apiClient";
+import type { VoiceConnection } from "@/types/agent-voice";
 import type {
   AgentConversation,
   AgentSessionSummary,
@@ -6,6 +7,25 @@ import type {
 } from "@/types/agent-api";
 
 const path = "api/v1/agent/sessions";
+
+export function startAgentVoice(id: string, signal: AbortSignal) {
+  return apiFetch<VoiceConnection>(
+    buildUrl(`${path}/${encodeURIComponent(id)}/voice`),
+    { method: "POST", signal },
+  );
+}
+
+export function endAgentVoice(id: string, room: string) {
+  return apiFetch<{ ended: boolean }>(
+    buildUrl(`${path}/${encodeURIComponent(id)}/voice/end`),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ room }),
+      keepalive: true,
+    },
+  );
+}
 
 export function fetchAgentSessions() {
   return apiFetch<AgentSessionSummary[]>(buildUrl(path));
