@@ -167,7 +167,7 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
                 aria-label={`Created on ${createdDate}`}
               >
                 <CalendarDays className="size-3 shrink-0" aria-hidden="true" />
-                <span>Created {createdDate}</span>
+                <span>Created on {createdDate}</span>
               </div>
 
               {/* Bottom row: Urgency + Salesperson */}
