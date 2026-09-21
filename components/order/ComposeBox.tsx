@@ -59,7 +59,8 @@ export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
 
   const trimmedMessage = message.trim();
   const busy = Boolean(isSubmitting || isPosting);
-  const canSubmit = Boolean(trimmedMessage || media.length) && !busy;
+  // Comments require text; attachments can be added alongside the message.
+  const canSubmit = Boolean(trimmedMessage) && !busy;
 
   function addFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -122,7 +123,7 @@ export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
       </label>
       <Textarea
         id="activity-message"
-        placeholder="Write a comment or attach media..."
+        placeholder="Write a comment..."
         value={message}
         onChange={(event) => setMessage(event.target.value)}
         rows={3}

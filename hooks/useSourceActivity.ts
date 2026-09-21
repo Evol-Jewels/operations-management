@@ -79,22 +79,50 @@ export function useCreateComment(
       const comment = typeof value === "string" ? { content: value } : value;
       return createComment({ sourceType, sourceCode, ...comment });
     },
-    onSuccess: (comment, value) => {
+    onSuccess: async (comment, value) => {
       const submitted = typeof value === "string" ? undefined : value.media;
       const resolvedComment: BackendComment =
         submitted?.length && !comment.media?.length
           ? { ...comment, media: submitted }
           : comment;
+      const commentsQueryKey = sourceActivityKeys.comments(
+        sourceType,
+        sourceCode,
+      );
+
       queryClient.setQueryData<BackendComment[]>(
-        sourceActivityKeys.comments(sourceType, sourceCode),
+        commentsQueryKey,
         (current) => [
           resolvedComment,
           ...(current ?? []).filter((entry) => entry.id !== resolvedComment.id),
         ],
       );
-      void queryClient.invalidateQueries({
-        queryKey: sourceActivityKeys.comments(sourceType, sourceCode),
-      });
+
+      await queryClient.invalidateQueries({ queryKey: commentsQueryKey });
+
+      // Older deployments may accept the comment but omit media from the
+      // response/list endpoint. Keep the freshly uploaded media visible until
+      // the backend with the media column is rolled out.
+      if (submitted?.length) {
+        queryClient.setQueryData<BackendComment[]>(
+          commentsQueryKey,
+          (current) => {
+            const serverComment = current?.find(
+              (entry) => entry.id === resolvedComment.id,
+            );
+            const preservedComment = serverComment?.media?.length
+              ? serverComment
+              : resolvedComment;
+            return [
+              preservedComment,
+              ...(current ?? []).filter(
+                (entry) => entry.id !== resolvedComment.id,
+              ),
+            ];
+          },
+        );
+      }
+
       void queryClient.invalidateQueries({
         queryKey: sourceActivityKeys.activityLogs(sourceType, sourceCode),
       });
