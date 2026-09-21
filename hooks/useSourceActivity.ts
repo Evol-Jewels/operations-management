@@ -9,7 +9,10 @@ import {
 } from "@tanstack/react-query";
 import { fetchActivityLogs } from "@/lib/activityLogsApi";
 import { createComment, fetchComments } from "@/lib/commentsApi";
-import type { SourceType } from "@/types/activity-api";
+import type {
+  BackendCommentMedia,
+  SourceType,
+} from "@/types/activity-api";
 
 export const sourceActivityKeys = {
   recentActivityLogs: (query: Record<string, unknown>) =>
@@ -69,8 +72,12 @@ export function useCreateComment(
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (content: string) =>
-      createComment({ sourceType, sourceCode, content }),
+    mutationFn: (
+      value: string | { content: string; media?: BackendCommentMedia[] },
+    ) => {
+      const comment = typeof value === "string" ? { content: value } : value;
+      return createComment({ sourceType, sourceCode, ...comment });
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: sourceActivityKeys.comments(sourceType, sourceCode),

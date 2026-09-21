@@ -23,11 +23,22 @@ export interface BackendUserSummary {
 
 export type BackendCreatedBy = BackendUserSummary | string | null;
 
+export interface BackendCommentMedia {
+  type: "IMAGE" | "VIDEO" | "AUDIO";
+  url: string;
+  publicId?: string;
+  name?: string;
+  mimeType?: string;
+  size?: number;
+  durationSeconds?: number;
+}
+
 export interface BackendComment {
   id: string;
   sourceType: SourceType;
   sourceCode: number;
   content: string;
+  media?: BackendCommentMedia[];
   createdBy: BackendCreatedBy;
   updatedBy: BackendCreatedBy;
   createdAt: string;
@@ -69,4 +80,5 @@ export interface CreateCommentInput {
   sourceType: SourceType;
   sourceCode: number;
   content: string;
+  media?: BackendCommentMedia[];
 }

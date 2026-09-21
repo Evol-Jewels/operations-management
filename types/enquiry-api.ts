@@ -93,6 +93,7 @@ export interface BackendEnquiryRow {
 export interface BackendEnquiryListItem extends BackendEnquiryRow {
   itemCount: number;
   estimationCount: number;
+  deliveryDate?: string | null;
 }
 
 export interface BackendEstimationRow {

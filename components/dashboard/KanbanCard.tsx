@@ -161,11 +161,22 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
               {/* Bottom row: Urgency + Salesperson */}
               <div className="mt-2 flex items-center justify-between">
                 {/* Urgency */}
-                <div className="flex items-center gap-1">
+                <div
+                  className={cn(
+                    "inline-flex min-h-6 items-center gap-1.5 rounded-md px-1.5",
+                    urgency === "overdue" &&
+                      "bg-red-500/10 text-red-700 dark:text-red-300",
+                    urgency === "due-soon" &&
+                      "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+                    urgency === "on-track" && "bg-emerald-500/8",
+                    urgency === "none" && "bg-muted/50",
+                  )}
+                  aria-label={`Delivery: ${daysLabel}`}
+                >
                   <UrgencyDot level={urgency} />
                   <span
                     className={cn(
-                      "text-[10px]",
+                      "text-[10px] tabular-nums",
                       urgency === "overdue" &&
                         "font-medium text-red-600 dark:text-red-400",
                       urgency === "due-soon" &&

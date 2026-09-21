@@ -36,6 +36,7 @@ export function getUrgencyLevel(
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const delivery = new Date(deliveryDate);
+  if (Number.isNaN(delivery.getTime())) return "none";
   delivery.setHours(0, 0, 0, 0);
   const diffDays = Math.floor(
     (delivery.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
@@ -52,6 +53,7 @@ export function getDaysRemaining(
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const delivery = new Date(deliveryDate);
+  if (Number.isNaN(delivery.getTime())) return null;
   delivery.setHours(0, 0, 0, 0);
   return Math.floor(
     (delivery.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
@@ -61,10 +63,11 @@ export function getDaysRemaining(
 export function formatDaysRemaining(deliveryDate: string | undefined): string {
   const days = getDaysRemaining(deliveryDate);
   if (days === null) return "No date";
-  if (days < 0) return `${Math.abs(days)}d overdue`;
+  if (days === -1) return "1 day past due";
+  if (days < -1) return `${Math.abs(days)} days past due`;
   if (days === 0) return "Due today";
   if (days === 1) return "Due tomorrow";
-  return `${days}d remaining`;
+  return `${days} days remaining`;
 }
 
 // ─── Date formatting ─────────────────────────────────────────────────────────

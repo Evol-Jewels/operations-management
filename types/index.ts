@@ -178,6 +178,14 @@ export interface ActivityEntry {
     filename: string;
     fileType: "image" | "pdf" | "other";
   };
+  media?: Array<{
+    type: "image" | "video" | "audio";
+    url: string;
+    name: string;
+    mimeType?: string;
+    size?: number;
+    durationSeconds?: number;
+  }>;
 }
 
 export type CustomerCategory = "VIP" | "Middle" | "Lower";

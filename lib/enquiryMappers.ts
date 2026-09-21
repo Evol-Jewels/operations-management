@@ -162,7 +162,15 @@ export function mapBackendCommentToActivityEntry(
     postedBy: normalizePerson(comment.createdBy),
     timestamp: comment.createdAt,
     type: "comment",
-    note: comment.content,
+    note: comment.content || undefined,
+    media: (comment.media ?? []).map((item) => ({
+      type: item.type.toLowerCase() as "image" | "video" | "audio",
+      url: item.url,
+      name: item.name || `${item.type.toLowerCase()} attachment`,
+      mimeType: item.mimeType,
+      size: item.size,
+      durationSeconds: item.durationSeconds,
+    })),
   };
 }
 
@@ -221,6 +229,10 @@ function baseOrderFromBackend(
     certification: "None",
     cadDesignRequired: false,
     currentStage: "Enquiry",
+    deliveryDate:
+      "deliveryDate" in enquiry
+        ? (enquiry.deliveryDate ?? undefined)
+        : undefined,
     createdAt: enquiry.createdAt,
     lastUpdatedAt: enquiry.updatedAt,
     activityFeed: [],
@@ -260,9 +272,17 @@ export function mapBackendEnquiryDetailsToOrder(
 
   return {
     ...baseOrderFromBackend(details.enquiry),
+    deliveryDate: getEarliestDeliveryDate(details.items),
     selectedProducts,
     customProducts,
     estimations: productEstimations,
     activityFeed: mergeActivityFeed(comments, details.activityLogs),
   };
+}
+
+function getEarliestDeliveryDate(items: BackendEnquiryItemRow[]) {
+  return items
+    .map((item) => item.details.deliveryDate?.trim())
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => Date.parse(a) - Date.parse(b))[0];
 }
