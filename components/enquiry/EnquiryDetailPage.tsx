@@ -10,7 +10,10 @@ import {
 } from "@/components/enquiry/EnquiryStageBar";
 import { normalizeRequirementItems } from "@/components/enquiry/requirements/requirement-display-utils";
 import { ActivityTimeline } from "@/components/order/ActivityTimeline";
-import { ComposeBox } from "@/components/order/ComposeBox";
+import {
+  ComposeBox,
+  type ComposeBoxSubmitData,
+} from "@/components/order/ComposeBox";
 import { RelativeTime } from "@/components/RelativeTime";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -249,7 +252,7 @@ function ClosedBanner({ order }: { order: Order }) {
 interface EnquiryDetailPageProps {
   order: Order;
   onSaveEstimation: (productId: string, estimation: ProductEstimation) => void;
-  onPostUpdate: (data: { message: string }) => void;
+  onPostUpdate: (data: ComposeBoxSubmitData) => void | Promise<void>;
   onCloseEnquiry: (data: { reason: string; notes: string }) => Promise<void>;
   isSavingEstimation?: boolean;
   isPostingUpdate?: boolean;
@@ -307,8 +310,8 @@ export function EnquiryDetailPage({
     setCloseDialogOpen(false);
   }
 
-  function handlePostUpdate(data: { message: string }) {
-    onPostUpdate(data);
+  async function handlePostUpdate(data: ComposeBoxSubmitData) {
+    await onPostUpdate(data);
 
     setTimeout(() => {
       document.getElementById("timeline-end")?.scrollIntoView({

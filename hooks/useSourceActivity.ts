@@ -9,7 +9,11 @@ import {
 } from "@tanstack/react-query";
 import { fetchActivityLogs } from "@/lib/activityLogsApi";
 import { createComment, fetchComments } from "@/lib/commentsApi";
-import type { SourceType } from "@/types/activity-api";
+import type {
+  BackendComment,
+  BackendCommentMedia,
+  SourceType,
+} from "@/types/activity-api";
 
 export const sourceActivityKeys = {
   recentActivityLogs: (query: Record<string, unknown>) =>
@@ -69,12 +73,56 @@ export function useCreateComment(
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (content: string) =>
-      createComment({ sourceType, sourceCode, content }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: sourceActivityKeys.comments(sourceType, sourceCode),
-      });
+    mutationFn: (
+      value: string | { content: string; media?: BackendCommentMedia[] },
+    ) => {
+      const comment = typeof value === "string" ? { content: value } : value;
+      return createComment({ sourceType, sourceCode, ...comment });
+    },
+    onSuccess: async (comment, value) => {
+      const submitted = typeof value === "string" ? undefined : value.media;
+      const resolvedComment: BackendComment =
+        submitted?.length && !comment.media?.length
+          ? { ...comment, media: submitted }
+          : comment;
+      const commentsQueryKey = sourceActivityKeys.comments(
+        sourceType,
+        sourceCode,
+      );
+
+      queryClient.setQueryData<BackendComment[]>(
+        commentsQueryKey,
+        (current) => [
+          resolvedComment,
+          ...(current ?? []).filter((entry) => entry.id !== resolvedComment.id),
+        ],
+      );
+
+      await queryClient.invalidateQueries({ queryKey: commentsQueryKey });
+
+      // Older deployments may accept the comment but omit media from the
+      // response/list endpoint. Keep the freshly uploaded media visible until
+      // the backend with the media column is rolled out.
+      if (submitted?.length) {
+        queryClient.setQueryData<BackendComment[]>(
+          commentsQueryKey,
+          (current) => {
+            const serverComment = current?.find(
+              (entry) => entry.id === resolvedComment.id,
+            );
+            const preservedComment = serverComment?.media?.length
+              ? serverComment
+              : resolvedComment;
+            return [
+              preservedComment,
+              ...(current ?? []).filter(
+                (entry) => entry.id !== resolvedComment.id,
+              ),
+            ];
+          },
+        );
+      }
+
       void queryClient.invalidateQueries({
         queryKey: sourceActivityKeys.activityLogs(sourceType, sourceCode),
       });

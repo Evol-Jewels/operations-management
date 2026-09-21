@@ -12,6 +12,7 @@ import {
 } from "@/hooks/useEnquiries";
 import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
 import { captureProductEvent } from "@/lib/analytics";
+import { uploadCommentMedia } from "@/lib/commentsApi";
 import { mapBackendEnquiryDetailsToOrder } from "@/lib/enquiryMappers";
 import type { ProductEstimation } from "@/types";
 
@@ -90,11 +91,18 @@ function EnquiryPageContent() {
     });
   }
 
-  async function handlePostUpdate({ message }: { message: string }) {
+  async function handlePostUpdate({
+    message,
+    attachments,
+  }: {
+    message: string;
+    attachments: File[];
+  }) {
     const note = message.trim();
-    if (!note) return;
+    if (!note && attachments.length === 0) return;
 
-    await createComment.mutateAsync(note);
+    const media = await uploadCommentMedia(attachments);
+    await createComment.mutateAsync({ content: note, media });
   }
 
   async function handleCloseEnquiry({

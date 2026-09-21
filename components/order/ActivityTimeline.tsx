@@ -20,6 +20,7 @@ import {
   type ActivityEntry,
   type ActorRole,
 } from "@/types";
+import { CommentMediaGallery } from "./CommentMediaGallery";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -240,7 +241,7 @@ function HumanMessage({
         </span>
 
         {/* Message bubble */}
-        {(entry.note || entry.file) && (
+        {(entry.note || entry.file || entry.media?.length) && (
           <div
             className={cn(
               "mt-2 min-w-0 overflow-hidden rounded-xl rounded-tl-sm border bg-card p-3.5",
@@ -263,6 +264,9 @@ function HumanMessage({
               </p>
             )}
             {entry.file && <FileAttachment file={entry.file} />}
+            {entry.media?.length ? (
+              <CommentMediaGallery media={entry.media} />
+            ) : null}
           </div>
         )}
       </div>

@@ -45,6 +45,7 @@ import {
 } from "@/hooks/useOrders";
 import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
 import { captureProductEvent } from "@/lib/analytics";
+import { uploadCommentMedia } from "@/lib/commentsApi";
 import { mapBackendOrderDetailsToOrder } from "@/lib/orderMappers";
 import { shouldPromptForVendorDetails } from "@/lib/orderVendorDetails";
 import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
@@ -329,11 +330,18 @@ export default function OrderPage() {
   const isTerminalOrder =
     order.orderStatus === "CLOSED" || order.orderStatus === "CANCELLED";
 
-  async function handlePostUpdate({ message }: { message: string }) {
+  async function handlePostUpdate({
+    message,
+    attachments,
+  }: {
+    message: string;
+    attachments: File[];
+  }) {
     const note = message.trim();
-    if (!note) return;
+    if (!note && attachments.length === 0) return;
 
-    await createCommentMutation.mutateAsync(note);
+    const media = await uploadCommentMedia(attachments);
+    await createCommentMutation.mutateAsync({ content: note, media });
 
     setTimeout(() => {
       document
@@ -503,7 +511,10 @@ export default function OrderPage() {
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
             Post an update
           </p>
-          <ComposeBox onSubmit={handlePostUpdate} />
+          <ComposeBox
+            onSubmit={handlePostUpdate}
+            isSubmitting={createCommentMutation.isPending}
+          />
         </div>
 
         {/* Scroll anchor */}
