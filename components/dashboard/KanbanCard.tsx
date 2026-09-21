@@ -14,7 +14,9 @@ import {
   computeRiskSignal,
   formatDate,
   formatDaysRemaining,
+  getDaysRemaining,
   getUrgencyLevel,
+  isTerminalRecord,
 } from "@/lib/utils";
 import type { Order } from "@/types";
 import { UrgencyDot } from "./UrgencyDot";
@@ -32,6 +34,30 @@ function initials(name: string): string {
       .map((w) => w[0]?.toUpperCase() ?? "")
       .join("") || "?"
   );
+}
+
+function getDaysSinceCreated(createdAt: string): number | null {
+  const created = new Date(createdAt);
+  if (Number.isNaN(created.getTime())) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  created.setHours(0, 0, 0, 0);
+  return Math.max(
+    0,
+    Math.floor(
+      (today.getTime() - created.getTime()) / (1000 * 60 * 60 * 24),
+    ),
+  );
+}
+
+function formatDueTooltip(deliveryDate: string | undefined): string | null {
+  const days = getDaysRemaining(deliveryDate);
+  if (days === null) return null;
+  if (days < 0) return `Due ${Math.abs(days)} days ago`;
+  if (days === 0) return "Due today";
+  if (days === 1) return "Due tomorrow";
+  return `Due in ${days} days`;
 }
 
 export function KanbanCard({ order, onClick }: KanbanCardProps) {
@@ -55,14 +81,24 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
     transition,
   };
 
-  const urgency = getUrgencyLevel(order.deliveryDate);
-  const daysLabel = formatDaysRemaining(order.deliveryDate);
+  const isTerminal = isTerminalRecord(order);
+  const hasActiveDeliveryDate = Boolean(order.deliveryDate) && !isTerminal;
+  const urgency = hasActiveDeliveryDate
+    ? getUrgencyLevel(order.deliveryDate)
+    : "none";
+  const daysLabel = hasActiveDeliveryDate
+    ? formatDaysRemaining(order.deliveryDate)
+    : null;
   const riskSignal = computeRiskSignal(order);
   const isStale = riskSignal === "stale";
   const isStuck = riskSignal === "stuck";
   const createdDate = Number.isNaN(Date.parse(order.createdAt))
     ? "Date unavailable"
     : formatDate(order.createdAt);
+  const daysSinceCreated = getDaysSinceCreated(order.createdAt);
+  const dueTooltip = hasActiveDeliveryDate
+    ? formatDueTooltip(order.deliveryDate)
+    : null;
 
   if (isDragging) {
     return (
@@ -162,44 +198,41 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
                 </span>
               </div>
 
-              <div
-                className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground/70"
-                aria-label={`Created on ${createdDate}`}
-              >
-                <CalendarDays className="size-3 shrink-0" aria-hidden="true" />
-                <span>Created on {createdDate}</span>
-              </div>
-
               {/* Bottom row: Urgency + Salesperson */}
-              <div className="mt-2 flex items-center justify-between">
+              <div
+                className={cn(
+                  "mt-2 flex items-center",
+                  hasActiveDeliveryDate ? "justify-between" : "justify-end",
+                )}
+              >
                 {/* Urgency */}
-                <div
-                  className={cn(
-                    "inline-flex min-h-6 items-center gap-1.5 rounded-md px-1.5",
-                    urgency === "overdue" &&
-                      "bg-red-500/10 text-red-700 dark:text-red-300",
-                    urgency === "due-soon" &&
-                      "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-                    urgency === "on-track" && "bg-emerald-500/8",
-                    urgency === "none" && "bg-muted/50",
-                  )}
-                  aria-label={`Delivery: ${daysLabel}`}
-                >
-                  <UrgencyDot level={urgency} />
-                  <span
+                {hasActiveDeliveryDate && daysLabel ? (
+                  <div
                     className={cn(
-                      "text-[10px] tabular-nums",
+                      "inline-flex min-h-6 items-center gap-1.5 rounded-md px-1.5",
                       urgency === "overdue" &&
-                        "font-medium text-red-600 dark:text-red-400",
+                        "bg-red-500/10 text-red-700 dark:text-red-300",
                       urgency === "due-soon" &&
-                        "font-medium text-amber-600 dark:text-amber-400",
-                      urgency === "on-track" && "text-muted-foreground",
-                      urgency === "none" && "text-muted-foreground/50",
+                        "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+                      urgency === "on-track" && "bg-emerald-500/8",
                     )}
+                    aria-label={`Delivery: ${daysLabel}`}
                   >
-                    {daysLabel}
-                  </span>
-                </div>
+                    <UrgencyDot level={urgency} />
+                    <span
+                      className={cn(
+                        "text-[10px] tabular-nums",
+                        urgency === "overdue" &&
+                          "font-medium text-red-600 dark:text-red-400",
+                        urgency === "due-soon" &&
+                          "font-medium text-amber-600 dark:text-amber-400",
+                        urgency === "on-track" && "text-muted-foreground",
+                      )}
+                    >
+                      {daysLabel}
+                    </span>
+                  </div>
+                ) : null}
 
                 {/* Salesperson avatar */}
                 <div
@@ -208,6 +241,15 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
                 >
                   {initials(order.salespersonName)}
                 </div>
+              </div>
+
+              {/* Creation date is the final card metadata line. */}
+              <div
+                className="mt-2 flex items-center gap-1 border-t border-border/60 pt-2 text-[10px] text-muted-foreground/70"
+                aria-label={`Created on ${createdDate}`}
+              >
+                <CalendarDays className="size-3 shrink-0" aria-hidden="true" />
+                <span>Created on {createdDate}</span>
               </div>
             </div>
           </button>
@@ -223,6 +265,17 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
               <p className="text-[11px] text-muted-foreground">
                 Vendor: {order.vendorName}
               </p>
+            )}
+            {(daysSinceCreated !== null || dueTooltip) && (
+              <div className="border-t border-border/60 pt-1.5 text-[11px] text-muted-foreground">
+                {daysSinceCreated !== null && (
+                  <p>
+                    Going for {daysSinceCreated} day
+                    {daysSinceCreated === 1 ? "" : "s"}
+                  </p>
+                )}
+                {dueTooltip && <p>{dueTooltip}</p>}
+              </div>
             )}
           </div>
         </TooltipContent>
