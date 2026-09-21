@@ -34,12 +34,32 @@ export async function uploadCommentMedia(
 ): Promise<BackendCommentMedia[]> {
   return Promise.all(
     files.map(async (file) => {
-      if (file.type.startsWith("image/")) return uploadEnquiryImage(file);
-      if (file.type.startsWith("video/"))
-        return uploadEnquiryRecording(file, "video");
-      if (file.type.startsWith("audio/"))
-        return uploadEnquiryRecording(file, "audio");
-      throw new Error(`${file.name} is not a supported image, video, or audio file.`);
+      let uploaded: Awaited<ReturnType<typeof uploadEnquiryImage>>;
+      let mediaType: BackendCommentMedia["type"];
+      if (file.type.startsWith("image/")) {
+        mediaType = "IMAGE";
+        uploaded = await uploadEnquiryImage(file);
+      } else if (file.type.startsWith("video/")) {
+        mediaType = "VIDEO";
+        uploaded = await uploadEnquiryRecording(file, "video");
+      } else if (file.type.startsWith("audio/")) {
+        mediaType = "AUDIO";
+        uploaded = await uploadEnquiryRecording(file, "audio");
+      } else {
+        throw new Error(
+          `${file.name} is not a supported image, video, or audio file.`,
+        );
+      }
+
+      // Keep the attachment renderable even when an older upload endpoint
+      // omits optional metadata from its response.
+      return {
+        ...uploaded,
+        type: mediaType,
+        name: uploaded.name || file.name,
+        mimeType: uploaded.mimeType || file.type,
+        size: uploaded.size ?? file.size,
+      };
     }),
   );
 }

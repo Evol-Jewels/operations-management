@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertTriangle, Clock } from "lucide-react";
+import { AlertTriangle, CalendarDays, Clock } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -12,6 +12,7 @@ import {
 import {
   cn,
   computeRiskSignal,
+  formatDate,
   formatDaysRemaining,
   getUrgencyLevel,
 } from "@/lib/utils";
@@ -59,6 +60,9 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
   const riskSignal = computeRiskSignal(order);
   const isStale = riskSignal === "stale";
   const isStuck = riskSignal === "stuck";
+  const createdDate = Number.isNaN(Date.parse(order.createdAt))
+    ? "Date unavailable"
+    : formatDate(order.createdAt);
 
   if (isDragging) {
     return (
@@ -156,6 +160,14 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
                 <span className="truncate text-[11px] text-muted-foreground">
                   {order.category}
                 </span>
+              </div>
+
+              <div
+                className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground/70"
+                aria-label={`Created on ${createdDate}`}
+              >
+                <CalendarDays className="size-3 shrink-0" aria-hidden="true" />
+                <span>Created {createdDate}</span>
               </div>
 
               {/* Bottom row: Urgency + Salesperson */}

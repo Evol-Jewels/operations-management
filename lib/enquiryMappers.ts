@@ -282,7 +282,9 @@ export function mapBackendEnquiryDetailsToOrder(
 
 function getEarliestDeliveryDate(items: BackendEnquiryItemRow[]) {
   return items
-    .map((item) => item.details.deliveryDate?.trim())
+    .map((item) => item.details?.deliveryDate?.trim())
     .filter((value): value is string => Boolean(value))
-    .sort((a, b) => Date.parse(a) - Date.parse(b))[0];
+    .map((value) => ({ value, time: Date.parse(value) }))
+    .filter(({ time }) => !Number.isNaN(time))
+    .sort((a, b) => a.time - b.time)[0]?.value;
 }

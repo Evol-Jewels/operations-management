@@ -10,6 +10,7 @@ import {
 import { fetchActivityLogs } from "@/lib/activityLogsApi";
 import { createComment, fetchComments } from "@/lib/commentsApi";
 import type {
+  BackendComment,
   BackendCommentMedia,
   SourceType,
 } from "@/types/activity-api";
@@ -78,7 +79,19 @@ export function useCreateComment(
       const comment = typeof value === "string" ? { content: value } : value;
       return createComment({ sourceType, sourceCode, ...comment });
     },
-    onSuccess: () => {
+    onSuccess: (comment, value) => {
+      const submitted = typeof value === "string" ? undefined : value.media;
+      const resolvedComment: BackendComment =
+        submitted?.length && !comment.media?.length
+          ? { ...comment, media: submitted }
+          : comment;
+      queryClient.setQueryData<BackendComment[]>(
+        sourceActivityKeys.comments(sourceType, sourceCode),
+        (current) => [
+          resolvedComment,
+          ...(current ?? []).filter((entry) => entry.id !== resolvedComment.id),
+        ],
+      );
       void queryClient.invalidateQueries({
         queryKey: sourceActivityKeys.comments(sourceType, sourceCode),
       });
