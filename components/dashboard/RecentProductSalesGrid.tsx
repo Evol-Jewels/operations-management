@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { captureProductEvent } from "@/lib/analytics";
 import { getInventoryMediaUrl } from "@/lib/inventory-media";
 import { getInventoryPrimaryImage } from "@/lib/inventoryProductMapping";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import type { RecentProductSale } from "@/types/stock-sales-api";
 
 const SKELETON_KEYS = [
@@ -67,7 +67,19 @@ function ProductSaleCard({
     : null;
 
   return (
-    <article className="w-full rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-colors hover:border-foreground/25 hover:bg-muted/20">
+    <article
+      className={cn(
+        "relative w-full rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-colors",
+        product && "hover:border-foreground/25 hover:bg-muted/20",
+      )}
+    >
+      {product ? (
+        <Link
+          href={`/inventory?productCode=${encodeURIComponent(product.productCode)}`}
+          aria-label={`View inventory details for ${product.name} (${product.productCode})`}
+          className="absolute inset-0 z-10 cursor-pointer rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        />
+      ) : null}
       <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted/60">
         {image ? (
           <Image
@@ -137,7 +149,7 @@ function ProductSaleCard({
         </div>
       </div>
 
-      <div className="mt-3 border-t border-border pt-3">
+      <div className="relative z-20 mt-3 border-t border-border pt-3">
         {product ? (
           <Button asChild className="min-h-11 w-full gap-2" variant="outline">
             <Link
