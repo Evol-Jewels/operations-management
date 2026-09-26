@@ -9,6 +9,7 @@ import {
   Coins,
   House,
   LogOut,
+  MessageSquare,
   MessageSquareWarning,
   MoonStar,
   PackagePlus,
@@ -78,6 +79,11 @@ const navItems = [
     label: "Product Analytics",
     href: "/inventory/analytics",
     roles: ["ADMIN", "OPERATIONS"],
+  },
+  {
+    icon: MessageSquare,
+    label: "Inventory Assistant",
+    href: "/assistant",
   },
   {
     icon: Boxes,
