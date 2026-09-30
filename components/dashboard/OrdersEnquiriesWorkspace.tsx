@@ -1159,13 +1159,42 @@ export function OrdersEnquiriesWorkspace() {
         </div>
       </div>
 
-      <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
-        <div className="flex min-w-0 items-center justify-between gap-3 lg:block">
-          <h2 className="shrink-0 text-base font-medium text-foreground lg:min-w-28">
+      <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+        <div className="flex shrink-0 items-center justify-between gap-3">
+          <h2 className="whitespace-nowrap text-base font-medium text-foreground">
             {sectionHeading}{" "}
             <span className="text-muted-foreground">({sectionCount})</span>
           </h2>
         </div>
+
+        {(typeTab === "order" || typeTab === "enquiry") && (
+          <WorkspaceRecordFilters
+            recordType={typeTab}
+            search={search}
+            onSearchChange={setSearch}
+            status={statusFilter}
+            onStatusChange={setStatusFilter}
+            orderType={orderType}
+            onOrderTypeChange={setOrderType}
+            dateFilter={dateFilter}
+            onDateFilterChange={setDateFilter}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onCustomRangeChange={(from, to) => {
+              setDateFrom(from);
+              setDateTo(to);
+            }}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={(field, direction) => {
+              setSortBy(field);
+              setSortOrder(direction);
+            }}
+            onReset={clearSecondaryFilters}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+          />
+        )}
 
         {typeTab === "purchase" ? (
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:min-w-0 lg:flex-1 lg:justify-end">
@@ -1210,35 +1239,6 @@ export function OrdersEnquiriesWorkspace() {
           </div>
         ) : null}
       </div>
-
-      {(typeTab === "order" || typeTab === "enquiry") && (
-        <WorkspaceRecordFilters
-          recordType={typeTab}
-          search={search}
-          onSearchChange={setSearch}
-          status={statusFilter}
-          onStatusChange={setStatusFilter}
-          orderType={orderType}
-          onOrderTypeChange={setOrderType}
-          dateFilter={dateFilter}
-          onDateFilterChange={setDateFilter}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onCustomRangeChange={(from, to) => {
-            setDateFrom(from);
-            setDateTo(to);
-          }}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          onSortChange={(field, direction) => {
-            setSortBy(field);
-            setSortOrder(direction);
-          }}
-          onReset={clearSecondaryFilters}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-        />
-      )}
 
       <VendorDetailsDialog
         open={Boolean(pendingKanbanMove)}
