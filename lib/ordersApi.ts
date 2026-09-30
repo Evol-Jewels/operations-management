@@ -12,7 +12,9 @@ import type {
 
 function queryToStrings(query: ListOrdersQuery) {
   return Object.fromEntries(
-    Object.entries(query).map(([key, value]) => [key, String(value)]),
+    Object.entries(query)
+      .filter(([, value]) => value !== undefined)
+      .map(([key, value]) => [key, String(value)]),
   ) as Record<string, string>;
 }
 
