@@ -24,6 +24,7 @@ import {
   VendorDetailsDialog,
   type VendorDetailsValues,
 } from "@/components/order/VendorDetailsDialog";
+import { OrderTypeBadge } from "@/components/orders/order-type-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -277,11 +278,11 @@ function PersonAvatar({
 function RecordsTable({
   records,
   onRowClick,
-  showTypeColumn,
+  showOrderType,
 }: {
   records: Order[];
   onRowClick: (record: Order) => void;
-  showTypeColumn: boolean;
+  showOrderType: boolean;
 }) {
   if (records.length === 0) {
     return (
@@ -303,7 +304,7 @@ function RecordsTable({
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="min-w-56">Customer</TableHead>
-              {showTypeColumn ? <TableHead>Type</TableHead> : null}
+              {showOrderType ? <TableHead>Order type</TableHead> : null}
               <TableHead className="min-w-36">Status</TableHead>
               <TableHead className="min-w-36">Created</TableHead>
               <TableHead className="min-w-36">Created By</TableHead>
@@ -335,16 +336,12 @@ function RecordsTable({
                       </p>
                     </div>
                   </TableCell>
-                  {showTypeColumn ? (
+                  {showOrderType ? (
                     <TableCell>
-                      <Badge
-                        variant={
-                          record.type === "order" ? "default" : "outline"
-                        }
-                        className="capitalize"
-                      >
-                        {record.type}
-                      </Badge>
+                      <OrderTypeBadge
+                        productType={record.productType}
+                        isRefill={record.isRefill}
+                      />
                     </TableCell>
                   ) : null}
                   <TableCell>
@@ -386,11 +383,11 @@ function RecordsTable({
 function RecordsMobileList({
   records,
   onRowClick,
-  showTypeColumn,
+  showOrderType,
 }: {
   records: Order[];
   onRowClick: (record: Order) => void;
-  showTypeColumn: boolean;
+  showOrderType: boolean;
 }) {
   if (records.length === 0) {
     return (
@@ -457,15 +454,13 @@ function RecordsMobileList({
                   </span>
                 </div>
               </div>
-              {showTypeColumn ? (
+              {showOrderType ? (
                 <div className="flex items-center justify-between gap-3">
-                  <span>Type</span>
-                  <Badge
-                    variant={record.type === "order" ? "default" : "outline"}
-                    className="capitalize"
-                  >
-                    {record.type}
-                  </Badge>
+                  <span>Order type</span>
+                  <OrderTypeBadge
+                    productType={record.productType}
+                    isRefill={record.isRefill}
+                  />
                 </div>
               ) : null}
             </div>
@@ -1431,7 +1426,7 @@ export function OrdersEnquiriesWorkspace() {
           <div className="sm:hidden">
             <RecordsMobileList
               records={filteredRecords}
-              showTypeColumn={false}
+              showOrderType={typeTab === "order"}
               onRowClick={(record) =>
                 router.push(
                   record.type === "enquiry"
@@ -1444,7 +1439,7 @@ export function OrdersEnquiriesWorkspace() {
           <div className="hidden sm:block">
             <RecordsTable
               records={filteredRecords}
-              showTypeColumn={false}
+              showOrderType={typeTab === "order"}
               onRowClick={(record) =>
                 router.push(
                   record.type === "enquiry"

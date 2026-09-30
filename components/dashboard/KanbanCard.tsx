@@ -3,6 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AlertTriangle, CalendarDays, Clock } from "lucide-react";
+import { OrderTypeBadge } from "@/components/orders/order-type-badge";
 import {
   Tooltip,
   TooltipContent,
@@ -197,6 +198,14 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
                   {order.category}
                 </span>
               </div>
+
+              {order.type === "order" && (
+                <OrderTypeBadge
+                  productType={order.productType}
+                  isRefill={order.isRefill}
+                  className="mt-2"
+                />
+              )}
 
               {/* Bottom row: Urgency + Salesperson */}
               <div

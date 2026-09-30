@@ -21,6 +21,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { OrderTypeBadge } from "@/components/orders/order-type-badge";
 import {
   Bar,
   EvilBarChart,
@@ -618,9 +619,16 @@ function RecordRow({ order }: { order: Order }) {
     >
       <div className="min-w-0 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="capitalize text-[10px]">
-            {order.type === "order" ? "Order" : "Enquiry"}
-          </Badge>
+          {order.type === "order" ? (
+            <OrderTypeBadge
+              productType={order.productType}
+              isRefill={order.isRefill}
+            />
+          ) : (
+            <Badge variant="outline" className="text-[10px]">
+              Enquiry
+            </Badge>
+          )}
           <span className="text-xs font-medium text-muted-foreground">
             {order.currentStage}
           </span>

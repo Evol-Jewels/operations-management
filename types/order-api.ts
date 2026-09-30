@@ -114,6 +114,8 @@ export interface BackendOrderRow {
   createdBy: BackendOrderCreatedBy;
   status: BackendOrderStatus;
   productType: BackendOrderProductType;
+  productCategory?: BackendCustomProductDetails["category"] | null;
+  isRefill?: boolean;
   productCode?: string | null;
   customProductId?: string | null;
   existingProduct?: BackendExistingProductDetails | null;
@@ -161,6 +163,7 @@ export type CreateOrderItemInput =
 
 export interface CreateOrdersInput {
   sourceEnquiry?: number;
+  isRefill?: boolean;
   name: string;
   phoneNumber: string;
   customerAddress?: string;

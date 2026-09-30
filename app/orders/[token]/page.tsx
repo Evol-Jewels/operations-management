@@ -18,6 +18,7 @@ import {
   VendorDetailsDialog,
   type VendorDetailsValues,
 } from "@/components/order/VendorDetailsDialog";
+import { OrderTypeBadge } from "@/components/orders/order-type-badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -390,16 +391,11 @@ export default function OrderPage() {
 
         {/* Type + order number + urgency + actions — wraps cleanly on mobile */}
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-0.5 text-xs font-medium",
-              order.type === "order"
-                ? "bg-foreground text-background"
-                : "border border-border text-muted-foreground",
-            )}
-          >
-            {order.type === "order" ? "Order" : "Enquiry"}
-          </span>
+          <OrderTypeBadge
+            productType={order.productType}
+            isRefill={order.isRefill}
+            className="px-2.5"
+          />
           {order.orderNumber && (
             <span className="font-mono text-sm text-muted-foreground">
               {order.orderNumber}

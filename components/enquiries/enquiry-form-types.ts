@@ -23,6 +23,7 @@ export const CATEGORIES: JewelleryCategory[] = [
   "Bracelet",
   "Earrings",
   "Bangle",
+  "Anklet",
   "Pendant",
   "Chain",
   "Accessory",
