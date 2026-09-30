@@ -2,6 +2,7 @@
 
 import { AlertTriangle, ArrowUpRight, Clock, Inbox } from "lucide-react";
 import Link from "next/link";
+import { OrderTypeBadge } from "@/components/orders/order-type-badge";
 import {
   Tooltip,
   TooltipContent,
@@ -168,7 +169,7 @@ function MobileOrderCard({ order }: { order: Order }) {
             <p className="truncate text-sm font-semibold text-foreground leading-snug">
               {order.customerName}
             </p>
-            <div className="mt-0.5 flex items-center gap-1.5 text-[11px]">
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px]">
               {order.type === "enquiry" ? (
                 <span className="inline-flex items-center rounded border border-border bg-muted px-1 py-px text-[10px] text-muted-foreground">
                   Enquiry
@@ -182,6 +183,12 @@ function MobileOrderCard({ order }: { order: Order }) {
               <span className="truncate text-muted-foreground">
                 {order.category}
               </span>
+              {order.type === "order" && (
+                <OrderTypeBadge
+                  productType={order.productType}
+                  isRefill={order.isRefill}
+                />
+              )}
             </div>
           </div>
 
@@ -288,7 +295,7 @@ function DesktopOrderRow({ order }: { order: Order }) {
           <p className="truncate text-sm font-medium text-foreground">
             {order.customerName}
           </p>
-          <div className="flex items-center gap-1.5 truncate text-[11px]">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
             {order.type === "enquiry" ? (
               <span className="inline-flex items-center rounded border border-border bg-muted px-1 py-px text-[10px] text-muted-foreground">
                 Enquiry
@@ -300,6 +307,12 @@ function DesktopOrderRow({ order }: { order: Order }) {
             )}
             <span className="text-muted-foreground/50">·</span>
             <span className="text-muted-foreground">{order.category}</span>
+            {order.type === "order" && (
+              <OrderTypeBadge
+                productType={order.productType}
+                isRefill={order.isRefill}
+              />
+            )}
           </div>
         </div>
 

@@ -1,7 +1,10 @@
 // ─── Pipeline Stages ────────────────────────────────────────────────────────
 
 import type { BackendEnquiryStatus } from "@/types/enquiry-api";
-import type { BackendOrderStatus } from "@/types/order-api";
+import type {
+  BackendOrderProductType,
+  BackendOrderStatus,
+} from "@/types/order-api";
 
 export const STAGES = [
   "Enquiry",
@@ -119,6 +122,7 @@ export type JewelleryCategory =
   | "Bracelet"
   | "Earrings"
   | "Bangle"
+  | "Anklet"
   | "Pendant"
   | "Chain"
   | "Accessory"
@@ -472,6 +476,8 @@ export interface UpdateSpecialProductMakingChargeInput {
 export interface Order {
   id: string;
   type: RecordType;
+  productType?: BackendOrderProductType;
+  isRefill?: boolean;
   orderNumber?: string;
   refCode?: number;
 

@@ -66,7 +66,7 @@ export function mapBackendOrderStatusToStage(
   return ORDER_STATUS_TO_STAGE[status];
 }
 
-function mapProductDetailsCategory(category?: string): JewelleryCategory {
+function mapProductDetailsCategory(category?: string | null): JewelleryCategory {
   const map: Record<string, JewelleryCategory> = {
     RING: "Ring",
     NECKLACE: "Necklace",
@@ -76,7 +76,7 @@ function mapProductDetailsCategory(category?: string): JewelleryCategory {
     BANGLE: "Bangle",
     ACCESSORY: "Accessory",
     CHAIN: "Chain",
-    ANKLET: "Other",
+    ANKLET: "Anklet",
     OTHER: "Other",
   };
   return category ? (map[category] ?? "Other") : "Other";
@@ -97,7 +97,7 @@ function normalizeCategory(
     BANGLE: "Bangle",
     ACCESSORY: "Accessory",
     CHAIN: "Chain",
-    ANKLET: "Other",
+    ANKLET: "Anklet",
     OTHER: "Other",
   };
   return category ? map[category] : "Other";
@@ -213,10 +213,12 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
   const firstStone = custom?.stones[0];
   const customDetails = custom?.requirementSpecification?.details;
 
-  if (isExisting && productDetails) {
+  if (isExisting) {
     return {
       id: order.id,
       type: "order",
+      productType: order.productType,
+      isRefill: order.isRefill,
       refCode: order.refCode,
       orderNumber: order.productCode ? `#${order.productCode}` : undefined,
       customerName: order.name,
@@ -227,17 +229,19 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
       createdBy: normalizePerson(order.createdBy, order?.salesPerson?.name),
       vendorName: order.vendor ?? undefined,
       vendorDeliveryDate: order.vendorDeliveryDate ?? undefined,
-      category: mapProductDetailsCategory(productDetails.category),
-      metalType: normalizeMetalType(productDetails.color),
-      metalPurity: normalizeMetalPurity(productDetails.purity),
-      metalWeight: productDetails.netWeight
+      category: mapProductDetailsCategory(
+        productDetails?.category ?? order.productCategory,
+      ),
+      metalType: normalizeMetalType(productDetails?.color),
+      metalPurity: normalizeMetalPurity(productDetails?.purity),
+      metalWeight: productDetails?.netWeight
         ? Number(productDetails.netWeight)
         : undefined,
-      grossWeight: productDetails.grossWeight
+      grossWeight: productDetails?.grossWeight
         ? Number(productDetails.grossWeight)
         : undefined,
       stoneDescription: undefined,
-      stoneCaratEstimate: productDetails.totalStoneWeight
+      stoneCaratEstimate: productDetails?.totalStoneWeight
         ? Number(productDetails.totalStoneWeight)
         : undefined,
       certification: "None",
@@ -258,6 +262,8 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
   return {
     id: order.id,
     type: "order",
+    productType: order.productType,
+    isRefill: order.isRefill,
     refCode: order.refCode,
     orderNumber: `#${order.refCode}`,
     customerName: order.name,
@@ -268,7 +274,9 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
     createdBy: normalizePerson(order.createdBy, order?.salesPerson?.name),
     vendorName: order.vendor ?? undefined,
     vendorDeliveryDate: order.vendorDeliveryDate ?? undefined,
-    category: normalizeCategory(custom?.category),
+    category: mapProductDetailsCategory(
+      custom?.category ?? order.productCategory,
+    ),
     metalType: normalizeMetalType(custom?.metalType),
     metalPurity: normalizeMetalPurity(custom?.metalPurity),
     metalWeight: custom?.metalNetWeight

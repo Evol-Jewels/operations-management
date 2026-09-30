@@ -1034,6 +1034,7 @@ export function ConvertOrderForm({
       ...(isConversion
         ? { sourceEnquiry: enquiryDetails!.enquiry.refCode }
         : {}),
+      ...(isRefill ? { isRefill: true } : {}),
       name: form.customerName.trim(),
       phoneNumber: form.customerPhone.trim(),
       customerAddress: form.customerAddress.trim() || undefined,
@@ -1222,7 +1223,7 @@ export function ConvertOrderForm({
         </div>
         <div>
           <h1 className="text-lg font-semibold text-foreground">
-            Order created
+            {isRefill ? "Refill order created" : "Order created"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Redirecting you to the order workspace...
@@ -2256,7 +2257,7 @@ function ReviewStep({
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <div className="text-center">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-          Confirm order details
+          {isRefill ? "Confirm refill" : "Confirm order details"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Review the fields that will be sent to the order API.
