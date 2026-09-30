@@ -655,6 +655,9 @@ export function OrdersEnquiriesWorkspace() {
     getInitialViewMode(searchParams),
   );
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  useEffect(() => {
+    if (viewMode === "kanban") setStatusFilter("all");
+  }, [viewMode]);
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const createdFrom = useMemo(
     () =>
@@ -671,12 +674,18 @@ export function OrdersEnquiriesWorkspace() {
   );
   const createdTo =
     dateFilter === "custom" && dateTo ? dateBoundary(dateTo, true) : undefined;
-  const selectedOrderStatus = Object.entries(ORDER_STAGE_TO_STATUS).find(
-    ([stage]) => stage === statusFilter,
-  )?.[1];
-  const selectedEnquiryStatus = ENQUIRY_STATUSES.find(
-    (status) => ENQUIRY_STATUS_LABELS[status] === statusFilter,
-  );
+  const selectedOrderStatus =
+    viewMode === "table"
+      ? Object.entries(ORDER_STAGE_TO_STATUS).find(
+          ([stage]) => stage === statusFilter,
+        )?.[1]
+      : undefined;
+  const selectedEnquiryStatus =
+    viewMode === "table"
+      ? ENQUIRY_STATUSES.find(
+          (status) => ENQUIRY_STATUS_LABELS[status] === statusFilter,
+        )
+      : undefined;
   const ordersQuery = useInfiniteOrders(
     {
       search: debouncedSearch || undefined,
@@ -915,14 +924,10 @@ export function OrdersEnquiriesWorkspace() {
           ? "Purchases"
           : "Recent product sales";
   const activeFilterCount =
-    (statusFilter !== "all" ? 1 : 0) +
-    (dateFilter !== "all" ? 1 : 0) +
+    (viewMode === "table" && statusFilter !== "all" ? 1 : 0) +
     (typeTab === "order" && orderType !== "all" ? 1 : 0);
   const clearSecondaryFilters = () => {
     setStatusFilter("all");
-    setDateFilter("all");
-    setDateFrom("");
-    setDateTo("");
     setOrderType("all");
     captureProductEvent("workspace_filters_cleared", {
       record_type: typeTab,
@@ -1218,14 +1223,10 @@ export function OrdersEnquiriesWorkspace() {
           dateFilter={dateFilter}
           onDateFilterChange={setDateFilter}
           dateFrom={dateFrom}
-          onDateFromChange={(value) => {
-            setDateFrom(value);
-            if (dateTo && value > dateTo) setDateTo("");
-          }}
           dateTo={dateTo}
-          onDateToChange={(value) => {
-            setDateTo(value);
-            if (dateFrom && value < dateFrom) setDateFrom("");
+          onCustomRangeChange={(from, to) => {
+            setDateFrom(from);
+            setDateTo(to);
           }}
           sortBy={sortBy}
           sortOrder={sortOrder}

@@ -5,7 +5,6 @@ import { useId } from "react";
 import { AnalyticsFilterPopover } from "@/components/inventory/AnalyticsFilterPopover";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -16,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { WorkspaceDateRangeFilter } from "./WorkspaceDateRangeFilter";
 
 export type DateFilter = "all" | "7d" | "30d" | "90d" | "custom";
 export type SortBy = "createdAt" | "updatedAt" | "name" | "deliveryDate";
@@ -33,14 +33,6 @@ const ORDER_STATUSES = [
 ];
 const ENQUIRY_STATUSES = ["New", "Estimated", "Converted", "Closed"];
 
-const DATE_LABELS: Record<DateFilter, string> = {
-  all: "All time",
-  "7d": "Last 7 days",
-  "30d": "Last 30 days",
-  "90d": "Last 90 days",
-  custom: "Custom range",
-};
-
 interface WorkspaceRecordFiltersProps {
   recordType: "order" | "enquiry";
   search: string;
@@ -52,9 +44,8 @@ interface WorkspaceRecordFiltersProps {
   dateFilter: DateFilter;
   onDateFilterChange: (value: DateFilter) => void;
   dateFrom: string;
-  onDateFromChange: (value: string) => void;
   dateTo: string;
-  onDateToChange: (value: string) => void;
+  onCustomRangeChange: (from: string, to: string) => void;
   sortBy: SortBy;
   sortOrder: "asc" | "desc";
   onSortChange: (field: SortBy, direction: "asc" | "desc") => void;
@@ -74,9 +65,8 @@ export function WorkspaceRecordFilters({
   dateFilter,
   onDateFilterChange,
   dateFrom,
-  onDateFromChange,
   dateTo,
-  onDateToChange,
+  onCustomRangeChange,
   sortBy,
   sortOrder,
   onSortChange,
@@ -87,11 +77,10 @@ export function WorkspaceRecordFilters({
   const id = useId();
   const isOrder = recordType === "order";
   const filterCount =
-    (status !== "all" ? 1 : 0) +
-    (isOrder && orderType !== "all" ? 1 : 0) +
-    (dateFilter !== "all" ? 1 : 0);
+    (viewMode === "table" && status !== "all" ? 1 : 0) +
+    (isOrder && orderType !== "all" ? 1 : 0);
   const chips = [
-    status !== "all"
+    viewMode === "table" && status !== "all"
       ? {
           key: "status",
           label: `Status: ${status}`,
@@ -103,16 +92,6 @@ export function WorkspaceRecordFilters({
           key: "type",
           label: `Type: ${orderType === "STOCK_REFILL" ? "Stock refill" : orderType === "CUSTOMER" ? "Customer" : "Stock"}`,
           remove: () => onOrderTypeChange("all"),
-        }
-      : null,
-    dateFilter !== "all"
-      ? {
-          key: "date",
-          label:
-            dateFilter === "custom" && (dateFrom || dateTo)
-              ? `Created: ${dateFrom || "Any"} – ${dateTo || "Any"}`
-              : `Created: ${DATE_LABELS[dateFilter]}`,
-          remove: () => onDateFilterChange("all"),
         }
       : null,
   ].filter((chip): chip is NonNullable<typeof chip> => chip !== null);
@@ -139,98 +118,55 @@ export function WorkspaceRecordFilters({
             className="h-9 pl-9"
           />
         </div>
-        <AnalyticsFilterPopover count={filterCount} onReset={onReset}>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor={`${id}-status`}>Status</Label>
-              <Select value={status} onValueChange={onStatusChange}>
-                <SelectTrigger id={`${id}-status`} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  {(isOrder ? ORDER_STATUSES : ENQUIRY_STATUSES).map(
-                    (value) => (
-                      <SelectItem key={value} value={value}>
-                        {value}
-                      </SelectItem>
-                    ),
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            {isOrder && (
-              <div className="min-w-0 space-y-1.5">
-                <Label htmlFor={`${id}-type`}>Order type</Label>
-                <Select value={orderType} onValueChange={onOrderTypeChange}>
-                  <SelectTrigger id={`${id}-type`} className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All types</SelectItem>
-                    <SelectItem value="STOCK">Stock</SelectItem>
-                    <SelectItem value="CUSTOMER">Customer</SelectItem>
-                    <SelectItem value="STOCK_REFILL">Stock refill</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-          <div className="space-y-3 border-t pt-3">
-            <div className="space-y-1.5">
-              <Label htmlFor={`${id}-date`}>Created date</Label>
-              <Select
-                value={dateFilter}
-                onValueChange={(value) =>
-                  onDateFilterChange(value as DateFilter)
-                }
-              >
-                <SelectTrigger id={`${id}-date`} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.entries(DATE_LABELS) as [DateFilter, string][]).map(
-                    ([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ),
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            {dateFilter === "custom" && (
-              <div className="grid grid-cols-2 gap-3">
+        {(viewMode === "table" || isOrder) && (
+          <AnalyticsFilterPopover count={filterCount} onReset={onReset}>
+            <div className="grid grid-cols-2 gap-3">
+              {viewMode === "table" && (
                 <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor={`${id}-from`}>From</Label>
-                  <DatePicker
-                    id={`${id}-from`}
-                    value={dateFrom}
-                    onChange={onDateFromChange}
-                    placeholder="From date"
-                  />
+                  <Label htmlFor={`${id}-status`}>Status</Label>
+                  <Select value={status} onValueChange={onStatusChange}>
+                    <SelectTrigger id={`${id}-status`} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      {(isOrder ? ORDER_STATUSES : ENQUIRY_STATUSES).map(
+                        (value) => (
+                          <SelectItem key={value} value={value}>
+                            {value}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor={`${id}-to`}>To</Label>
-                  <DatePicker
-                    id={`${id}-to`}
-                    value={dateTo}
-                    onChange={onDateToChange}
-                    placeholder="To date"
-                  />
-                </div>
-              </div>
-            )}
-            {dateFilter === "custom" &&
-              dateFrom &&
-              dateTo &&
-              dateFrom > dateTo && (
-                <p role="alert" className="text-xs text-destructive">
-                  The end date must be on or after the start date.
-                </p>
               )}
-          </div>
-        </AnalyticsFilterPopover>
+              {isOrder && (
+                <div className="min-w-0 space-y-1.5">
+                  <Label htmlFor={`${id}-type`}>Order type</Label>
+                  <Select value={orderType} onValueChange={onOrderTypeChange}>
+                    <SelectTrigger id={`${id}-type`} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All types</SelectItem>
+                      <SelectItem value="STOCK">Stock</SelectItem>
+                      <SelectItem value="CUSTOMER">Customer</SelectItem>
+                      <SelectItem value="STOCK_REFILL">Stock refill</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          </AnalyticsFilterPopover>
+        )}
+        <WorkspaceDateRangeFilter
+          value={dateFilter}
+          from={dateFrom}
+          to={dateTo}
+          onValueChange={onDateFilterChange}
+          onRangeChange={onCustomRangeChange}
+        />
         <Select
           value={`${sortBy}:${sortOrder}`}
           onValueChange={(value) => {
