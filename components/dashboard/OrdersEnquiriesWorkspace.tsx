@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Filter,
   LayoutGrid,
   List,
   PackagePlus,
@@ -30,19 +29,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
   Table,
   TableBody,
   TableCell,
@@ -57,7 +43,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useEnquiries } from "@/hooks/useEnquiries";
-import { useOrders, useUpdateAnyOrderStatus } from "@/hooks/useOrders";
+import { useInfiniteOrders, useUpdateAnyOrderStatus } from "@/hooks/useOrders";
 import {
   useRecentProductSales,
   useStockSales,
@@ -78,10 +64,14 @@ import type { BackendOrderStatus } from "@/types/order-api";
 import type { BackendStockSaleRow } from "@/types/stock-sales-api";
 import { KanbanBoard, type KanbanColumnConfig } from "./KanbanBoard";
 import { RecentProductSalesGrid } from "./RecentProductSalesGrid";
+import {
+  type DateFilter,
+  type SortBy,
+  WorkspaceRecordFilters,
+} from "./WorkspaceRecordFilters";
 
 type TypeTab = RecordType | "purchase" | "recent-sale";
 type ViewMode = "table" | "kanban";
-type DateFilter = "all" | "7d" | "30d" | "90d";
 
 const TAB_STORAGE_KEY = "evol:orders-enquiries:tab";
 const ENQUIRY_STATUSES: BackendEnquiryStatus[] = [
@@ -90,10 +80,6 @@ const ENQUIRY_STATUSES: BackendEnquiryStatus[] = [
   "CONVERTED",
   "CLOSED",
 ];
-const ENQUIRY_STATUS_OPTIONS = [
-  "all",
-  ...ENQUIRY_STATUSES.map((status) => ENQUIRY_STATUS_LABELS[status]),
-] as const;
 const ORDER_STAGES = [
   "New",
   "CAD Design",
@@ -105,7 +91,6 @@ const ORDER_STAGES = [
   "Closed",
   "Cancelled",
 ] as const;
-const ORDER_STATUS_OPTIONS = ["all", ...ORDER_STAGES] as const;
 const ORDER_KANBAN_COLUMNS: KanbanColumnConfig[] = ORDER_STAGES.map(
   (stage) => ({
     id: stage,
@@ -192,13 +177,17 @@ function getInitialViewMode(searchParams: URLSearchParams): ViewMode {
   return getViewModeFromSearchParams(searchParams) ?? getDefaultViewMode(tab);
 }
 
-function isWithinDateFilter(date: string, filter: DateFilter) {
-  if (filter === "all") return true;
-  const days = Number(filter.replace("d", ""));
-  const created = new Date(date);
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  return created >= cutoff;
+function dateBoundary(value: string, endOfDay = false) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(
+    year,
+    month - 1,
+    day,
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0,
+  ).toISOString();
 }
 
 function getKanbanStatus(record: Order): string {
@@ -229,29 +218,6 @@ function statusBadgeClass(status: string) {
     return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400";
   }
   return "border-border bg-muted text-muted-foreground";
-}
-
-function FilterSelect({
-  label: _label,
-  value,
-  onValueChange,
-  disabled,
-  children,
-}: {
-  label: string;
-  value: string;
-  onValueChange: (value: string) => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-      <SelectTrigger className="h-10 w-full bg-background disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-36">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>{children}</SelectContent>
-    </Select>
-  );
 }
 
 function PersonAvatar({
@@ -654,13 +620,21 @@ export function OrdersEnquiriesWorkspace() {
   const [typeTab, setTypeTab] = useState<TypeTab>(() =>
     getInitialTypeTab(searchParams),
   );
-  const enquiriesQuery = useEnquiries({}, { enabled: typeTab === "enquiry" });
-  const ordersQuery = useOrders(
-    { limit: 100 },
-    { enabled: typeTab === "order" },
-  );
   const updateOrderStatusMutation = useUpdateAnyOrderStatus();
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [orderType, setOrderType] = useState("all");
+  const [sortBy, setSortBy] = useState<SortBy>("updatedAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  useEffect(() => {
+    const timeout = window.setTimeout(
+      () => setDebouncedSearch(search.trim()),
+      300,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [search]);
   const sessionRole = session ? getSessionRole(session) : "";
   const canViewPurchases = ["ADMIN", "OPERATIONS"].includes(sessionRole);
   const canViewRecentSales = canViewPurchases;
@@ -682,7 +656,53 @@ export function OrdersEnquiriesWorkspace() {
   );
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
-  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const createdFrom = useMemo(
+    () =>
+      dateFilter === "custom"
+        ? dateFrom
+          ? dateBoundary(dateFrom)
+          : undefined
+        : dateFilter === "all"
+          ? undefined
+          : new Date(
+              Date.now() - Number(dateFilter.replace("d", "")) * 86400000,
+            ).toISOString(),
+    [dateFilter, dateFrom],
+  );
+  const createdTo =
+    dateFilter === "custom" && dateTo ? dateBoundary(dateTo, true) : undefined;
+  const selectedOrderStatus = Object.entries(ORDER_STAGE_TO_STATUS).find(
+    ([stage]) => stage === statusFilter,
+  )?.[1];
+  const selectedEnquiryStatus = ENQUIRY_STATUSES.find(
+    (status) => ENQUIRY_STATUS_LABELS[status] === statusFilter,
+  );
+  const ordersQuery = useInfiniteOrders(
+    {
+      search: debouncedSearch || undefined,
+      status: selectedOrderStatus,
+      orderType:
+        orderType === "all"
+          ? undefined
+          : (orderType as "STOCK" | "CUSTOMER" | "STOCK_REFILL"),
+      createdFrom,
+      createdTo,
+      sortBy,
+      sortOrder,
+    },
+    { enabled: typeTab === "order" },
+  );
+  const enquiriesQuery = useEnquiries(
+    {
+      search: debouncedSearch || undefined,
+      status: selectedEnquiryStatus,
+      createdFrom,
+      createdTo,
+      sortBy: sortBy === "deliveryDate" ? "createdAt" : sortBy,
+      sortOrder,
+    },
+    { enabled: typeTab === "enquiry" },
+  );
   const [pendingKanbanMove, setPendingKanbanMove] = useState<{
     record: Order;
     newColumnId: string;
@@ -809,7 +829,7 @@ export function OrdersEnquiriesWorkspace() {
   );
   const apiOrders = useMemo(
     () =>
-      (ordersQuery.data ?? []).map((order) =>
+      (ordersQuery.data?.pages.flat() ?? []).map((order) =>
         mapBackendOrderListItemToOrder(order),
       ),
     [ordersQuery.data],
@@ -873,38 +893,8 @@ export function OrdersEnquiriesWorkspace() {
   );
 
   const filteredRecords = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    return records.filter((record) => {
-      if (record.type !== typeTab) return false;
-      if (!isWithinDateFilter(record.createdAt, dateFilter)) return false;
-
-      if (statusFilter !== "all") {
-        const status = getRecordStatus(record);
-        if (status !== statusFilter) {
-          return false;
-        }
-      }
-
-      if (query) {
-        const haystack = [
-          record.customerName,
-          record.orderNumber ?? "",
-          record.refCode ? String(record.refCode) : "",
-          record.createdBy?.name ?? "",
-          record.salespersonName,
-          record.vendorName ?? "",
-          record.customerPhone ?? "",
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        if (!haystack.includes(query)) return false;
-      }
-
-      return true;
-    });
-  }, [dateFilter, records, search, statusFilter, typeTab]);
+    return records;
+  }, [records]);
 
   const kanbanRecords = useMemo(
     () => records.filter((record) => record.type === typeTab),
@@ -915,8 +905,6 @@ export function OrdersEnquiriesWorkspace() {
   const shownRecordCount = isKanbanMode
     ? kanbanRecords.length
     : filteredRecords.length;
-  const isFilterDisabled =
-    isKanbanMode || typeTab === "purchase" || typeTab === "recent-sale";
 
   const sectionHeading =
     typeTab === "order"
@@ -927,13 +915,15 @@ export function OrdersEnquiriesWorkspace() {
           ? "Purchases"
           : "Recent product sales";
   const activeFilterCount =
-    (search.trim() ? 1 : 0) +
     (statusFilter !== "all" ? 1 : 0) +
-    (dateFilter !== "all" ? 1 : 0);
+    (dateFilter !== "all" ? 1 : 0) +
+    (typeTab === "order" && orderType !== "all" ? 1 : 0);
   const clearSecondaryFilters = () => {
-    setSearch("");
     setStatusFilter("all");
     setDateFilter("all");
+    setDateFrom("");
+    setDateTo("");
+    setOrderType("all");
     captureProductEvent("workspace_filters_cleared", {
       record_type: typeTab,
       active_filter_count: activeFilterCount,
@@ -941,6 +931,7 @@ export function OrdersEnquiriesWorkspace() {
   };
   const handleTypeTabChange = (tab: TypeTab) => {
     setTypeTab(tab);
+    if (tab === "enquiry" && sortBy === "deliveryDate") setSortBy("createdAt");
     setViewMode(viewMode);
     replaceWorkspaceUrl(tab, viewMode);
     setStatusFilter("all");
@@ -1169,37 +1160,7 @@ export function OrdersEnquiriesWorkspace() {
             {sectionHeading}{" "}
             <span className="text-muted-foreground">({sectionCount})</span>
           </h2>
-
-          <div
-            className={cn(
-              "lg:hidden",
-              (typeTab === "purchase" || typeTab === "recent-sale") && "hidden",
-            )}
-          >
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsMobileFiltersOpen(true)}
-              className="h-10 shrink-0 justify-center gap-2"
-            >
-              <Filter className="h-4 w-4" />
-              Filters
-              {activeFilterCount > 0 ? (
-                <Badge variant="secondary" className="ml-0.5 px-1.5">
-                  {activeFilterCount}
-                </Badge>
-              ) : null}
-            </Button>
-          </div>
         </div>
-
-        <div
-          className={cn(
-            "hidden justify-items-end min-w-0 flex-1 gap-3 lg:grid lg:grid-cols-[minmax(160px,1fr)_minmax(140px,180px)_minmax(120px,160px)] lg:items-center",
-            (typeTab === "purchase" || typeTab === "recent-sale") &&
-              "lg:hidden",
-          )}
-        ></div>
 
         {typeTab === "purchase" ? (
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:min-w-0 lg:flex-1 lg:justify-end">
@@ -1245,6 +1206,39 @@ export function OrdersEnquiriesWorkspace() {
         ) : null}
       </div>
 
+      {(typeTab === "order" || typeTab === "enquiry") && (
+        <WorkspaceRecordFilters
+          recordType={typeTab}
+          search={search}
+          onSearchChange={setSearch}
+          status={statusFilter}
+          onStatusChange={setStatusFilter}
+          orderType={orderType}
+          onOrderTypeChange={setOrderType}
+          dateFilter={dateFilter}
+          onDateFilterChange={setDateFilter}
+          dateFrom={dateFrom}
+          onDateFromChange={(value) => {
+            setDateFrom(value);
+            if (dateTo && value > dateTo) setDateTo("");
+          }}
+          dateTo={dateTo}
+          onDateToChange={(value) => {
+            setDateTo(value);
+            if (dateFrom && value < dateFrom) setDateFrom("");
+          }}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSortChange={(field, direction) => {
+            setSortBy(field);
+            setSortOrder(direction);
+          }}
+          onReset={clearSecondaryFilters}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+        />
+      )}
+
       <VendorDetailsDialog
         open={Boolean(pendingKanbanMove)}
         onOpenChange={(open) => {
@@ -1265,134 +1259,6 @@ export function OrdersEnquiriesWorkspace() {
         onSubmit={handleConfirmKanbanVendor}
       />
 
-      <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
-        <SheetContent
-          side="bottom"
-          className="rounded-t-xl p-0 lg:hidden w-full sm:left-1/2 sm:-translate-x-1/2 sm:w-1/2"
-        >
-          <SheetHeader className="border-b border-border px-4 py-4 text-left">
-            <SheetTitle>Filters</SheetTitle>
-          </SheetHeader>
-          <div className="space-y-4 px-4 py-4">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                onBlur={() => {
-                  const query = search.trim();
-                  if (!query) return;
-                  captureProductEvent("workspace_search_used", {
-                    record_type: typeTab,
-                    query_length: query.length,
-                    surface: "mobile_filters",
-                  });
-                }}
-                placeholder="Search customer or ID"
-                className="pl-9"
-                disabled={isFilterDisabled}
-              />
-            </div>
-            <div className="flex w-full items-center gap-1 rounded-lg border border-border bg-background p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  handleViewModeChange("table");
-                  captureProductEvent("workspace_view_changed", {
-                    record_type: typeTab,
-                    view_mode: "table",
-                    surface: "mobile_filters",
-                  });
-                }}
-                className={cn(
-                  "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-                  viewMode === "table"
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <List className="h-4 w-4" />
-                Table
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleViewModeChange("kanban");
-                  captureProductEvent("workspace_view_changed", {
-                    record_type: typeTab,
-                    view_mode: "kanban",
-                    surface: "mobile_filters",
-                  });
-                }}
-                className={cn(
-                  "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-                  viewMode === "kanban"
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <LayoutGrid className="h-4 w-4" />
-                Kanban
-              </button>
-            </div>
-            <FilterSelect
-              label="Status"
-              value={statusFilter}
-              onValueChange={setStatusFilter}
-              disabled={isFilterDisabled}
-            >
-              {(typeTab === "enquiry"
-                ? ENQUIRY_STATUS_OPTIONS
-                : ORDER_STATUS_OPTIONS
-              ).map((status) => (
-                <SelectItem key={status} value={status}>
-                  {status === "all" ? "All statuses" : status}
-                </SelectItem>
-              ))}
-            </FilterSelect>
-            <FilterSelect
-              label="Creation Date"
-              value={dateFilter}
-              onValueChange={(value) => setDateFilter(value as DateFilter)}
-              disabled={isFilterDisabled}
-            >
-              <SelectItem value="all">All time</SelectItem>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
-            </FilterSelect>
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={clearSecondaryFilters}
-              >
-                Clear
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setIsMobileFiltersOpen(false)}
-              >
-                Apply
-              </Button>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* <FilterSelect
-        label="Created By"
-        value={createdByFilter}
-        onValueChange={setCreatedByFilter}
-      >
-        <SelectItem value="all">Everyone</SelectItem>
-        {createdByOptions.map((person) => (
-          <SelectItem key={person} value={person}>
-            {person}
-          </SelectItem>
-        ))}
-      </FilterSelect> */}
-
       {(
         typeTab === "order"
           ? ordersQuery.isLoading
@@ -1402,6 +1268,15 @@ export function OrdersEnquiriesWorkspace() {
       ) ? (
         <p className="text-sm text-muted-foreground">Loading records...</p>
       ) : null}
+      {(typeTab === "order"
+        ? ordersQuery.isError
+        : typeTab === "enquiry"
+          ? enquiriesQuery.isError
+          : false) && (
+        <p role="alert" className="text-sm text-destructive">
+          Could not load records. Please try again.
+        </p>
+      )}
 
       {typeTab === "recent-sale" ? (
         <RecentProductSalesGrid
@@ -1469,6 +1344,18 @@ export function OrdersEnquiriesWorkspace() {
             }
           />
         </section>
+      )}
+      {typeTab === "order" && ordersQuery.hasNextPage && (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            type="button"
+            disabled={ordersQuery.isFetchingNextPage}
+            onClick={() => void ordersQuery.fetchNextPage()}
+          >
+            {ordersQuery.isFetchingNextPage ? "Loading..." : "Load more orders"}
+          </Button>
+        </div>
       )}
     </div>
   );

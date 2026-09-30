@@ -1,6 +1,11 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { enquiryKeys } from "@/hooks/useEnquiries";
 import {
   createOrders,
@@ -42,6 +47,21 @@ export function useOrders(
   return useQuery({
     queryKey: orderKeys.list(query),
     queryFn: () => fetchOrders(query),
+    enabled: options.enabled,
+  });
+}
+
+export function useInfiniteOrders(
+  query: Omit<ListOrdersQuery, "limit" | "offset">,
+  options: { enabled?: boolean } = {},
+) {
+  return useInfiniteQuery({
+    queryKey: [...orderKeys.lists(), "infinite", query],
+    queryFn: ({ pageParam }) =>
+      fetchOrders({ ...query, limit: 100, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, _pages, lastPageParam) =>
+      lastPage.length === 100 ? lastPageParam + 100 : undefined,
     enabled: options.enabled,
   });
 }

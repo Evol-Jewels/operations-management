@@ -144,6 +144,9 @@ export interface BackendEnquiryDetails {
 }
 
 export interface ListEnquiriesQuery {
+  search?: string;
+  sortBy?: "createdAt" | "updatedAt" | "name";
+  sortOrder?: "asc" | "desc";
   status?: BackendEnquiryStatus;
   phoneNumber?: string;
   name?: string;

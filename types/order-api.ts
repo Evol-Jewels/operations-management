@@ -172,6 +172,11 @@ export interface CreateOrdersInput {
 }
 
 export interface ListOrdersQuery {
+  search?: string;
+  vendor?: string;
+  orderType?: "STOCK" | "CUSTOMER" | "STOCK_REFILL";
+  sortBy?: "createdAt" | "updatedAt" | "name" | "deliveryDate";
+  sortOrder?: "asc" | "desc";
   status?: BackendOrderStatus;
   phoneNumber?: string;
   name?: string;
