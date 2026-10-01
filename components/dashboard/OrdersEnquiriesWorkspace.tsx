@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  History,
   LayoutGrid,
   List,
   PackagePlus,
@@ -58,6 +59,7 @@ import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 import { shouldPromptForVendorDetails } from "@/lib/orderVendorDetails";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { isOlderClosedRecord } from "@/lib/workspaceRecords";
 import type { Order, PersonSummary, RecordType } from "@/types";
 import type { BackendEnquiryStatus } from "@/types/enquiry-api";
 import type { BackendOrderStatus } from "@/types/order-api";
@@ -118,6 +120,14 @@ const ENQUIRY_KANBAN_COLUMNS: KanbanColumnConfig[] = [
     label: ENQUIRY_STATUS_LABELS[status],
   })),
 ];
+const ORDER_TYPES = ["STOCK", "CUSTOMER", "STOCK_REFILL"] as const;
+const DATE_FILTERS: DateFilter[] = ["all", "7d", "30d", "90d", "custom"];
+const SORT_FIELDS: SortBy[] = [
+  "createdAt",
+  "updatedAt",
+  "name",
+  "deliveryDate",
+];
 
 function isTypeTab(value: unknown): value is TypeTab {
   return (
@@ -175,6 +185,56 @@ function getDefaultViewMode(tab: TypeTab): ViewMode {
 function getInitialViewMode(searchParams: URLSearchParams): ViewMode {
   const tab = getInitialTypeTab(searchParams);
   return getViewModeFromSearchParams(searchParams) ?? getDefaultViewMode(tab);
+}
+
+function isValidLocalDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
+}
+
+function getWorkspaceFilters(searchParams: URLSearchParams) {
+  const tab = getInitialTypeTab(searchParams);
+  const view = getInitialViewMode(searchParams);
+  const status = searchParams.get("status") ?? "all";
+  const validStatuses =
+    tab === "enquiry" ? Object.values(ENQUIRY_STATUS_LABELS) : ORDER_STAGES;
+  const orderType = searchParams.get("orderType") ?? "all";
+  const date = searchParams.get("date") ?? "all";
+  const from = searchParams.get("from") ?? "";
+  const to = searchParams.get("to") ?? "";
+  const [requestedSortBy, requestedSortOrder] = (
+    searchParams.get("sort") ?? "updatedAt:desc"
+  ).split(":");
+  const sortBy: SortBy = SORT_FIELDS.some((field) => field === requestedSortBy)
+    ? (requestedSortBy as SortBy)
+    : "updatedAt";
+
+  return {
+    search: (searchParams.get("search") ?? "").slice(0, 255),
+    status:
+      view === "table" && validStatuses.some((value) => value === status)
+        ? status
+        : "all",
+    orderType: ORDER_TYPES.some((value) => value === orderType)
+      ? orderType
+      : "all",
+    dateFilter: DATE_FILTERS.find((value) => value === date) ?? "all",
+    olderColumns: ["Closed", "Cancelled"].filter((column) => {
+      const older = searchParams.get("older");
+      return older === "show" || older?.split(",").includes(column);
+    }),
+    dateFrom: isValidLocalDate(from) ? from : "",
+    dateTo: isValidLocalDate(to) ? to : "",
+    sortBy:
+      tab === "enquiry" && sortBy === "deliveryDate" ? "createdAt" : sortBy,
+    sortOrder: requestedSortOrder === "asc" ? "asc" : "desc",
+  } as const;
 }
 
 function dateBoundary(value: string, endOfDay = false) {
@@ -616,18 +676,26 @@ export function OrdersEnquiriesWorkspace() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const urlFilters = useMemo(
+    () => getWorkspaceFilters(searchParams),
+    [searchParams],
+  );
   const { data: session } = authClient.useSession();
   const [typeTab, setTypeTab] = useState<TypeTab>(() =>
     getInitialTypeTab(searchParams),
   );
   const updateOrderStatusMutation = useUpdateAnyOrderStatus();
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [orderType, setOrderType] = useState("all");
-  const [sortBy, setSortBy] = useState<SortBy>("updatedAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState(urlFilters.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(
+    urlFilters.search.trim(),
+  );
+  const [orderType, setOrderType] = useState(urlFilters.orderType);
+  const [sortBy, setSortBy] = useState<SortBy>(urlFilters.sortBy);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(
+    urlFilters.sortOrder,
+  );
+  const [dateFrom, setDateFrom] = useState(urlFilters.dateFrom);
+  const [dateTo, setDateTo] = useState(urlFilters.dateTo);
   useEffect(() => {
     const timeout = window.setTimeout(
       () => setDebouncedSearch(search.trim()),
@@ -654,11 +722,25 @@ export function OrdersEnquiriesWorkspace() {
   const [viewMode, setViewMode] = useState<ViewMode>(() =>
     getInitialViewMode(searchParams),
   );
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState(urlFilters.status);
+  const [dateFilter, setDateFilter] = useState<DateFilter>(
+    urlFilters.dateFilter,
+  );
+  const [olderColumns, setOlderColumns] = useState(
+    urlFilters.olderColumns,
+  );
+  const [closedRecordsCutoff] = useState(() => Date.now() - 30 * 86400000);
   useEffect(() => {
-    if (viewMode === "kanban") setStatusFilter("all");
-  }, [viewMode]);
-  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+    setSearch(urlFilters.search);
+    setStatusFilter(urlFilters.status);
+    setOrderType(urlFilters.orderType);
+    setDateFilter(urlFilters.dateFilter);
+    setOlderColumns(urlFilters.olderColumns);
+    setDateFrom(urlFilters.dateFrom);
+    setDateTo(urlFilters.dateTo);
+    setSortBy(urlFilters.sortBy);
+    setSortOrder(urlFilters.sortOrder);
+  }, [urlFilters]);
   const createdFrom = useMemo(
     () =>
       dateFilter === "custom"
@@ -719,17 +801,20 @@ export function OrdersEnquiriesWorkspace() {
   const isKanbanMode = viewMode === "kanban";
 
   const replaceWorkspaceUrl = useCallback(
-    (tab: TypeTab, nextViewMode: ViewMode) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("type", tab);
-      params.set("view", nextViewMode);
-
+    (changes: Record<string, string | null>) => {
+      const params = new URLSearchParams(window.location.search);
+      for (const [key, value] of Object.entries(changes)) {
+        if (value) params.set(key, value);
+        else params.delete(key);
+      }
       const queryString = params.toString();
-      router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
-        scroll: false,
-      });
+      window.history.replaceState(
+        null,
+        "",
+        `${pathname}${queryString ? `?${queryString}` : ""}${window.location.hash}`,
+      );
     },
-    [pathname, router, searchParams],
+    [pathname],
   );
 
   useEffect(() => {
@@ -843,9 +928,20 @@ export function OrdersEnquiriesWorkspace() {
       ),
     [ordersQuery.data],
   );
-  const records = useMemo(
+  const allRecords = useMemo(
     () => (typeTab === "order" ? apiOrders : apiEnquiries),
     [apiEnquiries, apiOrders, typeTab],
+  );
+  const records = useMemo(
+    () =>
+      dateFilter !== "all"
+        ? allRecords
+        : allRecords.filter(
+            (record) =>
+              olderColumns.includes(getRecordStatus(record)) ||
+              !isOlderClosedRecord(record, closedRecordsCutoff),
+          ),
+    [allRecords, closedRecordsCutoff, dateFilter, olderColumns],
   );
   const stockSales = useMemo(
     () => stockSalesQuery.data?.pages.flatMap((page) => page.data) ?? [],
@@ -909,8 +1005,53 @@ export function OrdersEnquiriesWorkspace() {
     () => records.filter((record) => record.type === typeTab),
     [records, typeTab],
   );
-  const kanbanColumns =
-    typeTab === "order" ? ORDER_KANBAN_COLUMNS : ENQUIRY_KANBAN_COLUMNS;
+  const kanbanColumns = (
+    typeTab === "order" ? ORDER_KANBAN_COLUMNS : ENQUIRY_KANBAN_COLUMNS
+  ).map((column) => {
+    if (
+      dateFilter !== "all" ||
+      (column.id !== "Closed" && column.id !== "Cancelled")
+    ) {
+      return column;
+    }
+
+    const showOlder = olderColumns.includes(column.id);
+    const closedColumn = {
+      ...column,
+      emptyDescription: showOlder ? undefined : "in the last 30 days",
+    };
+    const olderCount = allRecords.filter(
+      (record) =>
+        getRecordStatus(record) === column.id &&
+        isOlderClosedRecord(record, closedRecordsCutoff),
+    ).length;
+    if (olderCount === 0) return closedColumn;
+
+    return {
+      ...closedColumn,
+      footer: (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-pressed={showOlder}
+          aria-label={`${showOlder ? "Hide" : "Show"} previous ${column.label.toLowerCase()} ${typeTab === "order" ? "orders" : "enquiries"}`}
+          className="h-9 w-full text-xs text-muted-foreground"
+          onClick={() => {
+            const nextColumns = showOlder
+              ? olderColumns.filter((id) => id !== column.id)
+              : [...olderColumns, column.id];
+            setOlderColumns(nextColumns);
+            replaceWorkspaceUrl({ older: nextColumns.join(",") || null });
+          }}
+        >
+          <History aria-hidden="true" className="size-3.5" />
+          {showOlder ? "Hide" : "Show"} previous{" "}
+          {typeTab === "order" ? "orders" : "enquiries"} ({olderCount})
+        </Button>
+      ),
+    };
+  });
   const shownRecordCount = isKanbanMode
     ? kanbanRecords.length
     : filteredRecords.length;
@@ -929,6 +1070,7 @@ export function OrdersEnquiriesWorkspace() {
   const clearSecondaryFilters = () => {
     setStatusFilter("all");
     setOrderType("all");
+    replaceWorkspaceUrl({ status: null, orderType: null });
     captureProductEvent("workspace_filters_cleared", {
       record_type: typeTab,
       active_filter_count: activeFilterCount,
@@ -936,9 +1078,18 @@ export function OrdersEnquiriesWorkspace() {
   };
   const handleTypeTabChange = (tab: TypeTab) => {
     setTypeTab(tab);
-    if (tab === "enquiry" && sortBy === "deliveryDate") setSortBy("createdAt");
-    setViewMode(viewMode);
-    replaceWorkspaceUrl(tab, viewMode);
+    const nextSortBy =
+      tab === "enquiry" && sortBy === "deliveryDate" ? "createdAt" : sortBy;
+    if (nextSortBy !== sortBy) setSortBy(nextSortBy);
+    replaceWorkspaceUrl({
+      type: tab,
+      view: viewMode,
+      status: null,
+      sort:
+        nextSortBy === "updatedAt" && sortOrder === "desc"
+          ? null
+          : `${nextSortBy}:${sortOrder}`,
+    });
     setStatusFilter("all");
     captureProductEvent("workspace_tab_changed", {
       from_tab: typeTab,
@@ -947,7 +1098,12 @@ export function OrdersEnquiriesWorkspace() {
   };
   const handleViewModeChange = (nextViewMode: ViewMode) => {
     setViewMode(nextViewMode);
-    replaceWorkspaceUrl(typeTab, nextViewMode);
+    if (nextViewMode === "kanban") setStatusFilter("all");
+    replaceWorkspaceUrl({
+      type: typeTab,
+      view: nextViewMode,
+      ...(nextViewMode === "kanban" ? { status: null } : {}),
+    });
   };
   const handleSyncPurchases = async () => {
     captureProductEvent("purchase_sync_started");
@@ -1159,8 +1315,8 @@ export function OrdersEnquiriesWorkspace() {
         </div>
       </div>
 
-      <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-        <div className="flex shrink-0 items-center justify-between gap-3">
+      <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start lg:gap-8">
+        <div className="flex min-h-9 shrink-0 items-center justify-between gap-3">
           <h2 className="whitespace-nowrap text-base font-medium text-foreground">
             {sectionHeading}{" "}
             <span className="text-muted-foreground">({sectionCount})</span>
@@ -1171,24 +1327,56 @@ export function OrdersEnquiriesWorkspace() {
           <WorkspaceRecordFilters
             recordType={typeTab}
             search={search}
-            onSearchChange={setSearch}
+            onSearchChange={(value) => {
+              setSearch(value);
+              replaceWorkspaceUrl({ search: value || null });
+            }}
             status={statusFilter}
-            onStatusChange={setStatusFilter}
+            onStatusChange={(value) => {
+              setStatusFilter(value);
+              replaceWorkspaceUrl({ status: value === "all" ? null : value });
+            }}
             orderType={orderType}
-            onOrderTypeChange={setOrderType}
+            onOrderTypeChange={(value) => {
+              setOrderType(value);
+              replaceWorkspaceUrl({
+                orderType: value === "all" ? null : value,
+              });
+            }}
             dateFilter={dateFilter}
-            onDateFilterChange={setDateFilter}
+            onDateFilterChange={(value) => {
+              setDateFilter(value);
+              if (value !== "custom") {
+                setDateFrom("");
+                setDateTo("");
+              }
+              replaceWorkspaceUrl({
+                date: value === "all" ? null : value,
+                ...(value === "custom" ? {} : { from: null, to: null }),
+              });
+            }}
             dateFrom={dateFrom}
             dateTo={dateTo}
             onCustomRangeChange={(from, to) => {
               setDateFrom(from);
               setDateTo(to);
+              replaceWorkspaceUrl({
+                date: "custom",
+                from: from || null,
+                to: to || null,
+              });
             }}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={(field, direction) => {
               setSortBy(field);
               setSortOrder(direction);
+              replaceWorkspaceUrl({
+                sort:
+                  field === "updatedAt" && direction === "desc"
+                    ? null
+                    : `${field}:${direction}`,
+              });
             }}
             onReset={clearSecondaryFilters}
             viewMode={viewMode}
@@ -1202,7 +1390,10 @@ export function OrdersEnquiriesWorkspace() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  replaceWorkspaceUrl({ search: event.target.value || null });
+                }}
                 onBlur={() => {
                   const query = search.trim();
                   if (!query) return;
@@ -1215,6 +1406,7 @@ export function OrdersEnquiriesWorkspace() {
                 placeholder="Search customer, product code, or salesperson"
                 className="h-10 pl-9"
                 aria-label="Search purchases"
+                maxLength={255}
               />
             </div>
             {canSyncPurchases ? (

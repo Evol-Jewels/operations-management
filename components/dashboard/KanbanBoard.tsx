@@ -13,7 +13,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { useCallback, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useState } from "react";
 import type { Order } from "@/types";
 import { KanbanCard } from "./KanbanCard";
 import { KanbanColumn } from "./KanbanColumn";
@@ -22,6 +22,8 @@ export interface KanbanColumnConfig {
   id: string;
   label: string;
   shortLabel?: string;
+  emptyDescription?: string;
+  footer?: ReactNode;
 }
 
 interface KanbanBoardProps {

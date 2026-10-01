@@ -2,11 +2,9 @@
 
 import { LayoutGrid, List, Search, X } from "lucide-react";
 import { useId } from "react";
-import { AnalyticsFilterPopover } from "@/components/inventory/AnalyticsFilterPopover";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -76,9 +74,6 @@ export function WorkspaceRecordFilters({
 }: WorkspaceRecordFiltersProps) {
   const id = useId();
   const isOrder = recordType === "order";
-  const filterCount =
-    (viewMode === "table" && status !== "all" ? 1 : 0) +
-    (isOrder && orderType !== "all" ? 1 : 0);
   const chips = [
     viewMode === "table" && status !== "all"
       ? {
@@ -98,8 +93,8 @@ export function WorkspaceRecordFilters({
 
   return (
     <div className="min-w-0 flex-1 space-y-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[12rem] flex-1">
+      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        <div className="relative w-full min-w-0 sm:w-72 sm:shrink-0">
           <Search
             aria-hidden="true"
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -108,57 +103,47 @@ export function WorkspaceRecordFilters({
             type="search"
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={
-              isOrder
-                ? "Search customer, vendor, phone or ID"
-                : "Search customer, phone or ID"
-            }
+            placeholder={isOrder ? "Search orders…" : "Search enquiries…"}
             aria-label={`Search ${isOrder ? "orders" : "enquiries"}`}
             maxLength={255}
             className="h-9 pl-9"
           />
         </div>
-        {(viewMode === "table" || isOrder) && (
-          <AnalyticsFilterPopover count={filterCount} onReset={onReset}>
-            <div className="grid grid-cols-2 gap-3">
-              {viewMode === "table" && (
-                <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor={`${id}-status`}>Status</Label>
-                  <Select value={status} onValueChange={onStatusChange}>
-                    <SelectTrigger id={`${id}-status`} className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All statuses</SelectItem>
-                      {(isOrder ? ORDER_STATUSES : ENQUIRY_STATUSES).map(
-                        (value) => (
-                          <SelectItem key={value} value={value}>
-                            {value}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              {isOrder && (
-                <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor={`${id}-type`}>Order type</Label>
-                  <Select value={orderType} onValueChange={onOrderTypeChange}>
-                    <SelectTrigger id={`${id}-type`} className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All types</SelectItem>
-                      <SelectItem value="STOCK">Stock</SelectItem>
-                      <SelectItem value="CUSTOMER">Customer</SelectItem>
-                      <SelectItem value="STOCK_REFILL">Stock refill</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-          </AnalyticsFilterPopover>
+        {viewMode === "table" && (
+          <Select value={status} onValueChange={onStatusChange}>
+            <SelectTrigger
+              id={`${id}-status`}
+              aria-label="Status"
+              className="h-9 w-[9.5rem]"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {(isOrder ? ORDER_STATUSES : ENQUIRY_STATUSES).map((value) => (
+                <SelectItem key={value} value={value}>
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {isOrder && (
+          <Select value={orderType} onValueChange={onOrderTypeChange}>
+            <SelectTrigger
+              id={`${id}-type`}
+              aria-label="Order type"
+              className="h-9 w-[8.5rem]"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              <SelectItem value="STOCK">Stock</SelectItem>
+              <SelectItem value="CUSTOMER">Customer</SelectItem>
+              <SelectItem value="STOCK_REFILL">Stock refill</SelectItem>
+            </SelectContent>
+          </Select>
         )}
         <WorkspaceDateRangeFilter
           value={dateFilter}
@@ -190,8 +175,8 @@ export function WorkspaceRecordFilters({
             </SelectItem>
             <SelectItem value="createdAt:desc">Newest created</SelectItem>
             <SelectItem value="createdAt:asc">Oldest created</SelectItem>
-            <SelectItem value="name:asc">Customer A–Z</SelectItem>
-            <SelectItem value="name:desc">Customer Z–A</SelectItem>
+            <SelectItem value="name:asc">Customer Aâ€“Z</SelectItem>
+            <SelectItem value="name:desc">Customer Zâ€“A</SelectItem>
             {isOrder && (
               <>
                 <SelectItem value="deliveryDate:asc">
@@ -238,7 +223,7 @@ export function WorkspaceRecordFilters({
       </div>
       {chips.length > 0 && (
         <ul
-          className="flex flex-wrap gap-2"
+          className="flex flex-wrap items-center gap-2 lg:justify-end"
           aria-label="Selected record filters"
         >
           {chips.map((chip) => (
@@ -259,6 +244,17 @@ export function WorkspaceRecordFilters({
               </Badge>
             </li>
           ))}
+          <li>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onReset}
+              className="h-8 px-2 text-xs text-muted-foreground"
+            >
+              Clear filters
+            </Button>
+          </li>
         </ul>
       )}
     </div>
