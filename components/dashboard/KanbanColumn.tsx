@@ -89,7 +89,7 @@ export function KanbanColumn({
                 {emptyLabel}
               </p>
               <p className="text-[10px] text-muted-foreground/40">
-                in this status
+                {column.emptyDescription ?? "in this status"}
               </p>
             </div>
           ) : (
@@ -102,6 +102,7 @@ export function KanbanColumn({
             ))
           )}
         </SortableContext>
+        {column.footer}
       </div>
     </div>
   );
