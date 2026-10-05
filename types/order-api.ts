@@ -7,6 +7,10 @@ export type BackendOrderStatus =
   | "IN_TRANSIT"
   | "CERTIFICATION"
   | "AT_STORE"
+  | "IN_PHOTOSHOOT"
+  | "EDITING"
+  | "POST_EDITING"
+  | "WEBSITE_UPLOAD"
   | "DELIVERED"
   | "CLOSED"
   | "CANCELLED";

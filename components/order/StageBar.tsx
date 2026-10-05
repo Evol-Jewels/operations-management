@@ -16,6 +16,10 @@ export function StageBar({ currentStage, cadDesignRequired }: StageBarProps) {
     "In Production",
     "Certification",
     "At Store",
+    "In Photoshoot",
+    "Editing",
+    "Post Editing",
+    "Website Upload",
     "In Transit",
     "Delivered",
     "Closed",
@@ -38,8 +42,8 @@ export function StageBar({ currentStage, cadDesignRequired }: StageBarProps) {
   return (
     <div className="w-full">
       {/* Desktop: horizontal timeline */}
-      <div className="hidden sm:block">
-        <div className="relative flex items-start">
+      <div className="hidden overflow-x-auto pb-2 sm:block">
+        <div className="relative flex min-w-max items-start">
           {/* Connecting line behind nodes */}
           <div className="absolute left-0 right-0 top-[14px] h-px bg-border" />
 
@@ -52,7 +56,7 @@ export function StageBar({ currentStage, cadDesignRequired }: StageBarProps) {
             return (
               <div
                 key={stage}
-                className="relative flex flex-1 flex-col items-center gap-2"
+                className="relative flex min-w-20 flex-1 flex-col items-center gap-2"
               >
                 {/* Progress line — filled for past stages */}
                 {i > 0 && (

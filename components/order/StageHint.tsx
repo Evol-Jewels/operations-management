@@ -2,6 +2,7 @@
 
 import {
   ArrowRight,
+  Camera,
   CheckCircle2,
   FileCheck,
   ImageIcon,
@@ -9,6 +10,7 @@ import {
   Pencil,
   Phone,
   Truck,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Stage } from "@/types";
@@ -77,6 +79,34 @@ const STAGE_HINTS: Partial<Record<Stage, StageHintDef>> = {
     body: "Sales: confirm receipt and notify the customer that their order is ready.",
     actor: "sales",
     tone: "info",
+  },
+  "In Photoshoot": {
+    icon: Camera,
+    title: "Photoshoot in progress",
+    body: "Capture product photos and move to Editing once the shoot is complete.",
+    actor: "sales",
+    tone: "info",
+  },
+  Editing: {
+    icon: Pencil,
+    title: "Editing in progress",
+    body: "Edit the product photos and move to Post Editing for review.",
+    actor: "sales",
+    tone: "info",
+  },
+  "Post Editing": {
+    icon: ImageIcon,
+    title: "Review edited photos",
+    body: "Review the final photos and move to Website Upload when ready.",
+    actor: "sales",
+    tone: "action",
+  },
+  "Website Upload": {
+    icon: Upload,
+    title: "Ready for website upload",
+    body: "Upload the approved photos and product details to the website.",
+    actor: "sales",
+    tone: "action",
   },
   "In Transit": {
     icon: Truck,

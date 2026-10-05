@@ -9,11 +9,13 @@ import {
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
+  TraversalOrder,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { type ReactNode, useCallback, useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
 import type { Order } from "@/types";
 import { KanbanCard } from "./KanbanCard";
 import { KanbanColumn } from "./KanbanColumn";
@@ -130,12 +132,26 @@ export function KanbanBoard({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCorners}
+      autoScroll={{
+        order: TraversalOrder.ReversedTreeOrder,
+        acceleration: 8,
+        interval: 16,
+        threshold: { x: 0.12, y: 0.1 },
+      }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveOrder(null)}
     >
       <div className="relative">
         {/* Kanban board container */}
-        <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-4 pt-1 snap-x snap-mandatory scroll-smooth scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+        <div
+          className={cn(
+            "flex gap-3 overflow-x-auto overflow-y-hidden pb-4 pt-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent",
+            activeOrder
+              ? "snap-none scroll-auto"
+              : "snap-x snap-mandatory scroll-smooth",
+          )}
+        >
           {columns.map((column) => (
             <KanbanColumn
               key={column.id}
@@ -155,7 +171,7 @@ export function KanbanBoard({
         {/* Drag overlay - shows what's being dragged */}
         <DragOverlay dropAnimation={null}>
           {activeOrder ? (
-            <div className="rotate-2 scale-105 cursor-grabbing">
+            <div className="pointer-events-none rotate-2 scale-105 cursor-grabbing">
               <KanbanCard order={activeOrder} onClick={() => {}} />
             </div>
           ) : null}

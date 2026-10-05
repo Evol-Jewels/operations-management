@@ -88,6 +88,10 @@ const ORDER_STAGES = [
   "In Production",
   "Certification",
   "At Store",
+  "In Photoshoot",
+  "Editing",
+  "Post Editing",
+  "Website Upload",
   "In Transit",
   "Delivered",
   "Closed",
@@ -108,6 +112,10 @@ const ORDER_STAGE_TO_STATUS: Record<
   "In Production": "IN_PRODUCTION",
   Certification: "CERTIFICATION",
   "At Store": "AT_STORE",
+  "In Photoshoot": "IN_PHOTOSHOOT",
+  Editing: "EDITING",
+  "Post Editing": "POST_EDITING",
+  "Website Upload": "WEBSITE_UPLOAD",
   "In Transit": "IN_TRANSIT",
   Delivered: "DELIVERED",
   Closed: "CLOSED",
@@ -726,9 +734,7 @@ export function OrdersEnquiriesWorkspace() {
   const [dateFilter, setDateFilter] = useState<DateFilter>(
     urlFilters.dateFilter,
   );
-  const [olderColumns, setOlderColumns] = useState(
-    urlFilters.olderColumns,
-  );
+  const [olderColumns, setOlderColumns] = useState(urlFilters.olderColumns);
   const [closedRecordsCutoff] = useState(() => Date.now() - 30 * 86400000);
   useEffect(() => {
     setSearch(urlFilters.search);
