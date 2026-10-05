@@ -27,6 +27,10 @@ const ORDER_STATUS_TO_STAGE: Record<BackendOrderStatus, Stage> = {
   IN_TRANSIT: "In Transit",
   CERTIFICATION: "Certification",
   AT_STORE: "At Store",
+  IN_PHOTOSHOOT: "In Photoshoot",
+  EDITING: "Editing",
+  POST_EDITING: "Post Editing",
+  WEBSITE_UPLOAD: "Website Upload",
   DELIVERED: "Delivered",
   CLOSED: "Closed",
   CANCELLED: "Cancelled",
@@ -66,7 +70,9 @@ export function mapBackendOrderStatusToStage(
   return ORDER_STATUS_TO_STAGE[status];
 }
 
-function mapProductDetailsCategory(category?: string | null): JewelleryCategory {
+function mapProductDetailsCategory(
+  category?: string | null,
+): JewelleryCategory {
   const map: Record<string, JewelleryCategory> = {
     RING: "Ring",
     NECKLACE: "Necklace",

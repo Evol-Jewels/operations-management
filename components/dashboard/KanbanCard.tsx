@@ -1,5 +1,6 @@
 "use client";
 
+import { useDndContext } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AlertTriangle, CalendarDays, Clock } from "lucide-react";
@@ -62,6 +63,7 @@ function formatDueTooltip(deliveryDate: string | undefined): string | null {
 }
 
 export function KanbanCard({ order, onClick }: KanbanCardProps) {
+  const { active } = useDndContext();
   const {
     attributes,
     listeners,
@@ -113,7 +115,7 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
 
   return (
     <TooltipProvider>
-      <Tooltip>
+      <Tooltip open={active ? false : undefined}>
         <TooltipTrigger asChild>
           <button
             type="button"
