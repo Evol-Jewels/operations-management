@@ -16,6 +16,7 @@ interface KanbanColumnProps {
   orders: Order[];
   onCardClick: (order: Order) => void;
   emptyLabel?: string;
+  cardActionLabel?: string;
 }
 
 const COLUMN_COLORS: Record<string, string> = {
@@ -31,6 +32,7 @@ export function KanbanColumn({
   orders,
   onCardClick,
   emptyLabel = "No records in this status",
+  cardActionLabel,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -46,7 +48,7 @@ export function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex w-[240px] flex-shrink-0 flex-col snap-center rounded-xl border transition-all duration-200",
+        "flex min-h-80 w-[240px] flex-shrink-0 flex-col snap-center rounded-xl border transition-all duration-200",
         isOver
           ? "border-foreground/40 bg-foreground/5 shadow-lg"
           : "border-border bg-card/50",
@@ -83,7 +85,7 @@ export function KanbanColumn({
           strategy={verticalListSortingStrategy}
         >
           {orders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="flex min-h-56 flex-col items-center justify-center py-8 text-center">
               <Package className="mb-2 h-6 w-6 text-muted-foreground/30" />
               <p className="text-[11px] text-muted-foreground/60">
                 {emptyLabel}
@@ -98,6 +100,7 @@ export function KanbanColumn({
                 key={order.id}
                 order={order}
                 onClick={() => onCardClick(order)}
+                actionLabel={cardActionLabel}
               />
             ))
           )}

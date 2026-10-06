@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type CollisionDetection,
   closestCorners,
   DndContext,
   type DragEndEvent,
@@ -8,6 +9,7 @@ import {
   type DragStartEvent,
   KeyboardSensor,
   PointerSensor,
+  pointerWithin,
   TouchSensor,
   TraversalOrder,
   useSensor,
@@ -35,7 +37,20 @@ interface KanbanBoardProps {
   onOrderMove?: (order: Order, newColumnId: string) => void;
   onCardClick: (order: Order) => void;
   emptyLabel?: string;
+  cardActionLabel?: string;
 }
+
+const stageCollisionDetection: CollisionDetection = (args) => {
+  const columns = {
+    ...args,
+    droppableContainers: args.droppableContainers.filter(
+      (container) => container.data.current?.type === "Column",
+    ),
+  };
+  return args.pointerCoordinates
+    ? pointerWithin(columns)
+    : closestCorners(columns);
+};
 
 function groupOrdersByColumn(
   orders: Order[],
@@ -58,6 +73,7 @@ export function KanbanBoard({
   onOrderMove,
   onCardClick,
   emptyLabel,
+  cardActionLabel,
 }: KanbanBoardProps) {
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
 
@@ -131,7 +147,7 @@ export function KanbanBoard({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={stageCollisionDetection}
       autoScroll={{
         order: TraversalOrder.ReversedTreeOrder,
         acceleration: 8,
@@ -159,6 +175,7 @@ export function KanbanBoard({
               orders={groupedOrders[column.id] ?? []}
               onCardClick={onCardClick}
               emptyLabel={emptyLabel}
+              cardActionLabel={cardActionLabel}
             />
           ))}
         </div>
@@ -172,7 +189,11 @@ export function KanbanBoard({
         <DragOverlay dropAnimation={null}>
           {activeOrder ? (
             <div className="pointer-events-none rotate-2 scale-105 cursor-grabbing">
-              <KanbanCard order={activeOrder} onClick={() => {}} />
+              <KanbanCard
+                order={activeOrder}
+                onClick={() => {}}
+                actionLabel={cardActionLabel}
+              />
             </div>
           ) : null}
         </DragOverlay>

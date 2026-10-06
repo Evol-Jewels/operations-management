@@ -59,6 +59,14 @@ export function RequireInternalAuth({
     return <UnauthorizedState />;
   }
 
+  if (
+    getSessionRole(session) === "PHOTOGRAPHY" &&
+    pathname !== "/" &&
+    pathname !== "/orders-workspace"
+  ) {
+    return <UnauthorizedState />;
+  }
+
   if (roles?.length && !roles.includes(getSessionRole(session))) {
     return <UnauthorizedState />;
   }
