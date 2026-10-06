@@ -1,17 +1,17 @@
 import * as React from "react";
 
-const MOBILE_BREAKPOINT = 768;
+const DESKTOP_MEDIA_QUERY = "(min-width: 48rem)";
+
+function subscribe(onChange: () => void) {
+  const mediaQuery = window.matchMedia(DESKTOP_MEDIA_QUERY);
+  mediaQuery.addEventListener("change", onChange);
+  return () => mediaQuery.removeEventListener("change", onChange);
+}
+
+function getSnapshot() {
+  return !window.matchMedia(DESKTOP_MEDIA_QUERY).matches;
+}
 
 export function useIsMobile() {
-  return React.useSyncExternalStore(
-    (onChange) => {
-      const mediaQuery = window.matchMedia(
-        `(max-width: ${MOBILE_BREAKPOINT - 1}px)`,
-      );
-      mediaQuery.addEventListener("change", onChange);
-      return () => mediaQuery.removeEventListener("change", onChange);
-    },
-    () => window.innerWidth < MOBILE_BREAKPOINT,
-    () => false,
-  );
+  return React.useSyncExternalStore(subscribe, getSnapshot, () => false);
 }

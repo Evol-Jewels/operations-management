@@ -26,6 +26,7 @@ import {
   type VendorDetailsValues,
 } from "@/components/order/VendorDetailsDialog";
 import { OrderTypeBadge } from "@/components/orders/order-type-badge";
+import { RepairsWorkspace } from "@/components/repairs/RepairsWorkspace";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,7 @@ import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 import { shouldPromptForVendorDetails } from "@/lib/orderVendorDetails";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import { isOlderClosedRecord } from "@/lib/workspaceRecords";
+import { isOlderTerminalRecord } from "@/lib/workspaceRecords";
 import type { Order, PersonSummary, RecordType } from "@/types";
 import type { BackendEnquiryStatus } from "@/types/enquiry-api";
 import type { BackendOrderStatus } from "@/types/order-api";
@@ -73,7 +74,7 @@ import {
   WorkspaceRecordFilters,
 } from "./WorkspaceRecordFilters";
 
-type TypeTab = RecordType | "purchase" | "recent-sale";
+type TypeTab = RecordType | "purchase" | "recent-sale" | "repair";
 type ViewMode = "table" | "kanban";
 
 const TAB_STORAGE_KEY = "evol:orders-enquiries:tab";
@@ -137,12 +138,23 @@ const SORT_FIELDS: SortBy[] = [
   "name",
   "deliveryDate",
 ];
+const RECENT_HISTORY_COLUMNS = ["Closed", "Cancelled", "Converted"];
+
+function getDefaultSort(tab: TypeTab): {
+  sortBy: SortBy;
+  sortOrder: "asc" | "desc";
+} {
+  return tab === "order"
+    ? { sortBy: "deliveryDate", sortOrder: "asc" }
+    : { sortBy: "updatedAt", sortOrder: "desc" };
+}
 
 function isTypeTab(value: unknown): value is TypeTab {
   return (
     value === "order" ||
     value === "enquiry" ||
     value === "purchase" ||
+    value === "repair" ||
     value === "recent-sale"
   );
 }
@@ -152,6 +164,7 @@ function getTypeTabFromSearchParams(searchParams: URLSearchParams) {
   if (type === "enquiries") return "enquiry";
   if (type === "purchases") return "purchase";
   if (type === "recent-sales") return "recent-sale";
+  if (type === "repairs") return "repair";
   return isTypeTab(type) ? type : null;
 }
 
@@ -188,7 +201,9 @@ function getInitialTypeTab(searchParams: URLSearchParams): TypeTab {
 }
 
 function getDefaultViewMode(tab: TypeTab): ViewMode {
-  return tab === "purchase" || tab === "recent-sale" ? "table" : "kanban";
+  return tab === "purchase" || tab === "recent-sale" || tab === "repair"
+    ? "table"
+    : "kanban";
 }
 
 function getInitialViewMode(searchParams: URLSearchParams): ViewMode {
@@ -217,12 +232,13 @@ function getWorkspaceFilters(searchParams: URLSearchParams) {
   const date = searchParams.get("date") ?? "all";
   const from = searchParams.get("from") ?? "";
   const to = searchParams.get("to") ?? "";
+  const defaultSort = getDefaultSort(tab);
   const [requestedSortBy, requestedSortOrder] = (
-    searchParams.get("sort") ?? "updatedAt:desc"
+    searchParams.get("sort") ?? `${defaultSort.sortBy}:${defaultSort.sortOrder}`
   ).split(":");
   const sortBy: SortBy = SORT_FIELDS.some((field) => field === requestedSortBy)
     ? (requestedSortBy as SortBy)
-    : "updatedAt";
+    : defaultSort.sortBy;
 
   return {
     search: (searchParams.get("search") ?? "").slice(0, 255),
@@ -234,7 +250,7 @@ function getWorkspaceFilters(searchParams: URLSearchParams) {
       ? orderType
       : "all",
     dateFilter: DATE_FILTERS.find((value) => value === date) ?? "all",
-    olderColumns: ["Closed", "Cancelled"].filter((column) => {
+    olderColumns: RECENT_HISTORY_COLUMNS.filter((column) => {
       const older = searchParams.get("older");
       return older === "show" || older?.split(",").includes(column);
     }),
@@ -242,7 +258,10 @@ function getWorkspaceFilters(searchParams: URLSearchParams) {
     dateTo: isValidLocalDate(to) ? to : "",
     sortBy:
       tab === "enquiry" && sortBy === "deliveryDate" ? "createdAt" : sortBy,
-    sortOrder: requestedSortOrder === "asc" ? "asc" : "desc",
+    sortOrder:
+      requestedSortOrder === "asc" || requestedSortOrder === "desc"
+        ? requestedSortOrder
+        : defaultSort.sortOrder,
   } as const;
 }
 
@@ -759,7 +778,7 @@ export function OrdersEnquiriesWorkspace() {
     urlFilters.dateFilter,
   );
   const [olderColumns, setOlderColumns] = useState(urlFilters.olderColumns);
-  const [closedRecordsCutoff] = useState(() => Date.now() - 30 * 86400000);
+  const [terminalRecordsCutoff] = useState(() => Date.now() - 30 * 86400000);
   useEffect(() => {
     setSearch(urlFilters.search);
     setStatusFilter(urlFilters.status);
@@ -971,9 +990,9 @@ export function OrdersEnquiriesWorkspace() {
         : allRecords.filter(
             (record) =>
               olderColumns.includes(getRecordStatus(record)) ||
-              !isOlderClosedRecord(record, closedRecordsCutoff),
+              !isOlderTerminalRecord(record, terminalRecordsCutoff),
           ),
-    [allRecords, closedRecordsCutoff, dateFilter, olderColumns],
+    [allRecords, terminalRecordsCutoff, dateFilter, olderColumns],
   );
   const stockSales = useMemo(
     () => stockSalesQuery.data?.pages.flatMap((page) => page.data) ?? [],
@@ -1005,6 +1024,7 @@ export function OrdersEnquiriesWorkspace() {
         label: "Enquiries",
         count: tabCounts.enquiry,
       },
+      ...(!isPhotography ? [{ key: "repair" as const, label: "Repairs" }] : []),
       ...(canViewPurchases
         ? [
             {
@@ -1022,6 +1042,7 @@ export function OrdersEnquiriesWorkspace() {
     ],
     [
       canViewPurchases,
+      isPhotography,
       tabCounts.enquiry,
       tabCounts.order,
       tabCounts.purchase,
@@ -1040,27 +1061,24 @@ export function OrdersEnquiriesWorkspace() {
   const kanbanColumns = (
     typeTab === "order" ? ORDER_KANBAN_COLUMNS : ENQUIRY_KANBAN_COLUMNS
   ).map((column) => {
-    if (
-      dateFilter !== "all" ||
-      (column.id !== "Closed" && column.id !== "Cancelled")
-    ) {
+    if (dateFilter !== "all" || !RECENT_HISTORY_COLUMNS.includes(column.id)) {
       return column;
     }
 
     const showOlder = olderColumns.includes(column.id);
-    const closedColumn = {
+    const recentColumn = {
       ...column,
       emptyDescription: showOlder ? undefined : "in the last 30 days",
     };
     const olderCount = allRecords.filter(
       (record) =>
         getRecordStatus(record) === column.id &&
-        isOlderClosedRecord(record, closedRecordsCutoff),
+        isOlderTerminalRecord(record, terminalRecordsCutoff),
     ).length;
-    if (olderCount === 0) return closedColumn;
+    if (olderCount === 0) return recentColumn;
 
     return {
-      ...closedColumn,
+      ...recentColumn,
       footer: (
         <Button
           type="button"
@@ -1110,17 +1128,21 @@ export function OrdersEnquiriesWorkspace() {
   };
   const handleTypeTabChange = (tab: TypeTab) => {
     setTypeTab(tab);
-    const nextSortBy =
-      tab === "enquiry" && sortBy === "deliveryDate" ? "createdAt" : sortBy;
-    if (nextSortBy !== sortBy) setSortBy(nextSortBy);
+    const hasExplicitSort = searchParams.has("sort");
+    const defaultSort = getDefaultSort(tab);
+    const nextSortBy = hasExplicitSort
+      ? tab === "enquiry" && sortBy === "deliveryDate"
+        ? "createdAt"
+        : sortBy
+      : defaultSort.sortBy;
+    const nextSortOrder = hasExplicitSort ? sortOrder : defaultSort.sortOrder;
+    setSortBy(nextSortBy);
+    setSortOrder(nextSortOrder);
     replaceWorkspaceUrl({
       type: tab,
       view: viewMode,
       status: null,
-      sort:
-        nextSortBy === "updatedAt" && sortOrder === "desc"
-          ? null
-          : `${nextSortBy}:${sortOrder}`,
+      sort: hasExplicitSort ? `${nextSortBy}:${nextSortOrder}` : null,
     });
     setStatusFilter("all");
     captureProductEvent("workspace_tab_changed", {
@@ -1259,18 +1281,29 @@ export function OrdersEnquiriesWorkspace() {
             </h1>
             {!isPhotography && (
               <div className="flex shrink-0 items-center gap-2 sm:hidden">
-                <Button asChild size="sm">
-                  <Link href="/enquiries/new">
-                    <Plus className="h-4 w-4" />
-                    New enquiry
-                  </Link>
-                </Button>
-                <Button asChild size="sm" variant="secondary">
-                  <Link href="/orders/new">
-                    <PackagePlus className="h-4 w-4" />
-                    New order
-                  </Link>
-                </Button>
+                {typeTab === "repair" ? (
+                  <Button asChild size="sm">
+                    <Link href="/repairs/new">
+                      <Plus className="h-4 w-4" />
+                      New repair
+                    </Link>
+                  </Button>
+                ) : (
+                  <>
+                    <Button asChild size="sm">
+                      <Link href="/enquiries/new">
+                        <Plus className="h-4 w-4" />
+                        New enquiry
+                      </Link>
+                    </Button>
+                    <Button asChild size="sm" variant="secondary">
+                      <Link href="/orders/new">
+                        <PackagePlus className="h-4 w-4" />
+                        New order
+                      </Link>
+                    </Button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -1282,18 +1315,29 @@ export function OrdersEnquiriesWorkspace() {
         </div>
         {!isPhotography && (
           <div className="hidden items-center gap-2 sm:flex">
-            <Button asChild>
-              <Link href="/enquiries/new">
-                <Plus className="h-4 w-4" />
-                New enquiry
-              </Link>
-            </Button>
-            <Button asChild variant="secondary">
-              <Link href="/orders/new">
-                <PackagePlus className="h-4 w-4" />
-                New order
-              </Link>
-            </Button>
+            {typeTab === "repair" ? (
+              <Button asChild>
+                <Link href="/repairs/new">
+                  <Plus className="h-4 w-4" />
+                  New repair
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button asChild>
+                  <Link href="/enquiries/new">
+                    <Plus className="h-4 w-4" />
+                    New enquiry
+                  </Link>
+                </Button>
+                <Button asChild variant="secondary">
+                  <Link href="/orders/new">
+                    <PackagePlus className="h-4 w-4" />
+                    New order
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -1370,122 +1414,121 @@ export function OrdersEnquiriesWorkspace() {
         </div>
       </div>
 
-      <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start lg:gap-8">
-        <div className="flex min-h-9 shrink-0 items-center justify-between gap-3">
-          <h2 className="whitespace-nowrap text-base font-medium text-foreground">
-            {sectionHeading}{" "}
-            <span className="text-muted-foreground">({sectionCount})</span>
-          </h2>
-        </div>
-
-        {(typeTab === "order" || typeTab === "enquiry") && (
-          <WorkspaceRecordFilters
-            recordType={typeTab}
-            search={search}
-            onSearchChange={(value) => {
-              setSearch(value);
-              replaceWorkspaceUrl({ search: value || null });
-            }}
-            status={statusFilter}
-            onStatusChange={(value) => {
-              setStatusFilter(value);
-              replaceWorkspaceUrl({ status: value === "all" ? null : value });
-            }}
-            orderType={orderType}
-            onOrderTypeChange={(value) => {
-              setOrderType(value);
-              replaceWorkspaceUrl({
-                orderType: value === "all" ? null : value,
-              });
-            }}
-            dateFilter={dateFilter}
-            onDateFilterChange={(value) => {
-              setDateFilter(value);
-              if (value !== "custom") {
-                setDateFrom("");
-                setDateTo("");
-              }
-              replaceWorkspaceUrl({
-                date: value === "all" ? null : value,
-                ...(value === "custom" ? {} : { from: null, to: null }),
-              });
-            }}
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            onCustomRangeChange={(from, to) => {
-              setDateFrom(from);
-              setDateTo(to);
-              replaceWorkspaceUrl({
-                date: "custom",
-                from: from || null,
-                to: to || null,
-              });
-            }}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onSortChange={(field, direction) => {
-              setSortBy(field);
-              setSortOrder(direction);
-              replaceWorkspaceUrl({
-                sort:
-                  field === "updatedAt" && direction === "desc"
-                    ? null
-                    : `${field}:${direction}`,
-              });
-            }}
-            onReset={clearSecondaryFilters}
-            viewMode={viewMode}
-            onViewModeChange={handleViewModeChange}
-          />
-        )}
-
-        {typeTab === "purchase" ? (
-          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:min-w-0 lg:flex-1 lg:justify-end">
-            <div className="relative w-full sm:max-w-xs lg:w-80">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  replaceWorkspaceUrl({ search: event.target.value || null });
-                }}
-                onBlur={() => {
-                  const query = search.trim();
-                  if (!query) return;
-                  captureProductEvent("workspace_search_used", {
-                    record_type: typeTab,
-                    query_length: query.length,
-                    surface: "purchase_search",
-                  });
-                }}
-                placeholder="Search customer, product code, or salesperson"
-                className="h-10 pl-9"
-                aria-label="Search purchases"
-                maxLength={255}
-              />
-            </div>
-            {canSyncPurchases ? (
-              <Button
-                variant="outline"
-                type="button"
-                className="h-10 justify-center gap-2"
-                onClick={() => void handleSyncPurchases()}
-                disabled={syncStockSalesMutation.isPending}
-              >
-                <RefreshCw
-                  className={cn(
-                    "h-4 w-4",
-                    syncStockSalesMutation.isPending && "animate-spin",
-                  )}
-                />
-                {syncStockSalesMutation.isPending
-                  ? "Syncing..."
-                  : "Sync purchases"}
-              </Button>
-            ) : null}
+      {typeTab !== "repair" && (
+        <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start lg:gap-8">
+          <div className="flex min-h-9 shrink-0 items-center justify-between gap-3">
+            <h2 className="whitespace-nowrap text-base font-medium text-foreground">
+              {sectionHeading}{" "}
+              <span className="text-muted-foreground">({sectionCount})</span>
+            </h2>
           </div>
-        ) : null}
-      </div>
+
+          {(typeTab === "order" || typeTab === "enquiry") && (
+            <WorkspaceRecordFilters
+              recordType={typeTab}
+              search={search}
+              onSearchChange={(value) => {
+                setSearch(value);
+                replaceWorkspaceUrl({ search: value || null });
+              }}
+              status={statusFilter}
+              onStatusChange={(value) => {
+                setStatusFilter(value);
+                replaceWorkspaceUrl({ status: value === "all" ? null : value });
+              }}
+              orderType={orderType}
+              onOrderTypeChange={(value) => {
+                setOrderType(value);
+                replaceWorkspaceUrl({
+                  orderType: value === "all" ? null : value,
+                });
+              }}
+              dateFilter={dateFilter}
+              onDateFilterChange={(value) => {
+                setDateFilter(value);
+                if (value !== "custom") {
+                  setDateFrom("");
+                  setDateTo("");
+                }
+                replaceWorkspaceUrl({
+                  date: value === "all" ? null : value,
+                  ...(value === "custom" ? {} : { from: null, to: null }),
+                });
+              }}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onCustomRangeChange={(from, to) => {
+                setDateFrom(from);
+                setDateTo(to);
+                replaceWorkspaceUrl({
+                  date: "custom",
+                  from: from || null,
+                  to: to || null,
+                });
+              }}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSortChange={(field, direction) => {
+                setSortBy(field);
+                setSortOrder(direction);
+                replaceWorkspaceUrl({
+                  sort: `${field}:${direction}`,
+                });
+              }}
+              onReset={clearSecondaryFilters}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
+            />
+          )}
+
+          {typeTab === "purchase" ? (
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:min-w-0 lg:flex-1 lg:justify-end">
+              <div className="relative w-full sm:max-w-xs lg:w-80">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    replaceWorkspaceUrl({ search: event.target.value || null });
+                  }}
+                  onBlur={() => {
+                    const query = search.trim();
+                    if (!query) return;
+                    captureProductEvent("workspace_search_used", {
+                      record_type: typeTab,
+                      query_length: query.length,
+                      surface: "purchase_search",
+                    });
+                  }}
+                  placeholder="Search customer, product code, or salesperson"
+                  className="h-10 pl-9"
+                  aria-label="Search purchases"
+                  maxLength={255}
+                />
+              </div>
+              {canSyncPurchases ? (
+                <Button
+                  variant="outline"
+                  type="button"
+                  className="h-10 justify-center gap-2"
+                  onClick={() => void handleSyncPurchases()}
+                  disabled={syncStockSalesMutation.isPending}
+                >
+                  <RefreshCw
+                    className={cn(
+                      "h-4 w-4",
+                      syncStockSalesMutation.isPending && "animate-spin",
+                    )}
+                  />
+                  {syncStockSalesMutation.isPending
+                    ? "Syncing..."
+                    : "Sync purchases"}
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {statusOrder && (
         <OrderStatusDialog
@@ -1536,7 +1579,12 @@ export function OrdersEnquiriesWorkspace() {
         </p>
       )}
 
-      {typeTab === "recent-sale" ? (
+      {typeTab === "repair" ? (
+        <RepairsWorkspace
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+        />
+      ) : typeTab === "recent-sale" ? (
         <RecentProductSalesGrid
           sales={recentProductSales}
           isLoading={recentProductSalesQuery.isLoading}

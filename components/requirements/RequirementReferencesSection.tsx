@@ -3,25 +3,22 @@
 import {
   Expand,
   ExternalLink,
-  ImageIcon,
   Link2,
   LoaderCircle,
   Mic,
   Plus,
-  ScanLine,
-  Search,
   Upload,
   Video,
   X,
 } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import type { ProductReference } from "@/components/enquiries/enquiry-form-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useInventoryProductByCode } from "@/hooks/useInventoryProducts";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
-import { fetchInventoryProducts } from "@/lib/inventoryApi";
+import { getEnquiryMediaSizeError } from "@/lib/enquiryMedia";
 import { getInventoryPrimaryImage } from "@/lib/inventoryProductMapping";
 import { isSupportedImageFile } from "@/lib/prepareImageUpload";
 import {
@@ -31,6 +28,12 @@ import {
 import type { InventoryProduct } from "@/types/inventory-api";
 import { AudioPreviewPlayer } from "./AudioPreviewPlayer";
 import { ImagePreviewDialog } from "./ImagePreviewDialog";
+import {
+  ProductSearch,
+  ProductThumb,
+  type ReferenceProduct,
+  searchInventoryProducts,
+} from "./ProductReferenceSearch";
 import { SectionShell } from "./RequirementFields";
 import {
   type RecordingKind,
@@ -48,15 +51,24 @@ export function RequirementReferencesSection({
   references,
   onProductChange,
   onReferencesChange,
+  searchProducts = searchInventoryProducts,
+  localOnly = false,
+  productField,
 }: {
   productCode: string;
   references: ProductReference[];
   onProductChange: (productCode: string) => void;
   onReferencesChange: (references: ProductReference[]) => void;
+  searchProducts?: (query: string) => Promise<ReferenceProduct[]>;
+  localOnly?: boolean;
+  productField?: ReactNode;
 }) {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [recorderKind, setRecorderKind] = useState<RecordingKind | null>(null);
-  const productQuery = useInventoryProductByCode(productCode || null);
+  const [mediaError, setMediaError] = useState("");
+  const productQuery = useInventoryProductByCode(
+    localOnly ? null : productCode || null,
+  );
   const imageReferences = references.filter((item) => item.type === "image");
   const recordedReferences = references.filter(
     (item) => item.type === "video" || item.type === "audio",
@@ -65,17 +77,30 @@ export function RequirementReferencesSection({
 
   function addFiles(files: FileList | null) {
     if (!files?.length) return;
-    const next = Array.from(files)
-      .filter(isSupportedImageFile)
-      .map((file) => ({
+    setMediaError("");
+    const next: ProductReference[] = [];
+    for (const file of Array.from(files)) {
+      const isVideo = localOnly && file.type.startsWith("video/");
+      if (!isVideo && !isSupportedImageFile(file)) continue;
+      const sizeError = isVideo
+        ? getEnquiryMediaSizeError(file, "video")
+        : localOnly && file.size > 10 * 1024 * 1024
+          ? "Choose images up to 10 MB each."
+          : null;
+      if (sizeError) {
+        setMediaError(sizeError);
+        continue;
+      }
+      next.push({
         id: generateRequirementId(),
-        type: "image" as const,
+        type: isVideo ? "video" : "image",
         url: URL.createObjectURL(file),
         name: file.name,
         mimeType: file.type,
         size: file.size,
         file,
-      }));
+      });
+    }
     if (next.length) onReferencesChange([...references, ...next]);
   }
 
@@ -86,17 +111,18 @@ export function RequirementReferencesSection({
   ) {
     const id = generateRequirementId();
     let mediaId: string | undefined;
-    try {
-      const stored = await saveEnquiryMedia({
-        enquiryId: "new-enquiry-v2-draft",
-        productId: productCode || "custom-requirement",
-        file,
-        type: kind,
-      });
-      mediaId = stored.id;
-    } catch {
-      // The recording remains available for this session if device storage fails.
-    }
+    if (!localOnly)
+      try {
+        const stored = await saveEnquiryMedia({
+          enquiryId: "new-enquiry-v2-draft",
+          productId: productCode || "custom-requirement",
+          file,
+          type: kind,
+        });
+        mediaId = stored.id;
+      } catch {
+        // The recording remains available for this session if device storage fails.
+      }
 
     onReferencesChange([
       ...references,
@@ -144,17 +170,26 @@ export function RequirementReferencesSection({
     >
       <div className="space-y-3">
         <div className="grid gap-3 md:grid-cols-[10rem_minmax(0,1fr)]">
-          <ImageUpload onAdd={addFiles} />
+          <ImageUpload onAdd={addFiles} acceptVideos={localOnly} />
           <div className="grid content-start gap-3">
-            <ProductSearch
-              selectedCode={productCode}
-              onSelect={(product) => onProductChange(product.productCode)}
-              onScan={() => setScannerOpen(true)}
-            />
+            {productField ?? (
+              <ProductSearch
+                selectedCode={productCode}
+                onSelect={(product) => onProductChange(product.productCode)}
+                onScan={() => setScannerOpen(true)}
+                searchProducts={searchProducts}
+                onInputChange={localOnly ? onProductChange : undefined}
+              />
+            )}
             <LinkInput onAdd={addLink} />
           </div>
         </div>
 
+        {mediaError && (
+          <p role="alert" className="text-xs text-destructive">
+            {mediaError}
+          </p>
+        )}
         <div className="grid gap-2 md:grid-cols-2">
           <RecordButton kind="video" onClick={() => setRecorderKind("video")} />
           <RecordButton kind="audio" onClick={() => setRecorderKind("audio")} />
@@ -162,13 +197,15 @@ export function RequirementReferencesSection({
 
         {recordedReferences.length ? (
           <p className="text-xs text-muted-foreground">
-            Recordings are uploaded when you create the enquiry.
+            {localOnly
+              ? "Media is saved locally when you create the repair."
+              : "Recordings are uploaded when you create the enquiry."}
           </p>
         ) : null}
 
-        {productCode || references.length ? (
+        {(!productField && productCode) || references.length ? (
           <div className="space-y-3 border-t border-border pt-3">
-            {productCode ? (
+            {!productField && productCode ? (
               <ReferenceGroup label="Product">
                 <ProductReferenceCard
                   product={productQuery.data}
@@ -201,6 +238,7 @@ export function RequirementReferencesSection({
                       key={reference.id}
                       reference={reference}
                       onRemove={() => removeReference(reference.id)}
+                      localOnly={localOnly}
                     />
                   ))}
                 </div>
@@ -224,27 +262,30 @@ export function RequirementReferencesSection({
         ) : null}
       </div>
 
-      <BarcodeScanDialog
-        open={scannerOpen}
-        onOpenChange={setScannerOpen}
-        onDecoded={async (rawCode) => {
-          setScannerOpen(false);
-          const code = normalizeDecodedId(rawCode);
-          if (!code) return;
+      {!productField && (
+        <BarcodeScanDialog
+          open={scannerOpen}
+          onOpenChange={setScannerOpen}
+          onDecoded={async (rawCode) => {
+            setScannerOpen(false);
+            const code = normalizeDecodedId(rawCode);
+            if (!code) return;
 
-          try {
-            const response = await fetchInventoryProducts({ code, limit: 5 });
-            const exactMatch = response.data.find(
-              (product) =>
-                product.productCode.toUpperCase() === code.toUpperCase(),
-            );
-            const product = exactMatch ?? response.data[0];
-            if (product) onProductChange(product.productCode);
-          } catch {
-            // The search field remains available if scanning cannot reach inventory.
-          }
-        }}
-      />
+            try {
+              const products = await searchProducts(code);
+              const exactMatch = products.find(
+                (product) =>
+                  product.productCode.toUpperCase() === code.toUpperCase(),
+              );
+              const product = exactMatch ?? products[0];
+              if (product) onProductChange(product.productCode);
+              else if (localOnly) onProductChange(code);
+            } catch {
+              // The search field remains available if scanning cannot reach inventory.
+            }
+          }}
+        />
+      )}
 
       {recorderKind ? (
         <RequirementMediaRecorder
@@ -294,14 +335,22 @@ function RecordButton({
   );
 }
 
-function ImageUpload({ onAdd }: { onAdd: (files: FileList | null) => void }) {
+function ImageUpload({
+  onAdd,
+  acceptVideos = false,
+}: {
+  onAdd: (files: FileList | null) => void;
+  acceptVideos?: boolean;
+}) {
   return (
     <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/15 px-2 text-center transition-colors hover:border-primary/40 hover:bg-muted/30 focus-within:ring-2 focus-within:ring-ring/30">
       <Upload className="size-4 text-muted-foreground" />
-      <span className="text-sm font-medium">Upload images</span>
+      <span className="text-sm font-medium">
+        {acceptVideos ? "Upload media" : "Upload images"}
+      </span>
       <input
         type="file"
-        accept="image/*"
+        accept={acceptVideos ? "image/*,video/*" : "image/*"}
         multiple
         className="sr-only"
         onChange={(event) => {
@@ -310,126 +359,6 @@ function ImageUpload({ onAdd }: { onAdd: (files: FileList | null) => void }) {
         }}
       />
     </label>
-  );
-}
-
-function ProductSearch({
-  selectedCode,
-  onSelect,
-  onScan,
-}: {
-  selectedCode: string;
-  onSelect: (product: InventoryProduct) => void;
-  onScan: () => void;
-}) {
-  const [value, setValue] = useState(selectedCode);
-  const [results, setResults] = useState<InventoryProduct[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-  const requestRef = useRef(0);
-
-  useEffect(() => setValue(selectedCode), [selectedCode]);
-
-  useEffect(() => {
-    const code = value.trim();
-    if (!code || code === selectedCode) {
-      requestRef.current += 1;
-      setResults([]);
-      setLoading(false);
-      setError(false);
-      return;
-    }
-
-    const requestId = ++requestRef.current;
-    const timeout = window.setTimeout(async () => {
-      setLoading(true);
-      setError(false);
-      try {
-        const response = await fetchInventoryProducts({ code, limit: 5 });
-        if (requestId === requestRef.current) setResults(response.data);
-      } catch {
-        if (requestId === requestRef.current) setError(true);
-      } finally {
-        if (requestId === requestRef.current) setLoading(false);
-      }
-    }, 400);
-
-    return () => window.clearTimeout(timeout);
-  }, [selectedCode, value]);
-
-  return (
-    <div className="relative">
-      <div className="flex gap-2">
-        <div className="relative min-w-0 flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={value}
-            aria-label="Search existing product"
-            placeholder="Search existing product"
-            autoComplete="off"
-            onChange={(event) => setValue(event.target.value.toUpperCase())}
-            className="h-10 pl-9"
-          />
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onScan}
-          className="h-10 shrink-0"
-        >
-          <ScanLine className="size-4" />
-          <span className="hidden sm:inline">Scan</span>
-        </Button>
-      </div>
-
-      {loading || error || results.length ? (
-        <div className="absolute z-20 mt-1.5 max-h-64 w-full overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg">
-          {loading ? (
-            <div className="flex h-11 items-center gap-2 px-3 text-sm text-muted-foreground">
-              <LoaderCircle className="size-4 animate-spin" /> Searching...
-            </div>
-          ) : null}
-          {error ? (
-            <p className="px-3 py-2 text-sm text-destructive">
-              Search unavailable.
-            </p>
-          ) : null}
-          {!loading && !error && results.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-muted-foreground">
-              No products found.
-            </p>
-          ) : null}
-          {results.map((product) => {
-            const image = getInventoryPrimaryImage(product);
-            return (
-              <button
-                key={product.id}
-                type="button"
-                onClick={() => {
-                  onSelect(product);
-                  setValue(product.productCode);
-                  setResults([]);
-                }}
-                className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
-              >
-                <ProductThumb
-                  src={image?.storageKey}
-                  alt={image?.altText || product.name}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">
-                    {product.name || product.productCode}
-                  </span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {product.productCode} · {product.color} {product.purity}K
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
   );
 }
 
@@ -507,27 +436,12 @@ function ProductReferenceCard({
   );
 }
 
-function ProductThumb({ src, alt }: { src?: string; alt: string }) {
-  return src ? (
-    // biome-ignore lint/performance/noImgElement: inventory URLs may be remote or temporary.
-    <img
-      src={src}
-      alt={alt}
-      className="size-10 shrink-0 rounded-md border border-border object-cover"
-    />
-  ) : (
-    <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-muted">
-      <ImageIcon className="size-4 text-muted-foreground" />
-    </div>
-  );
-}
-
-function ImageReferenceCard({
+export function ImageReferenceCard({
   reference,
   onRemove,
 }: {
   reference: ProductReference;
-  onRemove: () => void;
+  onRemove?: () => void;
 }) {
   return (
     <div className="group relative size-14 overflow-hidden rounded-md border border-border bg-muted">
@@ -544,21 +458,25 @@ function ImageReferenceCard({
           </span>
         </button>
       </ImagePreviewDialog>
-      <RemoveButton
-        label="Remove image"
-        onClick={onRemove}
-        className="absolute top-0.5 right-0.5 size-6 bg-background/85 opacity-90"
-      />
+      {onRemove && (
+        <RemoveButton
+          label="Remove image"
+          onClick={onRemove}
+          className="absolute top-0.5 right-0.5 size-6 bg-background/85 opacity-90"
+        />
+      )}
     </div>
   );
 }
 
-function RecordedMediaCard({
+export function RecordedMediaCard({
   reference,
   onRemove,
+  localOnly = false,
 }: {
   reference: ProductReference;
-  onRemove: () => void;
+  onRemove?: () => void;
+  localOnly?: boolean;
 }) {
   const isVideo = reference.type === "video";
   return (
@@ -598,14 +516,17 @@ function RecordedMediaCard({
             {reference.durationSeconds
               ? `${formatRecordingDuration(reference.durationSeconds)} · `
               : ""}
-            {formatFileSize(reference.size)} · Ready to upload
+            {formatFileSize(reference.size)} ·{" "}
+            {localOnly ? "Local media" : "Ready to upload"}
           </span>
         </span>
-        <RemoveButton
-          label={`Remove ${reference.type} recording`}
-          onClick={onRemove}
-          className="size-10 shrink-0"
-        />
+        {onRemove && (
+          <RemoveButton
+            label={`Remove ${reference.type} recording`}
+            onClick={onRemove}
+            className="size-10 shrink-0"
+          />
+        )}
       </div>
     </div>
   );
@@ -617,12 +538,12 @@ function formatRecordingDuration(value: number) {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-function LinkReferenceCard({
+export function LinkReferenceCard({
   reference,
   onRemove,
 }: {
   reference: ProductReference;
-  onRemove: () => void;
+  onRemove?: () => void;
 }) {
   return (
     <div className="flex h-11 min-w-0 items-center gap-1.5 rounded-md border border-border bg-muted/15 px-1.5">
@@ -641,7 +562,7 @@ function LinkReferenceCard({
           <ExternalLink className="size-3.5" />
         </a>
       </Button>
-      <RemoveButton label="Remove link" onClick={onRemove} />
+      {onRemove && <RemoveButton label="Remove link" onClick={onRemove} />}
     </div>
   );
 }

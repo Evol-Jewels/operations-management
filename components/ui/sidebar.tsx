@@ -176,7 +176,7 @@ const Sidebar = React.forwardRef<
       return (
         <div
           className={cn(
-            "flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground",
+            "flex h-full w-[var(--sidebar-width)] shrink-0 flex-col bg-sidebar text-sidebar-foreground",
             className,
           )}
           ref={ref}
@@ -193,7 +193,7 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className="w-[var(--sidebar-width)] max-w-[calc(100vw-2rem)] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -216,10 +216,10 @@ const Sidebar = React.forwardRef<
         ref={ref}
         className={cn(
           "group peer hidden h-svh shrink-0 text-sidebar-foreground transition-[width] duration-200 ease-linear md:block",
-          "w-[--sidebar-width] group-data-[collapsible=offcanvas]:w-0",
+          "w-[var(--sidebar-width)] data-[collapsible=offcanvas]:w-0",
           variant === "floating" || variant === "inset"
-            ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
-            : "group-data-[collapsible=icon]:w-[--sidebar-width-icon]",
+            ? "data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
+            : "data-[collapsible=icon]:w-[var(--sidebar-width-icon)]",
         )}
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
@@ -232,7 +232,7 @@ const Sidebar = React.forwardRef<
             side === "left" ? "left-0" : "right-0",
             variant === "floating" || variant === "inset"
               ? "p-2"
-              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
+              : "group-data-[collapsible=icon]:w-[var(--sidebar-width-icon)] group-data-[side=left]:border-r group-data-[side=right]:border-l",
             className,
           )}
           {...props}

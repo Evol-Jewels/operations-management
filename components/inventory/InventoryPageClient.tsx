@@ -357,10 +357,7 @@ function InventoryProductImage({
 }
 
 function ProductMediaCarousel({ product }: { product: InventoryProduct }) {
-  const images = useMemo(
-    () => getInventoryImages(product),
-    [product],
-  );
+  const images = useMemo(() => getInventoryImages(product), [product]);
   const [api, setApi] = useState<CarouselApi>();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -661,9 +658,12 @@ function ProductListItem({
                 {colorLabel}
               </Badge>
             </div>
-            <Badge variant="outline" className="col-start-2 row-start-3 justify-self-end gap-1 font-normal max-[420px]:order-5">
-                <MapPin className="size-3" aria-hidden="true" />
-                {city}
+            <Badge
+              variant="outline"
+              className="col-start-2 row-start-3 justify-self-end gap-1 font-normal max-[420px]:order-5"
+            >
+              <MapPin className="size-3" aria-hidden="true" />
+              {city}
             </Badge>
           </div>
         )}

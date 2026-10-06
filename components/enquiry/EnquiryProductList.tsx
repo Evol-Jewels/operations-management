@@ -12,7 +12,10 @@ import {
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { EnquiryEstimationPrintView } from "@/components/enquiry/EnquiryEstimationPrintView";
-import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
+import {
+  RequirementCard,
+  RequirementCardBody,
+} from "@/components/enquiry/requirements/RequirementCard";
 import {
   type OrderVendorDetailsDisplay,
   RequirementDetailsPanel,
@@ -22,6 +25,7 @@ import {
   normalizeRequirementItems,
   type RequirementDisplayItem,
 } from "@/components/enquiry/requirements/requirement-display-utils";
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -372,7 +376,7 @@ function RequirementCarouselCard({
   }
 
   return (
-    <article className="overflow-hidden rounded-lg border border-border">
+    <RequirementCard>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-3 py-2.5">
         <p className="text-sm font-medium uppercase tracking-wide text-foreground">
           Item {activeIndex + 1}{" "}
@@ -488,7 +492,7 @@ function RequirementCarouselCard({
         </div>
       </div>
 
-      <div className="grid gap-4 p-3 xl:grid-cols-[minmax(15rem,1fr)_minmax(0,2fr)] xl:p-4">
+      <RequirementCardBody>
         <RequirementMediaPanel
           item={item}
           settings={settings}
@@ -500,7 +504,7 @@ function RequirementCarouselCard({
           item={item}
           vendorDetails={hideVendorDetails ? undefined : vendorDetails}
         />
-      </div>
+      </RequirementCardBody>
       <EnquiryEstimationPrintView
         ref={printViewRef}
         item={item}
@@ -508,7 +512,7 @@ function RequirementCarouselCard({
         recordType={recordType}
         vendorDetails={hideVendorDetails ? undefined : vendorDetails}
       />
-    </article>
+    </RequirementCard>
   );
 }
 

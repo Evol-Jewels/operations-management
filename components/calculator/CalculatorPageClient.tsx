@@ -1250,9 +1250,7 @@ function RecentEstimateSummaryDialog({
           return;
         }
 
-        setResult(
-          normalizeInventoryProductEstimate(product, settings),
-        );
+        setResult(normalizeInventoryProductEstimate(product, settings));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load summary");
       } finally {
@@ -2068,7 +2066,8 @@ export function CalculatorPageClient({
         current.stones.some(
           (stone) => stone.stoneTypeId || stone.sourceStoneName?.trim(),
         )
-      ) return current;
+      )
+        return current;
       return {
         ...current,
         stones: current.stones.map((stone) => ({
@@ -2348,7 +2347,9 @@ export function CalculatorPageClient({
         const product = await fetchInventoryProductWithAllMedia(codeToLoad);
         if (!product) return;
 
-        loadInventoryProduct(normalizeInventoryProductEstimate(product, settings));
+        loadInventoryProduct(
+          normalizeInventoryProductEstimate(product, settings),
+        );
       } catch {
         loadedProductCodeRef.current = null;
       }

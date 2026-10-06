@@ -168,7 +168,7 @@ export function WorkspaceRecordFilters({
         >
           <SelectTrigger
             aria-label="Sort records"
-            className="h-9 w-[10rem] sm:w-[11rem]"
+            className="h-9 w-[12rem] sm:w-[13rem]"
           >
             <SelectValue />
           </SelectTrigger>
@@ -179,8 +179,8 @@ export function WorkspaceRecordFilters({
             </SelectItem>
             <SelectItem value="createdAt:desc">Newest created</SelectItem>
             <SelectItem value="createdAt:asc">Oldest created</SelectItem>
-            <SelectItem value="name:asc">Customer Aâ€“Z</SelectItem>
-            <SelectItem value="name:desc">Customer Zâ€“A</SelectItem>
+            <SelectItem value="name:asc">Customer Name A-Z</SelectItem>
+            <SelectItem value="name:desc">Customer Name Z-A</SelectItem>
             {isOrder && (
               <>
                 <SelectItem value="deliveryDate:asc">
