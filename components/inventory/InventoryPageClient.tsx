@@ -1147,7 +1147,7 @@ export function InventoryPageClient() {
   const internalRole = profileQuery.data?.profile?.role;
   const canSyncProducts =
     internalRole === "ADMIN" || internalRole === "OPERATIONS";
-  const canScanInventory = Boolean(internalRole) && internalRole !== "SALES";
+  const canScanInventory = canSyncProducts;
 
   const updateSearchParams = useCallback(
     (

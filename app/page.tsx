@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import {
   AdminDashboard,
@@ -18,6 +19,20 @@ import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
 import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 
 function RoleDashboardPage() {
+  const { data: session } = authClient.useSession();
+  const router = useRouter();
+  const isPhotography = getSessionRole(session) === "PHOTOGRAPHY";
+
+  useEffect(() => {
+    if (isPhotography) router.replace("/orders-workspace");
+  }, [isPhotography, router]);
+
+  if (isPhotography) return null;
+
+  return <AnalyticsDashboardPage />;
+}
+
+function AnalyticsDashboardPage() {
   const { data: session } = authClient.useSession();
   const role = getSessionRole(session).toUpperCase();
   const isSales = role === "SALES";

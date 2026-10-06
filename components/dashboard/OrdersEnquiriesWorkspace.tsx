@@ -20,6 +20,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { OrderStatusDialog } from "@/components/order/OrderStatusDialog";
 import {
   VendorDetailsDialog,
   type VendorDetailsValues,
@@ -313,10 +314,12 @@ function RecordsTable({
   records,
   onRowClick,
   showOrderType,
+  canOpenDetails = true,
 }: {
   records: Order[];
   onRowClick: (record: Order) => void;
   showOrderType: boolean;
+  canOpenDetails?: boolean;
 }) {
   if (records.length === 0) {
     return (
@@ -355,14 +358,27 @@ function RecordsTable({
               return (
                 <TableRow
                   key={record.id}
-                  className="cursor-pointer"
+                  className={
+                    canOpenDetails || record.type === "order"
+                      ? "cursor-pointer"
+                      : undefined
+                  }
                   onClick={() => onRowClick(record)}
                 >
                   <TableCell>
                     <div className="min-w-0">
-                      <Link href={href} className="font-medium text-foreground">
-                        {record.customerName}
-                      </Link>
+                      {canOpenDetails ? (
+                        <Link
+                          href={href}
+                          className="font-medium text-foreground"
+                        >
+                          {record.customerName}
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-foreground">
+                          {record.customerName}
+                        </span>
+                      )}
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {record.type === "enquiry"
                           ? `#${record.refCode}`
@@ -418,10 +434,12 @@ function RecordsMobileList({
   records,
   onRowClick,
   showOrderType,
+  canOpenDetails = true,
 }: {
   records: Order[];
   onRowClick: (record: Order) => void;
   showOrderType: boolean;
+  canOpenDetails?: boolean;
 }) {
   if (records.length === 0) {
     return (
@@ -446,6 +464,7 @@ function RecordsMobileList({
             key={record.id}
             type="button"
             onClick={() => onRowClick(record)}
+            disabled={!canOpenDetails && record.type === "enquiry"}
             className="w-full rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             <div className="flex min-w-0 items-start justify-between gap-3">
@@ -689,9 +708,14 @@ export function OrdersEnquiriesWorkspace() {
     [searchParams],
   );
   const { data: session } = authClient.useSession();
-  const [typeTab, setTypeTab] = useState<TypeTab>(() =>
-    getInitialTypeTab(searchParams),
-  );
+  const isPhotography = getSessionRole(session) === "PHOTOGRAPHY";
+  const [typeTab, setTypeTab] = useState<TypeTab>(() => {
+    const initialTab = getInitialTypeTab(searchParams);
+    return isPhotography && initialTab !== "order" && initialTab !== "enquiry"
+      ? "order"
+      : initialTab;
+  });
+  const [statusOrder, setStatusOrder] = useState<Order | null>(null);
   const updateOrderStatusMutation = useUpdateAnyOrderStatus();
   const [search, setSearch] = useState(urlFilters.search);
   const [debouncedSearch, setDebouncedSearch] = useState(
@@ -827,24 +851,26 @@ export function OrdersEnquiriesWorkspace() {
     const queryTab = getTypeTabFromSearchParams(searchParams);
     if (
       queryTab &&
+      (!isPhotography || queryTab === "order" || queryTab === "enquiry") &&
       ((queryTab !== "purchase" && queryTab !== "recent-sale") ||
         canViewPurchases)
     ) {
       setTypeTab(queryTab);
       setViewMode(getInitialViewMode(searchParams));
     }
-  }, [canViewPurchases, searchParams]);
+  }, [canViewPurchases, isPhotography, searchParams]);
 
   useEffect(() => {
     if (
       session &&
-      !canViewPurchases &&
-      (typeTab === "purchase" || typeTab === "recent-sale")
+      ((!canViewPurchases &&
+        (typeTab === "purchase" || typeTab === "recent-sale")) ||
+        (isPhotography && typeTab !== "order" && typeTab !== "enquiry"))
     ) {
       setTypeTab("order");
       setViewMode("kanban");
     }
-  }, [canViewPurchases, session, typeTab]);
+  }, [canViewPurchases, isPhotography, session, typeTab]);
 
   useEffect(() => {
     writeStoredTypeTab(typeTab);
@@ -1158,7 +1184,9 @@ export function OrdersEnquiriesWorkspace() {
   const handleKanbanOrderMove = async (record: Order, newColumnId: string) => {
     if (record.type === "enquiry") {
       toast.error(
-        "Enquiry status can't be changed in kanban mode, please open enquiry detail",
+        isPhotography
+          ? "Enquiries are view-only."
+          : "Enquiry status can't be changed in kanban mode, please open enquiry detail",
       );
       return;
     }
@@ -1168,7 +1196,11 @@ export function OrdersEnquiriesWorkspace() {
       KANBAN_BLOCKED_ORDER_STAGES.has(newColumnId)
     ) {
       toast.error(
-        "Closed or cancelled orders can't be changed in kanban mode, please open order detail",
+        isPhotography
+          ? KANBAN_BLOCKED_ORDER_STAGES.has(record.currentStage)
+            ? "Closed or cancelled orders cannot be changed."
+            : "Select this order to update its status."
+          : "Closed or cancelled orders can't be changed in kanban mode, please open order detail",
       );
       return;
     }
@@ -1176,6 +1208,7 @@ export function OrdersEnquiriesWorkspace() {
     if (!record.refCode || !isOrderStage(newColumnId)) return;
 
     if (
+      !isPhotography &&
       shouldPromptForVendorDetails(
         record.orderStatus,
         ORDER_STAGE_TO_STATUS[newColumnId],
@@ -1198,6 +1231,17 @@ export function OrdersEnquiriesWorkspace() {
     );
     if (didMove) setPendingKanbanMove(null);
   };
+  const handleRecordClick = (record: Order) => {
+    if (isPhotography) {
+      if (record.type === "order") setStatusOrder(record);
+      return;
+    }
+    router.push(
+      record.type === "enquiry"
+        ? `/enquiries/${record.refCode}`
+        : `/orders/${record.refCode}`,
+    );
+  };
   const sectionCount =
     typeTab === "purchase"
       ? stockSalesTotal
@@ -1213,40 +1257,45 @@ export function OrdersEnquiriesWorkspace() {
             <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
               Orders and enquiries
             </h1>
-            <div className="flex shrink-0 items-center gap-2 sm:hidden">
-              <Button asChild size="sm">
-                <Link href="/enquiries/new">
-                  <Plus className="h-4 w-4" />
-                  New enquiry
-                </Link>
-              </Button>
-              <Button asChild size="sm" variant="secondary">
-                <Link href="/orders/new">
-                  <PackagePlus className="h-4 w-4" />
-                  New order
-                </Link>
-              </Button>
-            </div>
+            {!isPhotography && (
+              <div className="flex shrink-0 items-center gap-2 sm:hidden">
+                <Button asChild size="sm">
+                  <Link href="/enquiries/new">
+                    <Plus className="h-4 w-4" />
+                    New enquiry
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="secondary">
+                  <Link href="/orders/new">
+                    <PackagePlus className="h-4 w-4" />
+                    New order
+                  </Link>
+                </Button>
+              </div>
+            )}
           </div>
           <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
-            Filter, review, and move production records without crowding the
-            dashboard.
+            {isPhotography
+              ? "View orders and enquiries. Select an order to update its status."
+              : "Filter, review, and move production records without crowding the dashboard."}
           </p>
         </div>
-        <div className="hidden items-center gap-2 sm:flex">
-          <Button asChild>
-            <Link href="/enquiries/new">
-              <Plus className="h-4 w-4" />
-              New enquiry
-            </Link>
-          </Button>
-          <Button asChild variant="secondary">
-            <Link href="/orders/new">
-              <PackagePlus className="h-4 w-4" />
-              New order
-            </Link>
-          </Button>
-        </div>
+        {!isPhotography && (
+          <div className="hidden items-center gap-2 sm:flex">
+            <Button asChild>
+              <Link href="/enquiries/new">
+                <Plus className="h-4 w-4" />
+                New enquiry
+              </Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/orders/new">
+                <PackagePlus className="h-4 w-4" />
+                New order
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1438,6 +1487,16 @@ export function OrdersEnquiriesWorkspace() {
         ) : null}
       </div>
 
+      {statusOrder && (
+        <OrderStatusDialog
+          key={statusOrder.id}
+          order={statusOrder}
+          stages={ORDER_STAGES}
+          isPending={updateOrderStatusMutation.isPending}
+          onClose={() => setStatusOrder(null)}
+          onSubmit={(stage) => commitKanbanOrderMove(statusOrder, stage)}
+        />
+      )}
       <VendorDetailsDialog
         open={Boolean(pendingKanbanMove)}
         onOpenChange={(open) => {
@@ -1501,26 +1560,16 @@ export function OrdersEnquiriesWorkspace() {
             <RecordsMobileList
               records={filteredRecords}
               showOrderType={typeTab === "order"}
-              onRowClick={(record) =>
-                router.push(
-                  record.type === "enquiry"
-                    ? `/enquiries/${record.refCode}`
-                    : `/orders/${record.refCode}`,
-                )
-              }
+              canOpenDetails={!isPhotography}
+              onRowClick={handleRecordClick}
             />
           </div>
           <div className="hidden sm:block">
             <RecordsTable
               records={filteredRecords}
               showOrderType={typeTab === "order"}
-              onRowClick={(record) =>
-                router.push(
-                  record.type === "enquiry"
-                    ? `/enquiries/${record.refCode}`
-                    : `/orders/${record.refCode}`,
-                )
-              }
+              canOpenDetails={!isPhotography}
+              onRowClick={handleRecordClick}
             />
           </div>
         </>
@@ -1534,12 +1583,13 @@ export function OrdersEnquiriesWorkspace() {
             onOrderMove={(order, newColumnId) => {
               void handleKanbanOrderMove(order, newColumnId);
             }}
-            onCardClick={(order) =>
-              router.push(
-                order.type === "enquiry"
-                  ? `/enquiries/${order.refCode}`
-                  : `/orders/${order.refCode}`,
-              )
+            onCardClick={handleRecordClick}
+            cardActionLabel={
+              isPhotography
+                ? typeTab === "order"
+                  ? "Click to update order status"
+                  : "Enquiries are view-only"
+                : undefined
             }
           />
         </section>

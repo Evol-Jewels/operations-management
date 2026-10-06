@@ -26,6 +26,7 @@ import { UrgencyDot } from "./UrgencyDot";
 interface KanbanCardProps {
   order: Order;
   onClick: () => void;
+  actionLabel?: string;
 }
 
 function initials(name: string): string {
@@ -47,9 +48,7 @@ function getDaysSinceCreated(createdAt: string): number | null {
   created.setHours(0, 0, 0, 0);
   return Math.max(
     0,
-    Math.floor(
-      (today.getTime() - created.getTime()) / (1000 * 60 * 60 * 24),
-    ),
+    Math.floor((today.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)),
   );
 }
 
@@ -62,7 +61,7 @@ function formatDueTooltip(deliveryDate: string | undefined): string | null {
   return `Due in ${days} days`;
 }
 
-export function KanbanCard({ order, onClick }: KanbanCardProps) {
+export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
   const { active } = useDndContext();
   const {
     attributes,
@@ -227,7 +226,7 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
                         "bg-amber-500/10 text-amber-700 dark:text-amber-300",
                       urgency === "on-track" && "bg-emerald-500/8",
                     )}
-                    aria-label={`Delivery: ${daysLabel}`}
+                    title={`Delivery: ${daysLabel}`}
                   >
                     <UrgencyDot level={urgency} />
                     <span
@@ -257,7 +256,7 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
               {/* Creation date is the final card metadata line. */}
               <div
                 className="mt-2 flex items-center gap-1 border-t border-border/60 pt-2 text-[10px] text-muted-foreground/70"
-                aria-label={`Created on ${createdDate}`}
+                title={`Created on ${createdDate}`}
               >
                 <CalendarDays className="size-3 shrink-0" aria-hidden="true" />
                 <span>Created on {createdDate}</span>
@@ -265,12 +264,15 @@ export function KanbanCard({ order, onClick }: KanbanCardProps) {
             </div>
           </button>
         </TooltipTrigger>
-        <TooltipContent side="right">
+        <TooltipContent
+          side="right"
+          className="border border-border bg-popover text-popover-foreground shadow-md [&_svg]:bg-popover [&_svg]:fill-popover"
+        >
           <div className="space-y-1">
             <p className="font-medium">{order.customerName}</p>
             <p className="text-xs text-muted-foreground">
-              Click to open {order.type === "enquiry" ? "enquiry" : "order"}{" "}
-              details
+              {actionLabel ??
+                `Click to open ${order.type === "enquiry" ? "enquiry" : "order"} details`}
             </p>
             {order.vendorName && (
               <p className="text-[11px] text-muted-foreground">

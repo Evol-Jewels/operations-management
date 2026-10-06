@@ -4,7 +4,12 @@ export const INTERNAL_USER_STATUSES = [
   "BLOCKED",
 ] as const;
 
-export const INTERNAL_PROFILE_ROLES = ["SALES", "OPERATIONS", "ADMIN"] as const;
+export const INTERNAL_PROFILE_ROLES = [
+  "SALES",
+  "OPERATIONS",
+  "ADMIN",
+  "PHOTOGRAPHY",
+] as const;
 
 export const INTERNAL_INVITE_STATUSES = [
   "PENDING",
