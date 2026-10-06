@@ -57,6 +57,7 @@ const navItems = [
     icon: House,
     label: "Home",
     href: "/",
+    roles: ["ADMIN", "OPERATIONS", "SALES"],
   },
   {
     icon: BookA,
@@ -176,12 +177,15 @@ export function AppSidebar() {
   const { theme, setTheme } = useTheme();
 
   const sessionRole = session ? getSessionRole(session) : "";
+  const isPhotography = sessionRole === "PHOTOGRAPHY";
   const isActive = (href: string) => {
     if (href === "/inventory") return pathname === href;
     return pathname === href || pathname.startsWith(`${href}/`);
   };
-  const visibleNavItems = navItems.filter(
-    (item) => !item.roles || item.roles.includes(sessionRole),
+  const visibleNavItems = navItems.filter((item) =>
+    isPhotography
+      ? item.href === "/orders-workspace"
+      : !item.roles || item.roles.includes(sessionRole),
   );
 
   return (
@@ -277,42 +281,46 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === "/enquiries/new"}
-                  tooltip="Create New Enquiry"
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground data-[active=true]:bg-primary/90 data-[active=true]:text-primary-foreground data-[active=true]:shadow-none mt-3"
-                >
-                  <Link
-                    href="/enquiries/new"
-                    className="flex w-full min-w-0 items-center gap-2 overflow-hidden"
-                  >
-                    <Plus className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">
-                      Create New Enquiry
-                    </span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === "/orders/new"}
-                  tooltip="Create New Order"
-                  className="my-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-secondary-foreground data-[active=true]:bg-secondary data-[active=true]:text-secondary-foreground data-[active=true]:shadow-none"
-                >
-                  <Link
-                    href="/orders/new"
-                    className="flex w-full min-w-0 items-center gap-2 overflow-hidden"
-                  >
-                    <PackagePlus className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">
-                      Create New Order
-                    </span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {!isPhotography && (
+                <>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === "/enquiries/new"}
+                      tooltip="Create New Enquiry"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground data-[active=true]:bg-primary/90 data-[active=true]:text-primary-foreground data-[active=true]:shadow-none mt-3"
+                    >
+                      <Link
+                        href="/enquiries/new"
+                        className="flex w-full min-w-0 items-center gap-2 overflow-hidden"
+                      >
+                        <Plus className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate group-data-[collapsible=icon]:hidden">
+                          Create New Enquiry
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === "/orders/new"}
+                      tooltip="Create New Order"
+                      className="my-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:text-secondary-foreground data-[active=true]:bg-secondary data-[active=true]:text-secondary-foreground data-[active=true]:shadow-none"
+                    >
+                      <Link
+                        href="/orders/new"
+                        className="flex w-full min-w-0 items-center gap-2 overflow-hidden"
+                      >
+                        <PackagePlus className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate group-data-[collapsible=icon]:hidden">
+                          Create New Order
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -341,7 +349,7 @@ export function AppSidebar() {
 
         <SidebarSeparator className="mx-3" />
 
-        <GoldRateSidebarItem role={sessionRole} />
+        {!isPhotography && <GoldRateSidebarItem role={sessionRole} />}
 
         <div className="group-data-[collapsible=icon]:px-0">
           <div className="rounded-xl border border-sidebar-border bg-sidebar-accent/40 p-1 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:w-fit">
@@ -424,12 +432,14 @@ export function AppSidebar() {
                   </span>
                 </div>
                 <Separator />
-                <Link
-                  href="/profile"
-                  className="block w-full px-3 py-2 text-sm font-normal text-left hover:bg-sidebar-accent/50"
-                >
-                  Edit Profile
-                </Link>
+                {!isPhotography && (
+                  <Link
+                    href="/profile"
+                    className="block w-full px-3 py-2 text-sm font-normal text-left hover:bg-sidebar-accent/50"
+                  >
+                    Edit Profile
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={async () => {

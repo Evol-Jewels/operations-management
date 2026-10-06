@@ -15,8 +15,8 @@ export function MobileGoldRateAction() {
   const { data: session } = authClient.useSession();
   const role = session ? getSessionRole(session) : "";
   const canOpenSystemConfig = ["ADMIN", "OPERATIONS"].includes(role);
-  const isSales = role === "SALES";
-  const goldRateQuery = useGoldRate(Boolean(session));
+  const canOpenRates = role === "SALES";
+  const goldRateQuery = useGoldRate(Boolean(session) && role !== "PHOTOGRAPHY");
   const goldRate = goldRateQuery.data?.goldRate24k;
   const value =
     typeof goldRate === "number" && Number.isFinite(goldRate)
@@ -25,7 +25,7 @@ export function MobileGoldRateAction() {
         ? "Loading"
         : "Unavailable";
 
-  if (!isSales && !canOpenSystemConfig) return null;
+  if (!canOpenRates && !canOpenSystemConfig) return null;
 
   const content = (
     <>
@@ -34,7 +34,7 @@ export function MobileGoldRateAction() {
     </>
   );
 
-  if (isSales) {
+  if (canOpenRates) {
     return (
       <GoldRatesDialog
         trigger={
