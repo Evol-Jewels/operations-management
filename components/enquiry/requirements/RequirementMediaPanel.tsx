@@ -53,7 +53,14 @@ export function RequirementMediaPanel({
   );
 }
 
-function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
+export function RequirementImageCarousel({
+  item,
+}: {
+  item: Pick<
+    RequirementDisplayItem,
+    "id" | "title" | "images" | "videos" | "audios"
+  >;
+}) {
   const [index, setIndex] = useState(0);
   const images = item.images.filter(
     (image): image is typeof image & { url: string } => Boolean(image.url),
@@ -139,7 +146,11 @@ function RequirementImageCarousel({ item }: { item: RequirementDisplayItem }) {
   );
 }
 
-function RequirementRecordedMedia({ item }: { item: RequirementDisplayItem }) {
+export function RequirementRecordedMedia({
+  item,
+}: {
+  item: Pick<RequirementDisplayItem, "videos" | "audios">;
+}) {
   const videos = item.videos.filter(
     (reference): reference is typeof reference & { url: string } =>
       Boolean(reference.url),

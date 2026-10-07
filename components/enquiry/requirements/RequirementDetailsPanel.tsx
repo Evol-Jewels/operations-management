@@ -248,7 +248,7 @@ function ColorStoneCard({ stone }: { stone: EnquiryColorStone }) {
   );
 }
 
-function DetailSection({
+export function DetailSection({
   title,
   children,
 }: {
@@ -263,7 +263,7 @@ function DetailSection({
   );
 }
 
-function DetailRow({
+export function DetailRow({
   label,
   value,
 }: {
@@ -282,7 +282,7 @@ function DetailRow({
   );
 }
 
-function DetailNoteRow({
+export function DetailNoteRow({
   label,
   value,
 }: {

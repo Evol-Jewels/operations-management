@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  type CollisionDetection,
   closestCorners,
+  type CollisionDetection,
   DndContext,
   type DragEndEvent,
   DragOverlay,
@@ -47,9 +47,7 @@ const stageCollisionDetection: CollisionDetection = (args) => {
       (container) => container.data.current?.type === "Column",
     ),
   };
-  return args.pointerCoordinates
-    ? pointerWithin(columns)
-    : closestCorners(columns);
+  return args.pointerCoordinates ? pointerWithin(columns) : closestCorners(columns);
 };
 
 function groupOrdersByColumn(
@@ -189,11 +187,7 @@ export function KanbanBoard({
         <DragOverlay dropAnimation={null}>
           {activeOrder ? (
             <div className="pointer-events-none rotate-2 scale-105 cursor-grabbing">
-              <KanbanCard
-                order={activeOrder}
-                onClick={() => {}}
-                actionLabel={cardActionLabel}
-              />
+              <KanbanCard order={activeOrder} onClick={() => {}} actionLabel={cardActionLabel} />
             </div>
           ) : null}
         </DragOverlay>

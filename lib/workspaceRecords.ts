@@ -1,13 +1,14 @@
 import type { Order } from "@/types";
 
-export function isOlderClosedRecord(
+export function isOlderTerminalRecord(
   record: Pick<Order, "type" | "currentStage" | "enquiryStatus" | "createdAt">,
   cutoff: number,
 ) {
-  const isClosed =
+  const isTerminal =
     record.type === "enquiry"
-      ? record.enquiryStatus === "CLOSED"
+      ? record.enquiryStatus === "CLOSED" ||
+        record.enquiryStatus === "CONVERTED"
       : record.currentStage === "Closed" || record.currentStage === "Cancelled";
 
-  return isClosed && Date.parse(record.createdAt) < cutoff;
+  return isTerminal && Date.parse(record.createdAt) < cutoff;
 }

@@ -22,6 +22,7 @@ import {
 } from "@/lib/utils";
 import type { Order } from "@/types";
 import { UrgencyDot } from "./UrgencyDot";
+import { WorkspaceCard } from "./WorkspaceCard";
 
 interface KanbanCardProps {
   order: Order;
@@ -116,7 +117,9 @@ export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
     <TooltipProvider>
       <Tooltip open={active ? false : undefined}>
         <TooltipTrigger asChild>
-          <button
+          <WorkspaceCard
+            urgency={urgency}
+            draggableCard
             type="button"
             ref={setNodeRef}
             style={style}
@@ -130,28 +133,11 @@ export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
               }
             }}
             className={cn(
-              "group relative w-full cursor-grab rounded-xl border bg-card p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing",
-              "border-l-[3px]",
-              urgency === "overdue" && "border-l-red-500",
-              urgency === "due-soon" && "border-l-amber-400",
-              urgency === "on-track" && "border-l-emerald-500",
-              urgency === "none" && "border-l-muted-foreground/30",
               // Risk overlay — subtle top border on at-risk cards
               (isStale || isStuck) &&
                 "border-t-orange-300 dark:border-t-orange-700/60",
             )}
           >
-            {/* Urgency indicator bar */}
-            <div
-              className={cn(
-                "absolute left-0 top-3 bottom-3 w-[3px] rounded-full",
-                urgency === "overdue" && "bg-red-500",
-                urgency === "due-soon" && "bg-amber-400",
-                urgency === "on-track" && "bg-emerald-500",
-                urgency === "none" && "bg-muted-foreground/30",
-              )}
-            />
-
             {/* Risk signal badge — top right corner */}
             {(isStale || isStuck) && (
               <div
@@ -262,7 +248,7 @@ export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
                 <span>Created on {createdDate}</span>
               </div>
             </div>
-          </button>
+          </WorkspaceCard>
         </TooltipTrigger>
         <TooltipContent
           side="right"
@@ -271,8 +257,7 @@ export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
           <div className="space-y-1">
             <p className="font-medium">{order.customerName}</p>
             <p className="text-xs text-muted-foreground">
-              {actionLabel ??
-                `Click to open ${order.type === "enquiry" ? "enquiry" : "order"} details`}
+              {actionLabel ?? `Click to open ${order.type === "enquiry" ? "enquiry" : "order"} details`}
             </p>
             {order.vendorName && (
               <p className="text-[11px] text-muted-foreground">
