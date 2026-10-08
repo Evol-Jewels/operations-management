@@ -45,7 +45,7 @@ function repair(): Repair {
   };
 }
 const vendor = {
-  vendorName: "Evol Workshop",
+  vendorName: "Test vendor",
   vendorEstimateDate: "2026-10-10",
   deliveryDate: "2026-10-12",
 };
@@ -152,26 +152,42 @@ test("shared media preserves every recording and link without storing temporary 
   assert.deepEqual(prepareRepairMedia([]).images, []);
   assert.equal(prepareRepairMedia([]).video, undefined);
 });
-test("required photos, repair remarks and product fields are validated", () => {
+test("required repair remarks and product fields are validated", () => {
   const errors = validateRepair({ ...EMPTY_REPAIR });
   for (const key of [
     "category",
-    "barcode",
     "grossWeight",
     "netWeight",
     "purity",
     "metalColor",
-    "images",
     "repairRemarks",
   ] as const)
     assert.ok(errors[key]);
 });
 test("weights and diamond quantities reject invalid values", () => {
-  assert.ok(validateRepair(draft({ barcode: "   " })).barcode);
   assert.ok(validateRepair(draft({ grossWeight: "-1" })).grossWeight);
   assert.ok(validateRepair(draft({ netWeight: "7" })).netWeight);
   assert.ok(validateRepair(draft({ diamondCarats: "-1" })).diamondCarats);
   assert.ok(validateRepair(draft({ diamondPieces: "1.5" })).diamondPieces);
+});
+test("stock and customer repairs can omit images and barcode", () => {
+  const optionalFields = { barcode: "", images: [], references: [] };
+  assert.deepEqual(validateRepair(draft(optionalFields)), {});
+  assert.deepEqual(
+    validateRepair(
+      draft({
+        ...optionalFields,
+        productType: "Customer",
+        customerName: "Test Customer",
+        customerPhone: "+91 9876543210",
+      }),
+    ),
+    {},
+  );
+  assert.deepEqual(
+    validateRepair(draft({ ...optionalFields, barcode: "   " })),
+    {},
+  );
 });
 test("New to Ready for Repair requires all vendor fields and valid dates", () => {
   assert.throws(() => moveRepair(repair(), "Ready for Repair"), /required/);
@@ -193,7 +209,7 @@ test("New to Ready for Repair requires all vendor fields and valid dates", () =>
     /required/,
   );
 });
-test("every adjacent forward and backward move works; skips and same-stage moves fail", () => {
+test("every active stage supports forward, backward and direct moves", () => {
   let current = repair();
   const activeStages = REPAIR_FLOW_STAGES.filter((stage) => stage !== "Closed");
   for (const stage of activeStages.slice(1))
@@ -205,8 +221,8 @@ test("every adjacent forward and backward move works; skips and same-stage moves
   assert.equal(current.stage, "New");
   assert.equal(current.history.length, 10);
   assert.deepEqual(current.vendor, vendor);
-  assert.throws(() => moveRepair(current, "Dispatched", vendor), /one stage/);
-  assert.throws(() => moveRepair(current, "New", vendor), /one stage/);
+  assert.equal(moveRepair(current, "Dispatched", vendor).stage, "Dispatched");
+  assert.throws(() => moveRepair(current, "New", vendor), /different/);
 });
 
 test("closing at store and cancelling any active stage lock further transitions", () => {
@@ -224,7 +240,7 @@ test("closing at store and cancelling any active stage lock further transitions"
   );
   assert.equal(closed.stage, "Closed");
   assert.throws(() => moveRepair(closed, "At Store"), /cannot change/);
-  assert.throws(() => moveRepair(repair(), "Closed"), /one stage/);
+  assert.equal(moveRepair(repair(), "Closed", vendor).stage, "Closed");
 });
 
 test("vendor fields are optional on creation, but provided dates must be valid", () => {

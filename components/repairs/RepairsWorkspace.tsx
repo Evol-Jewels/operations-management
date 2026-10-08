@@ -3,7 +3,16 @@
 import { LayoutGrid, List, Search, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,9 +30,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useRepairs } from "@/hooks/useRepairs";
-import { REPAIR_STAGES } from "@/lib/repairs";
+import {
+  isRepairTerminal,
+  moveRepair,
+  REPAIR_STAGES,
+  type Repair,
+  type RepairStage,
+  type RepairVendor,
+  validateRepairVendor,
+} from "@/lib/repairs";
 import { formatDate } from "@/lib/utils";
+import { RepairKanbanBoard } from "./RepairKanbanBoard";
 import { RepairStageBadge } from "./RepairStageBadge";
+import { RepairVendorDialog } from "./RepairVendorDialog";
 import { RepairWorkspaceCard } from "./RepairWorkspaceCard";
 
 export function RepairsWorkspace({
@@ -33,10 +52,21 @@ export function RepairsWorkspace({
   viewMode: "table" | "kanban";
   onViewModeChange: (mode: "table" | "kanban") => void;
 }) {
-  const { repairs, isLoading, error, reload } = useRepairs();
+  const { repairs, isLoading, error, reload, saveStage } = useRepairs();
+  const [saving, setSaving] = useState(false);
+  const [pendingMove, setPendingMove] = useState<{
+    repair: Repair;
+    stage: RepairStage;
+  } | null>(null);
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState("all");
   const [productType, setProductType] = useState("all");
+  const needsVendor = Boolean(
+    pendingMove &&
+      pendingMove.stage !== "New" &&
+      pendingMove.stage !== "Cancelled" &&
+      Object.keys(validateRepairVendor(pendingMove.repair.vendor)).length,
+  );
   const query = search.trim().toLowerCase();
   const activeStage = viewMode === "table" ? stage : "all";
   const filtered = repairs.filter(
@@ -53,6 +83,45 @@ export function RepairsWorkspace({
         repair.vendor?.vendorName ?? "",
       ].some((value) => value.toLowerCase().includes(query)),
   );
+  const commitMove = async (
+    repair: Repair,
+    stage: RepairStage,
+    vendor = repair.vendor,
+  ) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await saveStage(repair.id, stage, vendor);
+      setPendingMove(null);
+      toast.success(`Repair moved to ${stage}`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not update the repair.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+  const handleMove = (repair: Repair, stage: RepairStage) => {
+    if (saving || pendingMove || isRepairTerminal(repair.stage)) return;
+    if (
+      stage !== "New" &&
+      stage !== "Cancelled" &&
+      Object.keys(validateRepairVendor(repair.vendor)).length
+    ) {
+      setPendingMove({ repair, stage });
+      return;
+    }
+    try {
+      moveRepair(repair, stage);
+      if (isRepairTerminal(stage)) setPendingMove({ repair, stage });
+      else void commitMove(repair, stage);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not update the repair.",
+      );
+    }
+  };
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -63,8 +132,9 @@ export function RepairsWorkspace({
         <div className="relative min-w-0 lg:w-72">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            aria-label="Search repairs"
-            placeholder="Search customer, barcode, or repair"
+            type="search"
+            aria-label="Search repairs by customer, vendor, barcode, or repair"
+            placeholder="Search customer, vendor, or barcode"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="pl-9"
@@ -163,41 +233,11 @@ export function RepairsWorkspace({
           )}
         </div>
       ) : viewMode === "kanban" ? (
-        <div className="overflow-x-auto pb-4">
-          <div className="flex gap-3">
-            {REPAIR_STAGES.map((value) => {
-              const records = filtered.filter(
-                (repair) => repair.stage === value,
-              );
-              return (
-                <section
-                  key={value}
-                  className="flex w-[240px] shrink-0 flex-col snap-center rounded-xl border border-border bg-card/50"
-                >
-                  <div className="flex items-center justify-between rounded-t-xl border-b bg-muted/40 px-3 py-2.5">
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground">
-                      {value}
-                    </h3>
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
-                      {records.length}
-                    </span>
-                  </div>
-                  <div className="flex-1 space-y-2 overflow-y-auto p-2">
-                    {records.length ? (
-                      records.map((repair) => (
-                        <RepairWorkspaceCard key={repair.id} repair={repair} />
-                      ))
-                    ) : (
-                      <p className="rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
-                        No repairs
-                      </p>
-                    )}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        </div>
+        <RepairKanbanBoard
+          repairs={filtered}
+          disabled={saving || Boolean(pendingMove)}
+          onMove={handleMove}
+        />
       ) : (
         <>
           <div className="grid gap-3 sm:hidden">
@@ -271,6 +311,61 @@ export function RepairsWorkspace({
           </div>
         </>
       )}
+      {pendingMove && needsVendor && (
+        <RepairVendorDialog
+          open
+          moving
+          targetStage={pendingMove.stage}
+          vendor={pendingMove.repair.vendor}
+          saving={saving}
+          onOpenChange={(open) => {
+            if (!saving && !open) setPendingMove(null);
+          }}
+          onSubmit={(vendor: RepairVendor) =>
+            commitMove(pendingMove.repair, pendingMove.stage, vendor)
+          }
+        />
+      )}
+      <Dialog
+        open={Boolean(
+          pendingMove && isRepairTerminal(pendingMove.stage) && !needsVendor,
+        )}
+        onOpenChange={(open) => {
+          if (!saving && !open) setPendingMove(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {pendingMove?.stage === "Closed"
+                ? "Close repair"
+                : "Cancel repair"}
+            </DialogTitle>
+            <DialogDescription>
+              The repair will be marked {pendingMove?.stage.toLowerCase()} and
+              its status will be locked.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => setPendingMove(null)}
+            >
+              Back
+            </Button>
+            <Button
+              disabled={saving}
+              onClick={() =>
+                pendingMove &&
+                void commitMove(pendingMove.repair, pendingMove.stage)
+              }
+            >
+              {saving ? "Saving…" : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -198,7 +198,7 @@ export function RequirementReferencesSection({
         {recordedReferences.length ? (
           <p className="text-xs text-muted-foreground">
             {localOnly
-              ? "Media is saved locally when you create the repair."
+              ? "Media is uploaded when you create the repair."
               : "Recordings are uploaded when you create the enquiry."}
           </p>
         ) : null}
@@ -238,7 +238,6 @@ export function RequirementReferencesSection({
                       key={reference.id}
                       reference={reference}
                       onRemove={() => removeReference(reference.id)}
-                      localOnly={localOnly}
                     />
                   ))}
                 </div>
@@ -472,11 +471,9 @@ export function ImageReferenceCard({
 export function RecordedMediaCard({
   reference,
   onRemove,
-  localOnly = false,
 }: {
   reference: ProductReference;
   onRemove?: () => void;
-  localOnly?: boolean;
 }) {
   const isVideo = reference.type === "video";
   return (
@@ -516,8 +513,7 @@ export function RecordedMediaCard({
             {reference.durationSeconds
               ? `${formatRecordingDuration(reference.durationSeconds)} · `
               : ""}
-            {formatFileSize(reference.size)} ·{" "}
-            {localOnly ? "Local media" : "Ready to upload"}
+            {formatFileSize(reference.size)} · Ready to upload
           </span>
         </span>
         {onRemove && (

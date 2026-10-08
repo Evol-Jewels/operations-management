@@ -1,17 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Repair } from "@/lib/repairs";
-import { readRepairs, saveRepair } from "@/lib/repairsStorage";
+import type {
+  Repair,
+  RepairComment,
+  RepairStage,
+  RepairVendor,
+} from "@/lib/repairs";
+import {
+  fetchRepair,
+  fetchRepairs,
+  postRepairComment,
+  updateRepairStage,
+  updateRepairVendor,
+} from "@/lib/repairsApi";
 
-export function useRepairs() {
+export function useRepairs(id?: string) {
   const [repairs, setRepairs] = useState<Repair[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const reload = useCallback(async () => {
+    setIsLoading(true);
     setError("");
     try {
-      setRepairs(await readRepairs());
+      setRepairs(id ? [await fetchRepair(id)] : await fetchRepairs());
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Could not load repairs.",
@@ -19,16 +31,34 @@ export function useRepairs() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [id]);
   useEffect(() => {
     void reload();
   }, [reload]);
-  const save = async (repair: Repair) => {
-    await saveRepair(repair);
+  const saved = (repair: Repair) => {
     setRepairs((records) => [
       repair,
       ...records.filter((record) => record.id !== repair.id),
     ]);
   };
-  return { repairs, isLoading, error, reload, save };
+  const saveStage = async (
+    repairId: string,
+    stage: RepairStage,
+    vendor?: RepairVendor,
+  ) => saved(await updateRepairStage(repairId, stage, vendor));
+  const saveVendor = async (repairId: string, vendor: RepairVendor) =>
+    saved(await updateRepairVendor(repairId, vendor));
+  const saveComment = async (
+    repairId: string,
+    comment: Pick<RepairComment, "message" | "attachments">,
+  ) => saved(await postRepairComment(repairId, comment));
+  return {
+    repairs,
+    isLoading,
+    error,
+    reload,
+    saveStage,
+    saveVendor,
+    saveComment,
+  };
 }

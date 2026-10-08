@@ -366,7 +366,7 @@ export default function OrderPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="@container/order-detail mx-auto w-full min-w-0 max-w-6xl">
       {/* ── Back nav ─────────────────────────────────────────────────── */}
       <div className="mb-5">
         <Button
@@ -456,8 +456,8 @@ export default function OrderPage() {
       )}
 
       {/* Product requirements and order details */}
-      <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,1fr)_370px]">
-        <main className="space-y-5">
+      <div className="grid min-w-0 items-start gap-5 @[60rem]/order-detail:grid-cols-[minmax(0,1fr)_320px] @[60rem]/order-detail:gap-7">
+        <main className="min-w-0 space-y-5">
           <EnquiryProductList
             enquiryRefCode={order.refCode ?? 0}
             recordType="order"
@@ -475,7 +475,7 @@ export default function OrderPage() {
           />
         </main>
 
-        <aside className="xl:sticky xl:top-6 xl:self-start">
+        <aside className="min-w-0 @[60rem]/order-detail:sticky @[60rem]/order-detail:top-6 @[60rem]/order-detail:self-start">
           {order.type === "order" && (
             <ProductionSpecCard
               order={order}

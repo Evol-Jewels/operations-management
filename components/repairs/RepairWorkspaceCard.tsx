@@ -2,6 +2,7 @@
 
 import { CalendarDays } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { ComponentProps } from "react";
 import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
 import { WorkspaceCard } from "@/components/dashboard/WorkspaceCard";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,10 @@ import {
   getUrgencyLevel,
 } from "@/lib/utils";
 
-export function RepairWorkspaceCard({ repair }: { repair: Repair }) {
+export function RepairWorkspaceCard({
+  repair,
+  ...props
+}: ComponentProps<typeof WorkspaceCard> & { repair: Repair }) {
   const router = useRouter();
   const deliveryDate = isRepairTerminal(repair.stage)
     ? undefined
@@ -24,6 +28,7 @@ export function RepairWorkspaceCard({ repair }: { repair: Repair }) {
     <WorkspaceCard
       urgency={urgency}
       onClick={() => router.push(`/repairs/${repair.id}`)}
+      {...props}
     >
       <div className="pl-2">
         <p className="truncate text-sm font-semibold text-foreground">

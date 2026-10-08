@@ -29,7 +29,6 @@ import {
 import { useRepairs } from "@/hooks/useRepairs";
 import {
   isRepairTerminal,
-  moveRepair,
   REPAIR_FLOW_STAGES,
   REPAIR_STAGES,
   type RepairStage,
@@ -47,9 +46,17 @@ function displayDate(value?: string) {
 }
 
 export function RepairDetailPage({ id }: { id: string }) {
-  const { repairs, isLoading, error, reload, save } = useRepairs();
+  const {
+    repairs,
+    isLoading,
+    error,
+    reload,
+    saveStage,
+    saveVendor: persistVendor,
+    saveComment,
+  } = useRepairs(id);
   const repair = repairs.find((record) => record.id === id);
-  const [vendorEditor, setVendorEditor] = useState<"edit" | "move" | null>(
+  const [vendorEditor, setVendorEditor] = useState<"edit" | RepairStage | null>(
     null,
   );
   const [pendingStage, setPendingStage] = useState<RepairStage | null>(null);
@@ -60,7 +67,7 @@ export function RepairDetailPage({ id }: { id: string }) {
     setSaving(true);
     setSaveError("");
     try {
-      await save(moveRepair(repair, stage, vendor ?? repair.vendor));
+      await saveStage(repair.id, stage, vendor ?? repair.vendor);
       setVendorEditor(null);
       setPendingStage(null);
       toast.success(`Repair moved to ${stage}`);
@@ -76,21 +83,8 @@ export function RepairDetailPage({ id }: { id: string }) {
     if (!repair || saving) return;
     setSaving(true);
     setSaveError("");
-    const timestamp = new Date().toISOString();
     try {
-      await save({
-        ...repair,
-        vendor,
-        updatedAt: timestamp,
-        history: [
-          ...repair.history,
-          {
-            stage: repair.stage,
-            timestamp,
-            message: "Vendor and delivery details updated",
-          },
-        ],
-      });
+      await persistVendor(repair.id, vendor);
       setVendorEditor(null);
       toast.success("Vendor details updated");
     } catch (error) {
@@ -123,7 +117,7 @@ export function RepairDetailPage({ id }: { id: string }) {
       <div className="space-y-3 py-12 text-center">
         <h1 className="text-xl font-semibold">Repair not found</h1>
         <p className="text-sm text-muted-foreground">
-          Local repairs are available in the browser where they were created.
+          This repair may have been removed or the link may be incorrect.
         </p>
         <Button asChild variant="outline">
           <Link href="/orders-workspace?type=repair">Back to repairs</Link>
@@ -131,16 +125,9 @@ export function RepairDetailPage({ id }: { id: string }) {
       </div>
     );
   const terminal = isRepairTerminal(repair.stage);
-  const index = REPAIR_STAGES.indexOf(repair.stage);
-  const allowedStages = REPAIR_STAGES.filter(
-    (stage, position) =>
-      stage === repair.stage ||
-      (!terminal &&
-        (stage === "Cancelled" || Math.abs(position - index) === 1)),
-  );
   const name = repair.customerName || "Stock repair";
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="@container/repair-detail mx-auto w-full min-w-0 max-w-6xl">
       <div className="mb-5">
         <Button
           variant="ghost"
@@ -156,7 +143,7 @@ export function RepairDetailPage({ id }: { id: string }) {
       </div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="mb-2 text-xl font-semibold tracking-tight text-foreground">
+          <h1 className="mb-2 break-words text-xl font-semibold tracking-tight text-foreground">
             {name}
             <span className="ml-2 font-normal text-muted-foreground">·</span>
             <span className="ml-2 text-base font-normal text-muted-foreground">
@@ -180,16 +167,13 @@ export function RepairDetailPage({ id }: { id: string }) {
             onValueChange={(value) => {
               const stage = REPAIR_STAGES.find((stage) => stage === value);
               if (!stage || stage === repair.stage) return;
-              if (isRepairTerminal(stage)) {
-                setPendingStage(stage);
-                return;
-              }
               if (
-                repair.stage === "New" &&
-                stage === "Ready for Repair" &&
+                stage !== "New" &&
+                stage !== "Cancelled" &&
                 Object.keys(validateRepairVendor(repair.vendor)).length
               )
-                setVendorEditor("move");
+                setVendorEditor(stage);
+              else if (isRepairTerminal(stage)) setPendingStage(stage);
               else void changeStage(stage);
             }}
           >
@@ -200,7 +184,7 @@ export function RepairDetailPage({ id }: { id: string }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {allowedStages.map((stage) => (
+              {REPAIR_STAGES.map((stage) => (
                 <SelectItem key={stage} value={stage}>
                   {stage}
                 </SelectItem>
@@ -219,11 +203,11 @@ export function RepairDetailPage({ id }: { id: string }) {
           {saveError}
         </p>
       )}
-      <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,1fr)_370px]">
-        <main>
+      <div className="grid min-w-0 items-start gap-5 @[60rem]/repair-detail:grid-cols-[minmax(0,1fr)_320px] @[60rem]/repair-detail:gap-7">
+        <main className="min-w-0">
           <RepairProductCard repair={repair} />
         </main>
-        <aside className="xl:sticky xl:top-6 xl:self-start">
+        <aside className="min-w-0 @[60rem]/repair-detail:sticky @[60rem]/repair-detail:top-6 @[60rem]/repair-detail:self-start">
           <section className="overflow-hidden rounded-xl border border-border bg-card">
             <div className="px-5 py-5">
               <p className="mb-5 text-sm font-semibold text-foreground">
@@ -300,11 +284,11 @@ export function RepairDetailPage({ id }: { id: string }) {
       <RepairActivity
         repair={repair}
         busy={saving}
-        onSave={async (updated) => {
+        onPost={async (comment) => {
           if (saving) throw new Error("Wait for the current update to finish.");
           setSaving(true);
           try {
-            await save(updated);
+            await saveComment(repair.id, comment);
           } finally {
             setSaving(false);
           }
@@ -319,11 +303,13 @@ export function RepairDetailPage({ id }: { id: string }) {
           }}
           vendor={repair.vendor}
           saving={saving}
-          moving={vendorEditor === "move"}
+          moving={vendorEditor !== "edit"}
+          required={repair.stage !== "New" || vendorEditor !== "edit"}
+          targetStage={vendorEditor === "edit" ? undefined : vendorEditor}
           onSubmit={(vendor) =>
-            vendorEditor === "move"
-              ? changeStage("Ready for Repair", vendor)
-              : saveVendor(vendor)
+            vendorEditor === "edit"
+              ? saveVendor(vendor)
+              : changeStage(vendorEditor, vendor)
           }
         />
       )}

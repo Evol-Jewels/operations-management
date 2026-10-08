@@ -14,12 +14,11 @@ import { Input } from "@/components/ui/input";
 import {
   EMPTY_REPAIR,
   prepareRepairMedia,
-  type Repair,
   type RepairDraft,
   validateRepair,
   validateRepairVendor,
 } from "@/lib/repairs";
-import { saveRepair } from "@/lib/repairsStorage";
+import { createRepair } from "@/lib/repairsApi";
 import { RepairCustomerStep } from "./RepairCustomerStep";
 import { RepairProductFields } from "./RepairProductFields";
 import { RepairVendorFields } from "./RepairVendorFields";
@@ -76,27 +75,10 @@ export function CreateRepairForm() {
     }
     setSaving(true);
     setSaveError("");
-    const id = crypto.randomUUID();
-    const timestamp = new Date().toISOString();
-    const repair: Repair = {
-      ...draft,
-      barcode: draft.barcode.trim(),
-      customerName:
-        draft.productType === "Customer" ? draft.customerName.trim() : "",
-      customerPhone:
-        draft.productType === "Customer" ? draft.customerPhone.trim() : "",
-      repairRemarks: draft.repairRemarks.trim(),
-      id,
-      refCode: `REP-${id.slice(0, 8).toUpperCase()}`,
-      stage: "New",
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      history: [{ stage: "New", timestamp }],
-    };
     try {
-      await saveRepair(repair);
+      const repair = await createRepair(draft);
       toast.success("Repair created");
-      router.push(`/repairs/${id}`);
+      router.push(`/repairs/${repair.id}`);
     } catch (error) {
       setSaveError(
         error instanceof Error ? error.message : "Could not save this repair.",
@@ -163,8 +145,7 @@ export function CreateRepairForm() {
                     <FormField
                       label="Barcode"
                       htmlFor="repair-barcode"
-                      required
-                      error={errors.barcode}
+                      optional
                     >
                       <Input
                         id="repair-barcode"
@@ -177,9 +158,7 @@ export function CreateRepairForm() {
                         }}
                         placeholder="Enter product barcode"
                         autoComplete="off"
-                        required
                         maxLength={255}
-                        aria-invalid={Boolean(errors.barcode)}
                         className="h-10"
                       />
                     </FormField>
@@ -189,11 +168,6 @@ export function CreateRepairForm() {
                     update(prepareRepairMedia(next));
                   }}
                 />
-                {errors.images && (
-                  <p role="alert" className="text-[11px] text-destructive">
-                    {errors.images}
-                  </p>
-                )}
                 <RepairProductFields
                   draft={draft}
                   onChange={update}
@@ -214,9 +188,6 @@ export function CreateRepairForm() {
                   />
                 </SectionShell>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Saved on this browser only.
-              </p>
             </div>
           )}
         </fieldset>

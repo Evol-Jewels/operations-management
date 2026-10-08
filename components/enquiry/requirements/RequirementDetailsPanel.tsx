@@ -21,23 +21,23 @@ export function RequirementDetailsPanel({
   vendorDetails?: OrderVendorDetailsDisplay;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <div>
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <Tag>{item.kind}</Tag>
           <Tag>{item.status.toLowerCase()}</Tag>
         </div>
-        <h3 className="text-lg font-semibold leading-tight text-foreground">
+        <h3 className="break-words text-lg font-semibold leading-tight text-foreground">
           {item.title}
         </h3>
         {item.subtitle ? (
-          <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
+          <p className="mt-1 break-words text-xs uppercase tracking-wide text-muted-foreground">
             {item.subtitle}
           </p>
         ) : null}
       </div>
 
-      <div className="grid gap-4 border-t border-border pt-4 xl:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-4 border-t border-border pt-4">
         <DetailSection title="Overview">
           <DetailRow label="Type of order" value={item.details.orderType} />
           <DetailRow label="Category" value={item.title} />
@@ -66,7 +66,7 @@ export function RequirementDetailsPanel({
         </DetailSection>
 
         {item.kind === "custom" && vendorDetails ? (
-          <section className="space-y-2 xl:col-span-2">
+          <section className="col-span-full min-w-0 space-y-2">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-muted-foreground">
                 Vendor details
@@ -82,7 +82,7 @@ export function RequirementDetailsPanel({
                 Edit
               </Button>
             </div>
-            <dl className="grid gap-1.5 sm:grid-cols-2">
+            <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-x-4 gap-y-1.5">
               <DetailRow
                 label="Vendor name"
                 value={vendorDetails.name || "Not added"}
@@ -222,7 +222,7 @@ function MiniCarousel<T>({
 function DiamondCard({ diamond }: { diamond: EnquiryDiamond }) {
   const type = [diamond.type, diamond.growthMethod].filter(Boolean).join(" · ");
   return (
-    <div className="grid gap-1.5 sm:grid-cols-2">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-x-4 gap-y-1.5">
       <DetailRow label="Type" value={type} />
       <DetailRow label="Shape" value={diamond.shape} />
       <DetailRow label="Clarity" value={diamond.clarity} />
@@ -237,7 +237,7 @@ function DiamondCard({ diamond }: { diamond: EnquiryDiamond }) {
 
 function ColorStoneCard({ stone }: { stone: EnquiryColorStone }) {
   return (
-    <div className="grid gap-1.5 sm:grid-cols-2">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-x-4 gap-y-1.5">
       <DetailRow label="Type" value={stone.stoneType} />
       <DetailRow label="Nature" value={stone.nature} />
       <DetailRow label="Origin" value={stone.origin} />
@@ -256,7 +256,7 @@ export function DetailSection({
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-2">
+    <section className="min-w-0 space-y-2">
       <p className="text-sm font-semibold text-muted-foreground">{title}</p>
       <dl className="grid gap-1.5">{children}</dl>
     </section>
@@ -273,11 +273,15 @@ export function DetailRow({
   if (!hasValue(value)) return null;
 
   return (
-    <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-2 border-b border-dashed border-border/60 pb-1.5 last:border-b-0 last:pb-0">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words text-right text-xs font-medium text-foreground">
-        {value}
-      </dd>
+    <div className="@container/detail-row min-w-0 border-b border-dashed border-border/60 pb-1.5 last:border-b-0 last:pb-0">
+      <div className="grid min-w-0 gap-1 @[16rem]/detail-row:grid-cols-2 @[16rem]/detail-row:gap-3">
+        <dt className="min-w-0 break-words text-xs text-muted-foreground">
+          {label}
+        </dt>
+        <dd className="min-w-0 break-words text-xs font-medium text-foreground @[16rem]/detail-row:text-right">
+          {value}
+        </dd>
+      </div>
     </div>
   );
 }
@@ -292,7 +296,7 @@ export function DetailNoteRow({
   if (!hasValue(value)) return null;
 
   return (
-    <div className="grid gap-1 border-b border-dashed border-border/60 pb-1.5 last:border-b-0 last:pb-0 sm:col-span-2">
+    <div className="col-span-full grid min-w-0 gap-1 border-b border-dashed border-border/60 pb-1.5 last:border-b-0 last:pb-0">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="min-w-0 whitespace-pre-wrap break-words text-xs font-medium leading-5 text-foreground">
         {value}
