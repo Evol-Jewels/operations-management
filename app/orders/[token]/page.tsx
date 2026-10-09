@@ -12,6 +12,7 @@ import { CloseEnquiryDialog } from "@/components/order/CloseEnquiryDialog";
 import { ComposeBox } from "@/components/order/ComposeBox";
 import { OrderPrintView } from "@/components/order/OrderPrintView";
 import { ProductionSpecCard } from "@/components/order/ProductionSpecCard";
+import { SendVendorEmailDialog } from "@/components/order/SendVendorEmailDialog";
 import { StageBar } from "@/components/order/StageBar";
 import { StageHint } from "@/components/order/StageHint";
 import {
@@ -424,6 +425,7 @@ export default function OrderPage() {
           )}
           {/* Actions — pushed right, wraps on mobile if needed */}
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            <SendVendorEmailDialog order={order} />
             <OrderStatusControl
               refCode={refCode}
               status={order.orderStatus}
