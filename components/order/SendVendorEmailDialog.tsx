@@ -3,6 +3,7 @@
 import { Mail, Paperclip } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
+import type { ItemPdfExport } from "@/components/enquiry/EnquiryProductList";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,25 +18,22 @@ import {
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { printOrderDetails } from "@/lib/printOrderDetails";
 import {
   buildVendorEmailBody,
   buildVendorEmailSubject,
 } from "@/lib/vendorEmailTemplate";
-import type { Order } from "@/types";
 
 interface SendVendorEmailDialogProps {
-  order: Order;
-  onPreviewAttachment?: () => void;
+  refCode: number;
+  pdf: ItemPdfExport;
 }
 
 export function SendVendorEmailDialog({
-  order,
-  onPreviewAttachment = printOrderDetails,
+  refCode,
+  pdf,
 }: SendVendorEmailDialogProps) {
   const [open, setOpen] = useState(false);
   const id = useId();
-  const attachmentName = `Order-${order.refCode ?? order.id}.pdf`;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -88,7 +86,7 @@ export function SendVendorEmailDialog({
               <Input
                 id={`${id}-subject`}
                 name="subject"
-                defaultValue={buildVendorEmailSubject(order)}
+                defaultValue={buildVendorEmailSubject(refCode, pdf.itemTitle)}
               />
             </FormField>
           </div>
@@ -96,7 +94,7 @@ export function SendVendorEmailDialog({
             <Textarea
               id={`${id}-content`}
               name="content"
-              defaultValue={buildVendorEmailBody(order)}
+              defaultValue={buildVendorEmailBody(refCode, pdf.itemTitle)}
               rows={6}
               className="field-sizing-fixed resize-y leading-relaxed"
             />
@@ -107,12 +105,12 @@ export function SendVendorEmailDialog({
               variant="outline"
               size="sm"
               className="max-w-full rounded-full text-xs"
-              aria-label={`Preview ${attachmentName}`}
+              aria-label={`Preview ${pdf.fileName}`}
               title="Preview order PDF"
-              onClick={onPreviewAttachment}
+              onClick={pdf.preview}
             >
               <Paperclip className="size-3.5" />
-              <span className="truncate">{attachmentName}</span>
+              <span className="truncate">{pdf.fileName}</span>
             </Button>
           </FormField>
           <DialogFooter className="border-t pt-4">

@@ -467,7 +467,9 @@ export default function OrderPage() {
             estimations={order.estimations ?? []}
             isFinalized
             showHeader={false}
-            downloadActions={<SendVendorEmailDialog order={order} />}
+            renderDownloadActions={(pdf) => (
+              <SendVendorEmailDialog refCode={order.refCode ?? 0} pdf={pdf} />
+            )}
             vendorDetails={{
               name: order.vendorName,
               deliveryDate: order.vendorDeliveryDate,

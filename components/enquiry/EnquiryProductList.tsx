@@ -78,8 +78,14 @@ interface EnquiryProductListProps {
   isSavingEstimation?: boolean;
   showHeader?: boolean;
   vendorDetails?: OrderVendorDetailsDisplay;
-  downloadActions?: ReactNode;
+  renderDownloadActions?: (pdf: ItemPdfExport) => ReactNode;
   onSaveEstimation: (estimation: ProductEstimation) => void;
+}
+
+export interface ItemPdfExport {
+  itemTitle: string;
+  fileName: string;
+  preview: () => void;
 }
 
 export function EnquiryProductList({
@@ -92,7 +98,7 @@ export function EnquiryProductList({
   isSavingEstimation,
   showHeader = true,
   vendorDetails,
-  downloadActions,
+  renderDownloadActions,
   onSaveEstimation,
 }: EnquiryProductListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -150,7 +156,7 @@ export function EnquiryProductList({
           isFinalized={isFinalized}
           isSavingEstimation={isSavingEstimation}
           vendorDetails={vendorDetails}
-          downloadActions={downloadActions}
+          renderDownloadActions={renderDownloadActions}
           onSaveEstimation={onSaveEstimation}
           onSelectItem={setActiveIndex}
         />
@@ -200,7 +206,7 @@ function RequirementCarouselCard({
   isFinalized,
   isSavingEstimation,
   vendorDetails,
-  downloadActions,
+  renderDownloadActions,
   onSaveEstimation,
   onSelectItem,
 }: {
@@ -214,7 +220,7 @@ function RequirementCarouselCard({
   isFinalized: boolean;
   isSavingEstimation?: boolean;
   vendorDetails?: OrderVendorDetailsDisplay;
-  downloadActions?: ReactNode;
+  renderDownloadActions?: (pdf: ItemPdfExport) => ReactNode;
   onSaveEstimation: (estimation: ProductEstimation) => void;
   onSelectItem: (index: number) => void;
 }) {
@@ -481,7 +487,11 @@ function RequirementCarouselCard({
                 </button>
               </PopoverContent>
             </Popover>
-            {downloadActions}
+            {renderDownloadActions?.({
+              itemTitle: item.title,
+              fileName: `${recordType}-${enquiryRefCode}-${slugifyFilePart(item.title)}.pdf`,
+              preview: () => void handleDownloadPdf(),
+            })}
           </div>
           {hasMany ? (
             <div className="hidden items-center gap-1.5 sm:flex">
