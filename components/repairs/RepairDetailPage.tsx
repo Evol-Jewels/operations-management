@@ -1,15 +1,12 @@
 "use client";
 
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, Truck, UserRound, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-  DetailRow,
-  DetailSection,
-} from "@/components/enquiry/requirements/RequirementDetailsPanel";
+import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
+import { SpecLine, SpecSection } from "@/components/order/SpecSection";
 import { StageBar } from "@/components/order/StageBar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,18 +25,23 @@ import {
 } from "@/components/ui/select";
 import { useRepairs } from "@/hooks/useRepairs";
 import {
+  formatRepairRefCode,
   isRepairTerminal,
-  moveRepair,
   REPAIR_FLOW_STAGES,
   REPAIR_STAGES,
   type RepairStage,
   type RepairVendor,
   validateRepairVendor,
 } from "@/lib/repairs";
-import { formatDate } from "@/lib/utils";
+import {
+  cn,
+  formatDate,
+  formatDaysRemaining,
+  getUrgencyLevel,
+} from "@/lib/utils";
 import { RepairActivity } from "./RepairActivity";
 import { RepairProductCard } from "./RepairProductCard";
-import { RepairStageBadge } from "./RepairStageBadge";
+import { RepairTypeBadge } from "./RepairTypeBadge";
 import { RepairVendorDialog } from "./RepairVendorDialog";
 
 function displayDate(value?: string) {
@@ -47,9 +49,17 @@ function displayDate(value?: string) {
 }
 
 export function RepairDetailPage({ id }: { id: string }) {
-  const { repairs, isLoading, error, reload, save } = useRepairs();
+  const {
+    repairs,
+    isLoading,
+    error,
+    reload,
+    saveStage,
+    saveVendor: persistVendor,
+    saveComment,
+  } = useRepairs(id);
   const repair = repairs.find((record) => record.id === id);
-  const [vendorEditor, setVendorEditor] = useState<"edit" | "move" | null>(
+  const [vendorEditor, setVendorEditor] = useState<"edit" | RepairStage | null>(
     null,
   );
   const [pendingStage, setPendingStage] = useState<RepairStage | null>(null);
@@ -60,7 +70,7 @@ export function RepairDetailPage({ id }: { id: string }) {
     setSaving(true);
     setSaveError("");
     try {
-      await save(moveRepair(repair, stage, vendor ?? repair.vendor));
+      await saveStage(repair.id, stage, vendor ?? repair.vendor);
       setVendorEditor(null);
       setPendingStage(null);
       toast.success(`Repair moved to ${stage}`);
@@ -76,21 +86,8 @@ export function RepairDetailPage({ id }: { id: string }) {
     if (!repair || saving) return;
     setSaving(true);
     setSaveError("");
-    const timestamp = new Date().toISOString();
     try {
-      await save({
-        ...repair,
-        vendor,
-        updatedAt: timestamp,
-        history: [
-          ...repair.history,
-          {
-            stage: repair.stage,
-            timestamp,
-            message: "Vendor and delivery details updated",
-          },
-        ],
-      });
+      await persistVendor(repair.id, vendor);
       setVendorEditor(null);
       toast.success("Vendor details updated");
     } catch (error) {
@@ -123,7 +120,7 @@ export function RepairDetailPage({ id }: { id: string }) {
       <div className="space-y-3 py-12 text-center">
         <h1 className="text-xl font-semibold">Repair not found</h1>
         <p className="text-sm text-muted-foreground">
-          Local repairs are available in the browser where they were created.
+          This repair may have been removed or the link may be incorrect.
         </p>
         <Button asChild variant="outline">
           <Link href="/orders-workspace?type=repair">Back to repairs</Link>
@@ -131,16 +128,12 @@ export function RepairDetailPage({ id }: { id: string }) {
       </div>
     );
   const terminal = isRepairTerminal(repair.stage);
-  const index = REPAIR_STAGES.indexOf(repair.stage);
-  const allowedStages = REPAIR_STAGES.filter(
-    (stage, position) =>
-      stage === repair.stage ||
-      (!terminal &&
-        (stage === "Cancelled" || Math.abs(position - index) === 1)),
-  );
   const name = repair.customerName || "Stock repair";
+  const deliveryDate = terminal ? undefined : repair.vendor?.deliveryDate;
+  const urgency = getUrgencyLevel(deliveryDate);
+  const daysLabel = formatDaysRemaining(deliveryDate);
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="@container/repair-detail mx-auto w-full min-w-0 max-w-6xl">
       <div className="mb-5">
         <Button
           variant="ghost"
@@ -154,59 +147,71 @@ export function RepairDetailPage({ id }: { id: string }) {
           </Link>
         </Button>
       </div>
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="mb-2 text-xl font-semibold tracking-tight text-foreground">
-            {name}
-            <span className="ml-2 font-normal text-muted-foreground">·</span>
-            <span className="ml-2 text-base font-normal text-muted-foreground">
-              {repair.category || "Repair"}
-            </span>
-          </h1>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <RepairStageBadge stage={repair.stage} />
-            <span className="font-mono text-sm text-muted-foreground">
-              {repair.refCode}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {repair.productType}
-            </span>
-          </div>
-        </div>
-        <div className="w-full sm:w-auto sm:shrink-0">
-          <Select
-            value={repair.stage}
-            disabled={saving || terminal}
-            onValueChange={(value) => {
-              const stage = REPAIR_STAGES.find((stage) => stage === value);
-              if (!stage || stage === repair.stage) return;
-              if (isRepairTerminal(stage)) {
-                setPendingStage(stage);
-                return;
-              }
-              if (
-                repair.stage === "New" &&
-                stage === "Ready for Repair" &&
-                Object.keys(validateRepairVendor(repair.vendor)).length
-              )
-                setVendorEditor("move");
-              else void changeStage(stage);
-            }}
-          >
-            <SelectTrigger
-              aria-label="Repair status"
-              className="h-8 w-full min-w-40 text-xs"
+      <div className="mb-6">
+        <h1 className="mb-2 break-words text-xl font-semibold tracking-tight text-foreground">
+          {name}
+          <span className="ml-2 font-normal text-muted-foreground">·</span>
+          <span className="ml-2 text-base font-normal text-muted-foreground">
+            {repair.category || "Repair"}
+          </span>
+        </h1>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <RepairTypeBadge
+            productType={repair.productType}
+            className="px-2.5"
+          />
+          <span className="font-mono text-sm text-muted-foreground">
+            {formatRepairRefCode(repair.refCode)}
+          </span>
+          {deliveryDate && daysLabel && (
+            <span
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                urgency === "overdue" &&
+                  "bg-red-500/10 text-red-600 dark:text-red-400",
+                urgency === "due-soon" &&
+                  "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                urgency === "on-track" &&
+                  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+              )}
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {allowedStages.map((stage) => (
-                <SelectItem key={stage} value={stage}>
-                  {stage}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <UrgencyDot level={urgency} />
+              {daysLabel}
+            </span>
+          )}
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <Select
+              value={repair.stage}
+              disabled={saving || terminal}
+              onValueChange={(value) => {
+                const stage = REPAIR_STAGES.find((stage) => stage === value);
+                if (!stage || stage === repair.stage) return;
+                if (
+                  stage !== "New" &&
+                  stage !== "Cancelled" &&
+                  Object.keys(validateRepairVendor(repair.vendor)).length
+                )
+                  setVendorEditor(stage);
+                else if (isRepairTerminal(stage)) setPendingStage(stage);
+                else void changeStage(stage);
+              }}
+            >
+              <SelectTrigger
+                size="sm"
+                aria-label="Repair status"
+                className="h-8 min-w-36 text-xs"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {REPAIR_STAGES.map((stage) => (
+                  <SelectItem key={stage} value={stage}>
+                    {stage}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
       {repair.stage !== "Cancelled" && (
@@ -219,80 +224,72 @@ export function RepairDetailPage({ id }: { id: string }) {
           {saveError}
         </p>
       )}
-      <div className="grid items-start gap-7 xl:grid-cols-[minmax(0,1fr)_370px]">
-        <main>
+      <div className="grid min-w-0 items-start gap-5 @[60rem]/repair-detail:grid-cols-[minmax(0,1fr)_320px] @[60rem]/repair-detail:gap-7">
+        <main className="min-w-0">
           <RepairProductCard repair={repair} />
         </main>
-        <aside className="xl:sticky xl:top-6 xl:self-start">
+        <aside className="min-w-0 @[60rem]/repair-detail:sticky @[60rem]/repair-detail:top-6 @[60rem]/repair-detail:self-start">
           <section className="overflow-hidden rounded-xl border border-border bg-card">
-            <div className="px-5 py-5">
-              <p className="mb-5 text-sm font-semibold text-foreground">
-                {repair.productType === "Customer" ? "Customer" : "Product"}
-              </p>
-              <div className="flex min-w-0 items-center gap-3">
-                <Avatar className="size-8 shrink-0 text-xs font-semibold">
-                  <AvatarFallback className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                    {name
-                      .split(/\s+/)
-                      .slice(0, 2)
-                      .map((word) => word[0])
-                      .join("")
-                      .toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{name}</p>
-                  {repair.customerPhone && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {repair.customerPhone}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="border-t border-border px-5 py-5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold">Vendor and delivery</p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1.5 px-2 text-xs"
-                  disabled={saving || terminal}
-                  onClick={() => setVendorEditor("edit")}
-                >
-                  <Pencil className="size-3" />
-                  Edit
-                </Button>
-              </div>
-              <dl className="space-y-3">
-                <DetailRow
-                  label="Vendor name"
-                  value={repair.vendor?.vendorName || "Not added"}
+            <div className="space-y-6 px-5 py-4">
+              <SpecSection icon={Wrench} title="Overview">
+                <SpecLine
+                  label="Ref code"
+                  value={formatRepairRefCode(repair.refCode)}
+                  mono
                 />
-                <DetailRow
-                  label="Vendor estimate date"
-                  value={displayDate(repair.vendor?.vendorEstimateDate)}
+                <SpecLine
+                  label="Category"
+                  value={repair.category || "Repair"}
                 />
-                <DetailRow
-                  label="Delivery date"
-                  value={displayDate(repair.vendor?.deliveryDate)}
+                <SpecLine
+                  label="Product"
+                  value={<RepairTypeBadge productType={repair.productType} />}
                 />
-              </dl>
-            </div>
-            <div className="border-t border-border px-5 py-5">
-              <DetailSection title="Overview">
-                <DetailRow label="Ref code" value={repair.refCode} />
-                <DetailRow label="Product" value={repair.productType} />
-                <DetailRow
+                <SpecLine
                   label="Created"
                   value={formatDate(repair.createdAt)}
                 />
-                <DetailRow
+                <SpecLine
                   label="Updated"
                   value={formatDate(repair.updatedAt)}
                 />
-              </DetailSection>
+              </SpecSection>
+              <SpecSection
+                icon={Truck}
+                title="Vendor details"
+                action={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1.5 px-2 text-xs"
+                    disabled={saving || terminal}
+                    onClick={() => setVendorEditor("edit")}
+                  >
+                    <Pencil className="size-3" />
+                    Edit
+                  </Button>
+                }
+              >
+                <SpecLine
+                  label="Vendor name"
+                  value={repair.vendor?.vendorName || "Not added"}
+                />
+                <SpecLine
+                  label="Vendor estimate"
+                  value={displayDate(repair.vendor?.vendorEstimateDate)}
+                />
+                <SpecLine
+                  label="Delivery date"
+                  value={displayDate(repair.vendor?.deliveryDate)}
+                />
+              </SpecSection>
+              {repair.productType === "Customer" && (
+                <SpecSection icon={UserRound} title="Customer details">
+                  <SpecLine label="Name" value={repair.customerName} />
+                  <SpecLine label="Phone" value={repair.customerPhone} />
+                </SpecSection>
+              )}
             </div>
           </section>
         </aside>
@@ -300,11 +297,11 @@ export function RepairDetailPage({ id }: { id: string }) {
       <RepairActivity
         repair={repair}
         busy={saving}
-        onSave={async (updated) => {
+        onPost={async (comment) => {
           if (saving) throw new Error("Wait for the current update to finish.");
           setSaving(true);
           try {
-            await save(updated);
+            await saveComment(repair.id, comment);
           } finally {
             setSaving(false);
           }
@@ -319,11 +316,13 @@ export function RepairDetailPage({ id }: { id: string }) {
           }}
           vendor={repair.vendor}
           saving={saving}
-          moving={vendorEditor === "move"}
+          moving={vendorEditor !== "edit"}
+          required={repair.stage !== "New" || vendorEditor !== "edit"}
+          targetStage={vendorEditor === "edit" ? undefined : vendorEditor}
           onSubmit={(vendor) =>
-            vendorEditor === "move"
-              ? changeStage("Ready for Repair", vendor)
-              : saveVendor(vendor)
+            vendorEditor === "edit"
+              ? saveVendor(vendor)
+              : changeStage(vendorEditor, vendor)
           }
         />
       )}

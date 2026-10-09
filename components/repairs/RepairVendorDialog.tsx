@@ -9,7 +9,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { type RepairVendor, validateRepairVendor } from "@/lib/repairs";
+import {
+  type RepairStage,
+  type RepairVendor,
+  validateRepairVendor,
+} from "@/lib/repairs";
 import { RepairVendorFields } from "./RepairVendorFields";
 
 export function RepairVendorDialog({
@@ -19,6 +23,8 @@ export function RepairVendorDialog({
   saving,
   onSubmit,
   moving = false,
+  required = moving,
+  targetStage = "Ready for Repair",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -26,12 +32,14 @@ export function RepairVendorDialog({
   saving: boolean;
   onSubmit: (vendor: RepairVendor) => Promise<void>;
   moving?: boolean;
+  required?: boolean;
+  targetStage?: RepairStage;
 }) {
   const [values, setValues] = useState<RepairVendor>(
     vendor ?? { vendorName: "", vendorEstimateDate: "", deliveryDate: "" },
   );
   const [submitted, setSubmitted] = useState(false);
-  const errors = validateRepairVendor(values, moving);
+  const errors = validateRepairVendor(values, required);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitted(true);
@@ -43,11 +51,13 @@ export function RepairVendorDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {moving ? "Ready for repair" : "Edit vendor and delivery details"}
+            {moving
+              ? `Move to ${targetStage}`
+              : "Edit vendor and delivery details"}
           </DialogTitle>
           <DialogDescription>
             {moving
-              ? "Add vendor and delivery details before moving this repair."
+              ? `Add vendor and delivery details before moving this repair.${targetStage === "Closed" ? " Closing the repair will lock its status." : ""}`
               : "Update the vendor and expected delivery dates."}
           </DialogDescription>
         </DialogHeader>
@@ -56,7 +66,7 @@ export function RepairVendorDialog({
             <RepairVendorFields
               value={values}
               onChange={setValues}
-              required={moving}
+              required={required}
               errors={submitted ? errors : undefined}
             />
           </fieldset>
@@ -73,7 +83,7 @@ export function RepairVendorDialog({
               {saving
                 ? "Saving…"
                 : moving
-                  ? "Move to Ready for Repair"
+                  ? `Move to ${targetStage}`
                   : "Save details"}
             </Button>
           </div>

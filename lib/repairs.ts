@@ -10,7 +10,14 @@ export const REPAIR_FLOW_STAGES = [
 export const REPAIR_STAGES = [...REPAIR_FLOW_STAGES, "Cancelled"] as const;
 
 export type RepairStage = (typeof REPAIR_STAGES)[number];
-export type RepairMedia = { id: string; name: string; file: Blob };
+export type RepairMedia = {
+  id: string;
+  name: string;
+  file?: Blob;
+  url?: string;
+  mimeType?: string;
+  size?: number;
+};
 export type RepairComment = {
   id: string;
   message: string;
@@ -56,7 +63,7 @@ export type RepairDraft = RepairProduct & {
 };
 export type Repair = RepairDraft & {
   id: string;
-  refCode: string;
+  refCode: string | number;
   stage: RepairStage;
   createdAt: string;
   updatedAt: string;
@@ -81,11 +88,10 @@ export const EMPTY_REPAIR: RepairDraft = {
   images: [],
 };
 
-export const REPAIR_VENDORS = [
-  "Evol Workshop",
-  "Diamond Care Studio",
-  "Goldcraft Repairs",
-];
+export function formatRepairRefCode(refCode: Repair["refCode"]) {
+  return `#${String(refCode).replace(/^#+/, "")}`;
+}
+
 export function prepareRepairMedia(references: RepairReference[]) {
   const stored = references.map(
     ({ id, type, name, url, file, mimeType, size, durationSeconds }) => ({
@@ -116,7 +122,6 @@ export function prepareRepairMedia(references: RepairReference[]) {
 
 export function validateRepair(draft: RepairDraft) {
   const errors: Partial<Record<keyof RepairDraft, string>> = {};
-  if (!draft.barcode.trim()) errors.barcode = "Enter the product barcode.";
   if (!draft.category?.trim()) errors.category = "Select the product category.";
   const vendorErrors = validateRepairVendor(draft.vendor, false);
   if (Object.keys(vendorErrors).length)
@@ -158,7 +163,6 @@ export function validateRepair(draft: RepairDraft) {
           ? "Enter a whole number of pieces, zero or more."
           : "Enter zero or more carats.";
   }
-  if (!draft.images.length) errors.images = "Add at least one product image.";
   if (!draft.repairRemarks.trim())
     errors.repairRemarks = "Describe the repair work required.";
   return errors;
@@ -171,16 +175,11 @@ export function moveRepair(
 ): Repair {
   if (isRepairTerminal(repair.stage))
     throw new Error("Closed and cancelled repairs cannot change stage.");
+  if (stage === repair.stage)
+    throw new Error("Select a different repair stage.");
   if (
+    stage !== "New" &&
     stage !== "Cancelled" &&
-    Math.abs(
-      REPAIR_STAGES.indexOf(stage) - REPAIR_STAGES.indexOf(repair.stage),
-    ) !== 1
-  )
-    throw new Error("Move a repair one stage forward or back at a time.");
-  if (
-    repair.stage === "New" &&
-    stage === "Ready for Repair" &&
     Object.keys(validateRepairVendor(vendor)).length > 0
   )
     throw new Error(

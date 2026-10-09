@@ -7,9 +7,9 @@ import {
   DetailRow,
   DetailSection,
 } from "@/components/enquiry/requirements/RequirementDetailsPanel";
-import { Badge } from "@/components/ui/badge";
 import type { Repair } from "@/lib/repairs";
 import { RepairReferencesPreview } from "./RepairReferencesPreview";
+import { RepairTypeBadge } from "./RepairTypeBadge";
 
 export function RepairProductCard({ repair }: { repair: Repair }) {
   return (
@@ -18,22 +18,22 @@ export function RepairProductCard({ repair }: { repair: Repair }) {
         <p className="text-sm font-medium uppercase tracking-wide text-foreground">
           Item 1 <span className="font-normal text-muted-foreground">of 1</span>
         </p>
-        <Badge variant="outline">{repair.productType}</Badge>
+        <RepairTypeBadge productType={repair.productType} />
       </div>
       <RequirementCardBody>
         <RepairReferencesPreview repair={repair} />
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           <div>
-            <h3 className="text-lg font-semibold leading-tight text-foreground">
+            <h3 className="break-words text-lg font-semibold leading-tight text-foreground">
               {repair.category || "Repair product"}
             </h3>
-            <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
+            <p className="mt-1 break-words text-xs uppercase tracking-wide text-muted-foreground">
               {[repair.barcode, repair.purity, repair.metalColor]
                 .filter(Boolean)
                 .join(" · ")}
             </p>
           </div>
-          <div className="grid gap-4 border-t border-border pt-4 xl:grid-cols-2">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-4 border-t border-border pt-4">
             <DetailSection title="Overview">
               <DetailRow label="Barcode" value={repair.barcode || "—"} />
               <DetailRow label="Product" value={repair.productType} />

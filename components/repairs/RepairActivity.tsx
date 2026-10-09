@@ -6,20 +6,20 @@ import {
   ComposeBox,
   type ComposeBoxSubmitData,
 } from "@/components/order/ComposeBox";
-import { authClient } from "@/lib/auth-client";
-import { appendRepairComment, type Repair } from "@/lib/repairs";
+import type { Repair, RepairComment } from "@/lib/repairs";
 import type { ActivityEntry } from "@/types";
 
 export function RepairActivity({
   repair,
-  onSave,
+  onPost,
   busy,
 }: {
   repair: Repair;
-  onSave: (repair: Repair) => Promise<void>;
+  onPost: (
+    comment: Pick<RepairComment, "message" | "attachments">,
+  ) => Promise<void>;
   busy: boolean;
 }) {
-  const { data: session } = authClient.useSession();
   const [comments, setComments] = useState<ActivityEntry[]>([]);
   const [posting, setPosting] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -33,14 +33,16 @@ export function RepairActivity({
       type: "comment",
       note: comment.message,
       media: comment.attachments.map((attachment) => {
-        const url = URL.createObjectURL(attachment.file);
-        urls.push(url);
+        const url = attachment.file
+          ? URL.createObjectURL(attachment.file)
+          : (attachment.url ?? "");
+        if (attachment.file) urls.push(url);
         return {
           type: attachment.type,
           url,
           name: attachment.name,
-          mimeType: attachment.file.type,
-          size: attachment.file.size,
+          mimeType: attachment.mimeType ?? attachment.file?.type,
+          size: attachment.size ?? attachment.file?.size,
         };
       }),
     }));
@@ -74,29 +76,19 @@ export function RepairActivity({
       throw new Error("Wait for the current update to finish.");
     setPosting(true);
     try {
-      const user = session?.user;
-      await onSave(
-        appendRepairComment(repair, {
+      await onPost({
+        message,
+        attachments: attachments.map((file) => ({
           id: crypto.randomUUID(),
-          message,
-          timestamp: new Date().toISOString(),
-          author: {
-            id: user?.id ?? "local-user",
-            name: user?.name ?? "You",
-            image: user?.image,
-          },
-          attachments: attachments.map((file) => ({
-            id: crypto.randomUUID(),
-            file,
-            name: file.name,
-            type: file.type.startsWith("image/")
-              ? "image"
-              : file.type.startsWith("video/")
-                ? "video"
-                : "audio",
-          })),
-        }),
-      );
+          file,
+          name: file.name,
+          type: file.type.startsWith("image/")
+            ? "image"
+            : file.type.startsWith("video/")
+              ? "video"
+              : "audio",
+        })),
+      });
       requestAnimationFrame(() =>
         endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }),
       );

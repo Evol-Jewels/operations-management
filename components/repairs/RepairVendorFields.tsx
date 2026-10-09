@@ -1,9 +1,10 @@
 "use client";
 
-import { OptionTextField } from "@/components/requirements/RequirementFields";
+import { useId } from "react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { FormField } from "@/components/ui/form-field";
-import { REPAIR_VENDORS, type RepairVendor } from "@/lib/repairs";
+import { Input } from "@/components/ui/input";
+import type { RepairVendor } from "@/lib/repairs";
 
 export function RepairVendorFields({
   value,
@@ -16,6 +17,7 @@ export function RepairVendorFields({
   required?: boolean;
   errors?: Partial<Record<keyof RepairVendor, string>>;
 }) {
+  const vendorNameId = useId();
   const values = value ?? {
     vendorName: "",
     vendorEstimateDate: "",
@@ -23,20 +25,26 @@ export function RepairVendorFields({
   };
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <div className="sm:col-span-2">
-        <OptionTextField
-          label="Vendor name"
+      <FormField
+        className="sm:col-span-2"
+        label="Vendor name"
+        htmlFor={vendorNameId}
+        required={required}
+        optional={!required}
+        error={errors.vendorName}
+      >
+        <Input
+          id={vendorNameId}
           value={values.vendorName}
-          options={REPAIR_VENDORS}
+          placeholder="Enter vendor name"
+          autoComplete="off"
           required={required}
-          onChange={(vendorName) => onChange({ ...values, vendorName })}
+          aria-invalid={Boolean(errors.vendorName)}
+          onChange={(event) =>
+            onChange({ ...values, vendorName: event.target.value })
+          }
         />
-        {errors.vendorName && (
-          <p className="mt-1 text-[11px] text-destructive">
-            {errors.vendorName}
-          </p>
-        )}
-      </div>
+      </FormField>
       {(
         [
           ["vendorEstimateDate", "Vendor estimate date"],
