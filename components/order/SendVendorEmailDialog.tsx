@@ -43,13 +43,13 @@ export function SendVendorEmailDialog({
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 text-xs print:hidden"
+          className="h-8 gap-1.5 border-input text-xs print:hidden"
         >
           <Mail className="size-3.5" />
           Email vendor
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-xl print:hidden">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl print:hidden">
         <DialogHeader>
           <DialogTitle>Send email to vendor</DialogTitle>
           <DialogDescription>
@@ -64,38 +64,40 @@ export function SendVendorEmailDialog({
             setOpen(false);
           }}
         >
-          <FormField label="To" htmlFor={`${id}-to`}>
-            <Input
-              id={`${id}-to`}
-              name="to"
-              type="email"
-              defaultValue=""
-              placeholder="vendor@example.com"
-            />
-          </FormField>
-          <FormField label="CC" htmlFor={`${id}-cc`} optional>
-            <Input
-              id={`${id}-cc`}
-              name="cc"
-              type="email"
-              multiple
-              defaultValue=""
-              placeholder="email@example.com"
-            />
-          </FormField>
-          <FormField label="Subject" htmlFor={`${id}-subject`}>
-            <Input
-              id={`${id}-subject`}
-              name="subject"
-              defaultValue={buildVendorEmailSubject(order)}
-            />
-          </FormField>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <FormField label="To" htmlFor={`${id}-to`}>
+              <Input
+                id={`${id}-to`}
+                name="to"
+                type="email"
+                defaultValue=""
+                placeholder="vendor@example.com"
+              />
+            </FormField>
+            <FormField label="CC" htmlFor={`${id}-cc`} optional>
+              <Input
+                id={`${id}-cc`}
+                name="cc"
+                type="email"
+                multiple
+                defaultValue=""
+                placeholder="email@example.com"
+              />
+            </FormField>
+            <FormField label="Subject" htmlFor={`${id}-subject`}>
+              <Input
+                id={`${id}-subject`}
+                name="subject"
+                defaultValue={buildVendorEmailSubject(order)}
+              />
+            </FormField>
+          </div>
           <FormField label="Content" htmlFor={`${id}-content`}>
             <Textarea
               id={`${id}-content`}
               name="content"
               defaultValue={buildVendorEmailBody(order)}
-              rows={9}
+              rows={6}
               className="field-sizing-fixed resize-y leading-relaxed"
             />
           </FormField>

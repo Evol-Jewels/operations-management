@@ -425,7 +425,6 @@ export default function OrderPage() {
           )}
           {/* Actions — pushed right, wraps on mobile if needed */}
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <SendVendorEmailDialog order={order} />
             <OrderStatusControl
               refCode={refCode}
               status={order.orderStatus}
@@ -468,6 +467,7 @@ export default function OrderPage() {
             estimations={order.estimations ?? []}
             isFinalized
             showHeader={false}
+            downloadActions={<SendVendorEmailDialog order={order} />}
             vendorDetails={{
               name: order.vendorName,
               deliveryDate: order.vendorDeliveryDate,

@@ -9,7 +9,7 @@ import {
   Loader2,
   Package,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { EnquiryEstimationPrintView } from "@/components/enquiry/EnquiryEstimationPrintView";
 import {
@@ -78,6 +78,7 @@ interface EnquiryProductListProps {
   isSavingEstimation?: boolean;
   showHeader?: boolean;
   vendorDetails?: OrderVendorDetailsDisplay;
+  downloadActions?: ReactNode;
   onSaveEstimation: (estimation: ProductEstimation) => void;
 }
 
@@ -91,6 +92,7 @@ export function EnquiryProductList({
   isSavingEstimation,
   showHeader = true,
   vendorDetails,
+  downloadActions,
   onSaveEstimation,
 }: EnquiryProductListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
@@ -148,6 +150,7 @@ export function EnquiryProductList({
           isFinalized={isFinalized}
           isSavingEstimation={isSavingEstimation}
           vendorDetails={vendorDetails}
+          downloadActions={downloadActions}
           onSaveEstimation={onSaveEstimation}
           onSelectItem={setActiveIndex}
         />
@@ -197,6 +200,7 @@ function RequirementCarouselCard({
   isFinalized,
   isSavingEstimation,
   vendorDetails,
+  downloadActions,
   onSaveEstimation,
   onSelectItem,
 }: {
@@ -210,6 +214,7 @@ function RequirementCarouselCard({
   isFinalized: boolean;
   isSavingEstimation?: boolean;
   vendorDetails?: OrderVendorDetailsDisplay;
+  downloadActions?: ReactNode;
   onSaveEstimation: (estimation: ProductEstimation) => void;
   onSelectItem: (index: number) => void;
 }) {
@@ -398,79 +403,86 @@ function RequirementCarouselCard({
               <span className="sm:hidden">Hide vendor</span>
             </Label>
           ) : null}
-          <Popover
-            open={isDownloadMenuOpen}
-            onOpenChange={handleDownloadMenuOpenChange}
-          >
-            <div className="inline-flex overflow-hidden rounded-md border border-input shadow-xs">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handlePrimaryDownload}
-                disabled={isSharing}
-                className="h-8 gap-1.5 rounded-none border-0 px-2.5 text-xs shadow-none hover:bg-accent"
-              >
-                {isSharing ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Download className="size-3.5" />
-                )}
-                <span className="hidden sm:inline">
-                  Download .{downloadFormat}
-                </span>
-                <span className="sm:hidden">.{downloadFormat}</span>
-              </Button>
-              <PopoverTrigger asChild>
+          <div className="flex items-center gap-2">
+            <Popover
+              open={isDownloadMenuOpen}
+              onOpenChange={handleDownloadMenuOpenChange}
+            >
+              <div className="inline-flex overflow-hidden rounded-md border border-input shadow-xs">
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon-sm"
-                  className="h-8 w-7 rounded-none border-0 border-l border-input shadow-none hover:bg-accent"
+                  size="sm"
+                  onClick={handlePrimaryDownload}
                   disabled={isSharing}
-                  aria-label="Choose download or sharing action"
+                  className="h-8 gap-1.5 rounded-none border-0 px-2.5 text-xs shadow-none hover:bg-accent"
                 >
-                  <ChevronDown className="size-3.5 text-muted-foreground" />
+                  {isSharing ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Download className="size-3.5" />
+                  )}
+                  <span className="hidden sm:inline">
+                    Download .{downloadFormat}
+                  </span>
+                  <span className="sm:hidden">.{downloadFormat}</span>
                 </Button>
-              </PopoverTrigger>
-            </div>
-            <PopoverContent align="end" className="w-56 p-1">
-              <button
-                type="button"
-                onClick={() => handleFormatDownload("pdf")}
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-              >
-                <FileText className="size-4 text-muted-foreground" />
-                <span className="flex-1">Download as .pdf</span>
-                {downloadFormat === "pdf" ? <Check className="size-4" /> : null}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleFormatDownload("png")}
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
-              >
-                <FileImage className="size-4 text-muted-foreground" />
-                <span className="flex-1">Download as .png</span>
-                {downloadFormat === "png" ? <Check className="size-4" /> : null}
-              </button>
-              <div className="my-1 h-px bg-border" />
-              <button
-                type="button"
-                onClick={handleWhatsAppShare}
-                disabled={isSharing}
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
-              >
-                {isSharing ? (
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                ) : (
-                  <WhatsAppIcon className="size-4 text-[#25D366]" />
-                )}
-                <span className="flex-1">
-                  {isSharing ? "Preparing PNG…" : "Share on WhatsApp"}
-                </span>
-              </button>
-            </PopoverContent>
-          </Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-8 w-7 rounded-none border-0 border-l border-input shadow-none hover:bg-accent"
+                    disabled={isSharing}
+                    aria-label="Choose download or sharing action"
+                  >
+                    <ChevronDown className="size-3.5 text-muted-foreground" />
+                  </Button>
+                </PopoverTrigger>
+              </div>
+              <PopoverContent align="end" className="w-56 p-1">
+                <button
+                  type="button"
+                  onClick={() => handleFormatDownload("pdf")}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                >
+                  <FileText className="size-4 text-muted-foreground" />
+                  <span className="flex-1">Download as .pdf</span>
+                  {downloadFormat === "pdf" ? (
+                    <Check className="size-4" />
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormatDownload("png")}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                >
+                  <FileImage className="size-4 text-muted-foreground" />
+                  <span className="flex-1">Download as .png</span>
+                  {downloadFormat === "png" ? (
+                    <Check className="size-4" />
+                  ) : null}
+                </button>
+                <div className="my-1 h-px bg-border" />
+                <button
+                  type="button"
+                  onClick={handleWhatsAppShare}
+                  disabled={isSharing}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {isSharing ? (
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  ) : (
+                    <WhatsAppIcon className="size-4 text-[#25D366]" />
+                  )}
+                  <span className="flex-1">
+                    {isSharing ? "Preparing PNG…" : "Share on WhatsApp"}
+                  </span>
+                </button>
+              </PopoverContent>
+            </Popover>
+            {downloadActions}
+          </div>
           {hasMany ? (
             <div className="hidden items-center gap-1.5 sm:flex">
               {itemIds.map((itemId, index) => (
