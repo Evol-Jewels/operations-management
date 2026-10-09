@@ -12,6 +12,7 @@ import { CloseEnquiryDialog } from "@/components/order/CloseEnquiryDialog";
 import { ComposeBox } from "@/components/order/ComposeBox";
 import { OrderPrintView } from "@/components/order/OrderPrintView";
 import { ProductionSpecCard } from "@/components/order/ProductionSpecCard";
+import { SendVendorEmailDialog } from "@/components/order/SendVendorEmailDialog";
 import { StageBar } from "@/components/order/StageBar";
 import { StageHint } from "@/components/order/StageHint";
 import {
@@ -466,6 +467,9 @@ export default function OrderPage() {
             estimations={order.estimations ?? []}
             isFinalized
             showHeader={false}
+            renderDownloadActions={(pdf) => (
+              <SendVendorEmailDialog refCode={order.refCode ?? 0} pdf={pdf} />
+            )}
             vendorDetails={{
               name: order.vendorName,
               deliveryDate: order.vendorDeliveryDate,
