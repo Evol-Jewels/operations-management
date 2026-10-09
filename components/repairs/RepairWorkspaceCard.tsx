@@ -5,14 +5,18 @@ import { useRouter } from "next/navigation";
 import type { ComponentProps } from "react";
 import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
 import { WorkspaceCard } from "@/components/dashboard/WorkspaceCard";
-import { Badge } from "@/components/ui/badge";
-import { isRepairTerminal, type Repair } from "@/lib/repairs";
+import {
+  formatRepairRefCode,
+  isRepairTerminal,
+  type Repair,
+} from "@/lib/repairs";
 import {
   cn,
   formatDate,
   formatDaysRemaining,
   getUrgencyLevel,
 } from "@/lib/utils";
+import { RepairTypeBadge } from "./RepairTypeBadge";
 
 export function RepairWorkspaceCard({
   repair,
@@ -36,16 +40,14 @@ export function RepairWorkspaceCard({
         </p>
         <div className="mt-1 flex items-center gap-1.5">
           <span className="font-mono text-[11px] text-muted-foreground">
-            {repair.refCode}
+            {formatRepairRefCode(repair.refCode)}
           </span>
           <span className="text-[10px] text-muted-foreground/50">·</span>
           <span className="truncate text-[11px] text-muted-foreground">
             {repair.category || "Repair"}
           </span>
         </div>
-        <Badge variant="outline" className="mt-2 rounded-full text-[10px]">
-          {repair.productType}
-        </Badge>
+        <RepairTypeBadge productType={repair.productType} className="mt-2" />
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
           {daysLabel && (
             <span

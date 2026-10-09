@@ -7,9 +7,9 @@ import {
   DetailRow,
   DetailSection,
 } from "@/components/enquiry/requirements/RequirementDetailsPanel";
-import { Badge } from "@/components/ui/badge";
 import type { Repair } from "@/lib/repairs";
 import { RepairReferencesPreview } from "./RepairReferencesPreview";
+import { RepairTypeBadge } from "./RepairTypeBadge";
 
 export function RepairProductCard({ repair }: { repair: Repair }) {
   return (
@@ -18,7 +18,7 @@ export function RepairProductCard({ repair }: { repair: Repair }) {
         <p className="text-sm font-medium uppercase tracking-wide text-foreground">
           Item 1 <span className="font-normal text-muted-foreground">of 1</span>
         </p>
-        <Badge variant="outline">{repair.productType}</Badge>
+        <RepairTypeBadge productType={repair.productType} />
       </div>
       <RequirementCardBody>
         <RepairReferencesPreview repair={repair} />

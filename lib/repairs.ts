@@ -63,7 +63,7 @@ export type RepairDraft = RepairProduct & {
 };
 export type Repair = RepairDraft & {
   id: string;
-  refCode: string;
+  refCode: string | number;
   stage: RepairStage;
   createdAt: string;
   updatedAt: string;
@@ -87,6 +87,10 @@ export const EMPTY_REPAIR: RepairDraft = {
   repairRemarks: "",
   images: [],
 };
+
+export function formatRepairRefCode(refCode: Repair["refCode"]) {
+  return `#${String(refCode).replace(/^#+/, "")}`;
+}
 
 export function prepareRepairMedia(references: RepairReference[]) {
   const stored = references.map(

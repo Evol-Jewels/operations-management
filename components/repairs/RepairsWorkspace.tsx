@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { useRepairs } from "@/hooks/useRepairs";
 import {
+  formatRepairRefCode,
   isRepairTerminal,
   moveRepair,
   REPAIR_STAGES,
@@ -74,14 +75,18 @@ export function RepairsWorkspace({
       (activeStage === "all" || repair.stage === activeStage) &&
       (productType === "all" || repair.productType === productType) &&
       [
-        repair.refCode,
+        formatRepairRefCode(repair.refCode),
         repair.customerName,
         repair.customerPhone,
         repair.barcode,
         repair.category ?? "",
         repair.repairRemarks,
         repair.vendor?.vendorName ?? "",
-      ].some((value) => value.toLowerCase().includes(query)),
+      ].some((value) =>
+        String(value ?? "")
+          .toLowerCase()
+          .includes(query),
+      ),
   );
   const commitMove = async (
     repair: Repair,
@@ -272,7 +277,8 @@ export function RepairsWorkspace({
                         {repair.customerName || "Stock repair"}
                       </Link>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {repair.refCode} · {repair.productType}
+                        {formatRepairRefCode(repair.refCode)} ·{" "}
+                        {repair.productType}
                       </p>
                     </TableCell>
                     <TableCell>

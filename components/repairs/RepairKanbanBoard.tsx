@@ -21,6 +21,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Package } from "lucide-react";
 import { useState } from "react";
 import {
   isRepairTerminal,
@@ -100,11 +101,25 @@ function RepairColumn({
           : "border-border bg-card/50",
       )}
     >
-      <div className="flex items-center justify-between rounded-t-xl border-b bg-muted/40 px-3 py-2.5">
+      <div
+        className={cn(
+          "sticky top-0 z-10 flex items-center justify-between rounded-t-xl border-b px-3 py-2.5",
+          isRepairTerminal(stage)
+            ? "bg-muted/30 dark:bg-muted/20"
+            : "bg-muted/40",
+        )}
+      >
         <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground">
           {stage}
         </h3>
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+        <span
+          className={cn(
+            "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-medium",
+            repairs.length > 0
+              ? "bg-foreground text-background"
+              : "bg-muted text-muted-foreground",
+          )}
+        >
           {repairs.length}
         </span>
       </div>
@@ -122,9 +137,16 @@ function RepairColumn({
               />
             ))
           ) : (
-            <p className="rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
-              No repairs
-            </p>
+            <div className="flex min-h-56 flex-col items-center justify-center py-8 text-center">
+              <Package
+                className="mb-2 size-6 text-muted-foreground/30"
+                aria-hidden="true"
+              />
+              <p className="text-[11px] text-muted-foreground/60">No repairs</p>
+              <p className="text-[10px] text-muted-foreground/40">
+                in this status
+              </p>
+            </div>
           )}
         </SortableContext>
       </div>
