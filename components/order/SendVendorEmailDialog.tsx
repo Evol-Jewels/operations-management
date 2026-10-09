@@ -1,9 +1,10 @@
 "use client";
 
 import { Mail, Paperclip } from "lucide-react";
-import { useId, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { toast } from "sonner";
 import type { ItemPdfExport } from "@/components/enquiry/EnquiryProductList";
+import { EmailChipsInput } from "@/components/order/EmailChipsInput";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,13 +16,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FormField } from "@/components/ui/form-field";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   buildVendorEmailBody,
   buildVendorEmailSubject,
 } from "@/lib/vendorEmailTemplate";
+
+const composeInputClassName =
+  "h-11 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground";
 
 interface SendVendorEmailDialogProps {
   refCode: number;
@@ -47,7 +49,7 @@ export function SendVendorEmailDialog({
           Email vendor
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl print:hidden">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl print:hidden">
         <DialogHeader>
           <DialogTitle>Send email to vendor</DialogTitle>
           <DialogDescription>
@@ -62,58 +64,56 @@ export function SendVendorEmailDialog({
             setOpen(false);
           }}
         >
-          <div className="grid gap-3 sm:grid-cols-3">
-            <FormField label="To" htmlFor={`${id}-to`}>
-              <Input
+          <div className="overflow-hidden rounded-lg border border-input">
+            <ComposeRow label="To" htmlFor={`${id}-to`}>
+              <input
                 id={`${id}-to`}
                 name="to"
                 type="email"
-                defaultValue=""
+                required
                 placeholder="vendor@example.com"
+                className={composeInputClassName}
               />
-            </FormField>
-            <FormField label="CC" htmlFor={`${id}-cc`} optional>
-              <Input
+            </ComposeRow>
+            <ComposeRow label="CC" htmlFor={`${id}-cc`}>
+              <EmailChipsInput
                 id={`${id}-cc`}
                 name="cc"
-                type="email"
-                multiple
-                defaultValue=""
-                placeholder="email@example.com"
+                placeholder="Add emails"
               />
-            </FormField>
-            <FormField label="Subject" htmlFor={`${id}-subject`}>
-              <Input
+            </ComposeRow>
+            <ComposeRow label="Subject" htmlFor={`${id}-subject`}>
+              <input
                 id={`${id}-subject`}
                 name="subject"
+                required
                 defaultValue={buildVendorEmailSubject(refCode, pdf.itemTitle)}
+                className={composeInputClassName}
               />
-            </FormField>
-          </div>
-          <FormField label="Content" htmlFor={`${id}-content`}>
+            </ComposeRow>
             <Textarea
-              id={`${id}-content`}
               name="content"
+              aria-label="Content"
               defaultValue={buildVendorEmailBody(refCode, pdf.itemTitle)}
-              rows={6}
-              className="field-sizing-fixed resize-y leading-relaxed"
+              rows={8}
+              className="field-sizing-fixed resize-none rounded-none border-0 px-4 py-3 leading-relaxed shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
-          </FormField>
-          <FormField label="Attachment">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="max-w-full rounded-full text-xs"
-              aria-label={`Preview ${pdf.fileName}`}
-              title="Preview order PDF"
-              onClick={pdf.preview}
-            >
-              <Paperclip className="size-3.5" />
-              <span className="truncate">{pdf.fileName}</span>
-            </Button>
-          </FormField>
-          <DialogFooter className="border-t pt-4">
+            <div className="border-t border-input px-4 py-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="max-w-full rounded-full text-xs"
+                aria-label={`Preview ${pdf.fileName}`}
+                title="Preview PDF"
+                onClick={pdf.preview}
+              >
+                <Paperclip className="size-3.5" />
+                <span className="truncate">{pdf.fileName}</span>
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline">
                 Cancel
@@ -124,5 +124,27 @@ export function SendVendorEmailDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ComposeRow({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3 border-b border-input px-4">
+      <label
+        htmlFor={htmlFor}
+        className="w-14 shrink-0 py-3 text-sm leading-5 text-muted-foreground"
+      >
+        {label}
+      </label>
+      {children}
+    </div>
   );
 }
