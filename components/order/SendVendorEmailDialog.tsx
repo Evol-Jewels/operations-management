@@ -17,10 +17,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useVendors } from "@/hooks/useVendors";
 import {
   buildVendorEmailBody,
   buildVendorEmailSubject,
+  VENDOR_EMAIL_DEFAULT_CC,
 } from "@/lib/vendorEmailTemplate";
+import { findOrderVendor } from "@/lib/vendors";
 
 const composeInputClassName =
   "h-11 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground";
@@ -28,17 +31,32 @@ const composeInputClassName =
 interface SendVendorEmailDialogProps {
   refCode: number;
   pdf: ItemPdfExport;
+  vendorId?: string;
+  vendorName?: string;
 }
 
 export function SendVendorEmailDialog({
   refCode,
   pdf,
+  vendorId,
+  vendorName,
 }: SendVendorEmailDialogProps) {
   const [open, setOpen] = useState(false);
   const id = useId();
+  const vendorsQuery = useVendors(open);
+  const vendor = findOrderVendor(vendorsQuery.data ?? [], vendorId, vendorName);
+  const [recipientOverride, setRecipientOverride] = useState<string | null>(
+    null,
+  );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        setOpen(value);
+        if (value) setRecipientOverride(null);
+      }}
+    >
       <DialogTrigger asChild>
         <Button
           variant="outline"
@@ -53,7 +71,9 @@ export function SendVendorEmailDialog({
         <DialogHeader>
           <DialogTitle>Send email to vendor</DialogTitle>
           <DialogDescription>
-            Review the order details before sending.
+            {vendor?.name || vendorName
+              ? `Review the order details for ${vendor?.name || vendorName} before sending.`
+              : "Review the order details before sending."}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -70,6 +90,9 @@ export function SendVendorEmailDialog({
                 id={`${id}-to`}
                 name="to"
                 type="email"
+                multiple
+                value={recipientOverride ?? vendor?.email ?? ""}
+                onChange={(event) => setRecipientOverride(event.target.value)}
                 required
                 placeholder="vendor@example.com"
                 className={composeInputClassName}
@@ -80,6 +103,7 @@ export function SendVendorEmailDialog({
                 id={`${id}-cc`}
                 name="cc"
                 placeholder="Add emails"
+                defaultEmails={VENDOR_EMAIL_DEFAULT_CC}
               />
             </ComposeRow>
             <ComposeRow label="Subject" htmlFor={`${id}-subject`}>
@@ -113,6 +137,11 @@ export function SendVendorEmailDialog({
               </Button>
             </div>
           </div>
+          {vendorsQuery.isError ? (
+            <p role="alert" className="text-xs text-destructive">
+              Could not load the vendor email. Enter the recipient manually.
+            </p>
+          ) : null}
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline">

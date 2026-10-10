@@ -10,14 +10,16 @@ interface EmailChipsInputProps {
   id: string;
   name: string;
   placeholder?: string;
+  defaultEmails?: string[];
 }
 
 export function EmailChipsInput({
   id,
   name,
   placeholder,
+  defaultEmails = [],
 }: EmailChipsInputProps) {
-  const [emails, setEmails] = useState<string[]>([]);
+  const [emails, setEmails] = useState<string[]>(defaultEmails);
   const [draft, setDraft] = useState("");
   const [isDraftInvalid, setIsDraftInvalid] = useState(false);
 

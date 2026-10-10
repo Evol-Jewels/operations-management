@@ -12,6 +12,7 @@ import { useState } from "react";
 import { EnquiryEstimationDialog } from "@/components/enquiry/EnquiryEstimationDialog";
 import { AudioPreviewPlayer } from "@/components/requirements/AudioPreviewPlayer";
 import { Button } from "@/components/ui/button";
+import { useVendorAccess } from "@/hooks/useVendors";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { CalculatorSettings, ProductEstimation } from "@/types";
 import type { RequirementDisplayItem } from "./requirement-display-utils";
@@ -226,6 +227,8 @@ function ImageButton({
 }
 
 function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
+  const canViewVendor = useVendorAccess();
+  const vendorName = canViewVendor ? estimation.vendorName : undefined;
   return (
     <div className="rounded-xl border border-border bg-background px-4 py-3">
       <div className="flex items-start justify-between gap-3">
@@ -245,9 +248,9 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
           <p>{formatDate(estimation.createdAt)}</p>
         </div>
       </div>
-      {estimation.vendorName || estimation.notes ? (
+      {vendorName || estimation.notes ? (
         <div className="mt-3 border-t border-dashed border-border pt-3 text-xs text-muted-foreground">
-          {estimation.vendorName ? <p>{estimation.vendorName}</p> : null}
+          {vendorName ? <p>{vendorName}</p> : null}
           {estimation.notes ? <p className="mt-1">{estimation.notes}</p> : null}
         </div>
       ) : null}

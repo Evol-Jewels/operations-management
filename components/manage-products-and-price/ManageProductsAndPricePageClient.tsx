@@ -9,6 +9,7 @@ import {
   ReceiptText,
   RefreshCw,
   Trash2,
+  Truck,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
@@ -55,6 +56,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { VendorsPanel } from "@/components/vendors/VendorsPanel";
 import {
   useCreateLocation,
   useCreateStoneSlab,
@@ -77,6 +79,7 @@ import {
   useUpdateSpecialProductMakingCharge,
   useUpdateSystemConfig,
 } from "@/hooks/useSystemConfigs";
+import { useVendorAccess } from "@/hooks/useVendors";
 import { formatCurrency } from "@/lib/utils";
 import type {
   CreateSpecialProductMakingChargeInput,
@@ -94,7 +97,12 @@ import type {
   UpdateStoneSlabInput,
 } from "@/types/manage-products-api";
 
-type ManageSection = "overview" | "locations" | "stones-slabs" | "misc";
+type ManageSection =
+  | "overview"
+  | "locations"
+  | "stones-slabs"
+  | "misc"
+  | "vendors";
 type DialogMode = "add" | "edit";
 
 type LocationDraft = {
@@ -356,6 +364,7 @@ function Overview() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const canManageVendors = useVendorAccess();
 
   function updateSearchParams(updater: (params: URLSearchParams) => void) {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -376,7 +385,7 @@ function Overview() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <OverviewCard
           icon={<CircleDollarSign className="h-5 w-5" />}
           title="Stores & Locations"
@@ -395,6 +404,14 @@ function Overview() {
           description="Edit shared GST and making keys from system config."
           onClick={() => updateSearchParams((p) => p.set("tab", "system"))}
         />
+        {canManageVendors ? (
+          <OverviewCard
+            icon={<Truck className="h-5 w-5" />}
+            title="Vendors"
+            description="Manage vendor names and email addresses used for orders."
+            onClick={() => updateSearchParams((p) => p.set("tab", "vendors"))}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -2207,6 +2224,7 @@ export function ManageProductsAndPricePageClient() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const canManageVendors = useVendorAccess();
 
   function updateSearchParams(updater: (params: URLSearchParams) => void) {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -2225,7 +2243,9 @@ export function ManageProductsAndPricePageClient() {
         ? "stones-slabs"
         : activeTab === "system" || hashSection === "system-config"
           ? "misc"
-          : "overview";
+          : activeTab === "vendors" && canManageVendors
+            ? "vendors"
+            : "overview";
 
   return (
     <div className="mx-auto flex h-[calc(100svh-2rem)] w-full max-w-7xl flex-col overflow-hidden sm:h-[calc(100svh-3rem)]">
@@ -2243,6 +2263,11 @@ export function ManageProductsAndPricePageClient() {
       {activeSection === "misc" ? (
         <SystemConfigsEditor
           onBack={() => router.push("/manage-products-and-price")}
+        />
+      ) : null}
+      {activeSection === "vendors" ? (
+        <VendorsPanel
+          onBack={() => updateSearchParams((p) => p.delete("tab"))}
         />
       ) : null}
     </div>

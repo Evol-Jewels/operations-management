@@ -128,6 +128,7 @@ export interface BackendOrderRow {
   isCadRequired: boolean;
   estimatedDeliveryDate: string | null;
   vendor: string | null;
+  vendorId?: string | null;
   vendorDeliveryDate: string | null;
   createdAt: string;
   updatedAt: string;
@@ -148,6 +149,7 @@ export interface CreateExistingOrderItemInput {
   isCadRequired?: boolean;
   estimatedDeliveryDate?: string;
   vendor?: string;
+  vendorId?: string;
 }
 
 export interface CreateCustomOrderItemInput {
@@ -159,6 +161,7 @@ export interface CreateCustomOrderItemInput {
   isCadRequired?: boolean;
   estimatedDeliveryDate?: string;
   vendor?: string;
+  vendorId?: string;
 }
 
 export type CreateOrderItemInput =
@@ -195,6 +198,7 @@ export interface ListOrdersQuery {
 export interface UpdateOrderInput {
   estimatedDeliveryDate?: string | null;
   vendor?: string | null;
+  vendorId?: string | null;
   vendorDeliveryDate?: string | null;
   notes?: string | null;
   isCadRequired?: boolean;
@@ -203,6 +207,7 @@ export interface UpdateOrderInput {
 export interface UpdateOrderStatusInput {
   status: BackendOrderStatus;
   vendor?: string | null;
+  vendorId?: string | null;
   vendorDeliveryDate?: string | null;
 }
 

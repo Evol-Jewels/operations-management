@@ -74,16 +74,18 @@ export function RequirementDetailsPanel({
               <p className="text-sm font-semibold text-muted-foreground">
                 Vendor details
               </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={vendorDetails.onEdit}
-                className="h-8 gap-1.5 px-2.5 text-xs"
-              >
-                <Pencil className="size-3.5" />
-                Edit
-              </Button>
+              {vendorDetails.onEdit ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={vendorDetails.onEdit}
+                  className="h-8 gap-1.5 px-2.5 text-xs"
+                >
+                  <Pencil className="size-3.5" />
+                  Edit
+                </Button>
+              ) : null}
             </div>
             <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-x-4 gap-y-1.5">
               <DetailRow
@@ -153,7 +155,7 @@ export function RequirementDetailsPanel({
 export interface OrderVendorDetailsDisplay {
   name?: string;
   deliveryDate?: string;
-  onEdit: () => void;
+  onEdit?: () => void;
 }
 
 function MiniCarousel<T>({
