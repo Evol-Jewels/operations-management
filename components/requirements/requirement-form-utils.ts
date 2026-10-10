@@ -184,6 +184,10 @@ export function cleanColorStone(stone: RequirementColorStone) {
     nature: cleanText(stone.nature),
     origin: cleanText(stone.origin),
     treatment: cleanText(stone.treatment),
+    shape: cleanText(stone.shape),
+    colour: cleanText(stone.colour),
+    size: cleanText(stone.size),
+    pieces: cleanText(stone.pieces),
     weight: cleanText(stone.weight),
     notes: cleanText(stone.notes),
   };
@@ -208,5 +212,6 @@ export function mediaFromReference(
     name: reference.name,
     mimeType: reference.mimeType,
     size: reference.size,
+    durationSeconds: reference.durationSeconds,
   };
 }
