@@ -16,16 +16,19 @@ import {
 export function RequirementDetailsPanel({
   item,
   vendorDetails,
+  tags = [item.kind, item.status.toLowerCase()],
 }: {
   item: RequirementDisplayItem;
   vendorDetails?: OrderVendorDetailsDisplay;
+  tags?: string[];
 }) {
   return (
     <div className="min-w-0 space-y-4">
       <div>
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <Tag>{item.kind}</Tag>
-          <Tag>{item.status.toLowerCase()}</Tag>
+          {tags.map((tag) => (
+            <Tag key={tag}>{tag}</Tag>
+          ))}
         </div>
         <h3 className="break-words text-lg font-semibold leading-tight text-foreground">
           {item.title}
