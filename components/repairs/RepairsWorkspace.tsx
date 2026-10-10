@@ -30,6 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useRepairs } from "@/hooks/useRepairs";
+import { useVendorAccess } from "@/hooks/useVendors";
 import {
   formatRepairRefCode,
   isRepairTerminal,
@@ -54,6 +55,7 @@ export function RepairsWorkspace({
   onViewModeChange: (mode: "table" | "kanban") => void;
 }) {
   const { repairs, isLoading, error, reload, saveStage } = useRepairs();
+  const canManageVendor = useVendorAccess();
   const [saving, setSaving] = useState(false);
   const [pendingMove, setPendingMove] = useState<{
     repair: Repair;
@@ -63,7 +65,8 @@ export function RepairsWorkspace({
   const [stage, setStage] = useState("all");
   const [productType, setProductType] = useState("all");
   const needsVendor = Boolean(
-    pendingMove &&
+    canManageVendor &&
+      pendingMove &&
       pendingMove.stage !== "New" &&
       pendingMove.stage !== "Cancelled" &&
       Object.keys(validateRepairVendor(pendingMove.repair.vendor)).length,
@@ -81,7 +84,7 @@ export function RepairsWorkspace({
         repair.barcode,
         repair.category ?? "",
         repair.repairRemarks,
-        repair.vendor?.vendorName ?? "",
+        canManageVendor ? (repair.vendor?.vendorName ?? "") : "",
       ].some((value) =>
         String(value ?? "")
           .toLowerCase()
@@ -96,7 +99,7 @@ export function RepairsWorkspace({
     if (saving) return;
     setSaving(true);
     try {
-      await saveStage(repair.id, stage, vendor);
+      await saveStage(repair.id, stage, canManageVendor ? vendor : undefined);
       setPendingMove(null);
       toast.success(`Repair moved to ${stage}`);
     } catch (error) {
@@ -110,6 +113,7 @@ export function RepairsWorkspace({
   const handleMove = (repair: Repair, stage: RepairStage) => {
     if (saving || pendingMove || isRepairTerminal(repair.stage)) return;
     if (
+      canManageVendor &&
       stage !== "New" &&
       stage !== "Cancelled" &&
       Object.keys(validateRepairVendor(repair.vendor)).length
@@ -138,8 +142,16 @@ export function RepairsWorkspace({
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
-            aria-label="Search repairs by customer, vendor, barcode, or repair"
-            placeholder="Search customer, vendor, or barcode"
+            aria-label={
+              canManageVendor
+                ? "Search repairs by customer, vendor, barcode, or repair"
+                : "Search repairs by customer, barcode, or repair"
+            }
+            placeholder={
+              canManageVendor
+                ? "Search customer, vendor, or barcode"
+                : "Search customer or barcode"
+            }
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="pl-9"
@@ -260,9 +272,13 @@ export function RepairsWorkspace({
                   <TableHead>Repair / Customer</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Stage</TableHead>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead>Vendor estimate date</TableHead>
-                  <TableHead>Delivery date</TableHead>
+                  {canManageVendor && (
+                    <>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Vendor estimate date</TableHead>
+                      <TableHead>Delivery date</TableHead>
+                    </>
+                  )}
                   <TableHead>Created</TableHead>
                 </TableRow>
               </TableHeader>
@@ -294,19 +310,27 @@ export function RepairsWorkspace({
                     <TableCell>
                       <RepairStageBadge stage={repair.stage} />
                     </TableCell>
-                    <TableCell>{repair.vendor?.vendorName || "—"}</TableCell>
-                    <TableCell>
-                      {repair.vendor?.vendorEstimateDate
-                        ? formatDate(
-                            `${repair.vendor.vendorEstimateDate}T12:00:00`,
-                          )
-                        : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {repair.vendor?.deliveryDate
-                        ? formatDate(`${repair.vendor.deliveryDate}T12:00:00`)
-                        : "—"}
-                    </TableCell>
+                    {canManageVendor && (
+                      <>
+                        <TableCell>
+                          {repair.vendor?.vendorName || "—"}
+                        </TableCell>
+                        <TableCell>
+                          {repair.vendor?.vendorEstimateDate
+                            ? formatDate(
+                                `${repair.vendor.vendorEstimateDate}T12:00:00`,
+                              )
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {repair.vendor?.deliveryDate
+                            ? formatDate(
+                                `${repair.vendor.deliveryDate}T12:00:00`,
+                              )
+                            : "—"}
+                        </TableCell>
+                      </>
+                    )}
                     <TableCell className="whitespace-nowrap text-muted-foreground">
                       {formatDate(repair.createdAt)}
                     </TableCell>

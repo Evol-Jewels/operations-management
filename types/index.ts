@@ -499,6 +499,7 @@ export interface Order {
   salespersonName: string;
   createdBy?: PersonSummary;
   vendorName?: string;
+  vendorId?: string;
   vendorDeliveryDate?: string;
 
   // Financial

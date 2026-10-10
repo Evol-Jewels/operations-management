@@ -11,11 +11,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VendorCombobox } from "@/components/vendors/VendorCombobox";
+import { useVendors } from "@/hooks/useVendors";
+import { findOrderVendor } from "@/lib/vendors";
 
 export interface VendorDetailsValues {
   vendor: string | null;
+  vendorId: string | null;
   vendorDeliveryDate: string | null;
 }
 
@@ -23,6 +26,7 @@ interface VendorDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vendorName?: string;
+  vendorId?: string;
   vendorDeliveryDate?: string;
   title: string;
   description: string;
@@ -35,6 +39,7 @@ export function VendorDetailsDialog({
   open,
   onOpenChange,
   vendorName,
+  vendorId,
   vendorDeliveryDate,
   title,
   description,
@@ -43,18 +48,25 @@ export function VendorDetailsDialog({
   onSubmit,
 }: VendorDetailsDialogProps) {
   const [name, setName] = useState(vendorName ?? "");
+  const [selectedId, setSelectedId] = useState<string | null>(vendorId ?? null);
+  const vendorsQuery = useVendors(open);
   const [deliveryDate, setDeliveryDate] = useState(vendorDeliveryDate ?? "");
 
   useEffect(() => {
     if (!open) return;
     setName(vendorName ?? "");
+    setSelectedId(vendorId ?? null);
     setDeliveryDate(vendorDeliveryDate ?? "");
-  }, [open, vendorDeliveryDate, vendorName]);
+  }, [open, vendorDeliveryDate, vendorName, vendorId]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await onSubmit({
       vendor: name.trim() || null,
+      vendorId:
+        selectedId ??
+        findOrderVendor(vendorsQuery.data ?? [], null, name)?.vendorId ??
+        null,
       vendorDeliveryDate: deliveryDate || null,
     });
   }
@@ -82,14 +94,31 @@ export function VendorDetailsDialog({
                   (optional)
                 </span>
               </Label>
-              <Input
+              <VendorCombobox
                 id="vendor-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="e.g. ABC Jewellers"
-                autoComplete="organization"
+                name={name}
+                vendorId={selectedId}
+                vendors={vendorsQuery.data ?? []}
+                onChange={(value, id) => {
+                  setName(value);
+                  setSelectedId(id);
+                }}
                 disabled={isPending}
+                isLoading={vendorsQuery.isLoading}
               />
+              {vendorsQuery.isError ? (
+                <p role="alert" className="text-xs text-destructive">
+                  Could not load saved vendors. You can still type a vendor
+                  name.{" "}
+                  <button
+                    type="button"
+                    className="underline"
+                    onClick={() => void vendorsQuery.refetch()}
+                  >
+                    Retry
+                  </button>
+                </p>
+              ) : null}
             </div>
 
             <div className="grid gap-2">
