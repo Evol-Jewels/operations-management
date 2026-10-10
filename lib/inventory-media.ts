@@ -13,12 +13,15 @@ export function isInventoryMediaProxyUrl(value: string) {
   return productMediaProxyUrl ? value.startsWith(productMediaProxyUrl) : false;
 }
 
+export function getProductMediaProxyUrl(mediaId: string) {
+  return productMediaProxyUrl ? `${productMediaProxyUrl}${mediaId}` : null;
+}
+
 export function getInventoryMediaUrl(
   image: Pick<InventoryMedia, "id" | "storageKey">,
 ) {
   if (isGoogleDriveStorageKey(image.storageKey)) {
-    if (!apiBaseUrl) return image.storageKey;
-    return `${productMediaProxyUrl}${image.id}`;
+    return getProductMediaProxyUrl(image.id) ?? image.storageKey;
   }
 
   return image.storageKey;

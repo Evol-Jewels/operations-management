@@ -20,6 +20,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { BulkOrdersWorkspace } from "@/components/bulk-orders/BulkOrdersWorkspace";
 import { OrderStatusDialog } from "@/components/order/OrderStatusDialog";
 import {
   VendorDetailsDialog,
@@ -61,7 +62,10 @@ import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 import { shouldPromptForVendorDetails } from "@/lib/orderVendorDetails";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import { isOlderTerminalRecord } from "@/lib/workspaceRecords";
+import {
+  isOlderTerminalRecord,
+  statusBadgeClass,
+} from "@/lib/workspaceRecords";
 import type { Order, PersonSummary, RecordType } from "@/types";
 import type { BackendEnquiryStatus } from "@/types/enquiry-api";
 import type { BackendOrderStatus } from "@/types/order-api";
@@ -74,7 +78,12 @@ import {
   WorkspaceRecordFilters,
 } from "./WorkspaceRecordFilters";
 
-type TypeTab = RecordType | "purchase" | "recent-sale" | "repair";
+type TypeTab =
+  | RecordType
+  | "bulk-order"
+  | "purchase"
+  | "recent-sale"
+  | "repair";
 type ViewMode = "table" | "kanban";
 
 const TAB_STORAGE_KEY = "evol:orders-enquiries:tab";
@@ -155,6 +164,7 @@ function isTypeTab(value: unknown): value is TypeTab {
     value === "enquiry" ||
     value === "purchase" ||
     value === "repair" ||
+    value === "bulk-order" ||
     value === "recent-sale"
   );
 }
@@ -165,6 +175,7 @@ function getTypeTabFromSearchParams(searchParams: URLSearchParams) {
   if (type === "purchases") return "purchase";
   if (type === "recent-sales") return "recent-sale";
   if (type === "repairs") return "repair";
+  if (type === "bulk-orders") return "bulk-order";
   return isTypeTab(type) ? type : null;
 }
 
@@ -201,9 +212,7 @@ function getInitialTypeTab(searchParams: URLSearchParams): TypeTab {
 }
 
 function getDefaultViewMode(tab: TypeTab): ViewMode {
-  return tab === "purchase" || tab === "recent-sale" || tab === "repair"
-    ? "table"
-    : "kanban";
+  return tab === "order" || tab === "enquiry" ? "kanban" : "table";
 }
 
 function getInitialViewMode(searchParams: URLSearchParams): ViewMode {
@@ -284,28 +293,6 @@ function getKanbanStatus(record: Order): string {
 
 function isOrderStage(value: string): value is (typeof ORDER_STAGES)[number] {
   return ORDER_STAGES.some((stage) => stage === value);
-}
-
-function statusBadgeClass(status: string) {
-  if (status === "Closed" || status === "Delivered" || status === "Cancelled") {
-    return "border-muted-foreground/20 bg-muted text-foreground dark:border-muted-foreground/20 dark:bg-muted/50";
-  }
-  if (status === "Converted" || status === "Order Confirmed") {
-    return "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400";
-  }
-  if (status === "Estimated") {
-    return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400";
-  }
-  if (status === "New") {
-    return "border-red-500/20 bg-red-500/10 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400";
-  }
-  if (status === "In Progress") {
-    return "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-400";
-  }
-  if (status === "In Production" || status === "Certification") {
-    return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400";
-  }
-  return "border-border bg-muted text-muted-foreground";
 }
 
 function PersonAvatar({
@@ -1024,7 +1011,12 @@ export function OrdersEnquiriesWorkspace() {
         label: "Enquiries",
         count: tabCounts.enquiry,
       },
-      ...(!isPhotography ? [{ key: "repair" as const, label: "Repairs" }] : []),
+      ...(!isPhotography
+        ? [
+            { key: "bulk-order" as const, label: "Bulk orders" },
+            { key: "repair" as const, label: "Repairs" },
+          ]
+        : []),
       ...(canViewPurchases
         ? [
             {
@@ -1366,7 +1358,9 @@ export function OrdersEnquiriesWorkspace() {
         <div
           className={cn(
             "hidden w-full items-center gap-1 rounded-lg border border-border bg-background p-1 lg:w-auto",
-            typeTab === "purchase" || typeTab === "recent-sale"
+            typeTab === "purchase" ||
+              typeTab === "recent-sale" ||
+              typeTab === "bulk-order"
               ? "lg:hidden"
               : "lg:flex",
           )}
@@ -1414,7 +1408,7 @@ export function OrdersEnquiriesWorkspace() {
         </div>
       </div>
 
-      {typeTab !== "repair" && (
+      {typeTab !== "repair" && typeTab !== "bulk-order" && (
         <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start lg:gap-8">
           <div className="flex min-h-9 shrink-0 items-center justify-between gap-3">
             <h2 className="whitespace-nowrap text-base font-medium text-foreground">
@@ -1579,7 +1573,9 @@ export function OrdersEnquiriesWorkspace() {
         </p>
       )}
 
-      {typeTab === "repair" ? (
+      {typeTab === "bulk-order" ? (
+        <BulkOrdersWorkspace />
+      ) : typeTab === "repair" ? (
         <RepairsWorkspace
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
