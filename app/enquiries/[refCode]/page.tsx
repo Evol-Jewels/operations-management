@@ -11,6 +11,7 @@ import {
   useUpdateEstimation,
 } from "@/hooks/useEnquiries";
 import { useComments, useCreateComment } from "@/hooks/useSourceActivity";
+import { useVendorAccess } from "@/hooks/useVendors";
 import { captureProductEvent } from "@/lib/analytics";
 import { uploadCommentMedia } from "@/lib/commentsApi";
 import { mapBackendEnquiryDetailsToOrder } from "@/lib/enquiryMappers";
@@ -20,7 +21,10 @@ function toDecimal(value: number, digits = 2) {
   return value.toFixed(digits);
 }
 
-function estimationToApiInput(estimation: ProductEstimation) {
+function estimationToApiInput(
+  estimation: ProductEstimation,
+  canManageVendor: boolean,
+) {
   return {
     metalType: estimation.metalType ?? "Gold",
     metalPurity: estimation.purity,
@@ -31,7 +35,9 @@ function estimationToApiInput(estimation: ProductEstimation) {
       pieces: stone.pieces,
     })),
     makingCost: toDecimal(estimation.makingCost ?? 0),
-    vendorName: estimation.vendorName?.trim() || undefined,
+    vendorName: canManageVendor
+      ? estimation.vendorName?.trim() || undefined
+      : undefined,
     notes: estimation.notes?.trim() || undefined,
   };
 }
@@ -49,6 +55,7 @@ function EnquiryPageContent() {
     invalidateQueryKeys: [enquiryKeys.detailByRefCode(refCode)],
   });
   const updateEnquiry = useUpdateEnquiry(id);
+  const canManageVendor = useVendorAccess();
 
   if (enquiryQuery.isLoading) {
     return (
@@ -80,14 +87,14 @@ function EnquiryPageContent() {
     if (existing) {
       updateEstimation.mutate({
         estimationId: estimation.id,
-        input: estimationToApiInput(estimation),
+        input: estimationToApiInput(estimation, canManageVendor),
       });
       return;
     }
 
     createEstimation.mutate({
       itemId: productId,
-      input: estimationToApiInput(estimation),
+      input: estimationToApiInput(estimation, canManageVendor),
     });
   }
 

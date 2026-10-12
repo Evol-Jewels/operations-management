@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRepairs } from "@/hooks/useRepairs";
+import { useVendorAccess } from "@/hooks/useVendors";
 import {
   formatRepairRefCode,
   isRepairTerminal,
@@ -58,6 +59,7 @@ export function RepairDetailPage({ id }: { id: string }) {
     saveVendor: persistVendor,
     saveComment,
   } = useRepairs(id);
+  const canManageVendor = useVendorAccess();
   const repair = repairs.find((record) => record.id === id);
   const [vendorEditor, setVendorEditor] = useState<"edit" | RepairStage | null>(
     null,
@@ -70,7 +72,11 @@ export function RepairDetailPage({ id }: { id: string }) {
     setSaving(true);
     setSaveError("");
     try {
-      await saveStage(repair.id, stage, vendor ?? repair.vendor);
+      await saveStage(
+        repair.id,
+        stage,
+        canManageVendor ? (vendor ?? repair.vendor) : undefined,
+      );
       setVendorEditor(null);
       setPendingStage(null);
       toast.success(`Repair moved to ${stage}`);
@@ -129,7 +135,8 @@ export function RepairDetailPage({ id }: { id: string }) {
     );
   const terminal = isRepairTerminal(repair.stage);
   const name = repair.customerName || "Stock repair";
-  const deliveryDate = terminal ? undefined : repair.vendor?.deliveryDate;
+  const deliveryDate =
+    terminal || !canManageVendor ? undefined : repair.vendor?.deliveryDate;
   const urgency = getUrgencyLevel(deliveryDate);
   const daysLabel = formatDaysRemaining(deliveryDate);
   return (
@@ -187,6 +194,7 @@ export function RepairDetailPage({ id }: { id: string }) {
                 const stage = REPAIR_STAGES.find((stage) => stage === value);
                 if (!stage || stage === repair.stage) return;
                 if (
+                  canManageVendor &&
                   stage !== "New" &&
                   stage !== "Cancelled" &&
                   Object.keys(validateRepairVendor(repair.vendor)).length
@@ -254,36 +262,38 @@ export function RepairDetailPage({ id }: { id: string }) {
                   value={formatDate(repair.updatedAt)}
                 />
               </SpecSection>
-              <SpecSection
-                icon={Truck}
-                title="Vendor details"
-                action={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 gap-1.5 px-2 text-xs"
-                    disabled={saving || terminal}
-                    onClick={() => setVendorEditor("edit")}
-                  >
-                    <Pencil className="size-3" />
-                    Edit
-                  </Button>
-                }
-              >
-                <SpecLine
-                  label="Vendor name"
-                  value={repair.vendor?.vendorName || "Not added"}
-                />
-                <SpecLine
-                  label="Vendor estimate"
-                  value={displayDate(repair.vendor?.vendorEstimateDate)}
-                />
-                <SpecLine
-                  label="Delivery date"
-                  value={displayDate(repair.vendor?.deliveryDate)}
-                />
-              </SpecSection>
+              {canManageVendor && (
+                <SpecSection
+                  icon={Truck}
+                  title="Vendor details"
+                  action={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 px-2 text-xs"
+                      disabled={saving || terminal}
+                      onClick={() => setVendorEditor("edit")}
+                    >
+                      <Pencil className="size-3" />
+                      Edit
+                    </Button>
+                  }
+                >
+                  <SpecLine
+                    label="Vendor name"
+                    value={repair.vendor?.vendorName || "Not added"}
+                  />
+                  <SpecLine
+                    label="Vendor estimate"
+                    value={displayDate(repair.vendor?.vendorEstimateDate)}
+                  />
+                  <SpecLine
+                    label="Delivery date"
+                    value={displayDate(repair.vendor?.deliveryDate)}
+                  />
+                </SpecSection>
+              )}
               {repair.productType === "Customer" && (
                 <SpecSection icon={UserRound} title="Customer details">
                   <SpecLine label="Name" value={repair.customerName} />
@@ -308,7 +318,7 @@ export function RepairDetailPage({ id }: { id: string }) {
         }}
       />
       <div className="h-16" />
-      {vendorEditor && (
+      {canManageVendor && vendorEditor && (
         <RepairVendorDialog
           open
           onOpenChange={(open) => {

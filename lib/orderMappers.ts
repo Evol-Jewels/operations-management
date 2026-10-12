@@ -234,6 +234,7 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
       salespersonName: order?.salesPerson?.name,
       createdBy: normalizePerson(order.createdBy, order?.salesPerson?.name),
       vendorName: order.vendor ?? undefined,
+      vendorId: order.vendorId ?? undefined,
       vendorDeliveryDate: order.vendorDeliveryDate ?? undefined,
       category: mapProductDetailsCategory(
         productDetails?.category ?? order.productCategory,
@@ -279,6 +280,7 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
     salespersonName: order?.salesPerson?.name,
     createdBy: normalizePerson(order.createdBy, order?.salesPerson?.name),
     vendorName: order.vendor ?? undefined,
+    vendorId: order.vendorId ?? undefined,
     vendorDeliveryDate: order.vendorDeliveryDate ?? undefined,
     category: mapProductDetailsCategory(
       custom?.category ?? order.productCategory,

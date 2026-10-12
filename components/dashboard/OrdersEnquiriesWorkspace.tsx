@@ -1540,6 +1540,7 @@ export function OrdersEnquiriesWorkspace() {
           if (!open) setPendingKanbanMove(null);
         }}
         vendorName={pendingKanbanMove?.record.vendorName}
+        vendorId={pendingKanbanMove?.record.vendorId}
         vendorDeliveryDate={pendingKanbanMove?.record.vendorDeliveryDate}
         title="Add vendor details"
         description={`Please add vendor details before moving this order to ${

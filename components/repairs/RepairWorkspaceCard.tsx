@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ComponentProps } from "react";
 import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
 import { WorkspaceCard } from "@/components/dashboard/WorkspaceCard";
+import { useVendorAccess } from "@/hooks/useVendors";
 import {
   formatRepairRefCode,
   isRepairTerminal,
@@ -23,9 +24,11 @@ export function RepairWorkspaceCard({
   ...props
 }: ComponentProps<typeof WorkspaceCard> & { repair: Repair }) {
   const router = useRouter();
-  const deliveryDate = isRepairTerminal(repair.stage)
-    ? undefined
-    : repair.vendor?.deliveryDate;
+  const canManageVendor = useVendorAccess();
+  const deliveryDate =
+    isRepairTerminal(repair.stage) || !canManageVendor
+      ? undefined
+      : repair.vendor?.deliveryDate;
   const urgency = deliveryDate ? getUrgencyLevel(deliveryDate) : "none";
   const daysLabel = deliveryDate ? formatDaysRemaining(deliveryDate) : null;
   return (
@@ -64,7 +67,7 @@ export function RepairWorkspaceCard({
               {daysLabel}
             </span>
           )}
-          {repair.vendor?.vendorName && (
+          {canManageVendor && repair.vendor?.vendorName && (
             <span className="truncate text-[10px] text-muted-foreground">
               {repair.vendor.vendorName}
             </span>

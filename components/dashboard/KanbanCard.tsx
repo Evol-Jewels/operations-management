@@ -11,6 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useVendorAccess } from "@/hooks/useVendors";
 import {
   cn,
   computeRiskSignal,
@@ -63,6 +64,7 @@ function formatDueTooltip(deliveryDate: string | undefined): string | null {
 }
 
 export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
+  const canViewVendor = useVendorAccess();
   const { active } = useDndContext();
   const {
     attributes,
@@ -259,7 +261,7 @@ export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
             <p className="text-xs text-muted-foreground">
               {actionLabel ?? `Click to open ${order.type === "enquiry" ? "enquiry" : "order"} details`}
             </p>
-            {order.vendorName && (
+            {canViewVendor && order.vendorName && (
               <p className="text-[11px] text-muted-foreground">
                 Vendor: {order.vendorName}
               </p>

@@ -4,6 +4,7 @@ import { AlertCircle, Pencil, Truck, UserRound, Wrench } from "lucide-react";
 import { getDisplayMetalPurity } from "@/components/enquiry/requirements/requirement-display-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useVendorAccess } from "@/hooks/useVendors";
 import { formatMetalTypeLabel } from "@/lib/metalDisplay";
 import type { Order } from "@/types";
 import { SpecLine, SpecSection } from "./SpecSection";
@@ -34,13 +35,14 @@ function BadgeGroup({
 
 interface ProductionSpecCardProps {
   order: Order;
-  onEditVendor: () => void;
+  onEditVendor?: () => void;
 }
 
 export function ProductionSpecCard({
   order,
   onEditVendor,
 }: ProductionSpecCardProps) {
+  const canViewVendor = useVendorAccess();
   const customProduct = order.customProducts?.[0];
   const customDetails = customProduct?.details;
 
@@ -111,21 +113,23 @@ export function ProductionSpecCard({
             <SpecLine label="Salesperson" value={order.salespersonName} />
           </SpecSection>
 
-          {!customProduct ? (
+          {canViewVendor && !customProduct ? (
             <SpecSection
               icon={Truck}
               title="Vendor details"
               action={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={onEditVendor}
-                  className="h-7 gap-1.5 px-2 text-xs"
-                >
-                  <Pencil className="size-3" />
-                  Edit
-                </Button>
+                onEditVendor ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onEditVendor}
+                    className="h-7 gap-1.5 px-2 text-xs"
+                  >
+                    <Pencil className="size-3" />
+                    Edit
+                  </Button>
+                ) : undefined
               }
             >
               <SpecLine

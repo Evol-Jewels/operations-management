@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { useVendorAccess } from "@/hooks/useVendors";
 import {
   calculateMakingCharge,
   computeEstimateFromInputs,
@@ -114,6 +115,7 @@ export function EnquiryEstimationDialog({
   onSave,
   disabled,
 }: EnquiryEstimationDialogProps) {
+  const canManageVendor = useVendorAccess();
   const [open, setOpen] = useState(false);
   const [metalTypeId, setMetalTypeId] = useState("gold");
   const selectedMetal = settings.metalTypes.find(
@@ -277,7 +279,7 @@ export function EnquiryEstimationDialog({
       finalAmount: Math.round(breakdown.total),
       makingCost,
       createdAt: existingEstimation?.createdAt ?? new Date().toISOString(),
-      vendorName: vendorName.trim() || undefined,
+      vendorName: canManageVendor ? vendorName.trim() || undefined : undefined,
       notes: notes.trim() || undefined,
     });
     setOpen(false);
@@ -569,15 +571,19 @@ export function EnquiryEstimationDialog({
               Other Details (optional)
             </p>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] sm:items-start">
-              <div className="grid gap-2">
-                <Label htmlFor={`vendor-name-${productId}`}>Vendor Name</Label>
-                <Input
-                  id={`vendor-name-${productId}`}
-                  value={vendorName}
-                  onChange={(event) => setVendorName(event.target.value)}
-                  placeholder="Enter vendor name"
-                />
-              </div>
+              {canManageVendor ? (
+                <div className="grid gap-2">
+                  <Label htmlFor={`vendor-name-${productId}`}>
+                    Vendor Name
+                  </Label>
+                  <Input
+                    id={`vendor-name-${productId}`}
+                    value={vendorName}
+                    onChange={(event) => setVendorName(event.target.value)}
+                    placeholder="Enter vendor name"
+                  />
+                </div>
+              ) : null}
               <div className="grid gap-2">
                 <Label htmlFor={`estimation-notes-${productId}`}>Notes</Label>
                 <Textarea

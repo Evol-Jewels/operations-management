@@ -4,6 +4,7 @@ import {
   getDisplayMetalPurity,
   type RequirementDisplayItem,
 } from "@/components/enquiry/requirements/requirement-display-utils";
+import { useVendorAccess } from "@/hooks/useVendors";
 import { formatMetalTypeLabel } from "@/lib/metalDisplay";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type {
@@ -336,6 +337,7 @@ function ReferenceLinks({ links }: { links: RequirementDisplayItem["links"] }) {
 }
 
 function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
+  const canViewVendor = useVendorAccess();
   return (
     <div
       style={{
@@ -385,7 +387,9 @@ function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
           label="Estimated on"
           value={formatDate(estimation.createdAt)}
         />
-        <DetailRow label="Vendor" value={estimation.vendorName} />
+        {canViewVendor ? (
+          <DetailRow label="Vendor" value={estimation.vendorName} />
+        ) : null}
         {estimation.stoneDetails.map((stone, index) => (
           <DetailRow
             key={stone.id}
