@@ -3,11 +3,14 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
 import { uploadShopifyImage } from "@/lib/shopifyProductsApi";
 import type {
   ShopifyMediaInput,
   ShopifyProductDetail,
 } from "@/types/shopify-products";
+
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 interface Props {
   media: ShopifyMediaInput[];
@@ -21,15 +24,20 @@ export function ProductMediaUploader({
   onChange,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const accept = useFilePickerAccept(ACCEPTED_IMAGE_TYPES.join(","));
   const [uploading, setUploading] = useState(false);
 
-  async function uploadFiles(files: FileList | null) {
-    if (!files?.length) return;
+  async function uploadFiles(files: File[]) {
+    const images = files.filter((file) =>
+      ACCEPTED_IMAGE_TYPES.includes(file.type),
+    );
+    if (images.length < files.length) {
+      toast.error("Choose JPEG, PNG or WebP images.");
+    }
+    if (!images.length) return;
     setUploading(true);
     try {
-      const uploaded = await Promise.all(
-        Array.from(files).map(uploadShopifyImage),
-      );
+      const uploaded = await Promise.all(images.map(uploadShopifyImage));
       onChange([...media, ...uploaded]);
       toast.success(
         `${uploaded.length} image${uploaded.length === 1 ? "" : "s"} uploaded to Shopify`,
@@ -40,7 +48,6 @@ export function ProductMediaUploader({
       );
     } finally {
       setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
     }
   }
 
@@ -72,10 +79,13 @@ export function ProductMediaUploader({
       <Input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept={accept}
         multiple
         className="hidden"
-        onChange={(event) => uploadFiles(event.target.files)}
+        onChange={(event) => {
+          void uploadFiles(Array.from(event.target.files ?? []));
+          event.target.value = "";
+        }}
       />
 
       <div className="space-y-2">

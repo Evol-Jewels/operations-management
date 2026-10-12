@@ -44,6 +44,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
+import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
 import { useInfiniteRecentProductEstimates } from "@/hooks/useRecentProductEstimates";
 import { captureProductEvent } from "@/lib/analytics";
 import { getSessionRole } from "@/lib/auth";
@@ -883,6 +884,8 @@ function ProductImageInput({
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onImageChange: (file: File | null) => void;
 }) {
+  const accept = useFilePickerAccept("image/*");
+
   return (
     <>
       <button
@@ -896,7 +899,7 @@ function ProductImageInput({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept={accept}
         className="hidden"
         onChange={(event) => onImageChange(event.target.files?.[0] ?? null)}
       />

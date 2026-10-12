@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
 import {
   useChangeInternalPassword,
   useMyInternalProfile,
@@ -152,6 +153,7 @@ export function ProfilePageClient() {
   const changePassword = useChangeInternalPassword();
   const user = session?.user as SessionUserProfile | undefined;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const avatarAccept = useFilePickerAccept("image/png,image/jpeg");
   const locationsQuery = useLocations({ limit: 100 });
   const profile = profileQuery.data;
   const profileLoading = profileQuery.isLoading;
@@ -347,7 +349,7 @@ export function ProfilePageClient() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/png,image/jpeg"
+                accept={avatarAccept}
                 className="hidden"
                 onChange={handleAvatarChange}
               />

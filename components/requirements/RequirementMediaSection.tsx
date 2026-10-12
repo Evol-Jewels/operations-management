@@ -5,6 +5,7 @@ import { type ReactNode, useState } from "react";
 import type { ProductReference } from "@/components/enquiries/enquiry-form-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
 import { SectionShell } from "./RequirementFields";
 import { ImagePreviewDialog } from "./ImagePreviewDialog";
 import {
@@ -130,6 +131,8 @@ function ImageUploadBox({
 }: {
   onAddFiles: (files: FileList | null) => void;
 }) {
+  const accept = useFilePickerAccept("image/*");
+
   return (
     <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-4 text-center transition-colors hover:border-primary/40 hover:bg-muted/30">
       <Upload className="size-5 text-muted-foreground" />
@@ -139,7 +142,7 @@ function ImageUploadBox({
       </span>
       <input
         type="file"
-        accept="image/*"
+        accept={accept}
         multiple
         className="hidden"
         onChange={(event) => {

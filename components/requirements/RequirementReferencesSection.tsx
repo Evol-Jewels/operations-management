@@ -16,6 +16,7 @@ import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import type { ProductReference } from "@/components/enquiries/enquiry-form-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
 import { useInventoryProductByCode } from "@/hooks/useInventoryProducts";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import { getEnquiryMediaSizeError } from "@/lib/enquiryMedia";
@@ -341,6 +342,10 @@ function ImageUpload({
   onAdd: (files: FileList | null) => void;
   acceptVideos?: boolean;
 }) {
+  const accept = useFilePickerAccept(
+    acceptVideos ? "image/*,video/*" : "image/*",
+  );
+
   return (
     <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/15 px-2 text-center transition-colors hover:border-primary/40 hover:bg-muted/30 focus-within:ring-2 focus-within:ring-ring/30">
       <Upload className="size-4 text-muted-foreground" />
@@ -349,7 +354,7 @@ function ImageUpload({
       </span>
       <input
         type="file"
-        accept={acceptVideos ? "image/*,video/*" : "image/*"}
+        accept={accept}
         multiple
         className="sr-only"
         onChange={(event) => {

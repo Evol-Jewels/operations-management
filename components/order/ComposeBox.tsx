@@ -12,6 +12,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
 import { cn } from "@/lib/utils";
 
 const MAX_ATTACHMENTS = 8;
@@ -43,6 +44,7 @@ function formatFileSize(bytes: number) {
 }
 
 export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
+  const accept = useFilePickerAccept(ACCEPTED_MEDIA);
   const [message, setMessage] = useState("");
   const [media, setMedia] = useState<PendingMedia[]>([]);
   const [isPosting, setIsPosting] = useState(false);
@@ -207,7 +209,7 @@ export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
           </span>
           <input
             type="file"
-            accept={ACCEPTED_MEDIA}
+            accept={accept}
             multiple
             disabled={busy || media.length >= MAX_ATTACHMENTS}
             className="sr-only"
