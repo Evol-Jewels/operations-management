@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useVendorAccess } from "@/hooks/useVendors";
 import {
   cn,
   computeRiskSignal,
@@ -22,6 +23,11 @@ import {
 } from "@/lib/utils";
 import type { Order } from "@/types";
 import { UrgencyDot } from "./UrgencyDot";
+
+const DESKTOP_COLUMNS = {
+  withVendor: "grid-cols-[16px_1fr_140px_100px_100px_90px_90px_28px]",
+  withoutVendor: "grid-cols-[16px_1fr_140px_100px_90px_90px_28px]",
+};
 
 interface OrderListProps {
   orders: Order[];
@@ -267,7 +273,13 @@ function MobileOrderCard({ order }: { order: Order }) {
 
 // ─── Desktop table row ──────────────────────────────────────────────────────
 
-function DesktopOrderRow({ order }: { order: Order }) {
+function DesktopOrderRow({
+  order,
+  showVendor,
+}: {
+  order: Order;
+  showVendor: boolean;
+}) {
   const urgency = getUrgencyLevel(order.deliveryDate);
   const daysLabel = formatDaysRemaining(order.deliveryDate);
   const deliveryFormatted = order.deliveryDate
@@ -285,7 +297,12 @@ function DesktopOrderRow({ order }: { order: Order }) {
     <li>
       <Link
         href={getRecordHref(order)}
-        className="group grid grid-cols-[16px_1fr_140px_100px_100px_90px_90px_28px] items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30"
+        className={cn(
+          "group grid items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30",
+          showVendor
+            ? DESKTOP_COLUMNS.withVendor
+            : DESKTOP_COLUMNS.withoutVendor,
+        )}
       >
         {/* Urgency dot with tooltip */}
         <UrgencyTooltip urgency={urgency} deliveryDate={order.deliveryDate}>
@@ -341,11 +358,13 @@ function DesktopOrderRow({ order }: { order: Order }) {
         </div>
 
         {/* Vendor */}
-        <div className="hidden lg:block">
-          <p className="truncate text-sm text-muted-foreground">
-            {order.vendorName ?? "—"}
-          </p>
-        </div>
+        {showVendor ? (
+          <div className="hidden lg:block">
+            <p className="truncate text-sm text-muted-foreground">
+              {order.vendorName ?? "—"}
+            </p>
+          </div>
+        ) : null}
 
         {/* Last update */}
         <div>
@@ -395,6 +414,8 @@ function DesktopOrderRow({ order }: { order: Order }) {
 // ─── Main component ─────────────────────────────────────────────────────────
 
 export function OrderList({ orders }: OrderListProps) {
+  const canViewVendor = useVendorAccess();
+
   if (orders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
@@ -413,7 +434,14 @@ export function OrderList({ orders }: OrderListProps) {
     <TooltipProvider>
       <div className="overflow-hidden rounded-xl border border-border bg-card">
         {/* ── Desktop: column header row (hidden on mobile) ── */}
-        <div className="hidden md:grid grid-cols-[16px_1fr_140px_100px_100px_90px_90px_28px] items-center gap-3 border-b border-border bg-muted/30 px-4 py-2">
+        <div
+          className={cn(
+            "hidden items-center gap-3 border-b border-border bg-muted/30 px-4 py-2 md:grid",
+            canViewVendor
+              ? DESKTOP_COLUMNS.withVendor
+              : DESKTOP_COLUMNS.withoutVendor,
+          )}
+        >
           <span />
           <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
             Customer
@@ -424,9 +452,11 @@ export function OrderList({ orders }: OrderListProps) {
           <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70 md:block">
             Salesperson
           </span>
-          <span className="hidden text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70 lg:block">
-            Vendor
-          </span>
+          {canViewVendor ? (
+            <span className="hidden text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70 lg:block">
+              Vendor
+            </span>
+          ) : null}
           <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70">
             Last update
           </span>
@@ -446,7 +476,11 @@ export function OrderList({ orders }: OrderListProps) {
         {/* ── Desktop: table rows (hidden below md) ── */}
         <ul className="hidden divide-y divide-border/60 md:block">
           {orders.map((order) => (
-            <DesktopOrderRow key={order.id} order={order} />
+            <DesktopOrderRow
+              key={order.id}
+              order={order}
+              showVendor={canViewVendor}
+            />
           ))}
         </ul>
       </div>

@@ -7,6 +7,7 @@
  * no dark-mode classes, no animations, no interactive elements.
  */
 
+import { useVendorAccess } from "@/hooks/useVendors";
 import { formatMetalTypeLabel } from "@/lib/metalDisplay";
 import { getFirstName, getInitials } from "@/lib/people";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
@@ -726,7 +727,16 @@ interface OrderPrintViewProps {
   order: Order;
 }
 
-export function OrderPrintView({ order }: OrderPrintViewProps) {
+export function OrderPrintView({ order: sourceOrder }: OrderPrintViewProps) {
+  const canViewVendor = useVendorAccess();
+  const order = canViewVendor
+    ? sourceOrder
+    : {
+        ...sourceOrder,
+        vendorName: undefined,
+        vendorId: undefined,
+        vendorDeliveryDate: undefined,
+      };
   return (
     <div
       id="order-print-view"

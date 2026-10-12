@@ -1,3 +1,8 @@
+export const VENDOR_EMAIL_DEFAULT_CC = [
+  "nimesh@evvoljewels.com",
+  "hariom@evvoljewels.com",
+];
+
 export function buildVendorEmailSubject(refCode: number, itemTitle: string) {
   return `Order #${refCode} – ${itemTitle}`;
 }

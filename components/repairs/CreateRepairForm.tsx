@@ -11,6 +11,7 @@ import { RequirementReferencesSection } from "@/components/requirements/Requirem
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { useVendorAccess } from "@/hooks/useVendors";
 import {
   EMPTY_REPAIR,
   prepareRepairMedia,
@@ -25,6 +26,7 @@ import { RepairVendorFields } from "./RepairVendorFields";
 
 export function CreateRepairForm() {
   const router = useRouter();
+  const canManageVendor = useVendorAccess();
   const [step, setStep] = useState<1 | 2>(1);
   const [draft, setDraft] = useState<RepairDraft>(EMPTY_REPAIR);
   const [references, setReferences] = useState<ProductReference[]>([]);
@@ -67,7 +69,8 @@ export function CreateRepairForm() {
       nextStep();
       return;
     }
-    const nextErrors = validateRepair(draft);
+    const payload = canManageVendor ? draft : { ...draft, vendor: undefined };
+    const nextErrors = validateRepair(payload);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
       toast.error("Complete the required repair details.");
@@ -76,7 +79,7 @@ export function CreateRepairForm() {
     setSaving(true);
     setSaveError("");
     try {
-      const repair = await createRepair(draft);
+      const repair = await createRepair(payload);
       toast.success("Repair created");
       router.push(`/repairs/${repair.id}`);
     } catch (error) {
@@ -173,20 +176,22 @@ export function CreateRepairForm() {
                   onChange={update}
                   errors={errors}
                 />
-                <SectionShell
-                  eyebrow="Vendor"
-                  title="Vendor and delivery details"
-                >
-                  <RepairVendorFields
-                    value={draft.vendor}
-                    onChange={(vendor) => update({ vendor })}
-                    errors={
-                      errors.vendor
-                        ? validateRepairVendor(draft.vendor, false)
-                        : undefined
-                    }
-                  />
-                </SectionShell>
+                {canManageVendor && (
+                  <SectionShell
+                    eyebrow="Vendor"
+                    title="Vendor and delivery details"
+                  >
+                    <RepairVendorFields
+                      value={draft.vendor}
+                      onChange={(vendor) => update({ vendor })}
+                      errors={
+                        errors.vendor
+                          ? validateRepairVendor(draft.vendor, false)
+                          : undefined
+                      }
+                    />
+                  </SectionShell>
+                )}
               </div>
             </div>
           )}

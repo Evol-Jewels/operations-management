@@ -67,6 +67,7 @@ import {
   useSyncInventoryProducts,
 } from "@/hooks/useInventoryProducts";
 import { useLocations } from "@/hooks/useManageProducts";
+import { useVendorAccess } from "@/hooks/useVendors";
 import { captureProductEvent } from "@/lib/analytics";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
@@ -681,6 +682,7 @@ function ProductDetail({
   settings: CalculatorSettings;
   estimationSectionRef: RefObject<HTMLElement | null>;
 }) {
+  const canViewVendor = useVendorAccess();
   const estimateResult = useMemo(
     () => normalizeInventoryProductEstimate(product, settings),
     [product, settings],
@@ -726,9 +728,11 @@ function ProductDetail({
             <p className="mt-1 font-mono text-sm text-muted-foreground">
               {product.productCode}
             </p>
-            <p className="mt-4 text-sm leading-6 text-muted-foreground">
-              {product.vendor}
-            </p>
+            {canViewVendor ? (
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                {product.vendor}
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-8 space-y-3">
@@ -820,6 +824,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 function ProductSpecification({ product }: { product: InventoryProduct }) {
+  const canViewVendor = useVendorAccess();
   const totalStonePieces = getTotalStonePieces(product);
   const totalStoneTypes = product.stones?.length ?? 0;
   const totalStoneCarat = getTotalStoneCarat(product);
@@ -838,7 +843,9 @@ function ProductSpecification({ product }: { product: InventoryProduct }) {
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <dl className="space-y-3">
           <DetailRow label="Code" value={product.productCode} />
-          <DetailRow label="Vendor" value={product.vendor} />
+          {canViewVendor ? (
+            <DetailRow label="Vendor" value={product.vendor} />
+          ) : null}
         </dl>
         <dl className="space-y-3">
           <DetailRow
@@ -1148,6 +1155,7 @@ export function InventoryPageClient() {
   const canSyncProducts =
     internalRole === "ADMIN" || internalRole === "OPERATIONS";
   const canScanInventory = canSyncProducts;
+  const canViewVendor = useVendorAccess();
 
   const updateSearchParams = useCallback(
     (
@@ -1664,7 +1672,11 @@ export function InventoryPageClient() {
                   query_length: query.length,
                 });
               }}
-              placeholder="Search code, vendor, location, category"
+              placeholder={
+                canViewVendor
+                  ? "Search code, vendor, location, category"
+                  : "Search code, location, category"
+              }
               className="h-10 pl-9"
             />
           </div>

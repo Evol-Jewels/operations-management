@@ -54,6 +54,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { enquiryKeys, useEnquiryDetails } from "@/hooks/useEnquiries";
 import { useCreateOrders } from "@/hooks/useOrders";
+import { useVendorAccess } from "@/hooks/useVendors";
 import { captureProductEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
@@ -253,6 +254,7 @@ export function ConvertOrderForm({
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
+  const canAssignVendor = useVendorAccess();
   const createOrdersMutation = useCreateOrders();
   const createdAtRef = useRef(new Date());
   const directItemRef = useRef<OrderItem | null>(
@@ -1012,7 +1014,7 @@ export function ConvertOrderForm({
         notes: cleanOptionalText(item.notes),
         isCadRequired: item.cadApprovalRequired,
         estimatedDeliveryDate: item.estimatedDelivery,
-        vendor: cleanOptionalText(item.vendor),
+        vendor: canAssignVendor ? cleanOptionalText(item.vendor) : undefined,
       };
     }
 
@@ -1097,7 +1099,7 @@ export function ConvertOrderForm({
       notes: cleanOptionalText(requirement.notes),
       isCadRequired: item.cadApprovalRequired,
       estimatedDeliveryDate: item.estimatedDelivery,
-      vendor: cleanOptionalText(item.vendor),
+      vendor: canAssignVendor ? cleanOptionalText(item.vendor) : undefined,
     };
   }
 
@@ -1569,6 +1571,7 @@ function RefillDetailsStep({
   errors: Record<string, string>;
   submitError: string;
 }) {
+  const canViewVendor = useVendorAccess();
   if (!item) return null;
 
   return (
@@ -1582,9 +1585,10 @@ function RefillDetailsStep({
             {isRefill ? "Review refill details" : "Review imported product"}
           </h1>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {canViewVendor ? "Product and vendor" : "Product"} details were{" "}
             {isRefill
-              ? "Product and vendor details were loaded from inventory."
-              : "Product and vendor details were imported from the existing order."}{" "}
+              ? "loaded from inventory."
+              : "imported from the existing order."}{" "}
             Confirm the delivery settings before continuing.
           </p>
         </div>
@@ -2143,6 +2147,7 @@ function OrderItemCard({
   removeItem: (id: string) => void;
   canRemove?: boolean;
 }) {
+  const canViewVendor = useVendorAccess();
   const isNew = item.source === "new-existing" || item.source === "new-custom";
   const deliveryOptions = [
     { label: "Standard", days: 17 },
@@ -2211,15 +2216,24 @@ function OrderItemCard({
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
-        <FormField label="Vendor" optional>
-          <Input
-            placeholder="e.g. ABC Jewellers"
-            value={item.vendor}
-            onChange={(e) => updateItem(item.id, { vendor: e.target.value })}
-            className="h-10 w-full"
-          />
-        </FormField>
+      <div
+        className={cn(
+          "grid gap-3",
+          canViewVendor
+            ? "md:grid-cols-[minmax(0,1fr)_220px]"
+            : "md:grid-cols-[220px]",
+        )}
+      >
+        {canViewVendor ? (
+          <FormField label="Vendor" optional>
+            <Input
+              placeholder="e.g. ABC Jewellers"
+              value={item.vendor}
+              onChange={(e) => updateItem(item.id, { vendor: e.target.value })}
+              className="h-10 w-full"
+            />
+          </FormField>
+        ) : null}
         <FormField label="Estimated delivery date" required>
           <DatePicker
             value={item.estimatedDelivery}
@@ -2352,6 +2366,7 @@ function ReviewStep({
   onEditDetails: (itemId: string) => void;
   onEditCustomer: () => void;
 }) {
+  const canViewVendor = useVendorAccess();
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <div className="text-center">
@@ -2470,7 +2485,9 @@ function ReviewStep({
                 label="Net weight"
                 value={item.metalNetWeight || "Not set"}
               />
-              <ReviewField label="Vendor" value={item.vendor || "Not set"} />
+              {canViewVendor ? (
+                <ReviewField label="Vendor" value={item.vendor || "Not set"} />
+              ) : null}
               <div className="flex items-end justify-start lg:justify-end">
                 <span className="w-fit rounded-md border border-border bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                   {item.cadApprovalRequired

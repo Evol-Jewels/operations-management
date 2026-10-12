@@ -100,12 +100,14 @@ function OrderStatusControl({
   status,
   canUpdate,
   vendorName,
+  vendorId,
   vendorDeliveryDate,
 }: {
   refCode: string | number;
   status?: BackendOrderStatus;
   canUpdate: boolean;
   vendorName?: string;
+  vendorId?: string;
   vendorDeliveryDate?: string;
 }) {
   const updateStatus = useUpdateOrderStatus(refCode);
@@ -282,6 +284,7 @@ function OrderStatusControl({
           if (!open) setVendorStatus(null);
         }}
         vendorName={vendorName}
+        vendorId={vendorId}
         vendorDeliveryDate={vendorDeliveryDate}
         title="Add vendor details"
         description={`Please add vendor details before moving this order to ${
@@ -430,6 +433,7 @@ export default function OrderPage() {
               status={order.orderStatus}
               canUpdate={canUpdateOrderStatus}
               vendorName={order.vendorName}
+              vendorId={order.vendorId}
               vendorDeliveryDate={order.vendorDeliveryDate}
             />
             {order.type === "enquiry" && order.status !== "closed" && (
@@ -467,14 +471,27 @@ export default function OrderPage() {
             estimations={order.estimations ?? []}
             isFinalized
             showHeader={false}
-            renderDownloadActions={(pdf) => (
-              <SendVendorEmailDialog refCode={order.refCode ?? 0} pdf={pdf} />
-            )}
-            vendorDetails={{
-              name: order.vendorName,
-              deliveryDate: order.vendorDeliveryDate,
-              onEdit: () => setIsVendorEditorOpen(true),
-            }}
+            renderDownloadActions={
+              canUpdateOrderStatus
+                ? (pdf) => (
+                    <SendVendorEmailDialog
+                      refCode={order.refCode ?? 0}
+                      pdf={pdf}
+                      vendorId={order.vendorId}
+                      vendorName={order.vendorName}
+                    />
+                  )
+                : undefined
+            }
+            vendorDetails={
+              canUpdateOrderStatus
+                ? {
+                    name: order.vendorName,
+                    deliveryDate: order.vendorDeliveryDate,
+                    onEdit: () => setIsVendorEditorOpen(true),
+                  }
+                : undefined
+            }
             onSaveEstimation={() => undefined}
           />
         </main>
@@ -483,7 +500,11 @@ export default function OrderPage() {
           {order.type === "order" && (
             <ProductionSpecCard
               order={order}
-              onEditVendor={() => setIsVendorEditorOpen(true)}
+              onEditVendor={
+                canUpdateOrderStatus
+                  ? () => setIsVendorEditorOpen(true)
+                  : undefined
+              }
             />
           )}
         </aside>
@@ -534,6 +555,7 @@ export default function OrderPage() {
         open={isVendorEditorOpen}
         onOpenChange={setIsVendorEditorOpen}
         vendorName={order.vendorName}
+        vendorId={order.vendorId}
         vendorDeliveryDate={order.vendorDeliveryDate}
         title="Edit vendor details"
         description="Update the vendor assigned to this order and the date they expect to deliver it."
