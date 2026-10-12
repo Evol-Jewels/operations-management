@@ -16,8 +16,10 @@ import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import type { ProductReference } from "@/components/enquiries/enquiry-form-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
 import { useInventoryProductByCode } from "@/hooks/useInventoryProducts";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
+import { copyPickedFiles } from "@/lib/copyPickedFiles";
 import { getEnquiryMediaSizeError } from "@/lib/enquiryMedia";
 import { getInventoryPrimaryImage } from "@/lib/inventoryProductMapping";
 import { isSupportedImageFile } from "@/lib/prepareImageUpload";
@@ -75,11 +77,11 @@ export function RequirementReferencesSection({
   );
   const linkReferences = references.filter((item) => item.type === "link");
 
-  function addFiles(files: FileList | null) {
-    if (!files?.length) return;
+  function addFiles(files: File[]) {
+    if (!files.length) return;
     setMediaError("");
     const next: ProductReference[] = [];
-    for (const file of Array.from(files)) {
+    for (const file of files) {
       const isVideo = localOnly && file.type.startsWith("video/");
       if (!isVideo && !isSupportedImageFile(file)) continue;
       const sizeError = isVideo
@@ -338,9 +340,13 @@ function ImageUpload({
   onAdd,
   acceptVideos = false,
 }: {
-  onAdd: (files: FileList | null) => void;
+  onAdd: (files: File[]) => void;
   acceptVideos?: boolean;
 }) {
+  const accept = useFilePickerAccept(
+    acceptVideos ? "image/*,video/*" : "image/*",
+  );
+
   return (
     <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/15 px-2 text-center transition-colors hover:border-primary/40 hover:bg-muted/30 focus-within:ring-2 focus-within:ring-ring/30">
       <Upload className="size-4 text-muted-foreground" />
@@ -349,12 +355,13 @@ function ImageUpload({
       </span>
       <input
         type="file"
-        accept={acceptVideos ? "image/*,video/*" : "image/*"}
+        accept={accept}
         multiple
         className="sr-only"
-        onChange={(event) => {
-          onAdd(event.target.files);
-          event.target.value = "";
+        onChange={async (event) => {
+          const input = event.currentTarget;
+          onAdd(await copyPickedFiles(input.files));
+          input.value = "";
         }}
       />
     </label>

@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
 import {
   useChangeInternalPassword,
   useMyInternalProfile,
@@ -43,6 +44,7 @@ import {
 import { useLocations } from "@/hooks/useManageProducts";
 import { getSessionRole } from "@/lib/auth";
 import { type AuthSession, authClient } from "@/lib/auth-client";
+import { copyPickedFiles } from "@/lib/copyPickedFiles";
 import { cn } from "@/lib/utils";
 
 const MAX_AVATAR_SIZE = 2 * 1024 * 1024;
@@ -152,6 +154,7 @@ export function ProfilePageClient() {
   const changePassword = useChangeInternalPassword();
   const user = session?.user as SessionUserProfile | undefined;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const avatarAccept = useFilePickerAccept("image/png,image/jpeg");
   const locationsQuery = useLocations({ limit: 100 });
   const profile = profileQuery.data;
   const profileLoading = profileQuery.isLoading;
@@ -231,19 +234,21 @@ export function ProfilePageClient() {
     !passwordReused &&
     !changePassword.isPending;
 
-  function handleAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+  async function handleAvatarChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const input = event.currentTarget;
+    const [file] = await copyPickedFiles(input.files);
+    input.value = "";
     if (!file) return;
 
     if (!["image/jpeg", "image/png"].includes(file.type)) {
       toast.error("Choose a JPG or PNG image.");
-      event.target.value = "";
       return;
     }
 
     if (file.size > MAX_AVATAR_SIZE) {
       toast.error("Avatar image must be 2MB or smaller.");
-      event.target.value = "";
       return;
     }
 
@@ -347,7 +352,7 @@ export function ProfilePageClient() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/png,image/jpeg"
+                accept={avatarAccept}
                 className="hidden"
                 onChange={handleAvatarChange}
               />

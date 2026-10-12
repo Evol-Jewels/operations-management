@@ -5,6 +5,8 @@ import { type ReactNode, useState } from "react";
 import type { ProductReference } from "@/components/enquiries/enquiry-form-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
+import { copyPickedFiles } from "@/lib/copyPickedFiles";
 import { SectionShell } from "./RequirementFields";
 import { ImagePreviewDialog } from "./ImagePreviewDialog";
 import {
@@ -43,11 +45,11 @@ export function RequirementMediaSection({
     ]);
   }
 
-  function addFiles(files: FileList | null) {
-    if (!files?.length) return;
+  function addFiles(files: File[]) {
+    if (!files.length) return;
 
     const next: ProductReference[] = [];
-    for (const file of Array.from(files)) {
+    for (const file of files) {
       if (!file.type.startsWith("image/")) continue;
       next.push({
         id: generateRequirementId(),
@@ -128,8 +130,10 @@ export function RequirementMediaSection({
 function ImageUploadBox({
   onAddFiles,
 }: {
-  onAddFiles: (files: FileList | null) => void;
+  onAddFiles: (files: File[]) => void;
 }) {
+  const accept = useFilePickerAccept("image/*");
+
   return (
     <label className="flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-4 text-center transition-colors hover:border-primary/40 hover:bg-muted/30">
       <Upload className="size-5 text-muted-foreground" />
@@ -139,12 +143,13 @@ function ImageUploadBox({
       </span>
       <input
         type="file"
-        accept="image/*"
+        accept={accept}
         multiple
         className="hidden"
-        onChange={(event) => {
-          onAddFiles(event.target.files);
-          event.target.value = "";
+        onChange={async (event) => {
+          const input = event.currentTarget;
+          onAddFiles(await copyPickedFiles(input.files));
+          input.value = "";
         }}
       />
     </label>

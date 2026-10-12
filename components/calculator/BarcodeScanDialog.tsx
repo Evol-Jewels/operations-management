@@ -15,6 +15,7 @@ import {
   normalizeDecodedId,
   startBarcodeCameraScan,
 } from "@/lib/barcodeScanner";
+import { copyPickedFiles } from "@/lib/copyPickedFiles";
 
 interface BarcodeScanDialogProps {
   open: boolean;
@@ -139,9 +140,6 @@ export function BarcodeScanDialog({
       setScanError(message);
     } finally {
       setGalleryBusy(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
     }
   };
 
@@ -235,9 +233,12 @@ export function BarcodeScanDialog({
               accept="image/*"
               capture="environment"
               className="hidden"
-              onChange={(e) =>
-                void handleFileSelect(e.target.files?.[0] ?? null)
-              }
+              onChange={async (e) => {
+                const input = e.currentTarget;
+                const [file] = await copyPickedFiles(input.files);
+                input.value = "";
+                void handleFileSelect(file ?? null);
+              }}
             />
           </div>
         </div>

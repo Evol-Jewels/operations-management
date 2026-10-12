@@ -12,6 +12,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
+import { copyPickedFiles } from "@/lib/copyPickedFiles";
 import { cn } from "@/lib/utils";
 
 const MAX_ATTACHMENTS = 8;
@@ -43,6 +45,7 @@ function formatFileSize(bytes: number) {
 }
 
 export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
+  const accept = useFilePickerAccept(ACCEPTED_MEDIA);
   const [message, setMessage] = useState("");
   const [media, setMedia] = useState<PendingMedia[]>([]);
   const [isPosting, setIsPosting] = useState(false);
@@ -62,10 +65,10 @@ export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
   // Comments require text; attachments can be added alongside the message.
   const canSubmit = Boolean(trimmedMessage) && !busy;
 
-  function addFiles(files: FileList | null) {
-    if (!files?.length) return;
+  function addFiles(files: File[]) {
+    if (!files.length) return;
     setError("");
-    const supported = Array.from(files).filter(isSupportedMedia);
+    const supported = files.filter(isSupportedMedia);
     if (supported.length !== files.length) {
       setError("Only images, videos, and audio files can be attached.");
     }
@@ -207,13 +210,14 @@ export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
           </span>
           <input
             type="file"
-            accept={ACCEPTED_MEDIA}
+            accept={accept}
             multiple
             disabled={busy || media.length >= MAX_ATTACHMENTS}
             className="sr-only"
-            onChange={(event) => {
-              addFiles(event.target.files);
-              event.target.value = "";
+            onChange={async (event) => {
+              const input = event.currentTarget;
+              addFiles(await copyPickedFiles(input.files));
+              input.value = "";
             }}
           />
         </label>
