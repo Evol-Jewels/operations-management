@@ -19,7 +19,6 @@ import { Input } from "@/components/ui/input";
 import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
 import { useInventoryProductByCode } from "@/hooks/useInventoryProducts";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
-import { copyPickedFiles } from "@/lib/copyPickedFiles";
 import { getEnquiryMediaSizeError } from "@/lib/enquiryMedia";
 import { getInventoryPrimaryImage } from "@/lib/inventoryProductMapping";
 import { isSupportedImageFile } from "@/lib/prepareImageUpload";
@@ -77,11 +76,11 @@ export function RequirementReferencesSection({
   );
   const linkReferences = references.filter((item) => item.type === "link");
 
-  function addFiles(files: File[]) {
-    if (!files.length) return;
+  function addFiles(files: FileList | null) {
+    if (!files?.length) return;
     setMediaError("");
     const next: ProductReference[] = [];
-    for (const file of files) {
+    for (const file of Array.from(files)) {
       const isVideo = localOnly && file.type.startsWith("video/");
       if (!isVideo && !isSupportedImageFile(file)) continue;
       const sizeError = isVideo
@@ -340,7 +339,7 @@ function ImageUpload({
   onAdd,
   acceptVideos = false,
 }: {
-  onAdd: (files: File[]) => void;
+  onAdd: (files: FileList | null) => void;
   acceptVideos?: boolean;
 }) {
   const accept = useFilePickerAccept(
@@ -358,10 +357,9 @@ function ImageUpload({
         accept={accept}
         multiple
         className="sr-only"
-        onChange={async (event) => {
-          const input = event.currentTarget;
-          onAdd(await copyPickedFiles(input.files));
-          input.value = "";
+        onChange={(event) => {
+          onAdd(event.target.files);
+          event.target.value = "";
         }}
       />
     </label>

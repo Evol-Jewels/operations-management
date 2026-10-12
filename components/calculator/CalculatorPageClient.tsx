@@ -62,7 +62,6 @@ import {
   isCalculatorTab,
   writeCalculatorTabCookie,
 } from "@/lib/calculatorTab";
-import { copyPickedFiles } from "@/lib/copyPickedFiles";
 import {
   getInventoryImages,
   getInventoryMediaUrl,
@@ -902,12 +901,7 @@ function ProductImageInput({
         type="file"
         accept={accept}
         className="hidden"
-        onChange={async (event) => {
-          const input = event.currentTarget;
-          const [file] = await copyPickedFiles(input.files);
-          input.value = "";
-          onImageChange(file ?? null);
-        }}
+        onChange={(event) => onImageChange(event.target.files?.[0] ?? null)}
       />
     </>
   );

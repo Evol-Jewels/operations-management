@@ -6,7 +6,6 @@ import type { ProductReference } from "@/components/enquiries/enquiry-form-types
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
-import { copyPickedFiles } from "@/lib/copyPickedFiles";
 import { SectionShell } from "./RequirementFields";
 import { ImagePreviewDialog } from "./ImagePreviewDialog";
 import {
@@ -45,11 +44,11 @@ export function RequirementMediaSection({
     ]);
   }
 
-  function addFiles(files: File[]) {
-    if (!files.length) return;
+  function addFiles(files: FileList | null) {
+    if (!files?.length) return;
 
     const next: ProductReference[] = [];
-    for (const file of files) {
+    for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue;
       next.push({
         id: generateRequirementId(),
@@ -130,7 +129,7 @@ export function RequirementMediaSection({
 function ImageUploadBox({
   onAddFiles,
 }: {
-  onAddFiles: (files: File[]) => void;
+  onAddFiles: (files: FileList | null) => void;
 }) {
   const accept = useFilePickerAccept("image/*");
 
@@ -146,10 +145,9 @@ function ImageUploadBox({
         accept={accept}
         multiple
         className="hidden"
-        onChange={async (event) => {
-          const input = event.currentTarget;
-          onAddFiles(await copyPickedFiles(input.files));
-          input.value = "";
+        onChange={(event) => {
+          onAddFiles(event.target.files);
+          event.target.value = "";
         }}
       />
     </label>

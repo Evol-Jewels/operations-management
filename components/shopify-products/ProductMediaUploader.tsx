@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
-import { copyPickedFiles } from "@/lib/copyPickedFiles";
 import { uploadShopifyImage } from "@/lib/shopifyProductsApi";
 import type {
   ShopifyMediaInput,
@@ -49,7 +48,6 @@ export function ProductMediaUploader({
       );
     } finally {
       setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
     }
   }
 
@@ -84,9 +82,10 @@ export function ProductMediaUploader({
         accept={accept}
         multiple
         className="hidden"
-        onChange={async (event) =>
-          uploadFiles(await copyPickedFiles(event.currentTarget.files))
-        }
+        onChange={(event) => {
+          void uploadFiles(Array.from(event.target.files ?? []));
+          event.target.value = "";
+        }}
       />
 
       <div className="space-y-2">

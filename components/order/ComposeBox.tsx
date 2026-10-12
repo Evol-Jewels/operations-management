@@ -13,7 +13,6 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useFilePickerAccept } from "@/hooks/useFilePickerAccept";
-import { copyPickedFiles } from "@/lib/copyPickedFiles";
 import { cn } from "@/lib/utils";
 
 const MAX_ATTACHMENTS = 8;
@@ -65,10 +64,10 @@ export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
   // Comments require text; attachments can be added alongside the message.
   const canSubmit = Boolean(trimmedMessage) && !busy;
 
-  function addFiles(files: File[]) {
-    if (!files.length) return;
+  function addFiles(files: FileList | null) {
+    if (!files?.length) return;
     setError("");
-    const supported = files.filter(isSupportedMedia);
+    const supported = Array.from(files).filter(isSupportedMedia);
     if (supported.length !== files.length) {
       setError("Only images, videos, and audio files can be attached.");
     }
@@ -214,10 +213,9 @@ export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
             multiple
             disabled={busy || media.length >= MAX_ATTACHMENTS}
             className="sr-only"
-            onChange={async (event) => {
-              const input = event.currentTarget;
-              addFiles(await copyPickedFiles(input.files));
-              input.value = "";
+            onChange={(event) => {
+              addFiles(event.target.files);
+              event.target.value = "";
             }}
           />
         </label>
