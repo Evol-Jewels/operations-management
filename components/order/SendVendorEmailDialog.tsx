@@ -1,6 +1,7 @@
 "use client";
 
-import { Mail, Paperclip } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Loader2, Mail, Paperclip } from "lucide-react";
 import { type ReactNode, useId, useState } from "react";
 import { toast } from "sonner";
 import type { ItemPdfExport } from "@/components/enquiry/EnquiryProductList";
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useVendors } from "@/hooks/useVendors";
+import { sendVendorEmail } from "@/lib/ordersApi";
 import {
   buildVendorEmailBody,
   buildVendorEmailSubject,
@@ -48,6 +50,17 @@ export function SendVendorEmailDialog({
   const [recipientOverride, setRecipientOverride] = useState<string | null>(
     null,
   );
+  const sendEmail = useMutation({
+    mutationFn: async (body: FormData) => {
+      body.set("attachment", await pdf.createFile());
+      return sendVendorEmail(refCode, body);
+    },
+    onSuccess: () => {
+      toast.success("Email sent to vendor");
+      setOpen(false);
+    },
+    onError: (error) => toast.error(error.message || "Could not send email"),
+  });
 
   return (
     <Dialog
@@ -80,8 +93,7 @@ export function SendVendorEmailDialog({
           className="space-y-4"
           onSubmit={(event) => {
             event.preventDefault();
-            toast.info("Sending email is coming soon!");
-            setOpen(false);
+            sendEmail.mutate(new FormData(event.currentTarget));
           }}
         >
           <div className="overflow-hidden rounded-lg border border-input">
@@ -144,11 +156,20 @@ export function SendVendorEmailDialog({
           ) : null}
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={sendEmail.isPending}
+              >
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="submit">Send</Button>
+            <Button type="submit" disabled={sendEmail.isPending}>
+              {sendEmail.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : null}
+              {sendEmail.isPending ? "Sending…" : "Send"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

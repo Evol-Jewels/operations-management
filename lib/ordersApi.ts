@@ -53,6 +53,13 @@ export function updateOrder(refCode: string | number, input: UpdateOrderInput) {
   );
 }
 
+export function sendVendorEmail(refCode: string | number, body: FormData) {
+  return apiFetch<{ sent: boolean }>(
+    buildUrl(`api/v1/orders/ref/${refCode}/vendor-email`),
+    { method: "POST", body },
+  );
+}
+
 export function updateOrderStatus(
   refCode: string | number,
   input: UpdateOrderStatusInput,
