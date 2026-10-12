@@ -44,6 +44,7 @@ import {
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
 import { estimationStoneToCalculator } from "@/lib/enquiryEstimation";
+import { createPdfFromImage } from "@/lib/pdf-export";
 import { sharePngToWhatsApp } from "@/lib/share-image";
 import { cn } from "@/lib/utils";
 import type {
@@ -86,6 +87,7 @@ export interface ItemPdfExport {
   itemTitle: string;
   fileName: string;
   preview: () => void;
+  createFile: () => Promise<File>;
 }
 
 export function EnquiryProductList({
@@ -230,6 +232,7 @@ function RequirementCarouselCard({
   const [hideVendorDetails, setHideVendorDetails] = useState(false);
   const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>("pdf");
   const printViewRef = useRef<HTMLDivElement>(null);
+  const pdfFileName = `${recordType}-${enquiryRefCode}-${slugifyFilePart(item.title)}.pdf`;
 
   function handleDownloadMenuOpenChange(nextOpen: boolean) {
     if (nextOpen) {
@@ -489,8 +492,14 @@ function RequirementCarouselCard({
             </Popover>
             {renderDownloadActions?.({
               itemTitle: item.title,
-              fileName: `${recordType}-${enquiryRefCode}-${slugifyFilePart(item.title)}.pdf`,
+              fileName: pdfFileName,
               preview: () => void handleDownloadPdf(),
+              createFile: async () =>
+                createPdfFromImage(
+                  await createExportPngDataUrl(),
+                  pdfFileName,
+                  item.title,
+                ),
             })}
           </div>
           {hasMany ? (
