@@ -18,6 +18,7 @@ import {
   EnquiryCreateHeader,
   type EnquiryCreateStep,
 } from "@/components/enquiries-v2/EnquiryCreateHeader";
+import { EntryImportDialog } from "@/components/entry-import-dialog";
 import { CustomProductForm } from "@/components/requirements/CustomProductForm";
 import { RequirementSummaryList } from "@/components/requirements/RequirementSummaryList";
 import type { RequirementDraft } from "@/components/requirements/requirement-form-types";
@@ -37,7 +38,12 @@ import { validatePhone } from "@/components/ui/phone-input";
 import { useCreateEnquiry } from "@/hooks/useEnquiries";
 import { captureProductEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
-import { uploadEnquiryImage, uploadEnquiryRecording } from "@/lib/enquiriesApi";
+import {
+  fetchEnquiryDetailsByRefCode,
+  uploadEnquiryImage,
+  uploadEnquiryRecording,
+} from "@/lib/enquiriesApi";
+import { importEnquiryRequirement } from "@/lib/entry-import";
 import {
   deleteEnquiryMedia,
   getEnquiryMedia,
@@ -170,6 +176,27 @@ function EnquiryCreateForm() {
     return nextErrors;
   }
 
+  async function importEnquiry(refCode: number) {
+    const source = await fetchEnquiryDetailsByRefCode(refCode);
+    if (!source.items.length)
+      throw new Error("This enquiry has no requirements to import.");
+    const importedRequirements = source.items.map(importEnquiryRequirement);
+    discardLocalReferences(requirementDraft.references);
+    for (const requirement of requirements)
+      discardLocalReferences(requirement.references);
+    setCustomer({
+      name: source.enquiry.name || "",
+      phone: source.enquiry.phoneNumber || "",
+    });
+    setIsPhoneValid(!validatePhone(source.enquiry.phoneNumber || ""));
+    setRequirements(importedRequirements);
+    setRequirementDraft(createEmptyRequirement());
+    setEditingRequirementId(null);
+    setIsRequirementFormOpen(false);
+    setErrors({});
+    setStep("customer");
+  }
+
   function validateRequirement(value: RequirementDraft) {
     const nextErrors: Record<string, string> = {};
     if (!value.category.trim())
@@ -275,7 +302,8 @@ function EnquiryCreateForm() {
     ).filter((item): item is BackendEnquiryMedia => Boolean(item));
 
     return {
-      type: "CUSTOM",
+      type: requirement.productCode ? "EXISTING" : "CUSTOM",
+      productCode: requirement.productCode,
       referenceProductCode: cleanText(requirement.referenceProductCode),
       category: cleanText(requirement.category),
       metalType: cleanText(requirement.metalType),
@@ -367,6 +395,15 @@ function EnquiryCreateForm() {
   return (
     <div className="mx-auto w-full max-w-5xl pb-24">
       <EnquiryCreateHeader step={step} />
+      {step === "customer" && (
+        <div className="mx-auto max-w-xl">
+          <EntryImportDialog
+            entryType="enquiry"
+            disabled={!draftHydrated}
+            onImport={importEnquiry}
+          />
+        </div>
+      )}
 
       {step === "customer" ? (
         <CustomerDetailsStep

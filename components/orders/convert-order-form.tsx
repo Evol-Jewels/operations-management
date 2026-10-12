@@ -38,6 +38,7 @@ import {
   ProductThumbnail,
   revokeObjectUrls,
 } from "@/components/enquiries/enquiry-form-utils";
+import { EntryImportDialog } from "@/components/entry-import-dialog";
 import { CustomProductForm as V2CustomProductForm } from "@/components/requirements/CustomProductForm";
 import type { RequirementDraft } from "@/components/requirements/requirement-form-types";
 import {
@@ -58,11 +59,13 @@ import { captureProductEvent } from "@/lib/analytics";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import { uploadEnquiryImage } from "@/lib/enquiriesApi";
+import { importOrderRequirement } from "@/lib/entry-import";
 import {
   fetchInventoryProducts,
   fetchInventoryProductWithAllMedia,
 } from "@/lib/inventoryApi";
 import { mapInventoryProductToEnquiryProduct } from "@/lib/inventoryProductMapping";
+import { fetchOrderDetails } from "@/lib/ordersApi";
 import { isSupportedImageFile } from "@/lib/prepareImageUpload";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
@@ -271,6 +274,7 @@ export function ConvertOrderForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState("");
+  const [hasImportedOrder, setHasImportedOrder] = useState(false);
   const [refillLoadAttempt, setRefillLoadAttempt] = useState(0);
   const [refillLoadState, setRefillLoadState] = useState<
     "idle" | "loading" | "ready" | "error"
@@ -519,7 +523,22 @@ export function ConvertOrderForm({
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item) =>
-        item.id === itemId ? { ...item, ...patch } : item,
+        item.id === itemId
+          ? {
+              ...item,
+              ...patch,
+              requirement:
+                item.requirement && patch.estimatedDelivery !== undefined
+                  ? {
+                      ...item.requirement,
+                      details: {
+                        ...item.requirement.details,
+                        deliveryDate: patch.estimatedDelivery,
+                      },
+                    }
+                  : item.requirement,
+            }
+          : item,
       ),
     }));
   }
@@ -556,6 +575,64 @@ export function ConvertOrderForm({
       notes: item.notes ?? "",
       interestLevel: item.interestLevel ?? "",
     };
+  }
+
+  async function importOrder(refCode: number) {
+    const { order } = await fetchOrderDetails(refCode);
+    const estimatedDelivery =
+      order.estimatedDeliveryDate?.slice(0, 10) ||
+      addDaysDateString(createdAtRef.current, 17);
+    const requirement =
+      order.productType === "CUSTOM"
+        ? importOrderRequirement(order)
+        : undefined;
+    if (requirement) requirement.details.deliveryDate = estimatedDelivery;
+    const productCode =
+      order.existingProduct?.productCode ||
+      order.productCode ||
+      (order.productDetails && "productCode" in order.productDetails
+        ? order.productDetails.productCode
+        : undefined);
+    if (order.productType === "EXISTING" && !productCode)
+      throw new Error("This order's product code is unavailable.");
+    const item: OrderItem = {
+      id: requirement?.id || generateId(),
+      source: requirement ? "new-custom" : "new-existing",
+      name: requirement?.category || productCode || "Custom product",
+      productCode,
+      category: requirement?.category,
+      metalType: requirement?.metalType,
+      metalPurity: requirement?.metalPurity,
+      metalNetWeight: requirement?.metalWeight,
+      metalGrossWeight:
+        order.customProduct?.metalGrossWeight ||
+        (order.productDetails && "stones" in order.productDetails
+          ? order.productDetails.metalGrossWeight
+          : undefined),
+      requirement,
+      notes: order.notes || requirement?.notes || "",
+      vendor: order.vendor || "",
+      cadApprovalRequired: order.isCadRequired,
+      estimatedDelivery,
+    };
+    for (const previous of form.items)
+      revokeObjectUrls(
+        previous.requirement?.references ?? previous.references ?? [],
+      );
+    setForm({
+      items: [item],
+      customerName: order.name || "",
+      customerPhone: order.phoneNumber || "",
+      customerAddress: order.customerAddress || "",
+    });
+    setSelectedItemIds([item.id]);
+    setActiveRequirementId(requirement ? item.id : null);
+    setConfirmedRequirementIds([]);
+    setErrors({});
+    setSubmitError("");
+    setCustomReferenceLinkInput("");
+    setCustomReferenceError("");
+    setHasImportedOrder(true);
   }
 
   function updateCustomRequirement(itemId: string, draft: NewProduct) {
@@ -1015,6 +1092,7 @@ export function ConvertOrderForm({
         ),
         size: Number.isInteger(productSize) ? productSize : undefined,
         metalNetWeight: cleanOptionalText(requirement.metalWeight),
+        metalGrossWeight: cleanOptionalText(item.metalGrossWeight),
         stones: stoneRows,
       },
       requirementSpecification: specification,
@@ -1237,6 +1315,9 @@ export function ConvertOrderForm({
 
   return (
     <div className="mx-auto max-w-3xl pb-28">
+      {!isConversion && !isRefill && isFirstStep && (
+        <EntryImportDialog entryType="order" onImport={importOrder} />
+      )}
       {/* Progress bar */}
       <div className="mb-2">
         <div className="h-[2px] w-full overflow-hidden rounded-full bg-muted">
@@ -1286,8 +1367,9 @@ export function ConvertOrderForm({
               updateItem={updateItem}
               updateItemCadApproval={updateItemCadApproval}
             />
-          ) : isRefill ? (
+          ) : isRefill || selectedItems[0]?.source === "new-existing" ? (
             <RefillDetailsStep
+              isRefill={isRefill}
               item={selectedItems[0]}
               updateItem={updateItem}
               updateItemCadApproval={updateItemCadApproval}
@@ -1325,6 +1407,19 @@ export function ConvertOrderForm({
               errors={errors}
             />
           ))}
+        {stepId === "requirements" &&
+          hasImportedOrder &&
+          selectedItems[0]?.source === "new-custom" && (
+            <div className="mt-5">
+              <OrderItemCard
+                item={selectedItems[0]}
+                updateItem={updateItem}
+                updateItemCadApproval={updateItemCadApproval}
+                removeItem={() => undefined}
+                canRemove={false}
+              />
+            </div>
+          )}
 
         {stepId === "customer" && (
           <CustomerStep form={form} setForm={setForm} errors={errors} />
@@ -1457,12 +1552,14 @@ export function ConvertOrderForm({
 // ─── Products Step ──────────────────────────────────────────────────────────
 
 function RefillDetailsStep({
+  isRefill = true,
   item,
   updateItem,
   updateItemCadApproval,
   errors,
   submitError,
 }: {
+  isRefill?: boolean;
   item?: OrderItem;
   updateItem: (
     id: string,
@@ -1485,12 +1582,14 @@ function RefillDetailsStep({
         </div>
         <div>
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            Review refill details
+            {isRefill ? "Review refill details" : "Review imported product"}
           </h1>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            {canViewVendor ? "Product and vendor" : "Product"} details were
-            loaded from inventory. Confirm the delivery settings before
-            continuing.
+            {canViewVendor ? "Product and vendor" : "Product"} details were{" "}
+            {isRefill
+              ? "loaded from inventory."
+              : "imported from the existing order."}{" "}
+            Confirm the delivery settings before continuing.
           </p>
         </div>
       </div>
@@ -2375,10 +2474,7 @@ function ReviewStep({
                 label="Metal"
                 value={
                   [
-                    formatMetalTypeLabel(
-                      item.metalType || "",
-                      item.metalColor,
-                    ),
+                    formatMetalTypeLabel(item.metalType || "", item.metalColor),
                     item.metalPurity,
                   ]
                     .filter(Boolean)
