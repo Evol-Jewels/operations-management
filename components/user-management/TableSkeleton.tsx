@@ -19,7 +19,11 @@ export function TableSkeleton({ columns, rows = 5 }: TableSkeletonProps) {
   );
 
   return (
-    <div className="min-h-0 h-[30vh] overflow-y-auto rounded-md border border-border/70">
+    <div
+      aria-busy="true"
+      className="overflow-hidden rounded-md border border-border/70"
+    >
+      <output className="sr-only">Loading records</output>
       <Table>
         <TableBody>
           {skeletonRows.map((rowKey) => (

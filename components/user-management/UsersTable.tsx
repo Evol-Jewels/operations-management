@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Key, MoreHorizontal, ShieldMinus } from "lucide-react";
+import { Ban, Key, MoreHorizontal, Pencil, ShieldMinus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatDate, formatLabel } from "@/components/user-management/format";
 import { TableSkeleton } from "@/components/user-management/TableSkeleton";
 import { cn } from "@/lib/utils";
 import type { InternalUserWithProfile } from "@/types/user-management";
@@ -39,16 +40,6 @@ const statusStyles = {
     "border-red-500/20 bg-red-500/10 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400",
 };
 
-function formatDate(value: string | null) {
-  if (!value) return "Not set";
-
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
 function initials(name: string, email: string) {
   const source = name.trim() || email.trim();
   return source.slice(0, 2).toUpperCase();
@@ -60,6 +51,7 @@ function UserActions({
   onBlock,
   onUnblock,
   onResetPassword,
+  onEdit,
   isLoading,
 }: {
   user: InternalUserWithProfile;
@@ -67,6 +59,7 @@ function UserActions({
   onBlock: () => void;
   onUnblock: () => void;
   onResetPassword: () => void;
+  onEdit: () => void;
   isLoading: boolean;
 }) {
   const isOwnUser =
@@ -74,7 +67,18 @@ function UserActions({
   const isAdmin = user.profile?.role === "ADMIN";
 
   if (isOwnUser || isAdmin) {
-    return null;
+    return (
+      <span
+        className="whitespace-nowrap text-xs text-muted-foreground"
+        title={
+          isOwnUser
+            ? "Account actions are unavailable for your own account."
+            : "Admin accounts are protected from changes."
+        }
+      >
+        {isOwnUser ? "Your account" : "Protected"}
+      </span>
+    );
   }
 
   const hasUsername = Boolean(user.username?.trim());
@@ -86,7 +90,8 @@ function UserActions({
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
+          aria-label={`Actions for ${user.username || user.name || user.email}`}
           className="mx-auto cursor-pointer"
           onClick={(e) => e.stopPropagation()}
           disabled={isLoading}
@@ -96,33 +101,35 @@ function UserActions({
       </PopoverTrigger>
       <PopoverContent align="end" className="w-fit p-1">
         <div className="flex flex-col">
-          {canUnblock ? (
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
-              onClick={(e) => {
-                e.stopPropagation();
-                onUnblock();
-              }}
-              disabled={isLoading}
-            >
+          <button
+            type="button"
+            className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit();
+            }}
+            disabled={isLoading}
+          >
+            <Pencil className="size-4" />
+            Edit profile
+          </button>
+          <button
+            type="button"
+            className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (canUnblock) onUnblock();
+              else onBlock();
+            }}
+            disabled={isLoading}
+          >
+            {canUnblock ? (
               <ShieldMinus className="size-4" />
-              Unblock User
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
-              onClick={(e) => {
-                e.stopPropagation();
-                onBlock();
-              }}
-              disabled={isLoading}
-            >
+            ) : (
               <Ban className="size-4" />
-              Block User
-            </button>
-          )}
+            )}
+            {canUnblock ? "Unblock User" : "Block User"}
+          </button>
           {canResetPassword && (
             <button
               type="button"
@@ -166,7 +173,7 @@ export function UsersTable({
   }
 
   return (
-    <div className="min-h-0 h-[30vh] overflow-y-auto rounded-md border border-border/70">
+    <div className="overflow-hidden rounded-md border border-border/70 [&_[data-slot=table-container]]:pr-0">
       <div className="space-y-3 p-3 sm:hidden">
         {users.map((user) => {
           const isAdminUser = user.profile?.role === "ADMIN";
@@ -210,14 +217,16 @@ export function UsersTable({
                           statusStyles[user.status],
                         )}
                       >
-                        {user.status}
+                        {formatLabel(user.status)}
                       </Badge>
                     </div>
                     <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
                       <div className="flex justify-between gap-3">
                         <span>Role</span>
                         <span className="font-medium text-foreground">
-                          {user.profile?.role ?? "-"}
+                          {user.profile?.role
+                            ? formatLabel(user.profile.role)
+                            : "Not set"}
                         </span>
                       </div>
                       <div className="flex justify-between gap-3">
@@ -230,13 +239,14 @@ export function UsersTable({
                   </div>
                 </div>
               </button>
-              <div className="absolute right-4 top-4">
+              <div className="mt-3 flex justify-end border-t border-border/70 pt-2">
                 <UserActions
                   user={user}
                   currentUserEmail={currentUserEmail}
                   onBlock={() => onBlock(user)}
                   onUnblock={() => onUnblock(user)}
                   onResetPassword={() => onResetPassword(user)}
+                  onEdit={() => onOpenUserProfile(user)}
                   isLoading={actionLoading === user.id}
                 />
               </div>
@@ -251,9 +261,9 @@ export function UsersTable({
             <TableRow>
               <TableHead>User</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Team</TableHead>
+              <TableHead>Role</TableHead>
               <TableHead>Created</TableHead>
-              <TableHead className="w-12">Actions</TableHead>
+              <TableHead className="w-28 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -269,7 +279,16 @@ export function UsersTable({
                   }}
                 >
                   <TableCell className="py-3">
-                    <div className="flex min-w-64 items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={isAdminUser}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpenUserProfile(user);
+                      }}
+                      aria-label={`Edit profile for ${user.username || user.name || user.email}`}
+                      className="flex min-w-64 items-center gap-3 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
+                    >
                       <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
                         {initials(user.name, user.email)}
                       </div>
@@ -281,26 +300,28 @@ export function UsersTable({
                           {user.email}
                         </p>
                       </div>
-                    </div>
+                    </button>
                   </TableCell>
                   <TableCell className="py-3">
                     <Badge
                       variant="outline"
                       className={cn("border", statusStyles[user.status])}
                     >
-                      {user.status}
+                      {formatLabel(user.status)}
                     </Badge>
                   </TableCell>
                   <TableCell className="py-3">
                     <p className="text-sm text-foreground">
-                      {user.profile?.role ?? "-"}
+                      {user.profile?.role
+                        ? formatLabel(user.profile.role)
+                        : "Not set"}
                     </p>
                   </TableCell>
                   <TableCell className="py-3 text-muted-foreground">
                     {formatDate(user.createdAt)}
                   </TableCell>
                   <TableCell
-                    className="py-3"
+                    className="py-3 text-right"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <UserActions
@@ -309,6 +330,7 @@ export function UsersTable({
                       onBlock={() => onBlock(user)}
                       onUnblock={() => onUnblock(user)}
                       onResetPassword={() => onResetPassword(user)}
+                      onEdit={() => onOpenUserProfile(user)}
                       isLoading={actionLoading === user.id}
                     />
                   </TableCell>
