@@ -70,7 +70,7 @@ export const DIAMOND_SHAPES = [
 export const DIAMOND_CLARITIES = [
   "FL",
   "IF",
-  "VVS/ES",
+  "VVS/VS",
   "VVS1",
   "VVS2",
   "VS1",

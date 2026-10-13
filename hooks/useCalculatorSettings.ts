@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_CALCULATOR_SETTINGS } from "@/lib/calculator/constants";
 import { calculateGoldRate } from "@/lib/calculator/pricing";
+import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import {
   fetchAllStoneSlabs,
   fetchAllStoneTypes,
@@ -308,7 +309,7 @@ function mapStoneTypes(
     stoneId: stone.id,
     name: stone.name,
     category: stone.category ?? "Diamond",
-    clarity: stone.clarity ?? undefined,
+    clarity: normalizeDiamondClarity(stone.clarity) || undefined,
     color: stone.color ?? undefined,
     slabs: activeSlabs
       .filter((slab) => slab.stoneTypeId === stone.id)
@@ -393,7 +394,7 @@ function stoneTypesFromSettings(
       id: stone.stoneId,
       name: stone.name,
       category: stone.category,
-      clarity: stone.clarity ?? null,
+      clarity: normalizeDiamondClarity(stone.clarity) || null,
       color: stone.color ?? null,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,

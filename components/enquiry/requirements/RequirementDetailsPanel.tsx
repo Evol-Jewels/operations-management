@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import { formatMetalTypeLabel } from "@/lib/metalDisplay";
 import type { EnquiryColorStone, EnquiryDiamond } from "@/types";
 import {
@@ -230,7 +231,10 @@ function DiamondCard({ diamond }: { diamond: EnquiryDiamond }) {
     <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-x-4 gap-y-1.5">
       <DetailRow label="Type" value={type} />
       <DetailRow label="Shape" value={diamond.shape} />
-      <DetailRow label="Clarity" value={diamond.clarity} />
+      <DetailRow
+        label="Clarity"
+        value={normalizeDiamondClarity(diamond.clarity)}
+      />
       <DetailRow label="Colour" value={diamond.colour} />
       <DetailRow label="Size" value={diamond.size} />
       <DetailRow label="Pieces" value={diamond.pieces} />

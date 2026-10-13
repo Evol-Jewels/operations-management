@@ -1,4 +1,5 @@
 import type { ProductReference } from "@/components/enquiries/enquiry-form-types";
+import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import type { BackendEnquiryMedia } from "@/types/enquiry-api";
 import type {
   RequirementColorStone,
@@ -10,7 +11,7 @@ export const DEFAULT_ORDER_TYPE = "Client";
 export const DEFAULT_METAL_TYPE = "Gold";
 export const DEFAULT_DIAMOND_TYPE = "Lab Grown";
 export const DEFAULT_DIAMOND_METHOD = "CVD";
-export const DEFAULT_DIAMOND_CLARITY = "VVS/ES";
+export const DEFAULT_DIAMOND_CLARITY = "VVS/VS";
 export const DEFAULT_DIAMOND_COLOUR = "EF";
 export const DEFAULT_COLOR_STONE_NATURE = "Lab Grown";
 
@@ -67,7 +68,7 @@ function isDefaultDiamond(diamond: RequirementDiamond) {
   return (
     diamond.type === DEFAULT_DIAMOND_TYPE &&
     diamond.growthMethod === DEFAULT_DIAMOND_METHOD &&
-    diamond.clarity === DEFAULT_DIAMOND_CLARITY &&
+    normalizeDiamondClarity(diamond.clarity) === DEFAULT_DIAMOND_CLARITY &&
     diamond.colour === DEFAULT_DIAMOND_COLOUR &&
     !diamond.shape?.trim() &&
     !diamond.size?.trim() &&
@@ -168,7 +169,7 @@ export function cleanDiamond(diamond: RequirementDiamond) {
     type: cleanText(diamond.type),
     growthMethod: cleanText(diamond.growthMethod),
     shape: cleanText(diamond.shape),
-    clarity: cleanText(diamond.clarity),
+    clarity: cleanText(normalizeDiamondClarity(diamond.clarity)),
     colour: cleanText(diamond.colour),
     size: cleanText(diamond.size),
     pieces: cleanText(diamond.pieces),

@@ -2,6 +2,7 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import {
   DIAMOND_CLARITIES,
   DIAMOND_COLOURS,
@@ -104,9 +105,13 @@ export function DiamondDetailsSection({
               />
               <OptionTextField
                 label="Clarity"
-                value={diamond.clarity}
+                value={normalizeDiamondClarity(diamond.clarity)}
                 options={DIAMOND_CLARITIES}
-                onChange={(clarity) => updateDiamond(diamond.id, { clarity })}
+                onChange={(clarity) =>
+                  updateDiamond(diamond.id, {
+                    clarity: normalizeDiamondClarity(clarity),
+                  })
+                }
               />
               <OptionTextField
                 label="Colour"
