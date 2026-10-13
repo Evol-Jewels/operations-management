@@ -1,13 +1,19 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import {
   type HTMLAttributes,
   type ReactNode,
+  useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
 } from "react";
+import {
+  JewelryVisual,
+  type JewelryVisualKind,
+} from "@/components/jewelry/JewelryVisual";
 import { DatePicker } from "@/components/ui/date-picker";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
@@ -76,6 +82,7 @@ export function OptionTextField({
   onChange,
   placeholder = "Select or type",
   required,
+  visualKind,
 }: {
   label: string;
   value?: string;
@@ -83,11 +90,13 @@ export function OptionTextField({
   onChange: (value: string) => void;
   placeholder?: string;
   required?: boolean;
+  visualKind?: JewelryVisualKind;
 }) {
-  const id = `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  const id = useId();
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const searchValue = (value ?? "").trim();
   const rankedOptions = useMemo(() => {
     if (!searchValue) return options;
@@ -118,6 +127,13 @@ export function OptionTextField({
     Math.max(rankedOptions.length - 1, 0),
   );
 
+  useEffect(() => {
+    if (open)
+      listRef.current?.children[safeActiveIndex]?.scrollIntoView({
+        block: "nearest",
+      });
+  }, [open, safeActiveIndex]);
+
   const selectOption = (option: string) => {
     onChange(option);
     setActiveIndex(0);
@@ -129,48 +145,74 @@ export function OptionTextField({
     <FormField label={label} htmlFor={id} required={required}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverAnchor asChild>
-          <Input
-            ref={inputRef}
-            id={id}
-            value={value ?? ""}
-            placeholder={placeholder}
-            onFocus={() => setOpen(true)}
-            onChange={(event) => {
-              onChange(event.target.value);
-              setActiveIndex(0);
-              setOpen(true);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                setOpen(false);
-                return;
-              }
-              if (event.key === "ArrowDown") {
-                event.preventDefault();
+          <div className="relative">
+            {visualKind && value && options.includes(value) ? (
+              <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center">
+                <JewelryVisual
+                  kind={visualKind}
+                  value={value}
+                  className="size-5"
+                />
+              </span>
+            ) : null}
+            <Input
+              ref={inputRef}
+              id={id}
+              value={value ?? ""}
+              placeholder={placeholder}
+              onFocus={() => setOpen(true)}
+              onClick={() => setOpen(true)}
+              onChange={(event) => {
+                onChange(event.target.value);
+                setActiveIndex(0);
                 setOpen(true);
-                setActiveIndex((current) =>
-                  Math.min(current + 1, rankedOptions.length - 1),
-                );
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setOpen(false);
+                  return;
+                }
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setOpen(true);
+                  setActiveIndex((current) =>
+                    open ? Math.min(current + 1, rankedOptions.length - 1) : 0,
+                  );
+                }
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setOpen(true);
+                  setActiveIndex((current) => Math.max(current - 1, 0));
+                }
+                if (
+                  event.key === "Enter" &&
+                  open &&
+                  rankedOptions[safeActiveIndex]
+                ) {
+                  event.preventDefault();
+                  selectOption(rankedOptions[safeActiveIndex]);
+                }
+              }}
+              className={cn(
+                "h-9 pr-8",
+                visualKind && value && options.includes(value) && "pl-10",
+              )}
+              autoComplete="off"
+              role="combobox"
+              aria-expanded={open}
+              aria-controls={`${id}-suggestions`}
+              aria-autocomplete="list"
+              aria-activedescendant={
+                open && rankedOptions.length > 0
+                  ? `${id}-option-${safeActiveIndex}`
+                  : undefined
               }
-              if (event.key === "ArrowUp") {
-                event.preventDefault();
-                setActiveIndex((current) => Math.max(current - 1, 0));
-              }
-              if (
-                event.key === "Enter" &&
-                open &&
-                rankedOptions[safeActiveIndex]
-              ) {
-                event.preventDefault();
-                selectOption(rankedOptions[safeActiveIndex]);
-              }
-            }}
-            className="h-9"
-            autoComplete="off"
-            role="combobox"
-            aria-expanded={open}
-            aria-controls={`${id}-suggestions`}
-          />
+            />
+            <ChevronDown
+              aria-hidden="true"
+              className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+            />
+          </div>
         </PopoverAnchor>
         <PopoverContent
           align="start"
@@ -178,6 +220,8 @@ export function OptionTextField({
           className="max-h-60 w-(--radix-popover-trigger-width) overflow-y-auto p-1"
           id={`${id}-suggestions`}
           role="listbox"
+          aria-label={label}
+          ref={listRef}
         >
           {rankedOptions.length > 0 ? (
             rankedOptions.map((option, index) => {
@@ -185,6 +229,7 @@ export function OptionTextField({
               return (
                 <button
                   key={option}
+                  id={`${id}-option-${index}`}
                   type="button"
                   role="option"
                   aria-selected={selected}
@@ -197,13 +242,21 @@ export function OptionTextField({
                       "bg-accent text-accent-foreground",
                   )}
                 >
+                  {visualKind ? (
+                    <JewelryVisual
+                      kind={visualKind}
+                      value={option}
+                      className="size-6"
+                    />
+                  ) : null}
+                  <span className="min-w-0 flex-1">{option}</span>
                   <Check
+                    aria-hidden="true"
                     className={cn(
-                      "size-3.5",
+                      "size-3.5 shrink-0",
                       selected ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  <span>{option}</span>
                 </button>
               );
             })

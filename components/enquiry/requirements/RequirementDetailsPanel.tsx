@@ -3,6 +3,10 @@
 import { ChevronLeft, ChevronRight, ExternalLink, Pencil } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import {
+  JewelryVisual,
+  type JewelryVisualKind,
+} from "@/components/jewelry/JewelryVisual";
 import { Button } from "@/components/ui/button";
 import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import { formatMetalTypeLabel } from "@/lib/metalDisplay";
@@ -44,7 +48,11 @@ export function RequirementDetailsPanel({
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-4 border-t border-border pt-4">
         <DetailSection title="Overview">
           <DetailRow label="Type of order" value={item.details.orderType} />
-          <DetailRow label="Category" value={item.title} />
+          <DetailRow
+            label="Category"
+            value={item.title}
+            visualKind="category"
+          />
           <DetailRow label="Subcategory" value={item.details.subcategory} />
           <DetailRow label="Product size" value={item.details.productSize} />
           <DetailRow label="Setting type" value={item.details.settingType} />
@@ -54,6 +62,7 @@ export function RequirementDetailsPanel({
         <DetailSection title="Metal">
           <DetailRow
             label="Metal"
+            visualKind="metal"
             value={formatMetalTypeLabel(
               item.metalType ?? "",
               item.details.metalColor,
@@ -63,7 +72,11 @@ export function RequirementDetailsPanel({
             label="Metal purity"
             value={getDisplayMetalPurity(item.metalPurity)}
           />
-          <DetailRow label="Metal color" value={item.details.metalColor} />
+          <DetailRow
+            label="Metal color"
+            value={item.details.metalColor}
+            visualKind="metal-color"
+          />
           <DetailRow label="Metal weight" value={item.metalWeight} />
           <DetailRow label="Certification" value={item.details.certification} />
           <DetailRow label="Polish" value={item.details.polish} />
@@ -230,7 +243,7 @@ function DiamondCard({ diamond }: { diamond: EnquiryDiamond }) {
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-x-4 gap-y-1.5">
       <DetailRow label="Type" value={type} />
-      <DetailRow label="Shape" value={diamond.shape} />
+      <DetailRow label="Shape" value={diamond.shape} visualKind="shape" />
       <DetailRow
         label="Clarity"
         value={normalizeDiamondClarity(diamond.clarity)}
@@ -247,7 +260,7 @@ function DiamondCard({ diamond }: { diamond: EnquiryDiamond }) {
 function ColorStoneCard({ stone }: { stone: EnquiryColorStone }) {
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-x-4 gap-y-1.5">
-      <DetailRow label="Type" value={stone.stoneType} />
+      <DetailRow label="Type" value={stone.stoneType} visualKind="stone" />
       <DetailRow label="Nature" value={stone.nature} />
       <DetailRow label="Origin" value={stone.origin} />
       <DetailRow label="Treatment" value={stone.treatment} />
@@ -275,9 +288,11 @@ export function DetailSection({
 export function DetailRow({
   label,
   value,
+  visualKind,
 }: {
   label: string;
   value?: string | number | null;
+  visualKind?: JewelryVisualKind;
 }) {
   if (!hasValue(value)) return null;
 
@@ -288,7 +303,18 @@ export function DetailRow({
           {label}
         </dt>
         <dd className="min-w-0 break-words text-xs font-medium text-foreground @[16rem]/detail-row:text-right">
-          {value}
+          {visualKind ? (
+            <span className="inline-flex max-w-full items-center gap-1.5 text-left">
+              <JewelryVisual
+                kind={visualKind}
+                value={String(value)}
+                className="size-4"
+              />
+              <span className="min-w-0">{value}</span>
+            </span>
+          ) : (
+            value
+          )}
         </dd>
       </div>
     </div>

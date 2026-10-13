@@ -1,6 +1,7 @@
 "use client";
 
-import { Gem, ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
+import { ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
+import { JewelryVisual } from "@/components/jewelry/JewelryVisual";
 import { Button } from "@/components/ui/button";
 import { formatMetalTypeLabel } from "@/lib/metalDisplay";
 import type { RequirementDraft } from "./requirement-form-types";
@@ -38,8 +39,12 @@ export function RequirementSummaryList({
             key={requirement.id}
             className="flex min-w-0 items-center gap-3 px-3.5 py-3"
           >
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-              <Gem className="size-4" />
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground empty:hidden">
+              <JewelryVisual
+                kind="category"
+                value={requirement.category}
+                className="size-6"
+              />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-foreground">

@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, ChevronsUpDown, Diamond } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { useId, useState } from "react";
+import { JewelryVisual } from "@/components/jewelry/JewelryVisual";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -87,7 +88,10 @@ export function StoneTypeCombobox({
           )}
         >
           <span className="flex min-w-0 items-center gap-2">
-            <StoneIcon category={selectedStone?.category} />
+            <StoneIcon
+              name={customValue || selectedStone?.label || value}
+              category={selectedStone?.category}
+            />
             <span
               className={cn(
                 "truncate",
@@ -135,7 +139,12 @@ export function StoneTypeCombobox({
                   }}
                   className="cursor-pointer items-start gap-2 py-2"
                 >
-                  <StoneIcon category={option.category} className="mt-0.5" />
+                  <span
+                    aria-hidden="true"
+                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center"
+                  >
+                    <StoneIcon name={option.label} category={option.category} />
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">
                       {option.label}
@@ -178,24 +187,20 @@ export function StoneTypeCombobox({
 }
 
 function StoneIcon({
+  name,
   category,
   className,
 }: {
+  name?: string;
   category?: string;
   className?: string;
 }) {
-  return category?.toLowerCase() === "gemstone" ? (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "size-3 shrink-0 rounded-full bg-muted-foreground/40",
-        className,
-      )}
-    />
-  ) : (
-    <Diamond
-      aria-hidden="true"
-      className={cn("size-3.5 shrink-0 text-muted-foreground", className)}
+  return (
+    <JewelryVisual
+      kind="stone"
+      value={name}
+      stoneCategory={category}
+      className={cn("size-5", className)}
     />
   );
 }

@@ -4,18 +4,23 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import {
+  NotesField,
+  OptionTextField,
+  SectionShell,
+  TextField,
+} from "./RequirementFields";
+import type {
+  RequirementDiamond,
+  RequirementDraft,
+} from "./requirement-form-types";
+import { createEmptyDiamond } from "./requirement-form-utils";
+import {
   DIAMOND_CLARITIES,
   DIAMOND_COLOURS,
   DIAMOND_METHODS,
   DIAMOND_SHAPES,
   DIAMOND_TYPES,
 } from "./requirement-options";
-import {
-  type RequirementDiamond,
-  type RequirementDraft,
-} from "./requirement-form-types";
-import { createEmptyDiamond } from "./requirement-form-utils";
-import { NotesField, OptionTextField, SectionShell, TextField } from "./RequirementFields";
 
 export function DiamondDetailsSection({
   value,
@@ -99,6 +104,7 @@ export function DiamondDetailsSection({
               />
               <OptionTextField
                 label="Shape"
+                visualKind="shape"
                 value={diamond.shape}
                 options={DIAMOND_SHAPES}
                 onChange={(shape) => updateDiamond(diamond.id, { shape })}

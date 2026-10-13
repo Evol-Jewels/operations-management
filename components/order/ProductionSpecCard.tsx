@@ -2,6 +2,10 @@
 
 import { AlertCircle, Pencil, Truck, UserRound, Wrench } from "lucide-react";
 import { getDisplayMetalPurity } from "@/components/enquiry/requirements/requirement-display-utils";
+import {
+  JewelryVisual,
+  type JewelryVisualKind,
+} from "@/components/jewelry/JewelryVisual";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useVendorAccess } from "@/hooks/useVendors";
@@ -12,7 +16,11 @@ import { SpecLine, SpecSection } from "./SpecSection";
 function BadgeGroup({
   items,
 }: {
-  items: Array<{ label?: string; value?: string | number | null }>;
+  items: Array<{
+    label?: string;
+    value?: string | number | null;
+    visualKind?: JewelryVisualKind;
+  }>;
 }) {
   const visibleItems = items.filter((item) => item.value || item.value === 0);
 
@@ -26,6 +34,13 @@ function BadgeGroup({
           variant="outline"
           className="max-w-full whitespace-normal break-words rounded-md px-2 py-0.5 text-left"
         >
+          {item.visualKind ? (
+            <JewelryVisual
+              kind={item.visualKind}
+              value={String(item.value)}
+              className="size-4"
+            />
+          ) : null}
           {item.label ? `${item.label}: ${item.value}` : item.value}
         </Badge>
       ))}
@@ -59,7 +74,16 @@ export function ProductionSpecCard({
           <SpecSection icon={Wrench} title="Overview">
             <SpecLine
               label="Category"
-              value={<Badge variant="outline">{order.category}</Badge>}
+              value={
+                <Badge variant="outline">
+                  <JewelryVisual
+                    kind="category"
+                    value={order.category}
+                    className="size-4"
+                  />
+                  {order.category}
+                </Badge>
+              }
             />
             <SpecLine
               label="Metal"
@@ -68,6 +92,7 @@ export function ProductionSpecCard({
                   items={[
                     {
                       label: "Metal",
+                      visualKind: "metal",
                       value: formatMetalTypeLabel(
                         order.metalType,
                         customDetails?.metalColor,
@@ -93,7 +118,11 @@ export function ProductionSpecCard({
                 <BadgeGroup
                   items={[
                     { label: "Type", value: customDetails?.orderType },
-                    { label: "Color", value: customDetails?.metalColor },
+                    {
+                      label: "Color",
+                      value: customDetails?.metalColor,
+                      visualKind: "metal-color",
+                    },
                     { label: "Polish", value: customDetails?.polish },
                   ]}
                 />

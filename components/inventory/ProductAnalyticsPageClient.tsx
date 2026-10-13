@@ -33,6 +33,7 @@ import {
   Pie,
 } from "@/components/evilcharts/charts/pie-chart";
 import type { ChartConfig } from "@/components/evilcharts/ui/chart";
+import { JewelryVisual } from "@/components/jewelry/JewelryVisual";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -981,7 +982,14 @@ function CategoryLocationExplorer({
                   {categories.map((category) => (
                     <tr key={category}>
                       <td className="sticky left-0 z-10 border-b border-border bg-card px-3 py-2.5 font-medium text-foreground">
-                        {category}
+                        <span className="inline-flex items-center gap-2.5">
+                          <JewelryVisual
+                            kind="category"
+                            value={category}
+                            className="size-5"
+                          />
+                          {category}
+                        </span>
                       </td>
                       {locations.map((location) => {
                         const count =
