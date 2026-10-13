@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import type {
   CalculatorSettings,
   CalculatorStoneSlab,
@@ -128,7 +129,7 @@ export function SettingsView({
         stone.name,
         stone.stoneId,
         stone.category,
-        stone.clarity,
+        normalizeDiamondClarity(stone.clarity),
         stone.color,
         ...stone.slabs.map((slab) => slab.code),
       ]

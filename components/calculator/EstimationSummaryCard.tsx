@@ -26,6 +26,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import { isInventoryMediaProxyUrl } from "@/lib/inventory-media";
 import { sharePngToWhatsApp } from "@/lib/share-image";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -256,7 +257,7 @@ function getSummaryData(
       makingCost: data.breakdown.makingCost,
       stoneDetails: data.breakdown.stoneDetails,
       diamondColor: data.form.diamondColor.trim(),
-      diamondClarity: data.form.diamondClarity.trim(),
+      diamondClarity: normalizeDiamondClarity(data.form.diamondClarity).trim(),
       totalStoneCost: data.breakdown.totalStoneCost,
       subTotal: data.breakdown.subTotal,
       gst: data.breakdown.gst,
@@ -283,7 +284,9 @@ function getSummaryData(
     makingCost: data.result.pricing.makingCost,
     stoneDetails: data.result.pricing.stoneDetails,
     diamondColor: firstDiamond?.stoneType?.color?.trim() ?? "",
-    diamondClarity: firstDiamond?.stoneType?.clarity?.trim() ?? "",
+    diamondClarity: normalizeDiamondClarity(
+      firstDiamond?.stoneType?.clarity,
+    ).trim(),
     totalStoneCost: data.result.pricing.totalStoneCost,
     subTotal: data.result.pricing.subTotal,
     gst: data.result.pricing.gst,

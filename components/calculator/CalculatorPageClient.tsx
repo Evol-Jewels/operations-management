@@ -50,6 +50,7 @@ import { captureProductEvent } from "@/lib/analytics";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
+import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import {
   calculateMakingCharge,
   computeEstimateFromInputs,
@@ -280,7 +281,7 @@ function restoreManualCalculatorForm(
             : "",
         diamondClarity:
           typeof storedForm.diamondClarity === "string"
-            ? storedForm.diamondClarity
+            ? normalizeDiamondClarity(storedForm.diamondClarity)
             : "",
         goldRateOverride:
           toPersistedNumber(storedForm.goldRateOverride) > 0
@@ -486,7 +487,9 @@ function StoneTypeCombobox({
         label: item.name,
         category: item.category,
         metadata: `${item.category} · ${item.slabs.length} slabs`,
-        searchText: [item.clarity, item.color].filter(Boolean).join(" "),
+        searchText: [normalizeDiamondClarity(item.clarity), item.color]
+          .filter(Boolean)
+          .join(" "),
       }))}
       value={value}
       onValueChange={onChange}
@@ -1920,9 +1923,12 @@ function CalculatorForm({
                   </label>
                   <input
                     id="calculator-diamond-clarity"
-                    value={form.diamondClarity}
+                    value={normalizeDiamondClarity(form.diamondClarity)}
                     onChange={(event) =>
-                      updateForm("diamondClarity", event.target.value)
+                      updateForm(
+                        "diamondClarity",
+                        normalizeDiamondClarity(event.target.value),
+                      )
                     }
                     placeholder="e.g. VVS/VS"
                     className="h-9 w-full border-b border-border bg-transparent px-0 text-sm uppercase outline-none placeholder:normal-case placeholder:text-muted-foreground/35 focus:border-foreground"

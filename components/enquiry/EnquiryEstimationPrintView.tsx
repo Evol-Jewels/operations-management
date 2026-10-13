@@ -5,6 +5,7 @@ import {
   type RequirementDisplayItem,
 } from "@/components/enquiry/requirements/requirement-display-utils";
 import { useVendorAccess } from "@/hooks/useVendors";
+import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import { formatMetalTypeLabel } from "@/lib/metalDisplay";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type {
@@ -416,7 +417,10 @@ function DiamondDetails({ diamonds }: { diamonds: EnquiryDiamond[] }) {
             value={joinValues([diamond.type, diamond.growthMethod])}
           />
           <DetailRow label="Shape" value={diamond.shape} />
-          <DetailRow label="Clarity" value={diamond.clarity} />
+          <DetailRow
+            label="Clarity"
+            value={normalizeDiamondClarity(diamond.clarity)}
+          />
           <DetailRow label="Colour" value={diamond.colour} />
           <DetailRow label="Size" value={diamond.size} />
           <DetailRow label="Pieces" value={diamond.pieces} />
