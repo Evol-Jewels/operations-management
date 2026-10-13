@@ -30,7 +30,8 @@ export function MetalDetailsSection({
   const updateMetalType = (metalType: string) => {
     const nextColours = getMetalColours(metalType);
     const nextPurities = getMetalPurities(metalType);
-    const fixedMetalDetails = metalType === "Silver" || metalType === "Platinum";
+    const fixedMetalDetails =
+      metalType === "Silver" || metalType === "Platinum";
 
     onChange({
       ...value,
@@ -56,6 +57,7 @@ export function MetalDetailsSection({
       <div className="grid gap-4 sm:grid-cols-2">
         <OptionTextField
           label="Metal type"
+          visualKind="metal"
           value={value.metalType}
           options={METAL_TYPES}
           onChange={updateMetalType}
@@ -63,6 +65,7 @@ export function MetalDetailsSection({
         />
         <OptionTextField
           label="Metal color"
+          visualKind="metal-color"
           value={value.details.metalColor}
           options={metalColours}
           onChange={(metalColor) => updateDetails({ metalColor })}

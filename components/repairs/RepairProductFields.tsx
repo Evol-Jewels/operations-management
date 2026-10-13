@@ -30,6 +30,7 @@ export function RepairProductFields({
           <div className="sm:col-span-2">
             <OptionTextField
               label="Product category"
+              visualKind="category"
               value={draft.category}
               options={PRODUCT_CATEGORIES}
               required
@@ -84,6 +85,7 @@ export function RepairProductFields({
           <div>
             <OptionTextField
               label="Metal color"
+              visualKind="metal-color"
               value={draft.metalColor}
               options={METAL_COLOURS}
               required

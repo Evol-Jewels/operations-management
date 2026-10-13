@@ -8,6 +8,10 @@ import {
   Video,
   X,
 } from "lucide-react";
+import {
+  JewelryVisual,
+  type JewelryVisualKind,
+} from "@/components/jewelry/JewelryVisual";
 import { ExistingProductReferenceField } from "@/components/requirements/ExistingProductReferenceField";
 import { StoneTypeCombobox } from "@/components/stone-type-combobox";
 import { Button } from "@/components/ui/button";
@@ -168,6 +172,7 @@ export function CustomProductForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <SelectField
               label="Category"
+              visualKind="category"
               value={draft.category}
               options={CATEGORIES}
               optional
@@ -178,6 +183,7 @@ export function CustomProductForm({
             />
             <SelectField
               label="Metal type"
+              visualKind="metal"
               value={draft.metalType}
               options={METAL_TYPES}
               required
@@ -196,6 +202,7 @@ export function CustomProductForm({
             />
             <SelectField
               label="Metal color"
+              visualKind="metal-color"
               value={draft.metalColor}
               options={metalColors}
               optional
@@ -345,6 +352,7 @@ function SelectField({
   onChange,
   optional,
   required,
+  visualKind,
 }: {
   label: string;
   value: string;
@@ -353,6 +361,7 @@ function SelectField({
   onChange: (value: string) => void;
   optional?: boolean;
   required?: boolean;
+  visualKind?: JewelryVisualKind;
 }) {
   return (
     <FormField label={label} optional={optional} required={required}>
@@ -363,6 +372,9 @@ function SelectField({
         <SelectContent>
           {options.map((option) => (
             <SelectItem key={option} value={option}>
+              {visualKind ? (
+                <JewelryVisual kind={visualKind} value={option} />
+              ) : null}
               {option}
             </SelectItem>
           ))}

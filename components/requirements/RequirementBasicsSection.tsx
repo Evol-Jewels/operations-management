@@ -36,6 +36,7 @@ export function RequirementBasicsSection({
         )}
         <OptionTextField
           label="Product category"
+          visualKind="category"
           value={value.category}
           options={PRODUCT_CATEGORIES}
           onChange={(category) => onChange({ ...value, category })}

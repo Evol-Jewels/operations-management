@@ -26,6 +26,7 @@ import {
   EstimationSummaryCard,
   EstimationSummaryDownloadButton,
 } from "@/components/calculator/EstimationSummaryCard";
+import { JewelryVisual } from "@/components/jewelry/JewelryVisual";
 import { StoneTypeCombobox as SharedStoneTypeCombobox } from "@/components/stone-type-combobox";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,7 +51,6 @@ import { captureProductEvent } from "@/lib/analytics";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
-import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import {
   calculateMakingCharge,
   computeEstimateFromInputs,
@@ -63,6 +63,7 @@ import {
   isCalculatorTab,
   writeCalculatorTabCookie,
 } from "@/lib/calculatorTab";
+import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import {
   getInventoryImages,
   getInventoryMediaUrl,
@@ -98,21 +99,18 @@ const MANUAL_CALCULATOR_STORAGE_KEY = "evol-manual-calculator-form-v1";
 
 const metalOptionStyles = {
   gold: {
-    swatch: "bg-amber-400",
     active:
       "border-amber-400/50 bg-amber-400/15 text-amber-950 shadow-xs dark:text-amber-200",
     inactive:
       "border-transparent text-muted-foreground hover:border-amber-400/25 hover:bg-amber-400/10 hover:text-foreground",
   },
   silver: {
-    swatch: "bg-zinc-300 ring-1 ring-zinc-400/50",
     active:
       "border-zinc-400/60 bg-zinc-200 text-zinc-950 shadow-xs dark:border-zinc-300/40 dark:bg-zinc-200/15 dark:text-zinc-100",
     inactive:
       "border-transparent text-muted-foreground hover:border-zinc-400/30 hover:bg-zinc-400/10 hover:text-foreground",
   },
   platinum: {
-    swatch: "bg-sky-300 ring-1 ring-sky-400/50",
     active:
       "border-sky-400/50 bg-sky-400/15 text-sky-950 shadow-xs dark:text-sky-200",
     inactive:
@@ -622,12 +620,10 @@ function MetalRow({
                       "border-transparent text-muted-foreground hover:border-border hover:bg-background/70 hover:text-foreground"),
               )}
             >
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "size-2.5 rounded-full",
-                  style?.swatch ?? "bg-muted-foreground",
-                )}
+              <JewelryVisual
+                kind="metal"
+                value={option.name}
+                className="size-4"
               />
               {option.name}
             </button>

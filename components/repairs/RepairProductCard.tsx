@@ -39,6 +39,7 @@ export function RepairProductCard({ repair }: { repair: Repair }) {
               <DetailRow label="Product" value={repair.productType} />
               <DetailRow
                 label="Category"
+                visualKind="category"
                 value={repair.category || "Not added"}
               />
             </DetailSection>
@@ -49,7 +50,11 @@ export function RepairProductCard({ repair }: { repair: Repair }) {
               />
               <DetailRow label="Net weight" value={`${repair.netWeight} g`} />
               <DetailRow label="Purity" value={repair.purity} />
-              <DetailRow label="Metal color" value={repair.metalColor} />
+              <DetailRow
+                label="Metal color"
+                value={repair.metalColor}
+                visualKind="metal-color"
+              />
             </DetailSection>
           </div>
           <DetailSection title="Diamond details">
