@@ -1,6 +1,6 @@
 "use client";
 
-import { Key, MoreHorizontal, X } from "lucide-react";
+import { Key, MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  formatDate,
+  formatDateTime,
+  formatLabel,
+} from "@/components/user-management/format";
 import { TableSkeleton } from "@/components/user-management/TableSkeleton";
 import { cn } from "@/lib/utils";
 import type { InternalInviteRow } from "@/types/user-management";
@@ -38,16 +43,22 @@ const statusStyles = {
     "border-red-500/20 bg-red-500/10 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400",
 };
 
-function formatDate(value: string | null) {
-  if (!value) return "N/A";
+function InviteActivity({ invite }: { invite: InternalInviteRow }) {
+  const date =
+    invite.status === "ACCEPTED"
+      ? invite.acceptedAt
+      : invite.status === "CANCELLED"
+        ? invite.updatedAt
+        : invite.expirationAt;
+  const label =
+    invite.status === "PENDING" ? "Expires" : formatLabel(invite.status);
 
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
+  return (
+    <div title={formatDateTime(date)}>
+      <p>{formatDate(date)}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
+    </div>
+  );
 }
 
 function InviteActions({
@@ -74,7 +85,8 @@ function InviteActions({
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
+          aria-label={`Actions for invite to ${invite.email}`}
           className="mx-auto cursor-pointer"
           onClick={(e) => e.stopPropagation()}
           disabled={isLoading}
@@ -137,7 +149,7 @@ export function InvitesTable({
   }
 
   return (
-    <div className="min-h-0 h-[30vh] overflow-y-auto rounded-md border border-border/70">
+    <div className="overflow-hidden rounded-md border border-border/70 [&_[data-slot=table-container]]:pr-0">
       <div className="space-y-3 p-3 sm:hidden">
         {invites.map((invite) => (
           <div
@@ -149,47 +161,52 @@ export function InvitesTable({
                 <p className="truncate font-medium text-foreground">
                   {invite.email}
                 </p>
-                <p className="mt-1 truncate text-xs text-muted-foreground">
-                  {invite.username
-                    ? `Username: ${invite.username}`
-                    : `User: ${invite.userId}`}
-                </p>
+                {invite.username && (
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {invite.username}
+                  </p>
+                )}
               </div>
               <Badge
                 variant="outline"
                 className={cn("shrink-0 border", statusStyles[invite.status])}
               >
-                {invite.status}
+                {formatLabel(invite.status)}
               </Badge>
             </div>
             <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
               <div className="flex justify-between gap-3">
                 <span>Role</span>
                 <span className="font-medium text-foreground">
-                  {invite.role}
+                  {formatLabel(invite.role)}
                 </span>
               </div>
               <div className="flex justify-between gap-3">
-                <span>Expiration</span>
-                <span className="text-right font-medium text-foreground">
-                  {formatDate(invite.expirationAt)}
-                </span>
+                <span>Activity</span>
+                <div className="text-right font-medium text-foreground">
+                  <InviteActivity invite={invite} />
+                </div>
               </div>
               <div className="flex justify-between gap-3">
                 <span>Created</span>
-                <span className="text-right font-medium text-foreground">
+                <span
+                  className="text-right font-medium text-foreground"
+                  title={formatDateTime(invite.createdAt)}
+                >
                   {formatDate(invite.createdAt)}
                 </span>
               </div>
             </div>
-            <div className="absolute right-4 top-4">
-              <InviteActions
-                invite={invite}
-                onUpdateInvite={() => onUpdateInvite(invite)}
-                onResetPassword={() => onResetPassword(invite)}
-                isLoading={actionLoading === invite.id}
-              />
-            </div>
+            {(invite.status !== "ACCEPTED" || Boolean(invite.username)) && (
+              <div className="mt-3 flex justify-end border-t border-border/70 pt-2">
+                <InviteActions
+                  invite={invite}
+                  onUpdateInvite={() => onUpdateInvite(invite)}
+                  onResetPassword={() => onResetPassword(invite)}
+                  isLoading={actionLoading === invite.id}
+                />
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -201,9 +218,9 @@ export function InvitesTable({
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Expiration</TableHead>
+              <TableHead>Activity</TableHead>
               <TableHead>Created</TableHead>
-              <TableHead className="w-12">Actions</TableHead>
+              <TableHead className="w-28 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -214,30 +231,35 @@ export function InvitesTable({
                     <p className="truncate font-medium text-foreground">
                       {invite.email}
                     </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {invite.username
-                        ? `Username: ${invite.username}`
-                        : `User: ${invite.userId}`}
-                    </p>
+                    {invite.username && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {invite.username}
+                      </p>
+                    )}
                   </div>
                 </TableCell>
-                <TableCell className="py-3">{invite.role}</TableCell>
+                <TableCell className="py-3">
+                  {formatLabel(invite.role)}
+                </TableCell>
                 <TableCell className="py-3">
                   <Badge
                     variant="outline"
                     className={cn("border", statusStyles[invite.status])}
                   >
-                    {invite.status}
+                    {formatLabel(invite.status)}
                   </Badge>
                 </TableCell>
                 <TableCell className="py-3 text-muted-foreground">
-                  {formatDate(invite.expirationAt)}
+                  <InviteActivity invite={invite} />
                 </TableCell>
-                <TableCell className="py-3 text-muted-foreground">
+                <TableCell
+                  className="py-3 text-muted-foreground"
+                  title={formatDateTime(invite.createdAt)}
+                >
                   {formatDate(invite.createdAt)}
                 </TableCell>
                 <TableCell
-                  className="py-3"
+                  className="py-3 text-right"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <InviteActions
