@@ -33,8 +33,13 @@ function estimationToApiInput(
       stoneType: stone.type,
       weight: toDecimal(stone.netWeight, 3),
       pieces: stone.pieces,
+      pricePerCarat: toDecimal(stone.pricePerCarat ?? 0),
     })),
     makingCost: toDecimal(estimation.makingCost ?? 0),
+    gstRate:
+      estimation.gstRate === undefined
+        ? undefined
+        : toDecimal(estimation.gstRate * 100),
     vendorName: canManageVendor
       ? estimation.vendorName?.trim() || undefined
       : undefined,
@@ -86,7 +91,13 @@ function EnquiryPageContent() {
       await updateEstimation.mutateAsync({
         estimationId: estimation.id,
         itemId: productId,
-        input: estimationToApiInput(estimation, canManageVendor),
+        input: {
+          ...estimationToApiInput(estimation, canManageVendor),
+          gstRate:
+            estimation.gstRate === undefined
+              ? null
+              : toDecimal(estimation.gstRate * 100),
+        },
       });
       return;
     }

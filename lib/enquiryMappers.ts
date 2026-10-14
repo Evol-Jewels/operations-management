@@ -55,10 +55,15 @@ function mapReferences(
   }));
 }
 
+function optionalNumber(value: string | null | undefined) {
+  return value === null || value === undefined ? undefined : Number(value);
+}
+
 export function mapBackendEstimationToProductEstimation(
   estimation: BackendEstimationRow,
   enquiryItemId = estimation.enquiryItemId,
 ): ProductEstimation {
+  const gstPercent = optionalNumber(estimation.gstRate);
   return {
     id: estimation.id,
     productId: enquiryItemId,
@@ -70,9 +75,11 @@ export function mapBackendEstimationToProductEstimation(
       type: stone.stoneType,
       netWeight: Number(stone.weight ?? 0),
       pieces: stone.pieces ?? 1,
+      pricePerCarat: optionalNumber(stone.pricePerCarat),
     })),
     finalAmount: 0,
-    makingCost: Number(estimation.makingCost ?? 0),
+    makingCost: optionalNumber(estimation.makingCost),
+    gstRate: gstPercent === undefined ? undefined : gstPercent / 100,
     createdAt: estimation.createdAt,
     vendorName: estimation.vendorName ?? undefined,
     notes: estimation.notes ?? undefined,

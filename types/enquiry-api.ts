@@ -96,6 +96,13 @@ export interface BackendEnquiryListItem extends BackendEnquiryRow {
   deliveryDate?: string | null;
 }
 
+export interface BackendEstimationStone {
+  stoneType: string;
+  weight?: string;
+  pieces?: number;
+  pricePerCarat?: string;
+}
+
 export interface BackendEstimationRow {
   id: string;
   enquiryItemId: string;
@@ -103,10 +110,11 @@ export interface BackendEstimationRow {
   metalType: string | null;
   metalPurity: string | null;
   netWeight: string | null;
-  stones: BackendEnquiryStone[];
+  stones: BackendEstimationStone[];
   media: BackendEnquiryMedia[];
   notes: string | null;
   makingCost: string | null;
+  gstRate: string | null;
   createdBy: BackendCreatedBy;
   updatedBy: BackendCreatedBy;
   createdAt: string;
@@ -197,10 +205,11 @@ export interface CreateEstimationInput {
   metalType?: string;
   metalPurity?: string;
   netWeight?: string;
-  stones?: BackendEnquiryStone[];
+  stones?: BackendEstimationStone[];
   media?: BackendEnquiryMedia[];
   notes?: string;
   makingCost?: string;
+  gstRate?: string;
 }
 
 export interface UpdateEstimationInput {
@@ -208,8 +217,9 @@ export interface UpdateEstimationInput {
   metalType?: string | null;
   metalPurity?: string | null;
   netWeight?: string | null;
-  stones?: BackendEnquiryStone[];
+  stones?: BackendEstimationStone[];
   media?: BackendEnquiryMedia[];
   notes?: string | null;
   makingCost?: string | null;
+  gstRate?: string | null;
 }

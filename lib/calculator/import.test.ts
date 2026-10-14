@@ -37,7 +37,7 @@ test("calculator navigation hands off the saved form once and preserves zero mak
     },
   });
   const url = new URL(
-    queueCalculatorImport(form, storage),
+    queueCalculatorImport(form, false, storage),
     "http://localhost:4000",
   );
   assert.equal(url.pathname, "/calculator");
@@ -47,7 +47,7 @@ test("calculator navigation hands off the saved form once and preserves zero mak
   const payload = consumeCalculatorImport(token, storage);
   assert.ok(payload);
   assert.deepEqual(JSON.parse(payload), {
-    form,
+    form: JSON.parse(JSON.stringify(form)),
     isGstEdited: false,
     isMakingChargeEdited: true,
   });

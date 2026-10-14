@@ -4,12 +4,13 @@ const IMPORT_STORAGE_PREFIX = "evol:calculator-import:";
 
 export function queueCalculatorImport(
   form: CalculatorFormState,
+  isGstEdited: boolean,
   storage: Pick<Storage, "setItem"> = sessionStorage,
 ) {
   const token = crypto.randomUUID();
   storage.setItem(
     `${IMPORT_STORAGE_PREFIX}${token}`,
-    JSON.stringify({ form, isGstEdited: false, isMakingChargeEdited: true }),
+    JSON.stringify({ form, isGstEdited, isMakingChargeEdited: true }),
   );
   return `/calculator?tab=calculate&import=${token}`;
 }

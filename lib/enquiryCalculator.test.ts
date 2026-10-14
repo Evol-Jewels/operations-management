@@ -14,7 +14,13 @@ const estimation: ProductEstimation = {
   purity: "925",
   metalWeight: 4.125,
   stoneDetails: [
-    { id: "stone-1", type: "Custom rose cut", netWeight: 0.125, pieces: 2 },
+    {
+      id: "stone-1",
+      type: "Custom rose cut",
+      netWeight: 0.125,
+      pieces: 2,
+      pricePerCarat: 250,
+    },
   ],
   makingCost: 0,
   finalAmount: 0,
@@ -33,11 +39,12 @@ function initialForm() {
   });
 }
 
-test("calculator edit and save preserve enquiry identity, non-gold purity, custom stones, and zero making", () => {
+test("calculator edit and save preserve enquiry identity, non-gold purity, custom stone rates, and zero making", () => {
   const form = initialForm();
   assert.equal(form.metals?.[0].metalTypeId, "silver");
   assert.equal(form.metals?.[0].purityId, "925");
   assert.equal(form.makingCharge, 0);
+  assert.equal(form.stones[0].fixedRatePerCarat, 250);
   assert.equal(form.productNote, "");
   const saved = enquiryCalculatorToEstimation({
     form,
@@ -54,9 +61,44 @@ test("calculator edit and save preserve enquiry identity, non-gold purity, custo
   assert.equal(saved.makingCost, 0);
   assert.deepEqual(saved.stoneDetails, estimation.stoneDetails);
   assert.equal(saved.notes, estimation.notes);
+  assert.equal(saved.gstRate, undefined);
 });
 
-test("save rejects calculator fields that cannot be persisted by enquiry API", () => {
+test("slab-priced stones store their rate but stay auto, and GST overrides round-trip", () => {
+  const form = buildEnquiryCalculatorForm({
+    settings,
+    productId: "item-1",
+    productName: "Ring",
+    metalType: "Gold",
+    purity: "18K",
+    estimation: {
+      ...estimation,
+      stoneDetails: [{ id: "round", type: "Round", netWeight: 0.6, pieces: 3 }],
+      gstRate: 0.05,
+    },
+  });
+  assert.equal(form.gstRate, 0.05);
+  const saved = enquiryCalculatorToEstimation({
+    form,
+    settings,
+    productId: "item-1",
+  });
+  const slabRate = saved.stoneDetails[0].pricePerCarat;
+  assert.ok(slabRate !== undefined && slabRate > 0);
+  assert.equal(saved.gstRate, 0.05);
+  const rebuilt = buildEnquiryCalculatorForm({
+    settings,
+    productId: "item-1",
+    productName: "Ring",
+    metalType: "Gold",
+    purity: "18K",
+    estimation: saved,
+  });
+  assert.equal(rebuilt.stones[0].fixedRatePerCarat, undefined);
+  assert.equal(rebuilt.gstRate, 0.05);
+});
+
+test("save rejects multiple metals and metal rate overrides", () => {
   const form = initialForm();
   for (const unsupported of [
     {
@@ -70,14 +112,6 @@ test("save rejects calculator fields that cannot be persisted by enquiry API", (
       ...form,
       metals: form.metals?.map((metal) => ({ ...metal, rateOverride: 100 })),
     },
-    { ...form, gstRate: 0.5 },
-    {
-      ...form,
-      stones: form.stones.map((stone) => ({
-        ...stone,
-        fixedRatePerCarat: 100,
-      })),
-    },
   ]) {
     assert.throws(
       () =>
@@ -86,7 +120,7 @@ test("save rejects calculator fields that cannot be persisted by enquiry API", (
           settings,
           productId: "item-1",
         }),
-      /one metal and configured rates/,
+      /one metal at the configured rate/,
     );
   }
 });

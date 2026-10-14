@@ -16,6 +16,7 @@ test("saved silver purity and metal type survive mapping and config rate drives 
     netWeight: "10",
     stones: [],
     makingCost: "100",
+    gstRate: null,
     vendorName: null,
     media: [],
     notes: null,
@@ -42,10 +43,7 @@ test("saved silver purity and metal type survive mapping and config rate drives 
     ],
   });
   assert.equal(result.goldCost, rate * 10);
-  assert.equal(
-    result.total,
-    (rate * 10 + 100) * (1 + settings.gstRate),
-  );
+  assert.equal(result.total, (rate * 10 + 100) * (1 + settings.gstRate));
 });
 
 test("configured purity rates default correctly and zero overrides are respected", () => {
