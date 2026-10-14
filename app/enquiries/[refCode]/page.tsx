@@ -76,23 +76,22 @@ function EnquiryPageContent() {
     commentsQuery.data ?? [],
   );
 
-  function handleSaveEstimation(
+  async function handleSaveEstimation(
     productId: string,
     estimation: ProductEstimation,
   ) {
-    const existing = details?.items
-      .find((item) => item.id === productId)
-      ?.estimations?.find((item) => item.id === estimation.id);
+    const existing = !estimation.id.startsWith("est-");
 
     if (existing) {
-      updateEstimation.mutate({
+      await updateEstimation.mutateAsync({
         estimationId: estimation.id,
+        itemId: productId,
         input: estimationToApiInput(estimation, canManageVendor),
       });
       return;
     }
 
-    createEstimation.mutate({
+    await createEstimation.mutateAsync({
       itemId: productId,
       input: estimationToApiInput(estimation, canManageVendor),
     });

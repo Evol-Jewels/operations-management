@@ -1,8 +1,14 @@
 "use client";
 
-import { Calculator, Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { StoneTypeCombobox } from "@/components/stone-type-combobox";
+import { Calculator, Plus } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  NumericLineInput,
+  SectionLabel,
+} from "@/components/calculator/CalculatorFields";
+import { MetalRow } from "@/components/calculator/CalculatorMetalRow";
+import { StoneRow } from "@/components/calculator/CalculatorStoneRow";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,82 +21,23 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useVendorAccess } from "@/hooks/useVendors";
+import { calculateMakingCharge } from "@/lib/calculator/pricing";
 import {
-  calculateMakingCharge,
-  computeEstimateFromInputs,
-  getStoneType,
-  resolveAutoSlab,
-} from "@/lib/calculator/pricing";
-import { estimationStoneToCalculator } from "@/lib/enquiryEstimation";
-import { formatCurrency } from "@/lib/utils";
+  buildEnquiryCalculatorForm,
+  createEnquiryCalculatorStone,
+  enquiryCalculatorToEstimation,
+} from "@/lib/enquiryCalculator";
+import { computeEnquiryEstimate } from "@/lib/enquiryEstimation";
 import type {
-  CalculatorFormState,
+  CalculatorMetalInput,
   CalculatorSettings,
   CalculatorStoneInput,
   MetalPurity,
   ProductEstimation,
 } from "@/types";
-
-type EstimationForm = Omit<CalculatorFormState, "purity"> & { purity: string };
-
-function generateId() {
-  return Math.random().toString(36).slice(2, 9);
-}
-
-function createStone(settings: CalculatorSettings): CalculatorStoneInput {
-  return {
-    id: generateId(),
-    stoneTypeId: settings.stoneTypes[0]?.stoneId ?? "",
-    weight: 0,
-    quantity: 1,
-  };
-}
-
-function formatWeight(value: number) {
-  return value.toFixed(3).replace(/\.?0+$/, "");
-}
-
-function buildInitialForm(
-  settings: CalculatorSettings,
-  productName: string,
-  defaultPurity: MetalPurity,
-  existingEstimation?: ProductEstimation,
-): EstimationForm {
-  const netGoldWeight = existingEstimation?.metalWeight ?? 0;
-
-  return {
-    netGoldWeight,
-    purity: existingEstimation?.purity ?? defaultPurity,
-    stones:
-      existingEstimation && existingEstimation.stoneDetails.length > 0
-        ? existingEstimation.stoneDetails.map((stone) =>
-            estimationStoneToCalculator(stone, settings),
-          )
-        : [createStone(settings)],
-    diamondColor: "",
-    diamondClarity: "",
-    gstRate: settings.gstRate,
-    makingCharge:
-      existingEstimation?.makingCost ??
-      calculateMakingCharge(
-        netGoldWeight,
-        settings.makingChargeFlat,
-        settings.makingChargePerGram,
-      ),
-    productName,
-    productNote: "",
-  };
-}
 
 interface EnquiryEstimationDialogProps {
   productId: string;
@@ -98,519 +45,301 @@ interface EnquiryEstimationDialogProps {
   defaultPurity: MetalPurity;
   defaultMetalType?: string;
   defaultMetalPurity?: string;
+  imageUrls?: string[];
   settings: CalculatorSettings;
   existingEstimation?: ProductEstimation;
-  onSave: (estimation: ProductEstimation) => void;
+  onSave: (estimation: ProductEstimation) => void | Promise<void>;
   disabled?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function EnquiryEstimationDialog({
+export function EnquiryEstimationDialog(props: EnquiryEstimationDialogProps) {
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = props.open ?? localOpen;
+  const setOpen = props.onOpenChange ?? setLocalOpen;
+  const [saving, setSaving] = useState(false);
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!saving) setOpen(nextOpen);
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-2 text-xs"
+          disabled={props.disabled}
+        >
+          <Calculator className="size-4" />
+          {props.existingEstimation ? "Edit Estimation" : "Add Estimation"}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:max-w-2xl sm:p-6">
+        <DialogHeader className="pr-6 text-left">
+          <DialogTitle>
+            {props.existingEstimation ? "Calculator" : "Add Estimation"}
+          </DialogTitle>
+          <DialogDescription>{props.productName}</DialogDescription>
+        </DialogHeader>
+        {open ? (
+          <EnquiryCalculatorEditor
+            {...props}
+            disabled={props.disabled || saving}
+            isSaving={saving}
+            onCancel={() => setOpen(false)}
+            onSave={async (estimation) => {
+              setSaving(true);
+              try {
+                await props.onSave(estimation);
+                setOpen(false);
+              } catch (error) {
+                toast.error(
+                  error instanceof Error
+                    ? error.message
+                    : "Could not save the estimation. Try again.",
+                );
+              } finally {
+                setSaving(false);
+              }
+            }}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EnquiryCalculatorEditor({
   productId,
   productName,
   defaultPurity,
   defaultMetalType = "Gold",
   defaultMetalPurity,
+  imageUrls,
   settings,
   existingEstimation,
   onSave,
+  onCancel,
   disabled,
-}: EnquiryEstimationDialogProps) {
+  isSaving,
+}: EnquiryEstimationDialogProps & { onCancel: () => void; isSaving: boolean }) {
   const canManageVendor = useVendorAccess();
-  const [open, setOpen] = useState(false);
-  const [metalTypeId, setMetalTypeId] = useState("gold");
-  const selectedMetal = settings.metalTypes.find(
-    (metal) => metal.id === metalTypeId,
+  const [identity] = useState(() => ({
+    id: existingEstimation?.id ?? `est-${crypto.randomUUID()}`,
+    createdAt: existingEstimation?.createdAt ?? new Date().toISOString(),
+  }));
+  const [draft, setDraft] = useState(() =>
+    buildEnquiryCalculatorForm({
+      settings,
+      productId,
+      productName,
+      metalType: defaultMetalType,
+      purity: defaultMetalPurity ?? defaultPurity,
+      imageUrls,
+      estimation: existingEstimation,
+    }),
   );
-
-  const [form, setForm] = useState<EstimationForm>(() =>
-    buildInitialForm(settings, productName, defaultPurity, existingEstimation),
+  const [makingOverride, setMakingOverride] = useState(
+    existingEstimation?.makingCost,
   );
   const [vendorName, setVendorName] = useState(
     existingEstimation?.vendorName ?? "",
   );
   const [notes, setNotes] = useState(existingEstimation?.notes ?? "");
-  const [makingCost, setMakingCost] = useState(
-    existingEstimation?.makingCost ?? 0,
-  );
-  const [isMakingCostEdited, setIsMakingCostEdited] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setForm(
-      buildInitialForm(
-        settings,
-        productName,
-        defaultPurity,
-        existingEstimation,
-      ),
+  const metal = draft.metals?.[0];
+  const makingCharge =
+    makingOverride ??
+    calculateMakingCharge(
+      metal?.weight ?? 0,
+      settings.makingChargeFlat,
+      settings.makingChargePerGram,
     );
-    const metalName = existingEstimation?.metalType ?? defaultMetalType;
-    const metal =
-      settings.metalTypes.find(
-        (item) =>
-          item.id === metalName.toLowerCase() ||
-          item.name.toLowerCase() === metalName.toLowerCase(),
-      ) ?? settings.metalTypes[0];
-    const requestedPurity =
-      existingEstimation?.purity ?? defaultMetalPurity ?? defaultPurity;
-    const purity =
-      existingEstimation?.purity ??
-      metal?.purities.find((item) => item.id === requestedPurity)?.id ??
-      metal?.purities[0]?.id ??
-      "";
-    setMetalTypeId(metal?.id ?? "");
-    setForm((current) => ({ ...current, purity }));
-    setVendorName(existingEstimation?.vendorName ?? "");
-    setNotes(existingEstimation?.notes ?? "");
-    setMakingCost(existingEstimation?.makingCost ?? 0);
-    setIsMakingCostEdited(false);
-  }, [
-    defaultPurity,
-    defaultMetalType,
-    defaultMetalPurity,
-    existingEstimation,
-    open,
-    productName,
+  const form = {
+    ...draft,
+    netGoldWeight: metal?.weight ?? 0,
+    gstRate: settings.gstRate,
+    makingCharge,
+  };
+  const estimation = enquiryCalculatorToEstimation({
+    form,
     settings,
-  ]);
-
-  const calculatedMakingCost = useMemo(
-    () =>
-      computeEstimateFromInputs(
-        settings,
-        form.netGoldWeight,
-        "Other",
-        form.stones,
-      ).makingCost,
-    [form.netGoldWeight, form.stones, settings],
-  );
-
-  useEffect(() => {
-    if (!open || existingEstimation || isMakingCostEdited) return;
-    setMakingCost(calculatedMakingCost);
-  }, [calculatedMakingCost, existingEstimation, isMakingCostEdited, open]);
-
-  const breakdown = useMemo(
-    () =>
-      computeEstimateFromInputs(
-        settings,
-        form.netGoldWeight,
-        "Other",
-        form.stones,
-        {
-          makingCostOverride: makingCost,
-          metals: [
-            {
-              id: productId,
-              metalTypeId,
-              purityId: form.purity,
-              weight: form.netGoldWeight,
-            },
-          ],
-        },
-      ),
-    [
-      form.netGoldWeight,
-      form.purity,
-      form.stones,
-      makingCost,
-      settings,
-      productId,
-      metalTypeId,
-    ],
-  );
-
+    productId,
+    estimation: identity,
+    vendorName: canManageVendor ? vendorName : undefined,
+    notes,
+  });
+  const { unpricedItems } = computeEnquiryEstimate(estimation, settings);
+  const hasWeight =
+    form.netGoldWeight > 0 || form.stones.some((stone) => stone.weight > 0);
   const canSave =
-    Boolean(selectedMetal && form.purity) &&
+    !disabled &&
+    unpricedItems.length === 0 &&
+    Boolean(
+      metal?.purityId &&
+        settings.metalTypes.some((item) => item.id === metal.metalTypeId),
+    ) &&
     Number.isFinite(form.netGoldWeight) &&
     form.netGoldWeight >= 0 &&
-    (form.netGoldWeight > 0 || form.stones.some((stone) => stone.weight > 0));
+    Number.isFinite(makingCharge) &&
+    makingCharge >= 0 &&
+    hasWeight &&
+    form.stones.every(
+      (stone) =>
+        Number.isFinite(stone.weight) &&
+        stone.weight >= 0 &&
+        (stone.weight === 0 ||
+          (Number.isInteger(stone.quantity) && stone.quantity > 0)),
+    );
 
-  function updateForm<K extends keyof EstimationForm>(
-    key: K,
-    value: EstimationForm[K],
-  ) {
-    setForm((current) => ({ ...current, [key]: value }));
+  function updateMetal(patch: Partial<CalculatorMetalInput>) {
+    setDraft((current) => ({
+      ...current,
+      metals: current.metals?.map((item) => ({ ...item, ...patch })),
+    }));
   }
 
-  function updateStone(stoneId: string, patch: Partial<CalculatorStoneInput>) {
-    setForm((current) => ({
+  function updateStone(id: string, patch: Partial<CalculatorStoneInput>) {
+    setDraft((current) => ({
       ...current,
       stones: current.stones.map((stone) =>
-        stone.id === stoneId ? { ...stone, ...patch } : stone,
+        stone.id === id ? { ...stone, ...patch } : stone,
       ),
     }));
-  }
-
-  function addStone() {
-    setForm((current) => ({
-      ...current,
-      stones: [...current.stones, createStone(settings)],
-    }));
-  }
-
-  function removeStone(stoneId: string) {
-    setForm((current) => ({
-      ...current,
-      stones:
-        current.stones.length === 1
-          ? current.stones
-          : current.stones.filter((stone) => stone.id !== stoneId),
-    }));
-  }
-
-  function handleSave() {
-    if (!canSave) return;
-
-    onSave({
-      id: existingEstimation?.id ?? `est-${Date.now()}`,
-      productId,
-      metalWeight: form.netGoldWeight,
-      purity: form.purity,
-      metalType: selectedMetal?.name,
-      stoneDetails: breakdown.stoneDetails
-        .filter((stone) => stone.weight > 0)
-        .map((stone) => ({
-          id: stone.id,
-          type: stone.sourceStoneName || stone.stoneType?.name || "Stone",
-          netWeight: stone.weight,
-          pieces: stone.quantity,
-        })),
-      finalAmount: Math.round(breakdown.total),
-      makingCost,
-      createdAt: existingEstimation?.createdAt ?? new Date().toISOString(),
-      vendorName: canManageVendor ? vendorName.trim() || undefined : undefined,
-      notes: notes.trim() || undefined,
-    });
-    setOpen(false);
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          disabled={disabled}
-        >
-          <Calculator className="size-4" />
-          {existingEstimation ? "Edit Estimation" : "Add Estimation"}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>
-            {existingEstimation ? "Edit Estimation" : "Add Estimation"}
-          </DialogTitle>
-          <DialogDescription>{productName}</DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-5">
-          <section className="grid gap-3">
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-              Metal
-            </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor={`metal-type-${productId}`}>Metal Type</Label>
-                <Select
-                  value={metalTypeId}
-                  onValueChange={(id) => {
-                    const purity =
-                      settings.metalTypes.find((item) => item.id === id)
-                        ?.purities[0]?.id ?? "";
-                    setMetalTypeId(id);
-                    updateForm("purity", purity);
-                  }}
-                >
-                  <SelectTrigger
-                    id={`metal-type-${productId}`}
-                    className="w-full"
-                  >
-                    <SelectValue placeholder="Select metal" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {settings.metalTypes.map((metal) => (
-                      <SelectItem key={metal.id} value={metal.id}>
-                        {metal.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor={`metal-purity-${productId}`}>Purity</Label>
-                <Select
-                  value={form.purity}
-                  onValueChange={(purity) => {
-                    updateForm("purity", purity);
-                  }}
-                >
-                  <SelectTrigger
-                    id={`metal-purity-${productId}`}
-                    className="w-full"
-                  >
-                    <SelectValue placeholder="Select purity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {form.purity &&
-                    !selectedMetal?.purities.some(
-                      (purity) => purity.id === form.purity,
-                    ) ? (
-                      <SelectItem value={form.purity}>{form.purity}</SelectItem>
-                    ) : null}
-                    {selectedMetal?.purities.map((purity) => (
-                      <SelectItem key={purity.id} value={purity.id}>
-                        {purity.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor={`metal-weight-${productId}`}>
-                  Net Weight (g)
-                </Label>
-                <Input
-                  id={`metal-weight-${productId}`}
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  step={0.001}
-                  value={form.netGoldWeight || ""}
-                  onChange={(event) =>
-                    updateForm("netGoldWeight", Number(event.target.value) || 0)
+    <>
+      <fieldset disabled={disabled} className="min-w-0">
+        <div className="min-w-0 space-y-5">
+          <section className="space-y-3">
+            <SectionLabel title="Metal" />
+            {metal ? (
+              <MetalRow
+                settings={settings}
+                metal={metal}
+                index={0}
+                canRemove={false}
+                onChange={updateMetal}
+                onRemove={() => {}}
+              />
+            ) : null}
+          </section>
+          <Separator />
+          <section className="space-y-3">
+            <SectionLabel
+              title="Stones"
+              action={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 gap-1.5 px-2.5"
+                  onClick={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      stones: [
+                        ...current.stones,
+                        createEnquiryCalculatorStone(settings),
+                      ],
+                    }))
                   }
-                  placeholder="0.000"
+                >
+                  <Plus className="size-3.5" />
+                  Add stone
+                </Button>
+              }
+            />
+            <div className="space-y-3">
+              {form.stones.map((stone, index) => (
+                <StoneRow
+                  key={stone.id}
+                  settings={settings}
+                  stone={stone}
+                  index={index}
+                  canRemove={form.stones.length > 1}
+                  allowRateEditing={false}
+                  onChange={(patch) => updateStone(stone.id, patch)}
+                  onRemove={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      stones: current.stones.filter(
+                        (item) => item.id !== stone.id,
+                      ),
+                    }))
+                  }
+                />
+              ))}
+            </div>
+          </section>
+          <Separator />
+          <section className="space-y-3">
+            <SectionLabel title="Making charges" />
+            <div className="max-w-48">
+              <NumericLineInput
+                value={makingCharge}
+                onChange={setMakingOverride}
+                placeholder="0"
+                suffix="Rs."
+                step={1}
+                ariaLabel="Making charges"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Metal and stone rates use calculator settings.
+            </p>
+          </section>
+          <Separator />
+          <section className="space-y-3">
+            <SectionLabel title="Internal details (optional)" />
+            {canManageVendor ? (
+              <div className="grid gap-2">
+                <Label htmlFor={`vendor-${productId}`}>Vendor name</Label>
+                <Input
+                  id={`vendor-${productId}`}
+                  value={vendorName}
+                  onChange={(event) => setVendorName(event.target.value)}
+                  placeholder="Enter vendor name"
                 />
               </div>
-            </div>
-          </section>
-
-          <Separator />
-
-          <section className="grid gap-3">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Stones
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                onClick={addStone}
-              >
-                <Plus className="size-3.5" />
-                Add Stone
-              </Button>
-            </div>
-
-            <div className="grid gap-3">
-              {form.stones.map((stone, index) => {
-                const stoneType = getStoneType(settings, stone.stoneTypeId);
-                const resolvedSlab = resolveAutoSlab(
-                  stoneType?.slabs ?? [],
-                  stone.weight,
-                  stone.quantity,
-                );
-
-                return (
-                  <div
-                    key={stone.id}
-                    className="grid gap-3 rounded-lg border border-border bg-muted/20 p-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                          Stone {index + 1}
-                        </p>
-                        {resolvedSlab ? (
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {formatWeight(resolvedSlab.fromWeight)}-
-                            {formatWeight(resolvedSlab.toWeight)} ct slab ·{" "}
-                            {formatCurrency(resolvedSlab.pricePerCarat)}/ct
-                          </p>
-                        ) : null}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => removeStone(stone.id)}
-                        disabled={form.stones.length === 1}
-                        aria-label={`Remove stone ${index + 1}`}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-[1fr_8rem_7rem]">
-                      <StoneTypeCombobox
-                        options={settings.stoneTypes.map((item) => ({
-                          value: item.stoneId,
-                          label: item.name,
-                          category: item.category,
-                        }))}
-                        value={stone.stoneTypeId}
-                        customValue={
-                          !stone.stoneTypeId ? stone.sourceStoneName : undefined
-                        }
-                        onCustomValueChange={(name) =>
-                          updateStone(stone.id, {
-                            stoneTypeId: "",
-                            sourceStoneName: name,
-                          })
-                        }
-                        onValueChange={(stoneTypeId) =>
-                          updateStone(stone.id, {
-                            stoneTypeId,
-                            sourceStoneName: undefined,
-                          })
-                        }
-                        placeholder="Select stone"
-                        className="bg-background"
-                      />
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        min={0}
-                        step={0.001}
-                        value={stone.weight || ""}
-                        onChange={(event) =>
-                          updateStone(stone.id, {
-                            weight: Number(event.target.value) || 0,
-                          })
-                        }
-                        placeholder="ct"
-                        aria-label={`Stone ${index + 1} weight in carats`}
-                      />
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        step={1}
-                        value={stone.quantity || ""}
-                        onChange={(event) =>
-                          updateStone(stone.id, {
-                            quantity: Math.max(
-                              1,
-                              Number(event.target.value) || 1,
-                            ),
-                          })
-                        }
-                        placeholder="pcs"
-                        aria-label={`Stone ${index + 1} quantity`}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="grid gap-3">
-            <div className="grid gap-2 sm:max-w-48">
-              <Label
-                htmlFor={`making-cost-${productId}`}
-                className="text-[0.6875rem] pb-2 font-semibold uppercase tracking-[0.22em] text-muted-foreground"
-              >
-                Making Charge
-              </Label>
-              <Input
-                id={`making-cost-${productId}`}
-                type="number"
-                inputMode="decimal"
-                min={0}
-                step={0.01}
-                value={makingCost || ""}
-                onChange={(event) => {
-                  setIsMakingCostEdited(true);
-                  setMakingCost(Math.max(0, Number(event.target.value) || 0));
-                }}
-                placeholder="0.00"
+            ) : null}
+            <div className="grid gap-2">
+              <Label htmlFor={`notes-${productId}`}>Notes</Label>
+              <Textarea
+                id={`notes-${productId}`}
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder="Add internal estimation notes"
               />
             </div>
           </section>
-
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <span className="text-sm font-medium text-muted-foreground">
-                {selectedMetal?.name ?? "Metal"} + making
-              </span>
-              <span className="font-medium tabular-nums">
-                {formatCurrency(breakdown.goldCost + breakdown.makingCost)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between border-b border-border py-3">
-              <span className="text-sm font-medium text-muted-foreground">
-                Stones
-              </span>
-              <span className="font-medium tabular-nums">
-                {formatCurrency(breakdown.totalStoneCost)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between border-b border-border py-3">
-              <span className="text-sm font-medium text-muted-foreground">
-                GST ({(settings.gstRate * 100).toFixed(1)}%)
-              </span>
-              <span className="font-medium tabular-nums">
-                {formatCurrency(breakdown.gst)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-3">
-              <span className="text-base font-semibold">Total</span>
-              <span className="text-2xl font-semibold tabular-nums">
-                {formatCurrency(Math.round(breakdown.total))}
-              </span>
-            </div>
-          </div>
-
-          <section className="grid gap-3">
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-              Other Details (optional)
-            </p>
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] sm:items-start">
-              {canManageVendor ? (
-                <div className="grid gap-2">
-                  <Label htmlFor={`vendor-name-${productId}`}>
-                    Vendor Name
-                  </Label>
-                  <Input
-                    id={`vendor-name-${productId}`}
-                    value={vendorName}
-                    onChange={(event) => setVendorName(event.target.value)}
-                    placeholder="Enter vendor name"
-                  />
-                </div>
-              ) : null}
-              <div className="grid gap-2">
-                <Label htmlFor={`estimation-notes-${productId}`}>Notes</Label>
-                <Textarea
-                  id={`estimation-notes-${productId}`}
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
-                  placeholder="Add estimation notes"
-                  className="min-h-10 resize-none"
-                />
-              </div>
-            </div>
-          </section>
         </div>
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setOpen(false)}
-          >
-            Cancel
-          </Button>
-          <Button type="button" onClick={handleSave} disabled={!canSave}>
-            Save Estimation
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        {hasWeight && unpricedItems.length > 0 ? (
+          <p role="alert" className="mt-4 text-sm text-destructive">
+            Pricing is incomplete: {unpricedItems.join(", ")}. Check the weights
+            and configured rates before saving.
+          </p>
+        ) : null}
+      </fieldset>
+      <DialogFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={isSaving}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          disabled={!canSave}
+          onClick={() => onSave(estimation)}
+        >
+          {isSaving ? "Saving…" : "Save Estimation"}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

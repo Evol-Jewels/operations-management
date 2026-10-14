@@ -9,25 +9,29 @@ import {
   Info,
   Loader2,
   MapPin,
-  Minus,
   Plus,
   RefreshCcw,
   ScanLine,
   Search,
-  Trash2,
   X,
 } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
+import {
+  formatWeight,
+  NumericLineInput,
+  SectionLabel,
+} from "@/components/calculator/CalculatorFields";
+import { MetalRow } from "@/components/calculator/CalculatorMetalRow";
+import { StoneRow } from "@/components/calculator/CalculatorStoneRow";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import {
   EstimationSummaryCard,
   EstimationSummaryDownloadButton,
 } from "@/components/calculator/EstimationSummaryCard";
-import { JewelryVisual } from "@/components/jewelry/JewelryVisual";
-import { StoneTypeCombobox as SharedStoneTypeCombobox } from "@/components/stone-type-combobox";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -54,10 +58,9 @@ import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
   calculateMakingCharge,
   computeEstimateFromInputs,
-  getStoneType,
-  resolveAutoSlab,
   resolveMetalRate,
 } from "@/lib/calculator/pricing";
+import { consumeCalculatorImport } from "@/lib/calculator/import";
 import {
   type CalculatorTab,
   isCalculatorTab,
@@ -96,31 +99,6 @@ const RECENT_ESTIMATE_SKELETON_IDS = [
 const segmentTriggerClassName =
   "h-9 rounded-lg text-foreground hover:text-foreground data-[state=active]:bg-zinc-950 data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-zinc-950";
 const MANUAL_CALCULATOR_STORAGE_KEY = "evol-manual-calculator-form-v1";
-
-const metalOptionStyles = {
-  gold: {
-    active:
-      "border-amber-400/50 bg-amber-400/15 text-amber-950 shadow-xs dark:text-amber-200",
-    inactive:
-      "border-transparent text-muted-foreground hover:border-amber-400/25 hover:bg-amber-400/10 hover:text-foreground",
-  },
-  silver: {
-    active:
-      "border-zinc-400/60 bg-zinc-200 text-zinc-950 shadow-xs dark:border-zinc-300/40 dark:bg-zinc-200/15 dark:text-zinc-100",
-    inactive:
-      "border-transparent text-muted-foreground hover:border-zinc-400/30 hover:bg-zinc-400/10 hover:text-foreground",
-  },
-  platinum: {
-    active:
-      "border-sky-400/50 bg-sky-400/15 text-sky-950 shadow-xs dark:text-sky-200",
-    inactive:
-      "border-transparent text-muted-foreground hover:border-sky-400/25 hover:bg-sky-400/10 hover:text-foreground",
-  },
-} as const;
-
-function getMetalOptionStyle(metalTypeId: string) {
-  return metalOptionStyles[metalTypeId as keyof typeof metalOptionStyles];
-}
 
 interface PersistedManualCalculatorForm {
   form: CalculatorFormState;
@@ -201,9 +179,11 @@ function toPersistedNumber(value: unknown, fallback = 0) {
 
 function restoreManualCalculatorForm(
   settings: CalculatorSettings,
+  importedValue?: string,
 ): PersistedManualCalculatorForm | null {
   try {
-    const storedValue = localStorage.getItem(MANUAL_CALCULATOR_STORAGE_KEY);
+    const storedValue =
+      importedValue ?? localStorage.getItem(MANUAL_CALCULATOR_STORAGE_KEY);
     if (!storedValue) return null;
 
     const parsed = JSON.parse(storedValue) as Partial<{
@@ -347,175 +327,6 @@ function persistManualCalculatorForm(
   }
 }
 
-function formatWeight(value: number, decimals = 3) {
-  return value.toFixed(decimals).replace(/\.?0+$/, "");
-}
-
-function NumericLineInput({
-  value,
-  onChange,
-  placeholder,
-  suffix,
-  min = 0,
-  step = 0.001,
-}: {
-  value: number;
-  onChange: (value: number) => void;
-  placeholder: string;
-  suffix?: string;
-  min?: number;
-  step?: number;
-}) {
-  const [inputValue, setInputValue] = useState(value ? String(value) : "");
-
-  useEffect(() => {
-    const parsedInput = inputValue === "" ? 0 : Number(inputValue);
-
-    if (parsedInput !== value) {
-      setInputValue(value ? String(value) : "");
-    }
-  }, [inputValue, value]);
-
-  function handleChange(nextValue: string) {
-    if (!/^\d*(?:\.\d*)?$/.test(nextValue)) return;
-
-    setInputValue(nextValue);
-    const numericValue = nextValue === "" ? 0 : Number(nextValue);
-
-    if (Number.isFinite(numericValue)) {
-      onChange(numericValue);
-    }
-  }
-
-  return (
-    <div className="flex h-9 items-end gap-2 border-b border-border pb-1.5 focus-within:border-foreground">
-      <input
-        type="text"
-        role="spinbutton"
-        inputMode="decimal"
-        value={inputValue}
-        onChange={(event) => handleChange(event.target.value)}
-        placeholder={placeholder}
-        aria-valuemin={min}
-        aria-valuenow={value}
-        data-step={step}
-        className="min-w-0 flex-1 bg-transparent px-0 text-sm outline-none placeholder:text-muted-foreground/35"
-      />
-      {suffix ? (
-        <span className="shrink-0 pb-0.5 text-sm text-muted-foreground">
-          {suffix}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-const PRIORITY_STONE_NAMES = [
-  "ROUND",
-  "OVAL",
-  "MARQUISE",
-  "EMERALD",
-  "PEAR",
-  "CUSHION",
-  "RADIANT",
-  "PRINCESS",
-] as const;
-
-function stoneNameContains(name: string, expectedName: string): boolean {
-  const nameParts = name
-    .trim()
-    .toUpperCase()
-    .split(/[^A-Z]+/)
-    .filter(Boolean);
-
-  return nameParts.includes(expectedName);
-}
-
-function compareStoneTypesBySlabs(
-  a: CalculatorSettings["stoneTypes"][number],
-  b: CalculatorSettings["stoneTypes"][number],
-): number {
-  return (
-    b.slabs.length - a.slabs.length ||
-    a.category.localeCompare(b.category) ||
-    a.name.localeCompare(b.name)
-  );
-}
-
-function StoneTypeCombobox({
-  stoneTypes,
-  value,
-  customValue,
-  onCustomValueChange,
-  onChange,
-}: {
-  stoneTypes: CalculatorSettings["stoneTypes"];
-  value: string;
-  onChange: (stoneTypeId: string) => void;
-  customValue?: string;
-  onCustomValueChange: (name: string) => void;
-}) {
-  const priorityStoneTypes: CalculatorSettings["stoneTypes"] = [];
-  const priorityStoneIds = new Set<string>();
-
-  for (const priorityName of PRIORITY_STONE_NAMES) {
-    const priorityStone = stoneTypes
-      .filter(
-        (stone) =>
-          !priorityStoneIds.has(stone.stoneId) &&
-          stoneNameContains(stone.name, priorityName),
-      )
-      .sort(compareStoneTypesBySlabs)[0];
-
-    if (priorityStone) {
-      priorityStoneTypes.push(priorityStone);
-      priorityStoneIds.add(priorityStone.stoneId);
-    }
-  }
-
-  const remainingStoneTypes = stoneTypes
-    .filter((stone) => !priorityStoneIds.has(stone.stoneId))
-    .sort(compareStoneTypesBySlabs);
-  const sortedStoneTypes = [...priorityStoneTypes, ...remainingStoneTypes];
-
-  return (
-    <SharedStoneTypeCombobox
-      options={sortedStoneTypes.map((item) => ({
-        value: item.stoneId,
-        label: item.name,
-        category: item.category,
-        metadata: `${item.category} · ${item.slabs.length} slabs`,
-        searchText: [normalizeDiamondClarity(item.clarity), item.color]
-          .filter(Boolean)
-          .join(" "),
-      }))}
-      value={value}
-      onValueChange={onChange}
-      customValue={customValue}
-      onCustomValueChange={onCustomValueChange}
-      showMetadata
-      className="border-0 border-b bg-transparent px-0 shadow-none hover:bg-transparent"
-    />
-  );
-}
-
-function SectionLabel({
-  title,
-  action,
-}: {
-  title: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        {title}
-      </p>
-      {action}
-    </div>
-  );
-}
-
 function TabsSwitcher({
   activeTab,
   onTabChange,
@@ -540,337 +351,6 @@ function TabsSwitcher({
         </TabsTrigger>
       </TabsList>
     </Tabs>
-  );
-}
-
-function MetalRow({
-  settings,
-  metal,
-  index,
-  canRemove,
-  onChange,
-  onRemove,
-}: {
-  settings: CalculatorSettings;
-  metal: CalculatorMetalInput;
-  index: number;
-  canRemove: boolean;
-  onChange: (patch: Partial<CalculatorMetalInput>) => void;
-  onRemove: () => void;
-}) {
-  const metalType =
-    settings.metalTypes.find((item) => item.id === metal.metalTypeId) ??
-    settings.metalTypes[0];
-  const rate = metal.rateOverride ?? resolveMetalRate(settings, metal);
-
-  return (
-    <div className="space-y-2.5 rounded-xl border border-border bg-muted/10 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Metal {index + 1}
-        </p>
-        <div className="flex items-start gap-1.5">
-          <div className="text-right">
-            <p className="text-sm font-semibold leading-none tabular">
-              {formatCurrency(metal.weight * rate)}
-            </p>
-            <p className="mt-1 text-[11px] leading-none text-muted-foreground tabular">
-              {formatCurrency(rate)}/g
-              {metal.rateOverride !== undefined ? " / custom" : ""}
-            </p>
-          </div>
-          {canRemove ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="-mr-1 -mt-2 size-9"
-              onClick={onRemove}
-              aria-label={`Remove metal ${index + 1}`}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="grid w-full grid-cols-3 gap-1.5 rounded-lg bg-muted/60 p-1.5 sm:w-fit">
-        {settings.metalTypes.map((option) => {
-          const style = getMetalOptionStyle(option.id);
-          const isActive = option.id === metal.metalTypeId;
-
-          return (
-            <button
-              key={option.id}
-              type="button"
-              aria-pressed={isActive}
-              onClick={() =>
-                onChange({
-                  metalTypeId: option.id,
-                  purityId: option.purities[0]?.id ?? "",
-                  rateOverride: undefined,
-                })
-              }
-              className={cn(
-                "flex h-9 min-w-24 cursor-pointer items-center justify-center gap-2 rounded-md border px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                isActive
-                  ? (style?.active ??
-                      "border-border bg-background text-foreground shadow-xs")
-                  : (style?.inactive ??
-                      "border-transparent text-muted-foreground hover:border-border hover:bg-background/70 hover:text-foreground"),
-              )}
-            >
-              <JewelryVisual
-                kind="metal"
-                value={option.name}
-                className="size-4"
-              />
-              {option.name}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 items-end gap-3 min-[430px]:grid-cols-2 min-[430px]:gap-4">
-        <div className="space-y-1.5">
-          <label
-            htmlFor={`calculator-metal-purity-${metal.id}`}
-            className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-          >
-            Purity
-          </label>
-          <Select
-            value={metal.purityId}
-            onValueChange={(purityId) =>
-              onChange({ purityId, rateOverride: undefined })
-            }
-          >
-            <SelectTrigger
-              id={`calculator-metal-purity-${metal.id}`}
-              className="w-full bg-background px-3 font-semibold uppercase shadow-none"
-            >
-              <SelectValue placeholder="Select purity" />
-            </SelectTrigger>
-            <SelectContent position="popper" align="start">
-              {metalType?.purities.map((option) => (
-                <SelectItem
-                  key={option.id}
-                  value={option.id}
-                  className="font-medium"
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Net weight
-          </p>
-          <NumericLineInput
-            value={metal.weight}
-            onChange={(weight) => onChange({ weight })}
-            placeholder="0.000"
-            suffix="g"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StoneRow({
-  settings,
-  stone,
-  index,
-  canRemove,
-  onChange,
-  onRemove,
-}: {
-  settings: CalculatorSettings;
-  stone: CalculatorStoneInput;
-  index: number;
-  canRemove: boolean;
-  onChange: (patch: Partial<CalculatorStoneInput>) => void;
-  onRemove: () => void;
-}) {
-  const stoneType = getStoneType(settings, stone.stoneTypeId);
-  const resolvedSlab = resolveAutoSlab(
-    stoneType?.slabs ?? [],
-    stone.weight,
-    stone.quantity,
-  );
-  const hasFixedRate = stone.fixedRatePerCarat !== undefined;
-  const hasUnmatchedWeight = stone.weight > 0 && !resolvedSlab && !hasFixedRate;
-  const ratePerCarat =
-    stone.fixedRatePerCarat ?? resolvedSlab?.pricePerCarat ?? 0;
-  const stoneTotal = ratePerCarat * stone.weight;
-  const priceValue = hasFixedRate
-    ? stone.fixedRatePerCarat || ""
-    : resolvedSlab?.pricePerCarat || "";
-
-  function updatePricePerCarat(value: string) {
-    onChange({
-      fixedRatePerCarat: value.trim()
-        ? Math.max(0, Number(value) || 0)
-        : undefined,
-    });
-  }
-
-  function updatePieces(quantity: number) {
-    onChange({ quantity: Math.max(0, quantity) });
-  }
-
-  function updatePiecesInput(value: string) {
-    const digits = value.replace(/\D/g, "");
-    updatePieces(digits ? Number(digits) : 0);
-  }
-
-  return (
-    <div className="space-y-2.5 rounded-xl border border-border bg-muted/10 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Stone {index + 1}
-          </p>
-          {resolvedSlab ? (
-            <span className="text-[11px] text-muted-foreground">
-              {formatWeight(resolvedSlab.fromWeight)}-
-              {formatWeight(resolvedSlab.toWeight)} ct
-            </span>
-          ) : hasFixedRate ? (
-            <span className="text-[11px] text-muted-foreground">
-              Manual rate
-            </span>
-          ) : null}
-        </div>
-        <div className="flex shrink-0 items-start gap-1.5">
-          <div className="text-right">
-            <p className="text-sm font-semibold leading-none tabular">
-              {formatCurrency(stoneTotal)}
-            </p>
-            <p className="mt-1 text-[11px] leading-none text-muted-foreground tabular">
-              {formatCurrency(ratePerCarat)}/ct
-              {hasFixedRate ? " / custom" : ""}
-            </p>
-          </div>
-          {canRemove ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="-mr-1 -mt-2 size-9"
-              onClick={onRemove}
-              aria-label={`Remove stone ${index + 1}`}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 items-end gap-3 min-[430px]:grid-cols-2 min-[430px]:gap-4">
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Stone Type
-          </p>
-          <StoneTypeCombobox
-            stoneTypes={settings.stoneTypes}
-            value={stone.stoneTypeId}
-            customValue={!stone.stoneTypeId ? stone.sourceStoneName : undefined}
-            onCustomValueChange={(sourceStoneName) =>
-              onChange({
-                stoneTypeId: "",
-                sourceStoneName,
-                fixedRatePerCarat: undefined,
-              })
-            }
-            onChange={(stoneTypeId) =>
-              onChange({
-                stoneTypeId,
-                fixedRatePerCarat: undefined,
-                sourceStoneName: undefined,
-              })
-            }
-          />
-        </div>
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Weight
-          </p>
-          <NumericLineInput
-            value={stone.weight}
-            onChange={(weight) => onChange({ weight })}
-            placeholder="0.000"
-            suffix="ct"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 items-end gap-3 min-[430px]:grid-cols-2 min-[430px]:gap-4">
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Pieces
-          </p>
-          <div className="grid h-9 grid-cols-[32px_minmax(0,1fr)_32px] items-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-md"
-              onClick={() => updatePieces(Math.max(0, stone.quantity - 1))}
-              aria-label={`Decrease pieces for stone ${index + 1}`}
-            >
-              <Minus className="h-3.5 w-3.5" />
-            </Button>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={stone.quantity || ""}
-              onChange={(event) => updatePiecesInput(event.target.value)}
-              placeholder="pieces"
-              className="h-8 min-w-0 border-b border-border bg-transparent px-0 text-center text-sm outline-none placeholder:text-muted-foreground/35 focus:border-foreground"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-md"
-              onClick={() => updatePieces(stone.quantity + 1)}
-              aria-label={`Increase pieces for stone ${index + 1}`}
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Price / Carat
-          </p>
-          <div className="flex h-9 items-end gap-2 border-b border-border pb-1.5 focus-within:border-foreground">
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={1}
-              value={priceValue}
-              onChange={(event) => updatePricePerCarat(event.target.value)}
-              onFocus={(event) => event.target.select()}
-              placeholder={
-                hasUnmatchedWeight
-                  ? "Enter price per carat"
-                  : "Auto match after weight + pieces"
-              }
-              className="min-w-0 flex-1 bg-transparent px-0 text-sm outline-none placeholder:text-muted-foreground/35"
-            />
-            <span className="shrink-0 pb-0.5 text-sm text-muted-foreground">
-              /ct
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -1963,6 +1443,7 @@ export function CalculatorPageClient({
   const summaryCardRef = useRef<HTMLDivElement | null>(null);
   const shouldScrollToSummaryRef = useRef(false);
   const loadedProductCodeRef = useRef<string | null>(null);
+  const loadedImportRef = useRef<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -2108,6 +1589,31 @@ export function CalculatorPageClient({
     isGstEdited,
     isMakingChargeEdited,
   ]);
+
+  useEffect(() => {
+    if (!hasRestoredPersistedForm) return;
+    const token = searchParams.get("import");
+    if (!token || loadedImportRef.current === token) return;
+    loadedImportRef.current = token;
+    try {
+      const importedValue = consumeCalculatorImport(token);
+      const imported = importedValue
+        ? restoreManualCalculatorForm(settings, importedValue)
+        : null;
+      if (!imported) throw new Error("Missing calculator import");
+      setForm(imported.form);
+      setIsGstEdited(imported.isGstEdited);
+      setIsMakingChargeEdited(imported.isMakingChargeEdited);
+      setActiveTab("calculate");
+    } catch {
+      toast.error(
+        "Could not load that estimate. Open it from the enquiry and try again.",
+      );
+    }
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("import");
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }, [hasRestoredPersistedForm, searchParams, settings, router, pathname]);
 
   useEffect(() => {
     return () => {

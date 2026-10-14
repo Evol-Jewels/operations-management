@@ -29,6 +29,8 @@
 
 ## Notes
 
+- Enquiry/order specification PDF and PNG exports must never include estimation cards or price breakups. Customer estimates have their own separate download action.
+- Loading an enquiry estimate into the calculator must navigate to `/calculator` and populate its form.
 - The dev server runs on port 4000 (as specified in scripts)
   - Don't run `pnpm lint`
 - When adding new UI components, consider using the `shadcn` CLI (if installed) or copying from the existing patterns in `components/`.

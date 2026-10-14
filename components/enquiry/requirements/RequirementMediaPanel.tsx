@@ -9,47 +9,27 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import { EnquiryEstimationDialog } from "@/components/enquiry/EnquiryEstimationDialog";
 import { AudioPreviewPlayer } from "@/components/requirements/AudioPreviewPlayer";
 import { Button } from "@/components/ui/button";
 import { useVendorAccess } from "@/hooks/useVendors";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import type { CalculatorSettings, ProductEstimation } from "@/types";
+import type { ProductEstimation } from "@/types";
 import type { RequirementDisplayItem } from "./requirement-display-utils";
 
 export function RequirementMediaPanel({
   item,
-  settings,
-  isFinalized,
-  isSavingEstimation,
-  onSaveEstimation,
+  showEstimation = true,
 }: {
   item: RequirementDisplayItem;
-  settings: CalculatorSettings;
-  isFinalized: boolean;
-  isSavingEstimation?: boolean;
-  onSaveEstimation: (estimation: ProductEstimation) => void;
+  showEstimation?: boolean;
 }) {
   return (
     <div className="space-y-4">
       <RequirementImageCarousel key={item.id} item={item} />
       <RequirementRecordedMedia item={item} />
-      {!isFinalized ? (
-        <div className="flex justify-center">
-          <EnquiryEstimationDialog
-            productId={item.id}
-            productName={item.title}
-            defaultPurity={item.defaultPurity}
-            defaultMetalType={item.metalType}
-            defaultMetalPurity={item.metalPurity}
-            settings={settings}
-            existingEstimation={item.estimation}
-            onSave={onSaveEstimation}
-            disabled={isSavingEstimation}
-          />
-        </div>
+      {showEstimation && item.estimation ? (
+        <EstimateCard estimation={item.estimation} />
       ) : null}
-      {item.estimation ? <EstimateCard estimation={item.estimation} /> : null}
     </div>
   );
 }
