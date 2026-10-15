@@ -6,44 +6,29 @@ import {
   ComposeBox,
   type ComposeBoxSubmitData,
 } from "@/components/order/ComposeBox";
+import {
+  useActivityLogs,
+  useComments,
+  useCreateComment,
+} from "@/hooks/useSourceActivity";
 import type { BulkOrderItem } from "@/lib/bulkOrders";
-import { useBulkOrdersStore } from "@/lib/stores/bulk-orders-store";
-import { useCurrentPerson } from "./useBulkItemMove";
+import { uploadCommentMedia } from "@/lib/commentsApi";
+import { mergeActivityFeed } from "@/lib/enquiryMappers";
 
-function getMediaType(file: File) {
-  if (file.type.startsWith("image/")) return "image";
-  return file.type.startsWith("video/") ? "video" : "audio";
-}
-
-export function BulkItemActivity({
-  refCode,
-  item,
-}: {
-  refCode: number;
-  item: BulkOrderItem;
-}) {
-  const addComment = useBulkOrdersStore((state) => state.addComment);
-  const actor = useCurrentPerson();
+export function BulkItemActivity({ item }: { item: BulkOrderItem }) {
+  const commentsQuery = useComments("ORDER", item.orderRefCode);
+  const activityLogsQuery = useActivityLogs("ORDER", item.orderRefCode);
+  const createComment = useCreateComment("ORDER", item.orderRefCode);
   const endRef = useRef<HTMLDivElement>(null);
-  const count = item.activity.length;
+  const entries = mergeActivityFeed(commentsQuery.data, activityLogsQuery.data);
+  const count = entries.length;
 
-  function handlePost({ message, attachments }: ComposeBoxSubmitData) {
+  async function handlePost({ message, attachments }: ComposeBoxSubmitData) {
     const note = message.trim();
     if (!note && attachments.length === 0) return;
 
-    addComment({
-      refCode,
-      serialNumber: item.serialNumber,
-      actor,
-      note,
-      media: attachments.map((file) => ({
-        type: getMediaType(file),
-        url: URL.createObjectURL(file),
-        name: file.name,
-        mimeType: file.type,
-        size: file.size,
-      })),
-    });
+    const media = await uploadCommentMedia(attachments);
+    await createComment.mutateAsync({ content: note, media });
     requestAnimationFrame(() =>
       endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }),
     );
@@ -60,14 +45,17 @@ export function BulkItemActivity({
         </span>
       </div>
       <div className="px-5 pt-5">
-        <ActivityTimeline entries={item.activity} />
+        <ActivityTimeline entries={entries} />
       </div>
       <div className="mx-5 border-t border-dashed border-border" />
       <div className="px-5 pb-5 pt-4">
         <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
           Post an update
         </p>
-        <ComposeBox onSubmit={handlePost} />
+        <ComposeBox
+          onSubmit={handlePost}
+          isSubmitting={createComment.isPending}
+        />
       </div>
       <div ref={endRef} />
     </section>

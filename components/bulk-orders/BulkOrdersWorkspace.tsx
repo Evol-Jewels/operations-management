@@ -4,7 +4,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { CalendarDays, Layers, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
 import { WorkspaceCard } from "@/components/dashboard/WorkspaceCard";
 import { Button } from "@/components/ui/button";
@@ -24,18 +24,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useBulkOrders } from "@/hooks/useBulkOrders";
 import {
-  type BulkOrder,
+  type BulkOrderListRow,
   type FulfilmentFilter,
   formatBulkDate,
   formatBulkOrderRef,
   matchesOrderFilter,
-  summarizeBulkOrder,
 } from "@/lib/bulkOrders";
 import { getFirstName } from "@/lib/people";
-import { useBulkOrdersStore } from "@/lib/stores/bulk-orders-store";
 import { formatCurrency, getUrgencyLevel } from "@/lib/utils";
 import { FulfilmentBadge, FulfilmentProgress } from "./BulkOrderBadges";
+import { BulkOrderPreviewImages } from "./BulkOrderPreviewImages";
 import { CreatedByCell } from "./CreatedBy";
 
 const FILTERS: Array<{ value: FulfilmentFilter; label: string }> = [
@@ -44,7 +44,7 @@ const FILTERS: Array<{ value: FulfilmentFilter; label: string }> = [
   { value: "filled", label: "Fully filled" },
 ];
 
-function getHref(order: BulkOrder) {
+function getHref(order: BulkOrderListRow) {
   return `/bulk-orders/${order.refCode}`;
 }
 
@@ -52,7 +52,7 @@ function DeliveryDate({
   order,
   isFilled,
 }: {
-  order: BulkOrder;
+  order: BulkOrderListRow;
   isFilled: boolean;
 }) {
   const urgency = isFilled
@@ -69,21 +69,22 @@ function DeliveryDate({
 export function BulkOrdersWorkspace() {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filter, setFilter] = useState<FulfilmentFilter>("all");
-  const query = search.trim().toLowerCase();
-  const orders = useBulkOrdersStore((state) => state.orders);
-  const rows = orders
-    .map((order) => ({ order, summary: summarizeBulkOrder(order) }))
-    .filter(
-      ({ order, summary }) =>
-        matchesOrderFilter(filter, summary.status) &&
-        [
-          formatBulkOrderRef(order.refCode),
-          order.packingListNumber,
-          order.vendorName,
-          ...order.items.map((item) => item.vendorDesignNumber),
-        ].some((value) => value.toLowerCase().includes(query)),
+  useEffect(() => {
+    const timeout = window.setTimeout(
+      () => setDebouncedSearch(search.trim()),
+      300,
     );
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+  const ordersQuery = useBulkOrders({
+    search: debouncedSearch || undefined,
+    limit: 100,
+  });
+  const rows = (ordersQuery.data ?? [])
+    .map((order) => ({ order, summary: order.summary }))
+    .filter(({ summary }) => matchesOrderFilter(filter, summary.status));
 
   return (
     <div className="space-y-4">
@@ -140,7 +141,15 @@ export function BulkOrdersWorkspace() {
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      {ordersQuery.isLoading ? (
+        <p className="py-16 text-center text-sm text-muted-foreground">
+          Loading bulk orders...
+        </p>
+      ) : ordersQuery.isError ? (
+        <p className="py-16 text-center text-sm text-destructive">
+          {ordersQuery.error.message}
+        </p>
+      ) : rows.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">
           <Layers className="size-7 text-muted-foreground" />
           <p className="text-sm font-medium">
@@ -182,6 +191,7 @@ export function BulkOrdersWorkspace() {
                         className="shrink-0"
                       />
                     </div>
+                    <BulkOrderPreviewImages order={order} />
                     <FulfilmentProgress
                       filled={summary.filled}
                       total={summary.pieces}
@@ -215,7 +225,7 @@ export function BulkOrdersWorkspace() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead className="min-w-56">
+                    <TableHead className="min-w-96">
                       Bulk order / Vendor
                     </TableHead>
                     <TableHead className="min-w-36">Status</TableHead>
@@ -236,16 +246,21 @@ export function BulkOrdersWorkspace() {
                       onClick={() => router.push(getHref(order))}
                     >
                       <TableCell>
-                        <Link
-                          href={getHref(order)}
-                          className="font-medium text-foreground hover:underline"
-                        >
-                          {order.vendorName}
-                        </Link>
-                        <p className="mt-0.5 font-mono text-xs text-muted-foreground">
-                          {formatBulkOrderRef(order.refCode)} ·{" "}
-                          {order.packingListNumber}
-                        </p>
+                        <div className="flex items-center gap-3">
+                          <BulkOrderPreviewImages order={order} />
+                          <div className="min-w-0">
+                            <Link
+                              href={getHref(order)}
+                              className="font-medium text-foreground hover:underline"
+                            >
+                              {order.vendorName}
+                            </Link>
+                            <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                              {formatBulkOrderRef(order.refCode)} ·{" "}
+                              {order.packingListNumber}
+                            </p>
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <FulfilmentBadge status={summary.status} />

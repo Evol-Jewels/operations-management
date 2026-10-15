@@ -3,17 +3,20 @@
 import { Gem } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import { type BulkOrderItem, getBulkItemImageUrls } from "@/lib/bulkOrders";
+import type { BulkOrderItem } from "@/lib/bulkOrders";
 import { cn } from "@/lib/utils";
 
-export function BulkItemThumbnail({
-  item,
+export function BulkThumbnail({
+  src,
+  alt,
   className,
+  onError,
 }: {
-  item: BulkOrderItem;
+  src?: string;
+  alt: string;
   className?: string;
+  onError?: () => void;
 }) {
-  const [src] = getBulkItemImageUrls(item);
   const [failed, setFailed] = useState(false);
 
   return (
@@ -26,17 +29,36 @@ export function BulkItemThumbnail({
       {src && !failed ? (
         <Image
           src={src}
-          alt={`${item.vendorDesignNumber} ${item.category}`}
+          alt={alt}
           fill
           sizes="80px"
           className="bg-white object-contain"
           draggable={false}
           unoptimized
-          onError={() => setFailed(true)}
+          onError={() => {
+            setFailed(true);
+            onError?.();
+          }}
         />
       ) : (
         <Gem className="size-4 text-muted-foreground/50" aria-hidden="true" />
       )}
     </div>
+  );
+}
+
+export function BulkItemThumbnail({
+  item,
+  className,
+}: {
+  item: BulkOrderItem;
+  className?: string;
+}) {
+  return (
+    <BulkThumbnail
+      src={item.imageUrls[0]}
+      alt={`${item.vendorDesignNumber} ${item.category}`}
+      className={className}
+    />
   );
 }

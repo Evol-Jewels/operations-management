@@ -8,6 +8,7 @@ import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
 import { SpecLine, SpecSection } from "@/components/order/SpecSection";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { useBulkOrder } from "@/hooks/useBulkOrders";
 import {
   type BulkOrder,
   type BulkOrderAmounts,
@@ -22,17 +23,24 @@ import {
   formatDaysRemaining,
   getUrgencyLevel,
 } from "@/lib/utils";
-import { useBulkOrder } from "@/lib/stores/bulk-orders-store";
 import { AmountBreakdown } from "./AmountBreakdown";
 import { FulfilmentBadge } from "./BulkOrderBadges";
-import { CreatedByLine } from "./CreatedBy";
 import {
   BulkOrderItemsTracker,
   type BulkOrderView,
 } from "./BulkOrderItemsTracker";
+import { CreatedByLine } from "./CreatedBy";
 import { useBulkItemMove } from "./useBulkItemMove";
 
 export const BULK_ORDERS_HREF = "/orders-workspace?type=bulk-orders";
+
+export function BulkOrderLoading() {
+  return (
+    <div className="mx-auto max-w-3xl py-20 text-center text-sm text-muted-foreground">
+      Loading record...
+    </div>
+  );
+}
 
 export function BulkOrderNotFound({ label }: { label: string }) {
   return (
@@ -119,7 +127,8 @@ function OrderInfoCard({
 }
 
 export function BulkOrderDetailPage({ refCode }: { refCode: number }) {
-  const order = useBulkOrder(refCode);
+  const { data: order, isLoading } = useBulkOrder(refCode);
+  if (isLoading) return <BulkOrderLoading />;
   if (!order) return <BulkOrderNotFound label="Bulk order" />;
   return <BulkOrderDashboard order={order} />;
 }

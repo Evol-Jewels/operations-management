@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { authClient } from "@/lib/auth-client";
+import { useUpdateBulkItemStatus } from "@/hooks/useBulkOrders";
+import { BULK_STAGE_TO_STATUS } from "@/lib/bulkOrderMappers";
 import {
   type BulkItemStage,
   type BulkOrderItem,
@@ -10,21 +11,10 @@ import {
   isFilledStage,
   isLockedBulkItemStage,
 } from "@/lib/bulkOrders";
-import { useBulkOrdersStore } from "@/lib/stores/bulk-orders-store";
-import type { PersonSummary } from "@/types";
 import {
   BulkItemCloseDialog,
   type BulkItemTerminalStage,
 } from "./BulkItemCloseDialog";
-
-export function useCurrentPerson(): PersonSummary {
-  const { data: session } = authClient.useSession();
-  return {
-    id: session?.user.id ?? "current-user",
-    name: session?.user.name || "You",
-    image: session?.user.image ?? null,
-  };
-}
 
 function getMoveDescription(item: BulkOrderItem, stage: BulkItemStage) {
   const wasFilled = isFilledStage(item.stage);
@@ -39,32 +29,38 @@ function getMoveDescription(item: BulkOrderItem, stage: BulkItemStage) {
 }
 
 export function useBulkItemMove(refCode: number) {
-  const moveItem = useBulkOrdersStore((state) => state.moveItem);
-  const actor = useCurrentPerson();
+  const updateStatus = useUpdateBulkItemStatus(refCode);
   const [pending, setPending] = useState<{
     item: BulkOrderItem;
     stage: BulkItemTerminalStage;
   } | null>(null);
 
   const commit = (item: BulkOrderItem, stage: BulkItemStage, remark = "") => {
-    moveItem({
-      refCode,
-      serialNumber: item.serialNumber,
-      stage,
-      actor,
-      remark: remark || undefined,
-    });
-    toast.success(
-      stage === "Cancelled"
-        ? `${item.vendorDesignNumber} cancelled`
-        : stage === "Closed"
-          ? `${item.vendorDesignNumber} closed`
-          : `${item.vendorDesignNumber} moved to ${stage}`,
+    updateStatus.mutate(
       {
-        description:
-          stage === "Cancelled"
-            ? "Removed from the bulk order's pieces and totals"
-            : getMoveDescription(item, stage),
+        orderRefCode: item.orderRefCode,
+        status: BULK_STAGE_TO_STATUS[stage],
+        remark: remark || undefined,
+      },
+      {
+        onSuccess: () =>
+          toast.success(
+            stage === "Cancelled"
+              ? `${item.vendorDesignNumber} cancelled`
+              : stage === "Closed"
+                ? `${item.vendorDesignNumber} closed`
+                : `${item.vendorDesignNumber} moved to ${stage}`,
+            {
+              description:
+                stage === "Cancelled"
+                  ? "Removed from the bulk order's pieces and totals"
+                  : getMoveDescription(item, stage),
+            },
+          ),
+        onError: (error) =>
+          toast.error(`Could not move ${item.vendorDesignNumber}`, {
+            description: error.message,
+          }),
       },
     );
   };
