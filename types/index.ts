@@ -542,6 +542,11 @@ export interface Order {
   // Activity
   activityFeed: ActivityEntry[];
 
+  // List previews
+  previewImages?: string[];
+  itemCount?: number;
+  itemCategories?: string[];
+
   // Extra
   specialInstructions?: string;
   budgetRange?: string;

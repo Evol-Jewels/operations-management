@@ -3,7 +3,8 @@
 import { useDndContext } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertTriangle, CalendarDays, Clock } from "lucide-react";
+import { AlertTriangle, Clock } from "lucide-react";
+import { JewelryVisual } from "@/components/jewelry/JewelryVisual";
 import { OrderTypeBadge } from "@/components/orders/order-type-badge";
 import {
   Tooltip,
@@ -16,14 +17,20 @@ import {
   cn,
   computeRiskSignal,
   formatDate,
-  formatDaysRemaining,
   getDaysRemaining,
   getUrgencyLevel,
   isTerminalRecord,
 } from "@/lib/utils";
 import type { Order } from "@/types";
-import { UrgencyDot } from "./UrgencyDot";
-import { WorkspaceCard } from "./WorkspaceCard";
+import {
+  CardChip,
+  CardMetaSeparator,
+  CategoryLabel,
+  DueValue,
+  formatCardDate,
+  type KanbanCardButtonProps,
+  KanbanRecordCard,
+} from "./KanbanRecordCard";
 
 interface KanbanCardProps {
   order: Order;
@@ -63,6 +70,136 @@ function formatDueTooltip(deliveryDate: string | undefined): string | null {
   return `Due in ${days} days`;
 }
 
+function getCategories(order: Order) {
+  return order.type === "order"
+    ? [order.category]
+    : (order.itemCategories ?? []);
+}
+
+function RiskBadge({ order }: { order: Order }) {
+  const signal = computeRiskSignal(order);
+  if (!signal) return null;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize shadow-xs backdrop-blur-sm",
+        signal === "stale"
+          ? "bg-orange-100/95 text-orange-700 dark:bg-orange-950/90 dark:text-orange-300"
+          : "bg-amber-100/95 text-amber-700 dark:bg-amber-950/90 dark:text-amber-300",
+      )}
+    >
+      {signal === "stale" ? (
+        <Clock className="size-3" aria-hidden="true" />
+      ) : (
+        <AlertTriangle className="size-3" aria-hidden="true" />
+      )}
+      {signal}
+    </span>
+  );
+}
+
+export function KanbanCardPreview({
+  order,
+  ...props
+}: KanbanCardButtonProps & { order: Order }) {
+  const showDue = Boolean(order.deliveryDate) && !isTerminalRecord(order);
+  const [category, ...otherCategories] = getCategories(order);
+  const reference =
+    order.type === "order"
+      ? order.orderNumber || "Order"
+      : order.refCode
+        ? `#${order.refCode}`
+        : "Enquiry";
+  const hasMetal = order.type === "order" && order.metalPurity !== "Other";
+  const createdDate = Number.isNaN(Date.parse(order.createdAt))
+    ? "Date unavailable"
+    : formatDate(order.createdAt);
+
+  return (
+    <KanbanRecordCard
+      {...props}
+      images={order.previewImages}
+      imageAlt={[order.customerName, category].filter(Boolean).join(" ")}
+      category={category}
+      cornerBadge={
+        computeRiskSignal(order) ? <RiskBadge order={order} /> : undefined
+      }
+      dimmed={order.currentStage === "Cancelled"}
+      title={order.customerName}
+      meta={
+        <>
+          <span className="shrink-0 font-mono">{reference}</span>
+          {category && (
+            <>
+              <CardMetaSeparator />
+              <CategoryLabel
+                category={category}
+                extra={otherCategories.length}
+              />
+            </>
+          )}
+        </>
+      }
+      aside={
+        <span
+          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-[10px] font-bold text-blue-600 dark:text-blue-400"
+          title={order.salespersonName}
+        >
+          {initials(order.salespersonName)}
+        </span>
+      }
+      chips={
+        <>
+          {order.type === "order" ? (
+            <OrderTypeBadge
+              productType={order.productType}
+              isRefill={order.isRefill}
+              className="h-5 px-1.5 text-[10px]"
+            />
+          ) : order.itemCount ? (
+            <CardChip className="tabular-nums">
+              {order.itemCount} item{order.itemCount === 1 ? "" : "s"}
+            </CardChip>
+          ) : null}
+          {hasMetal && (
+            <CardChip>
+              <JewelryVisual
+                kind="metal"
+                value={order.metalType}
+                className="size-3"
+              />
+              {order.metalPurity} {order.metalType}
+            </CardChip>
+          )}
+        </>
+      }
+      stats={[
+        {
+          label: "Created",
+          value: (
+            <span title={`Created on ${createdDate}`}>
+              {formatCardDate(order.createdAt)}
+            </span>
+          ),
+        },
+        {
+          label: "Due",
+          value:
+            showDue && order.deliveryDate ? (
+              <DueValue
+                date={order.deliveryDate}
+                urgency={getUrgencyLevel(order.deliveryDate)}
+              />
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            ),
+        },
+      ]}
+    />
+  );
+}
+
 export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
   const canViewVendor = useVendorAccess();
   const { active } = useDndContext();
@@ -81,52 +218,23 @@ export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
     },
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  const isTerminal = isTerminalRecord(order);
-  const hasActiveDeliveryDate = Boolean(order.deliveryDate) && !isTerminal;
-  const urgency = hasActiveDeliveryDate
-    ? getUrgencyLevel(order.deliveryDate)
-    : "none";
-  const daysLabel = hasActiveDeliveryDate
-    ? formatDaysRemaining(order.deliveryDate)
-    : null;
-  const riskSignal = computeRiskSignal(order);
-  const isStale = riskSignal === "stale";
-  const isStuck = riskSignal === "stuck";
-  const createdDate = Number.isNaN(Date.parse(order.createdAt))
-    ? "Date unavailable"
-    : formatDate(order.createdAt);
   const daysSinceCreated = getDaysSinceCreated(order.createdAt);
-  const dueTooltip = hasActiveDeliveryDate
-    ? formatDueTooltip(order.deliveryDate)
-    : null;
-
-  if (isDragging) {
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className="h-[88px] rounded-xl border-2 border-dashed border-foreground/30 bg-muted/50 opacity-50"
-      />
-    );
-  }
+  const dueTooltip = isTerminalRecord(order)
+    ? null
+    : formatDueTooltip(order.deliveryDate);
 
   return (
     <TooltipProvider>
       <Tooltip open={active ? false : undefined}>
         <TooltipTrigger asChild>
-          <WorkspaceCard
-            urgency={urgency}
+          <KanbanCardPreview
+            order={order}
             draggableCard
-            type="button"
             ref={setNodeRef}
-            style={style}
+            style={{ transform: CSS.Transform.toString(transform), transition }}
             {...attributes}
             {...listeners}
+            className={cn(isDragging && "pointer-events-none opacity-30")}
             onClick={onClick}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -134,123 +242,7 @@ export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
                 onClick();
               }
             }}
-            className={cn(
-              // Risk overlay — subtle top border on at-risk cards
-              (isStale || isStuck) &&
-                "border-t-orange-300 dark:border-t-orange-700/60",
-            )}
-          >
-            {/* Risk signal badge — top right corner */}
-            {(isStale || isStuck) && (
-              <div
-                className={cn(
-                  "absolute right-2 top-2 flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-semibold",
-                  isStale
-                    ? "bg-orange-500/10 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400"
-                    : "bg-amber-500/10 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
-                )}
-              >
-                {isStale ? (
-                  <Clock className="h-2.5 w-2.5" />
-                ) : (
-                  <AlertTriangle className="h-2.5 w-2.5" />
-                )}
-                {isStale ? "stale" : "stuck"}
-              </div>
-            )}
-
-            {/* Content */}
-            <div className="pl-2">
-              {/* Customer name — shift right of risk badge */}
-              <p
-                className={cn(
-                  "truncate text-sm font-semibold text-foreground",
-                  (isStale || isStuck) && "pr-10",
-                )}
-              >
-                {order.customerName}
-              </p>
-
-              {/* Type + ID row */}
-              <div className="mt-1 flex items-center gap-1.5">
-                {order.type === "enquiry" ? (
-                  <span className="inline-flex items-center rounded border border-border bg-muted px-1.5 py-px text-[10px] text-muted-foreground">
-                    Enquiry
-                  </span>
-                ) : (
-                  <span className="font-mono text-[11px] text-muted-foreground">
-                    {order.orderNumber || "Order"}
-                  </span>
-                )}
-                <span className="text-[10px] text-muted-foreground/50">·</span>
-                <span className="truncate text-[11px] text-muted-foreground">
-                  {order.category}
-                </span>
-              </div>
-
-              {order.type === "order" && (
-                <OrderTypeBadge
-                  productType={order.productType}
-                  isRefill={order.isRefill}
-                  className="mt-2"
-                />
-              )}
-
-              {/* Bottom row: Urgency + Salesperson */}
-              <div
-                className={cn(
-                  "mt-2 flex items-center",
-                  hasActiveDeliveryDate ? "justify-between" : "justify-end",
-                )}
-              >
-                {/* Urgency */}
-                {hasActiveDeliveryDate && daysLabel ? (
-                  <div
-                    className={cn(
-                      "inline-flex min-h-6 items-center gap-1.5 rounded-md px-1.5",
-                      urgency === "overdue" &&
-                        "bg-red-500/10 text-red-700 dark:text-red-300",
-                      urgency === "due-soon" &&
-                        "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-                      urgency === "on-track" && "bg-emerald-500/8",
-                    )}
-                    title={`Delivery: ${daysLabel}`}
-                  >
-                    <UrgencyDot level={urgency} />
-                    <span
-                      className={cn(
-                        "text-[10px] tabular-nums",
-                        urgency === "overdue" &&
-                          "font-medium text-red-600 dark:text-red-400",
-                        urgency === "due-soon" &&
-                          "font-medium text-amber-600 dark:text-amber-400",
-                        urgency === "on-track" && "text-muted-foreground",
-                      )}
-                    >
-                      {daysLabel}
-                    </span>
-                  </div>
-                ) : null}
-
-                {/* Salesperson avatar */}
-                <div
-                  className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/10 text-[9px] font-bold text-blue-600 dark:bg-blue-500/10 dark:text-blue-400"
-                  title={order.salespersonName}
-                >
-                  {initials(order.salespersonName)}
-                </div>
-              </div>
-
-              {/* Creation date is the final card metadata line. */}
-              <div
-                className="mt-2 flex items-center gap-1 border-t border-border/60 pt-2 text-[10px] text-muted-foreground/70"
-                title={`Created on ${createdDate}`}
-              >
-                <CalendarDays className="size-3 shrink-0" aria-hidden="true" />
-                <span>Created on {createdDate}</span>
-              </div>
-            </div>
-          </WorkspaceCard>
+          />
         </TooltipTrigger>
         <TooltipContent
           side="right"
@@ -259,7 +251,8 @@ export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
           <div className="space-y-1">
             <p className="font-medium">{order.customerName}</p>
             <p className="text-xs text-muted-foreground">
-              {actionLabel ?? `Click to open ${order.type === "enquiry" ? "enquiry" : "order"} details`}
+              {actionLabel ??
+                `Click to open ${order.type === "enquiry" ? "enquiry" : "order"} details`}
             </p>
             {canViewVendor && order.vendorName && (
               <p className="text-[11px] text-muted-foreground">

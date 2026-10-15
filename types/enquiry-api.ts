@@ -9,6 +9,7 @@ export type BackendEnquiryItemStatus =
 export type BackendEnquiryItemType = "EXISTING" | "CUSTOM";
 
 import type { BackendActivityLog } from "@/types/activity-api";
+import type { BackendPreviewImage } from "@/types/order-api";
 
 export interface BackendEnquiryStone {
   stoneType: string;
@@ -93,6 +94,8 @@ export interface BackendEnquiryRow {
 export interface BackendEnquiryListItem extends BackendEnquiryRow {
   itemCount: number;
   estimationCount: number;
+  categories?: string[];
+  previewImages?: BackendPreviewImage[];
   deliveryDate?: string | null;
 }
 

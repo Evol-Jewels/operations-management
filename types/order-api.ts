@@ -105,6 +105,11 @@ export interface BackendProductDetails {
   kind: string;
 }
 
+export interface BackendPreviewImage {
+  mediaId: string | null;
+  url: string;
+}
+
 export interface BackendOrderRow {
   id: string;
   refCode: number;
@@ -130,6 +135,7 @@ export interface BackendOrderRow {
   vendor: string | null;
   vendorId?: string | null;
   vendorDeliveryDate: string | null;
+  previewImages?: BackendPreviewImage[];
   createdAt: string;
   updatedAt: string;
 }

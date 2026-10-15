@@ -19,7 +19,7 @@ import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Order } from "@/types";
-import { KanbanCard } from "./KanbanCard";
+import { KanbanCardPreview } from "./KanbanCard";
 import { KanbanColumn } from "./KanbanColumn";
 
 export interface KanbanColumnConfig {
@@ -47,7 +47,9 @@ const stageCollisionDetection: CollisionDetection = (args) => {
       (container) => container.data.current?.type === "Column",
     ),
   };
-  return args.pointerCoordinates ? pointerWithin(columns) : closestCorners(columns);
+  return args.pointerCoordinates
+    ? pointerWithin(columns)
+    : closestCorners(columns);
 };
 
 function groupOrdersByColumn(
@@ -187,7 +189,7 @@ export function KanbanBoard({
         <DragOverlay dropAnimation={null}>
           {activeOrder ? (
             <div className="pointer-events-none rotate-2 scale-105 cursor-grabbing">
-              <KanbanCard order={activeOrder} onClick={() => {}} actionLabel={cardActionLabel} />
+              <KanbanCardPreview order={activeOrder} />
             </div>
           ) : null}
         </DragOverlay>
