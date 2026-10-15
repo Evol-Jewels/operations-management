@@ -57,10 +57,11 @@ function mapReferences(
 
 export function mapBackendEstimationToProductEstimation(
   estimation: BackendEstimationRow,
+  enquiryItemId = estimation.enquiryItemId,
 ): ProductEstimation {
   return {
     id: estimation.id,
-    productId: estimation.enquiryItemId,
+    productId: enquiryItemId,
     metalWeight: Number(estimation.netWeight ?? 0),
     purity: estimation.metalPurity ?? "22K",
     metalType: estimation.metalType ?? "Gold",
@@ -265,7 +266,7 @@ export function mapBackendEnquiryDetailsToOrder(
 
     if (latestEstimation) {
       productEstimations.push(
-        mapBackendEstimationToProductEstimation(latestEstimation),
+        mapBackendEstimationToProductEstimation(latestEstimation, item.id),
       );
     }
   }

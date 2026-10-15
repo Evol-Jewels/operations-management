@@ -12,6 +12,8 @@ import {
 import { type ReactNode, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { EnquiryEstimationPrintView } from "@/components/enquiry/EnquiryEstimationPrintView";
+import { EnquiryEstimateSummary } from "@/components/enquiry/EnquiryEstimateSummary";
+import { EnquiryEstimationDialog } from "@/components/enquiry/EnquiryEstimationDialog";
 import {
   RequirementCard,
   RequirementCardBody,
@@ -42,8 +44,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
-import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
-import { estimationStoneToCalculator } from "@/lib/enquiryEstimation";
+import { useItemEstimations } from "@/hooks/useEnquiries";
+import { mapBackendEstimationToProductEstimation } from "@/lib/enquiryMappers";
+import { computeEnquiryEstimate } from "@/lib/enquiryEstimation";
 import { createPdfFromImage } from "@/lib/pdf-export";
 import { sharePngToWhatsApp } from "@/lib/share-image";
 import { cn } from "@/lib/utils";
@@ -76,11 +79,12 @@ interface EnquiryProductListProps {
   customProducts: EnquiryCustomProduct[];
   estimations: ProductEstimation[];
   isFinalized: boolean;
+  isMarkedEstimated?: boolean;
   isSavingEstimation?: boolean;
   showHeader?: boolean;
   vendorDetails?: OrderVendorDetailsDisplay;
   renderDownloadActions?: (pdf: ItemPdfExport) => ReactNode;
-  onSaveEstimation: (estimation: ProductEstimation) => void;
+  onSaveEstimation: (estimation: ProductEstimation) => void | Promise<void>;
 }
 
 export interface ItemPdfExport {
@@ -97,6 +101,7 @@ export function EnquiryProductList({
   customProducts,
   estimations,
   isFinalized,
+  isMarkedEstimated = false,
   isSavingEstimation,
   showHeader = true,
   vendorDetails,
@@ -105,7 +110,11 @@ export function EnquiryProductList({
 }: EnquiryProductListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [activeIndex, setActiveIndex] = useState(0);
-  const { settings } = useCalculatorSettings();
+  const {
+    settings,
+    isLoading: isLoadingRates,
+    error: ratesError,
+  } = useCalculatorSettings();
 
   const items = useMemo(() => {
     const recomputedEstimations = estimations
@@ -148,14 +157,19 @@ export function EnquiryProductList({
         <EmptyState label="No products match this status." dashed />
       ) : activeItem ? (
         <RequirementCarouselCard
+          key={activeItem.id}
           item={activeItem}
+          itemNumber={items.findIndex((item) => item.id === activeItem.id) + 1}
           enquiryRefCode={enquiryRefCode}
           recordType={recordType}
           activeIndex={safeActiveIndex}
           totalCount={filteredItems.length}
           itemIds={filteredItems.map((filteredItem) => filteredItem.id)}
           settings={settings}
+          isLoadingRates={isLoadingRates}
+          hasRatesError={Boolean(ratesError)}
           isFinalized={isFinalized}
+          isMarkedEstimated={isMarkedEstimated}
           isSavingEstimation={isSavingEstimation}
           vendorDetails={vendorDetails}
           renderDownloadActions={renderDownloadActions}
@@ -198,14 +212,18 @@ function Header({
 }
 
 function RequirementCarouselCard({
-  item,
+  item: initialItem,
+  itemNumber,
   enquiryRefCode,
   recordType,
   activeIndex,
   totalCount,
   itemIds,
   settings,
+  isLoadingRates,
+  hasRatesError,
   isFinalized,
+  isMarkedEstimated,
   isSavingEstimation,
   vendorDetails,
   renderDownloadActions,
@@ -213,23 +231,53 @@ function RequirementCarouselCard({
   onSelectItem,
 }: {
   item: RequirementDisplayItem;
+  itemNumber: number;
   enquiryRefCode: number;
   recordType: RecordType;
   activeIndex: number;
   totalCount: number;
   itemIds: string[];
   settings: CalculatorSettings;
+  isLoadingRates: boolean;
+  hasRatesError: boolean;
   isFinalized: boolean;
+  isMarkedEstimated: boolean;
   isSavingEstimation?: boolean;
   vendorDetails?: OrderVendorDetailsDisplay;
   renderDownloadActions?: (pdf: ItemPdfExport) => ReactNode;
-  onSaveEstimation: (estimation: ProductEstimation) => void;
+  onSaveEstimation: (estimation: ProductEstimation) => void | Promise<void>;
   onSelectItem: (index: number) => void;
 }) {
+  const needsEstimationLookup =
+    recordType === "enquiry" &&
+    (initialItem.status === "ESTIMATED" || isMarkedEstimated) &&
+    !initialItem.estimation;
+  const estimateQuery = useItemEstimations(
+    initialItem.id,
+    needsEstimationLookup,
+  );
+  const item = useMemo(() => {
+    const saved =
+      recordType === "enquiry" ? estimateQuery.data?.[0] : undefined;
+    if (initialItem.estimation || !saved) return initialItem;
+    return {
+      ...initialItem,
+      estimation: recomputeEstimationTotal(
+        mapBackendEstimationToProductEstimation(saved, initialItem.id),
+        settings,
+      ),
+    };
+  }, [initialItem, recordType, estimateQuery.data, settings]);
+  const isLoadingEstimate = needsEstimationLookup && estimateQuery.isPending;
+  const hasEstimateError =
+    needsEstimationLookup && estimateQuery.isError && !item.estimation;
   const hasMany = totalCount > 1;
   const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
-  const [hideVendorDetails, setHideVendorDetails] = useState(false);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [hideVendorDetails, setHideVendorDetails] = useState(
+    recordType === "enquiry",
+  );
   const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>("pdf");
   const printViewRef = useRef<HTMLDivElement>(null);
   const pdfFileName = `${recordType}-${enquiryRefCode}-${slugifyFilePart(item.title)}.pdf`;
@@ -399,7 +447,8 @@ function RequirementCarouselCard({
           </span>
         </p>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-          {item.kind === "custom" && vendorDetails ? (
+          {(item.kind === "custom" && vendorDetails) ||
+          item.estimation?.vendorName ? (
             <Label className="flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground">
               <Checkbox
                 checked={hideVendorDetails}
@@ -412,7 +461,41 @@ function RequirementCarouselCard({
               <span className="sm:hidden">Hide vendor</span>
             </Label>
           ) : null}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {isLoadingEstimate ? (
+              <span role="status" className="text-xs text-muted-foreground">
+                Loading saved estimate…
+              </span>
+            ) : null}
+            {hasEstimateError ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => void estimateQuery.refetch()}
+              >
+                Retry loading estimate
+              </Button>
+            ) : null}
+            {!isFinalized && !isLoadingEstimate && !hasEstimateError ? (
+              <EnquiryEstimationDialog
+                productId={item.id}
+                productName={item.title}
+                defaultPurity={item.defaultPurity}
+                defaultMetalType={item.metalType}
+                defaultMetalPurity={item.metalPurity}
+                imageUrls={item.images.flatMap((image) =>
+                  image.url ? [image.url] : [],
+                )}
+                settings={settings}
+                existingEstimation={item.estimation}
+                onSave={onSaveEstimation}
+                disabled={isSavingEstimation || isLoadingRates || hasRatesError}
+                open={calculatorOpen}
+                onOpenChange={setCalculatorOpen}
+              />
+            ) : null}
             <Popover
               open={isDownloadMenuOpen}
               onOpenChange={handleDownloadMenuOpenChange}
@@ -432,9 +515,9 @@ function RequirementCarouselCard({
                     <Download className="size-3.5" />
                   )}
                   <span className="hidden sm:inline">
-                    Download .{downloadFormat}
+                    Specification .{downloadFormat}
                   </span>
-                  <span className="sm:hidden">.{downloadFormat}</span>
+                  <span className="sm:hidden">Spec .{downloadFormat}</span>
                 </Button>
                 <PopoverTrigger asChild>
                   <Button
@@ -443,7 +526,7 @@ function RequirementCarouselCard({
                     size="icon-sm"
                     className="h-8 w-7 rounded-none border-0 border-l border-input shadow-none hover:bg-accent"
                     disabled={isSharing}
-                    aria-label="Choose download or sharing action"
+                    aria-label="Choose specification download or sharing action"
                   >
                     <ChevronDown className="size-3.5 text-muted-foreground" />
                   </Button>
@@ -456,7 +539,7 @@ function RequirementCarouselCard({
                   className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
                 >
                   <FileText className="size-4 text-muted-foreground" />
-                  <span className="flex-1">Download as .pdf</span>
+                  <span className="flex-1">Specification as .pdf</span>
                   {downloadFormat === "pdf" ? (
                     <Check className="size-4" />
                   ) : null}
@@ -467,7 +550,7 @@ function RequirementCarouselCard({
                   className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
                 >
                   <FileImage className="size-4 text-muted-foreground" />
-                  <span className="flex-1">Download as .png</span>
+                  <span className="flex-1">Specification as .png</span>
                   {downloadFormat === "png" ? (
                     <Check className="size-4" />
                   ) : null}
@@ -485,7 +568,9 @@ function RequirementCarouselCard({
                     <WhatsAppIcon className="size-4 text-[#25D366]" />
                   )}
                   <span className="flex-1">
-                    {isSharing ? "Preparing PNG…" : "Share on WhatsApp"}
+                    {isSharing
+                      ? "Preparing PNG…"
+                      : "Share specification on WhatsApp"}
                   </span>
                 </button>
               </PopoverContent>
@@ -523,19 +608,41 @@ function RequirementCarouselCard({
         </div>
       </div>
 
+      {needsEstimationLookup && estimateQuery.isSuccess && !item.estimation ? (
+        <p
+          role="status"
+          className="border-b border-border px-4 py-3 text-sm text-muted-foreground"
+        >
+          Marked Estimated, but this item has no saved estimate. Add one to view
+          its breakup.
+        </p>
+      ) : null}
+
       <RequirementCardBody>
         <RequirementMediaPanel
           item={item}
-          settings={settings}
-          isFinalized={isFinalized}
-          isSavingEstimation={isSavingEstimation}
-          onSaveEstimation={onSaveEstimation}
+          showEstimation={recordType !== "enquiry"}
         />
         <RequirementDetailsPanel
           item={item}
           vendorDetails={hideVendorDetails ? undefined : vendorDetails}
         />
       </RequirementCardBody>
+      {recordType === "enquiry" && item.estimation ? (
+        <div className="border-t border-border p-3 @[40rem]/requirement:p-4">
+          <EnquiryEstimateSummary
+            item={item}
+            enquiryRefCode={enquiryRefCode}
+            itemNumber={itemNumber}
+            settings={settings}
+            isLoading={isLoadingRates}
+            hasSettingsError={hasRatesError}
+            isCalculatorDisabled={
+              isSavingEstimation || isLoadingRates || hasRatesError
+            }
+          />
+        </div>
+      ) : null}
       <EnquiryEstimationPrintView
         ref={printViewRef}
         item={item}
@@ -636,33 +743,10 @@ function recomputeEstimationTotal(
 ): ProductEstimation | undefined {
   if (!estimation) return undefined;
 
-  const breakdown = computeEstimateFromInputs(
-    settings,
-    estimation.metalWeight,
-    "Other",
-    estimation.stoneDetails.map((stone) =>
-      estimationStoneToCalculator(stone, settings),
-    ),
-    {
-      makingCostOverride: estimation.makingCost ?? 0,
-      metals: [
-        {
-          id: estimation.id,
-          metalTypeId:
-            settings.metalTypes.find(
-              (metal) =>
-                metal.name.toLowerCase() ===
-                (estimation.metalType ?? "Gold").toLowerCase(),
-            )?.id ?? (estimation.metalType ?? "gold").toLowerCase(),
-          purityId: estimation.purity,
-          weight: estimation.metalWeight,
-        },
-      ],
-    },
-  );
+  const { pricing } = computeEnquiryEstimate(estimation, settings);
 
   return {
     ...estimation,
-    finalAmount: Math.round(breakdown.total),
+    finalAmount: Math.round(pricing.total),
   };
 }

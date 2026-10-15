@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { normalizeDiamondClarity } from "@/lib/diamondClarity";
+import type { EstimationSummaryData } from "@/lib/calculator/summary";
 import { isInventoryMediaProxyUrl } from "@/lib/inventory-media";
 import { sharePngToWhatsApp } from "@/lib/share-image";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -35,29 +36,6 @@ import type {
   CalculatorPricingBreakdown,
   ProductEstimateResult,
 } from "@/types";
-
-interface SharedSummaryData {
-  name: string;
-  code: string;
-  note: string;
-  imageUrl?: string | null;
-  imageUrls: string[];
-  grossWeight: number;
-  netGoldWeight: number;
-  purity: string;
-  goldRateValue: number;
-  goldCost: number;
-  metalDetails?: NonNullable<CalculatorPricingBreakdown["metalDetails"]>;
-  makingCost: number;
-  stoneDetails: CalculatorPricingBreakdown["stoneDetails"];
-  diamondColor: string;
-  diamondClarity: string;
-  totalStoneCost: number;
-  subTotal: number;
-  gst: number;
-  total: number;
-  gstRate: number;
-}
 
 interface SummaryMediaControlsProps {
   imageUrls: string[];
@@ -194,6 +172,10 @@ interface EstimationSummaryCardProps {
     | {
         kind: "estimate";
         result: ProductEstimateResult;
+      }
+    | {
+        kind: "summary";
+        summary: EstimationSummaryData;
       };
 }
 
@@ -202,7 +184,7 @@ function formatWeight(value: number, suffix: string, decimals = 3) {
 }
 
 function getStoneCategoryGroups(
-  stoneDetails: SharedSummaryData["stoneDetails"],
+  stoneDetails: EstimationSummaryData["stoneDetails"],
 ) {
   const visibleStoneDetails = stoneDetails.filter((stone) => stone.weight > 0);
 
@@ -240,7 +222,8 @@ function makeSlug(value: string) {
 
 function getSummaryData(
   data: EstimationSummaryCardProps["data"],
-): SharedSummaryData {
+): EstimationSummaryData {
+  if (data.kind === "summary") return data.summary;
   if (data.kind === "calculator") {
     return {
       name: data.form.productName.trim(),
@@ -623,7 +606,7 @@ function CompactSummary({
   summary,
   mediaControls,
 }: {
-  summary: SharedSummaryData;
+  summary: EstimationSummaryData;
   mediaControls?: ReactNode;
 }) {
   const stoneCategoryGroups = getStoneCategoryGroups(summary.stoneDetails);
@@ -844,7 +827,7 @@ export function EstimationSummaryCard({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [summaryFormat, setSummaryFormat] = useState<"detailed" | "compact">(
-    data.kind === "calculator" ? "compact" : "detailed",
+    data.kind === "estimate" ? "detailed" : "compact",
   );
   const summaryData = getSummaryData(data);
   const availableImages = useMemo(

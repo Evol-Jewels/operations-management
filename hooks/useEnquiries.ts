@@ -8,11 +8,14 @@ import {
   fetchEnquiryDetails,
   fetchEnquiryDetailsByRefCode,
   fetchMyEnquiries,
+  fetchItemEstimations,
   fetchOpenStoreEnquiries,
   updateEnquiry,
   updateEstimation,
 } from "@/lib/enquiriesApi";
+import { upsertEnquiryEstimation } from "@/lib/enquiryEstimationCache";
 import type {
+  BackendEnquiryDetails,
   CreateEnquiryInput,
   CreateEstimationInput,
   ListEnquiriesQuery,
@@ -31,6 +34,8 @@ export const enquiryKeys = {
   detail: (id: string) => [...enquiryKeys.details(), id] as const,
   detailByRefCode: (refCode: number) =>
     [...enquiryKeys.all, "detail", "ref", refCode] as const,
+  itemEstimations: (itemId: string) =>
+    [...enquiryKeys.all, "item-estimations", itemId] as const,
 };
 
 export function useOpenStoreEnquiries(options: { enabled?: boolean } = {}) {
@@ -76,6 +81,14 @@ export function useEnquiryDetailsByRefCode(refCode: number) {
   });
 }
 
+export function useItemEstimations(itemId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: enquiryKeys.itemEstimations(itemId),
+    queryFn: () => fetchItemEstimations(itemId),
+    enabled: Boolean(itemId) && enabled,
+  });
+}
+
 export function useCreateEnquiry() {
   const queryClient = useQueryClient();
 
@@ -110,11 +123,12 @@ export function useCreateEstimation(_enquiryId: string) {
       itemId: string;
       input: CreateEstimationInput;
     }) => createEstimation(itemId, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: enquiryKeys.lists() });
-      void queryClient.invalidateQueries({
-        queryKey: enquiryKeys.details(),
-      });
+    onSuccess: async (estimation, { itemId }) => {
+      queryClient.setQueriesData<BackendEnquiryDetails>(
+        { queryKey: enquiryKeys.details() },
+        (details) => upsertEnquiryEstimation(details, estimation, itemId),
+      );
+      await queryClient.invalidateQueries({ queryKey: enquiryKeys.all });
     },
   });
 }
@@ -128,13 +142,15 @@ export function useUpdateEstimation(_enquiryId: string) {
       input,
     }: {
       estimationId: string;
+      itemId: string;
       input: UpdateEstimationInput;
     }) => updateEstimation(estimationId, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: enquiryKeys.lists() });
-      void queryClient.invalidateQueries({
-        queryKey: enquiryKeys.details(),
-      });
+    onSuccess: async (estimation, { itemId }) => {
+      queryClient.setQueriesData<BackendEnquiryDetails>(
+        { queryKey: enquiryKeys.details() },
+        (details) => upsertEnquiryEstimation(details, estimation, itemId),
+      );
+      await queryClient.invalidateQueries({ queryKey: enquiryKeys.all });
     },
   });
 }

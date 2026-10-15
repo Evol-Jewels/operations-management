@@ -4,16 +4,9 @@ import {
   getDisplayMetalPurity,
   type RequirementDisplayItem,
 } from "@/components/enquiry/requirements/requirement-display-utils";
-import { useVendorAccess } from "@/hooks/useVendors";
 import { normalizeDiamondClarity } from "@/lib/diamondClarity";
 import { formatMetalTypeLabel } from "@/lib/metalDisplay";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import type {
-  EnquiryColorStone,
-  EnquiryDiamond,
-  ProductEstimation,
-  RecordType,
-} from "@/types";
+import type { EnquiryColorStone, EnquiryDiamond, RecordType } from "@/types";
 
 const PRINT_FONT = 'var(--font-geist-sans), "Segoe UI", sans-serif';
 
@@ -179,7 +172,11 @@ function StoneCard({
   );
 }
 
-function MediaPanel({ item }: { item: RequirementDisplayItem }) {
+function MediaPanel({
+  item,
+}: {
+  item: Omit<RequirementDisplayItem, "estimation">;
+}) {
   const images = item.images.filter((image) => image.url);
   const primaryImage = images[0];
   const secondaryImages = images.slice(1);
@@ -268,7 +265,6 @@ function MediaPanel({ item }: { item: RequirementDisplayItem }) {
         </div>
       ) : null}
       {links.length > 0 ? <ReferenceLinks links={links} /> : null}
-      {item.estimation ? <EstimateCard estimation={item.estimation} /> : null}
     </aside>
   );
 }
@@ -337,73 +333,6 @@ function ReferenceLinks({ links }: { links: RequirementDisplayItem["links"] }) {
   );
 }
 
-function EstimateCard({ estimation }: { estimation: ProductEstimation }) {
-  const canViewVendor = useVendorAccess();
-  return (
-    <div
-      style={{
-        border: "1px solid #d8d8d8",
-        borderRadius: 6,
-        marginTop: 12,
-        padding: "10px 12px",
-      }}
-    >
-      <p
-        style={{
-          color: "#555555",
-          fontFamily: PRINT_FONT,
-          fontSize: "7.5pt",
-          fontWeight: 700,
-          letterSpacing: "0.2em",
-          margin: 0,
-          textTransform: "uppercase",
-        }}
-      >
-        Estimate
-      </p>
-      <p
-        style={{
-          color: "#111111",
-          fontFamily: PRINT_FONT,
-          fontSize: "15pt",
-          fontWeight: 700,
-          margin: "4px 0",
-        }}
-      >
-        {formatCurrency(estimation.finalAmount)}
-      </p>
-      <dl style={{ margin: "8px 0 0" }}>
-        <DetailRow label="Metal weight" value={`${estimation.metalWeight} g`} />
-        <DetailRow label="Metal" value={estimation.metalType ?? "Gold"} />
-        <DetailRow label="Purity" value={estimation.purity} />
-        <DetailRow
-          label="Making charge"
-          value={
-            estimation.makingCost !== undefined
-              ? formatCurrency(estimation.makingCost)
-              : undefined
-          }
-        />
-        <DetailRow
-          label="Estimated on"
-          value={formatDate(estimation.createdAt)}
-        />
-        {canViewVendor ? (
-          <DetailRow label="Vendor" value={estimation.vendorName} />
-        ) : null}
-        {estimation.stoneDetails.map((stone, index) => (
-          <DetailRow
-            key={stone.id}
-            label={`Stone ${index + 1}`}
-            value={`${stone.type} - ${stone.netWeight} ct - ${stone.pieces} pcs`}
-          />
-        ))}
-        <DetailRow label="Notes" value={estimation.notes} />
-      </dl>
-    </div>
-  );
-}
-
 function DiamondDetails({ diamonds }: { diamonds: EnquiryDiamond[] }) {
   return (
     <div style={{ display: "grid", gap: 10 }}>
@@ -461,7 +390,7 @@ function ColorStoneDetails({ stones }: { stones: EnquiryColorStone[] }) {
 }
 
 interface EnquiryEstimationPrintViewProps {
-  item: RequirementDisplayItem;
+  item: Omit<RequirementDisplayItem, "estimation">;
   enquiryRefCode: number;
   recordType: RecordType;
   vendorDetails?: {

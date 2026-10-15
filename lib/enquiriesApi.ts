@@ -136,6 +136,12 @@ export function createEstimation(itemId: string, input: CreateEstimationInput) {
   );
 }
 
+export function fetchItemEstimations(itemId: string) {
+  return apiFetch<BackendEstimationRow[]>(
+    buildUrl("api/v1/estimation", { id: itemId }),
+  );
+}
+
 export function updateEstimation(
   estimationId: string,
   input: UpdateEstimationInput,

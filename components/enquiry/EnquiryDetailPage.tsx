@@ -73,7 +73,8 @@ function deriveEnquiryStage(order: Order): EnquiryStage {
   const status = getOrderEnquiryUiStatus(order);
   if (status === "Closed" || status === "Converted")
     return "Closed / Converted";
-  if (status === "Estimated") return "Estimation Submitted";
+  if (status === "Estimated" && order.estimations?.length)
+    return "Estimation Submitted";
   return "Enquiry Created";
 }
 
@@ -251,7 +252,10 @@ function ClosedBanner({ order }: { order: Order }) {
 
 interface EnquiryDetailPageProps {
   order: Order;
-  onSaveEstimation: (productId: string, estimation: ProductEstimation) => void;
+  onSaveEstimation: (
+    productId: string,
+    estimation: ProductEstimation,
+  ) => void | Promise<void>;
   onPostUpdate: (data: ComposeBoxSubmitData) => void | Promise<void>;
   onCloseEnquiry: (data: { reason: string; notes: string }) => Promise<void>;
   isSavingEstimation?: boolean;
@@ -299,7 +303,7 @@ export function EnquiryDetailPage({
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
 
   function handleSaveEstimation(estimation: ProductEstimation) {
-    onSaveEstimation(estimation.productId, estimation);
+    return onSaveEstimation(estimation.productId, estimation);
   }
 
   async function handleCloseEnquiry(data: {
@@ -447,6 +451,7 @@ export function EnquiryDetailPage({
               customProducts={customProducts}
               estimations={estimations}
               isFinalized={isFinalized}
+              isMarkedEstimated={order.enquiryStatus === "ESTIMATED"}
               onSaveEstimation={handleSaveEstimation}
               isSavingEstimation={isSavingEstimation}
             />
