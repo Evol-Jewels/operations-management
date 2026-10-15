@@ -311,6 +311,7 @@ export interface EstimationStoneDetail {
   type: string;
   netWeight: number;
   pieces: number;
+  pricePerCarat?: number;
 }
 
 export interface ProductEstimation {
@@ -322,6 +323,7 @@ export interface ProductEstimation {
   stoneDetails: EstimationStoneDetail[];
   finalAmount: number;
   makingCost?: number;
+  gstRate?: number;
   createdAt: string;
   vendorName?: string;
   notes?: string;

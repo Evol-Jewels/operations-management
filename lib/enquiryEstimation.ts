@@ -4,7 +4,11 @@ import type {
   EstimationStoneDetail,
   ProductEstimation,
 } from "@/types";
-import { computeEstimateFromInputs } from "@/lib/calculator/pricing";
+import {
+  computeEstimateFromInputs,
+  getStoneSlabs,
+  resolveAutoSlab,
+} from "@/lib/calculator/pricing";
 
 export function estimationStoneToCalculator(
   stone: EstimationStoneDetail,
@@ -15,12 +19,19 @@ export function estimationStoneToCalculator(
       (item) =>
         item.name.trim().toLowerCase() === stone.type.trim().toLowerCase(),
     )?.stoneId ?? "";
+  const slabRate = resolveAutoSlab(
+    getStoneSlabs(settings, stoneTypeId),
+    stone.netWeight,
+    stone.pieces,
+  )?.pricePerCarat;
   return {
     id: stone.id,
     stoneTypeId,
     sourceStoneName: stone.type,
     weight: stone.netWeight,
     quantity: stone.pieces,
+    fixedRatePerCarat:
+      stone.pricePerCarat === slabRate ? undefined : stone.pricePerCarat,
   };
 }
 
@@ -42,7 +53,8 @@ export function computeEnquiryEstimate(
       estimationStoneToCalculator(stone, settings),
     ),
     {
-      makingCostOverride: estimation.makingCost ?? 0,
+      makingCostOverride: estimation.makingCost,
+      gstRateOverride: estimation.gstRate,
       metals: [
         {
           id: estimation.id,
@@ -66,15 +78,17 @@ export function computeEnquiryEstimate(
     unpricedItems.push(`${metalName} ${estimation.purity}`.trim());
   }
   for (const stone of pricing.stoneDetails) {
+    const ratePerCarat =
+      stone.fixedRatePerCarat ?? stone.slabInfo?.pricePerCarat;
     if (
       !Number.isFinite(stone.weight) ||
       stone.weight < 0 ||
       (stone.weight > 0 &&
         (!Number.isInteger(stone.quantity) ||
           stone.quantity <= 0 ||
-          !stone.slabInfo ||
-          !Number.isFinite(stone.slabInfo.pricePerCarat) ||
-          stone.slabInfo.pricePerCarat < 0))
+          ratePerCarat === undefined ||
+          !Number.isFinite(ratePerCarat) ||
+          ratePerCarat < 0))
     ) {
       unpricedItems.push(
         stone.sourceStoneName || stone.stoneType?.name || "Stone",

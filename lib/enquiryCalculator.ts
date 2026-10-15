@@ -72,7 +72,7 @@ export function buildEnquiryCalculatorForm({
           estimationStoneToCalculator(stone, settings),
         )
       : [createEnquiryCalculatorStone(settings)],
-    gstRate: settings.gstRate,
+    gstRate: estimation?.gstRate ?? settings.gstRate,
     makingCharge:
       estimation?.makingCost ??
       calculateMakingCharge(
@@ -105,15 +105,9 @@ export function enquiryCalculatorToEstimation({
   notes?: string;
 }): ProductEstimation {
   const metal = form.metals?.[0];
-  if (
-    !metal ||
-    form.metals?.length !== 1 ||
-    metal.rateOverride !== undefined ||
-    form.gstRate !== settings.gstRate ||
-    form.stones.some((stone) => stone.fixedRatePerCarat !== undefined)
-  ) {
+  if (!metal || form.metals?.length !== 1 || metal.rateOverride !== undefined) {
     throw new Error(
-      "Enquiry estimates support one metal and configured rates.",
+      "Enquiry estimates support one metal at the configured rate.",
     );
   }
   const metalType = settings.metalTypes.find(
@@ -127,6 +121,7 @@ export function enquiryCalculatorToEstimation({
     {
       metals: [metal],
       makingCostOverride: form.makingCharge,
+      gstRateOverride: form.gstRate,
     },
   );
   return {
@@ -142,8 +137,10 @@ export function enquiryCalculatorToEstimation({
         type: stone.sourceStoneName || stone.stoneType?.name || "Stone",
         netWeight: stone.weight,
         pieces: stone.quantity,
+        pricePerCarat: stone.fixedRatePerCarat ?? stone.slabInfo?.pricePerCarat,
       })),
     makingCost: form.makingCharge,
+    gstRate: form.gstRate === settings.gstRate ? undefined : form.gstRate,
     finalAmount: Math.round(pricing.total),
     createdAt: estimation?.createdAt ?? new Date().toISOString(),
     vendorName: vendorName?.trim() || undefined,

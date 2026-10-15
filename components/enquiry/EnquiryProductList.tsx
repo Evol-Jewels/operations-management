@@ -109,7 +109,7 @@ export function EnquiryProductList({
   onSaveEstimation,
 }: EnquiryProductListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeItemId, setActiveItemId] = useState<string>();
   const {
     settings,
     isLoading: isLoadingRates,
@@ -132,11 +132,11 @@ export function EnquiryProductList({
     statusFilter === "ALL"
       ? items
       : items.filter((item) => item.status === statusFilter);
-  const safeActiveIndex = Math.min(
-    activeIndex,
-    Math.max(filteredItems.length - 1, 0),
+  const activeIndex = Math.max(
+    filteredItems.findIndex((item) => item.id === activeItemId),
+    0,
   );
-  const activeItem = filteredItems[safeActiveIndex];
+  const activeItem = filteredItems[activeIndex];
 
   return (
     <div className="space-y-4">
@@ -146,7 +146,7 @@ export function EnquiryProductList({
           statusFilter={statusFilter}
           onStatusFilterChange={(nextFilter) => {
             setStatusFilter(nextFilter);
-            setActiveIndex(0);
+            setActiveItemId(undefined);
           }}
         />
       ) : null}
@@ -162,7 +162,7 @@ export function EnquiryProductList({
           itemNumber={items.findIndex((item) => item.id === activeItem.id) + 1}
           enquiryRefCode={enquiryRefCode}
           recordType={recordType}
-          activeIndex={safeActiveIndex}
+          activeIndex={activeIndex}
           totalCount={filteredItems.length}
           itemIds={filteredItems.map((filteredItem) => filteredItem.id)}
           settings={settings}
@@ -174,7 +174,7 @@ export function EnquiryProductList({
           vendorDetails={vendorDetails}
           renderDownloadActions={renderDownloadActions}
           onSaveEstimation={onSaveEstimation}
-          onSelectItem={setActiveIndex}
+          onSelectItem={(index) => setActiveItemId(filteredItems[index]?.id)}
         />
       ) : null}
     </div>

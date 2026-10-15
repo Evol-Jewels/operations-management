@@ -77,11 +77,14 @@ export function EnquiryEstimateSummary({
             imageUrls: estimate.summary.imageUrls,
             estimation: item.estimation,
           });
-          const url = queueCalculatorImport({
-            ...form,
-            diamondColor: estimate.summary.diamondColor,
-            diamondClarity: estimate.summary.diamondClarity,
-          });
+          const url = queueCalculatorImport(
+            {
+              ...form,
+              diamondColor: estimate.summary.diamondColor,
+              diamondClarity: estimate.summary.diamondClarity,
+            },
+            item.estimation?.gstRate !== undefined,
+          );
           setOpen(false);
           router.push(url);
         } catch {

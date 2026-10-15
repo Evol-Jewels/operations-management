@@ -58,6 +58,7 @@ const saved: BackendEstimationRow = {
   stones: [],
   media: [],
   makingCost: "1500.00",
+  gstRate: null,
   vendorName: null,
   notes: null,
   createdBy: null,

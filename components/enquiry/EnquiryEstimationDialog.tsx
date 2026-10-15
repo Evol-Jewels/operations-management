@@ -145,6 +145,7 @@ function EnquiryCalculatorEditor({
   const [makingOverride, setMakingOverride] = useState(
     existingEstimation?.makingCost,
   );
+  const [gstOverride, setGstOverride] = useState(existingEstimation?.gstRate);
   const [vendorName, setVendorName] = useState(
     existingEstimation?.vendorName ?? "",
   );
@@ -160,7 +161,7 @@ function EnquiryCalculatorEditor({
   const form = {
     ...draft,
     netGoldWeight: metal?.weight ?? 0,
-    gstRate: settings.gstRate,
+    gstRate: gstOverride ?? settings.gstRate,
     makingCharge,
   };
   const estimation = enquiryCalculatorToEstimation({
@@ -185,6 +186,7 @@ function EnquiryCalculatorEditor({
     form.netGoldWeight >= 0 &&
     Number.isFinite(makingCharge) &&
     makingCharge >= 0 &&
+    form.gstRate <= 1 &&
     hasWeight &&
     form.stones.every(
       (stone) =>
@@ -260,7 +262,6 @@ function EnquiryCalculatorEditor({
                   stone={stone}
                   index={index}
                   canRemove={form.stones.length > 1}
-                  allowRateEditing={false}
                   onChange={(patch) => updateStone(stone.id, patch)}
                   onRemove={() =>
                     setDraft((current) => ({
@@ -276,19 +277,34 @@ function EnquiryCalculatorEditor({
           </section>
           <Separator />
           <section className="space-y-3">
-            <SectionLabel title="Making charges" />
-            <div className="max-w-48">
-              <NumericLineInput
-                value={makingCharge}
-                onChange={setMakingOverride}
-                placeholder="0"
-                suffix="Rs."
-                step={1}
-                ariaLabel="Making charges"
-              />
+            <SectionLabel title="Charges" />
+            <div className="grid grid-cols-2 gap-4 sm:max-w-sm">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Making</Label>
+                <NumericLineInput
+                  value={makingCharge}
+                  onChange={setMakingOverride}
+                  placeholder="0"
+                  suffix="Rs."
+                  step={1}
+                  ariaLabel="Making charges"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">GST</Label>
+                <NumericLineInput
+                  value={Number((form.gstRate * 100).toFixed(2))}
+                  onChange={(value) => setGstOverride(value / 100)}
+                  placeholder="0"
+                  suffix="%"
+                  step={0.01}
+                  ariaLabel="GST percentage"
+                />
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Metal and stone rates use calculator settings.
+              Metal rate follows calculator settings. Stone rates, making and
+              GST are saved with the estimate.
             </p>
           </section>
           <Separator />
