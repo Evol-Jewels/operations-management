@@ -32,6 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useBulkOrder } from "@/hooks/useBulkOrders";
+import { useActivityLogs, useComments } from "@/hooks/useSourceActivity";
 import {
   BULK_ITEM_FLOW_STAGES,
   BULK_ITEM_STAGES,
@@ -41,19 +43,17 @@ import {
   FILLED_FROM_STAGE,
   formatBulkDate,
   formatBulkOrderRef,
-  getBulkItemImageUrls,
   getBulkItemStatus,
   getDiamondTotals,
   isFilledStage,
   isLockedBulkItemStage,
 } from "@/lib/bulkOrders";
 import { formatMetalTypeLabel } from "@/lib/metalDisplay";
-import { useBulkOrder } from "@/lib/stores/bulk-orders-store";
 import { cn, formatDaysRemaining, getUrgencyLevel } from "@/lib/utils";
 import { AmountBreakdown } from "./AmountBreakdown";
 import { BulkItemActivity } from "./BulkItemActivity";
 import { FulfilmentBadge } from "./BulkOrderBadges";
-import { BulkOrderNotFound } from "./BulkOrderDetailPage";
+import { BulkOrderLoading, BulkOrderNotFound } from "./BulkOrderDetailPage";
 import { useBulkItemMove } from "./useBulkItemMove";
 
 const FULFILMENT_HINTS: Record<BulkItemStatus, string> = {
@@ -66,7 +66,7 @@ function toDisplayItem(
   order: BulkOrder,
   item: BulkOrderItem,
 ): RequirementDisplayItem {
-  const images = getBulkItemImageUrls(item).map((url, index) => ({
+  const images = item.imageUrls.map((url, index) => ({
     id: `${item.vendorDesignNumber}-image-${index}`,
     type: "image" as const,
     name: `${item.vendorDesignNumber} ${item.category}`,
@@ -104,6 +104,40 @@ function toDisplayItem(
   };
 }
 
+// The closing/cancellation remark is saved as a comment in the same
+// transaction as the status change, so both share a timestamp.
+function BulkItemStageRemark({ item }: { item: BulkOrderItem }) {
+  const { data: comments } = useComments("ORDER", item.orderRefCode);
+  const { data: activityLogs } = useActivityLogs("ORDER", item.orderRefCode);
+  if (!isLockedBulkItemStage(item.stage)) return null;
+
+  const changedAt = activityLogs
+    ?.filter((log) => log.type === "STATUS_CHANGED")
+    .map((log) => log.createdAt)
+    .sort()
+    .at(-1);
+  const remark = comments?.find(
+    (comment) => comment.createdAt === changedAt,
+  )?.content;
+  if (!remark) return null;
+
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3.5 py-3">
+      <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+      <div>
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+          {item.stage === "Cancelled"
+            ? "Cancellation remark"
+            : "Closing remark"}
+        </p>
+        <p className="text-sm leading-5 text-amber-900 dark:text-amber-200">
+          {remark}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function BulkOrderItemPage({
   refCode,
   serialNumber,
@@ -111,11 +145,12 @@ export function BulkOrderItemPage({
   refCode: number;
   serialNumber: number;
 }) {
-  const order = useBulkOrder(refCode);
+  const { data: order, isLoading } = useBulkOrder(refCode);
   const { requestMove, dialog } = useBulkItemMove(refCode);
   const index =
     order?.items.findIndex((item) => item.serialNumber === serialNumber) ?? -1;
   const item = order?.items[index];
+  if (isLoading) return <BulkOrderLoading />;
   if (!order || !item) return <BulkOrderNotFound label="Bulk order item" />;
 
   const orderHref = `/bulk-orders/${order.refCode}`;
@@ -263,21 +298,7 @@ export function BulkOrderItemPage({
 
       <div className="grid min-w-0 items-start gap-5 @[60rem]/bulk-item:grid-cols-[minmax(0,1fr)_320px] @[60rem]/bulk-item:gap-7">
         <main className="min-w-0 space-y-5">
-          {item.stageRemark && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3.5 py-3">
-              <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-              <div>
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                  {item.stage === "Cancelled"
-                    ? "Cancellation remark"
-                    : "Closing remark"}
-                </p>
-                <p className="text-sm leading-5 text-amber-900 dark:text-amber-200">
-                  {item.stageRemark}
-                </p>
-              </div>
-            </div>
-          )}
+          <BulkItemStageRemark item={item} />
           <RequirementCard>
             <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
               <p className="text-sm font-medium uppercase tracking-wide text-foreground">
@@ -375,7 +396,7 @@ export function BulkOrderItemPage({
           </section>
         </aside>
       </div>
-      <BulkItemActivity refCode={order.refCode} item={item} />
+      <BulkItemActivity item={item} />
       <div className="h-16" />
       {dialog}
     </div>

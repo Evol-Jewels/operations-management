@@ -1,11 +1,9 @@
 import type {
-  ActivityEntry,
   EnquiryColorStone,
   EnquiryDiamond,
   PersonSummary,
   Stage,
 } from "@/types";
-import { getProductMediaProxyUrl } from "./inventory-media";
 
 export interface BulkOrderAmounts {
   metal: number;
@@ -33,14 +31,13 @@ export interface BulkOrderProduct {
 }
 
 export interface BulkOrderItem extends BulkOrderProduct {
+  orderRefCode: number;
   serialNumber: number;
   quantity: number;
-  imageMediaIds: string[];
+  imageUrls: string[];
   stage: BulkItemStage;
   estimatedDeliveryDate: string;
   remarks?: string;
-  stageRemark?: string;
-  activity: ActivityEntry[];
 }
 
 export interface BulkOrder {
@@ -55,6 +52,13 @@ export interface BulkOrder {
   createdBy: PersonSummary;
   items: BulkOrderItem[];
 }
+
+export type BulkOrderSummary = ReturnType<typeof summarizeBulkOrder>;
+
+export type BulkOrderListRow = Omit<BulkOrder, "items"> & {
+  previewImages: string[];
+  summary: BulkOrderSummary;
+};
 
 export const BULK_ITEM_STAGES = [
   "New",
@@ -139,12 +143,6 @@ export function formatBulkDate(value: string) {
 
 export function getBulkItemHref(refCode: number, serialNumber: number) {
   return `/bulk-orders/${refCode}/items/${serialNumber}`;
-}
-
-export function getBulkItemImageUrls(item: BulkOrderItem) {
-  return item.imageMediaIds
-    .map(getProductMediaProxyUrl)
-    .filter((url): url is string => Boolean(url));
 }
 
 export function getDiamondTotals(item: BulkOrderProduct) {

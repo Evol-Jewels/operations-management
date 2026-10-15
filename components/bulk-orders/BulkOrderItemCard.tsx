@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, MessageSquare } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ComponentProps } from "react";
 import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
@@ -35,9 +35,6 @@ export function BulkOrderItemCard({
   const router = useRouter();
   const urgency = getBulkItemUrgency(item);
   const status = getBulkItemStatus(item);
-  const comments = item.activity.filter(
-    (entry) => entry.type === "comment",
-  ).length;
 
   return (
     <WorkspaceCard
@@ -65,11 +62,6 @@ export function BulkOrderItemCard({
           </div>
           {showStage && <StageBadge stage={item.stage} />}
         </div>
-        {item.stageRemark && (
-          <p className="line-clamp-2 rounded-md bg-muted/60 px-2 py-1.5 text-[11px] leading-4 text-muted-foreground">
-            {item.stageRemark}
-          </p>
-        )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-medium tabular-nums text-foreground">
             {item.quantity} pcs
@@ -90,24 +82,13 @@ export function BulkOrderItemCard({
             )}
             {formatBulkDate(item.estimatedDeliveryDate)}
           </span>
-          <span className="flex items-center gap-2">
-            {comments > 0 && (
-              <span
-                className="inline-flex items-center gap-1"
-                title={`${comments} comment${comments === 1 ? "" : "s"}`}
-              >
-                <MessageSquare className="size-3" aria-hidden="true" />
-                {comments}
-              </span>
+          <span
+            className={cn(
+              "font-medium tabular-nums text-foreground",
+              status === "Cancelled" && "line-through",
             )}
-            <span
-              className={cn(
-                "font-medium tabular-nums text-foreground",
-                status === "Cancelled" && "line-through",
-              )}
-            >
-              {formatCurrency(item.amounts.quoted)}
-            </span>
+          >
+            {formatCurrency(item.amounts.quoted)}
           </span>
         </div>
       </div>

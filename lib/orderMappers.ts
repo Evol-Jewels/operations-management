@@ -70,7 +70,7 @@ export function mapBackendOrderStatusToStage(
   return ORDER_STATUS_TO_STAGE[status];
 }
 
-function mapProductDetailsCategory(
+export function mapProductDetailsCategory(
   category?: string | null,
 ): JewelleryCategory {
   const map: Record<string, JewelleryCategory> = {

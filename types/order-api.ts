@@ -206,6 +206,7 @@ export interface UpdateOrderInput {
 
 export interface UpdateOrderStatusInput {
   status: BackendOrderStatus;
+  remark?: string;
   vendor?: string | null;
   vendorId?: string | null;
   vendorDeliveryDate?: string | null;
