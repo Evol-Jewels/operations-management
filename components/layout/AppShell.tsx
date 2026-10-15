@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
+import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { MobileGoldRateAction } from "@/components/layout/MobileGoldRateAction";
 import {
@@ -21,6 +22,8 @@ function Loading() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const showSidebar = pathname !== "/login";
+  // The assistant page manages its own full-height layout.
+  const fullBleed = pathname === "/assistant";
 
   if (!showSidebar) {
     return (
@@ -40,10 +43,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="h-svh overflow-x-clip overflow-y-auto"
       >
         <SidebarTrigger className="fixed top-4 left-4 z-40 rounded-full border border-border/70 bg-background/90 shadow-sm backdrop-blur md:hidden print-hide" />
-        <MobileGoldRateAction />
-        <div className="mx-auto min-h-full w-full max-w-400 px-4 pt-16 pb-5 sm:p-6">
+        {fullBleed ? (
           <Suspense fallback={<Loading />}>{children}</Suspense>
-        </div>
+        ) : (
+          <>
+            <MobileGoldRateAction />
+            <div className="mx-auto min-h-full w-full max-w-400 px-4 pt-16 pb-5 sm:p-6">
+              <Suspense fallback={<Loading />}>{children}</Suspense>
+            </div>
+            <Suspense fallback={null}>
+              <AssistantLauncher />
+            </Suspense>
+          </>
+        )}
       </SidebarInset>
     </SidebarProvider>
   );
