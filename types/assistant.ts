@@ -182,7 +182,11 @@ export type AssistantToolPart = {
   interaction?: AssistantInteraction;
 };
 
-export type AssistantPart = { type: "text"; text: string } | AssistantToolPart;
+export type AssistantPart =
+  | { type: "text"; text: string }
+  /** A reply that failed or was stopped before it finished. */
+  | { type: "notice"; tone: "info" | "error"; text: string }
+  | AssistantToolPart;
 
 export type AssistantMessage =
   | {

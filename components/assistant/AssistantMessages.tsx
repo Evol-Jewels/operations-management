@@ -257,6 +257,20 @@ export function AssistantMessageView({
         part.type === "text" ? (
           // biome-ignore lint/suspicious/noArrayIndexKey: parts are append-only within a message
           <MarkdownText key={`t${index}`} text={part.text} />
+        ) : part.type === "notice" ? (
+          <p
+            // biome-ignore lint/suspicious/noArrayIndexKey: parts are append-only within a message
+            key={`n${index}`}
+            className={cn(
+              "flex items-center gap-1.5 text-xs",
+              part.tone === "error"
+                ? "text-destructive"
+                : "text-muted-foreground",
+            )}
+          >
+            <CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
+            {part.text}
+          </p>
         ) : (
           <ToolPart
             key={part.id}
