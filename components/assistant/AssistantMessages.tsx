@@ -5,6 +5,8 @@ import {
   ChevronRight,
   CircleAlert,
   FileAudio,
+  FileSpreadsheet,
+  FileText,
   FileVideo,
   LoaderCircle,
   MapPinned,
@@ -62,7 +64,14 @@ function AttachmentPreview({ file }: { file: AssistantAttachment }) {
         />
       </a>
     );
-  const Icon = file.type === "VIDEO" ? FileVideo : FileAudio;
+  const Icon =
+    file.type === "DOCUMENT"
+      ? /\.xls/i.test(file.name ?? "")
+        ? FileSpreadsheet
+        : FileText
+      : file.type === "VIDEO"
+        ? FileVideo
+        : FileAudio;
   return (
     <a
       href={file.url}
