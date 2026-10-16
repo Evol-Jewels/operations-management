@@ -133,7 +133,11 @@ export type AssistantConfirmation = {
   title: string;
   description?: string | null;
   fields: AssistantField[];
-  groups?: { title: string; fields: AssistantField[] }[];
+  groups?: {
+    title: string;
+    fields: AssistantField[];
+    image?: string | null;
+  }[];
   tone?: "default" | "danger";
   confirmLabel?: string;
 };
@@ -159,7 +163,9 @@ export type AssistantInteraction =
     };
 
 export type AssistantAttachment = {
-  type: "IMAGE" | "VIDEO" | "AUDIO";
+  type: "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT";
+  /** Set for PDF/Excel files read by the assistant. */
+  documentId?: string;
   url: string;
   name?: string;
   mimeType?: string;

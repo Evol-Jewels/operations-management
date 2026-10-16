@@ -3,6 +3,8 @@
 import {
   ArrowUp,
   FileAudio,
+  FileSpreadsheet,
+  FileText,
   FileVideo,
   LoaderCircle,
   MapPinned,
@@ -13,14 +15,18 @@ import {
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { uploadAssistantAttachment } from "@/lib/assistantApi";
+import {
+  DOCUMENT_ACCEPT,
+  isDocumentFile,
+  uploadAssistantAttachment,
+} from "@/lib/assistantApi";
 import { cn } from "@/lib/utils";
 import type { AssistantAttachment } from "@/types/assistant";
 
 type Upload = {
   key: string;
   name: string;
-  kind: "IMAGE" | "VIDEO" | "AUDIO";
+  kind: "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT";
   preview?: string;
   attachment?: AssistantAttachment;
   failed?: boolean;
@@ -34,6 +40,7 @@ export type ComposerHandle = {
 const MAX_FILES = 8;
 
 function kindOf(file: File): Upload["kind"] | null {
+  if (isDocumentFile(file)) return "DOCUMENT";
   if (file.type.startsWith("image/")) return "IMAGE";
   if (file.type.startsWith("video/")) return "VIDEO";
   if (file.type.startsWith("audio/")) return "AUDIO";
@@ -172,7 +179,10 @@ export const AssistantComposer = forwardRef<
             <div
               key={upload.key}
               className={cn(
-                "group relative flex size-14 items-center justify-center overflow-hidden rounded-lg border bg-muted",
+                "group relative flex h-14 items-center justify-center overflow-hidden rounded-lg border bg-muted",
+                upload.kind === "DOCUMENT"
+                  ? "w-48 justify-start gap-2 px-3 pr-7"
+                  : "w-14",
                 upload.failed && "border-destructive/50",
               )}
               title={upload.name}
@@ -184,6 +194,26 @@ export const AssistantComposer = forwardRef<
                   alt={upload.name}
                   className="size-full object-cover"
                 />
+              ) : upload.kind === "DOCUMENT" ? (
+                <>
+                  {/\.xls/i.test(upload.name) ? (
+                    <FileSpreadsheet className="size-5 shrink-0 text-emerald-600" />
+                  ) : (
+                    <FileText className="size-5 shrink-0 text-red-600" />
+                  )}
+                  <span className="min-w-0 text-left text-xs">
+                    <span className="block truncate font-medium">
+                      {upload.name}
+                    </span>
+                    <span className="block text-muted-foreground">
+                      {upload.failed
+                        ? "Upload failed"
+                        : upload.attachment
+                          ? "Ready"
+                          : "Uploading…"}
+                    </span>
+                  </span>
+                </>
               ) : upload.kind === "VIDEO" ? (
                 <FileVideo className="size-5 text-muted-foreground" />
               ) : (
@@ -246,7 +276,7 @@ export const AssistantComposer = forwardRef<
           ref={picker}
           type="file"
           multiple
-          accept="image/*,video/*,audio/*"
+          accept={`image/*,video/*,audio/*,${DOCUMENT_ACCEPT}`}
           className="hidden"
           onChange={(event) => {
             addFiles([...(event.target.files ?? [])]);
