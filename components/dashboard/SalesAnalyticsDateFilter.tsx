@@ -15,14 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { SalesAnalyticsView } from "@/lib/salesAnalytics";
 import { cn } from "@/lib/utils";
 import type { StockSalesAnalyticsRange } from "@/types/stock-sales-api";
-
-export type SalesAnalyticsView =
-  | StockSalesAnalyticsRange
-  | "month"
-  | "year"
-  | "allTime";
 
 interface SalesAnalyticsDateFilterProps {
   label: string;

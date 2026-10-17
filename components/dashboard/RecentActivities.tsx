@@ -259,7 +259,7 @@ export function RecentActivities({ className }: RecentActivitiesProps) {
           className,
         )}
       >
-        <div className="border-b border-border/70 px-4 py-3 pr-14">
+        <div className="border-b border-border/70 px-4 py-3">
           <h2 className="text-sm font-semibold text-foreground">
             Recent activity
           </h2>
@@ -288,7 +288,7 @@ export function RecentActivities({ className }: RecentActivitiesProps) {
           className,
         )}
       >
-        <div className="border-b border-border/70 px-4 py-3 pr-14">
+        <div className="border-b border-border/70 px-4 py-3">
           <h2 className="text-sm font-semibold text-foreground">
             Recent activity
           </h2>
@@ -329,7 +329,7 @@ export function RecentActivities({ className }: RecentActivitiesProps) {
         className,
       )}
     >
-      <div className="border-b border-border/70 px-4 py-3 pr-14">
+      <div className="border-b border-border/70 px-4 py-3">
         <h2 className="text-sm font-semibold text-foreground">
           Recent activity
         </h2>
