@@ -32,6 +32,7 @@ import {
   isLockedBulkItemStage,
 } from "@/lib/bulkOrders";
 import { cn } from "@/lib/utils";
+import { KanbanColumnHeader } from "@/components/dashboard/KanbanColumnHeader";
 import { BulkOrderItemCard } from "./BulkOrderItemCard";
 
 const stageCollisionDetection: CollisionDetection = (args) => {
@@ -107,48 +108,33 @@ function StageColumn({
     <section
       ref={setNodeRef}
       className={cn(
-        "flex max-h-[70vh] min-h-72 w-60 shrink-0 snap-start flex-col rounded-xl border transition-colors duration-200",
+        "flex max-h-[75vh] min-h-72 w-[264px] shrink-0 snap-start flex-col rounded-xl border transition-colors duration-200",
         isOver
           ? "border-foreground/40 bg-foreground/5 shadow-lg"
           : "border-border bg-card/50",
       )}
     >
-      <div
-        className={cn(
-          "flex items-center justify-between gap-2 rounded-t-xl border-b px-3 py-2.5",
-          isLockedBulkItemStage(stage)
-            ? "bg-muted/30 dark:bg-muted/20"
-            : "bg-muted/40",
-        )}
-      >
-        <h3 className="flex min-w-0 items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-foreground">
-          <span className="truncate">{stage}</span>
-          {isFilledStage(stage) && (
+      <KanbanColumnHeader
+        status={stage}
+        label={stage}
+        count={items.length}
+        icon={
+          isFilledStage(stage) && (
             <CircleCheck
               className="size-3.5 shrink-0 text-emerald-500"
               aria-label="Items here count as filled"
             >
               <title>Items here count as filled</title>
             </CircleCheck>
-          )}
-        </h3>
-        <span className="flex shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground">
-          {pieces !== items.length && (
+          )
+        }
+        meta={
+          pieces !== items.length && (
             <span className="tabular-nums">{pieces} pcs</span>
-          )}
-          <span
-            className={cn(
-              "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 font-medium",
-              items.length
-                ? "bg-foreground text-background"
-                : "bg-muted text-muted-foreground",
-            )}
-          >
-            {items.length}
-          </span>
-        </span>
-      </div>
-      <div className="flex-1 space-y-2 overflow-y-auto p-2">
+          )
+        }
+      />
+      <div className="flex-1 space-y-2.5 overflow-y-auto p-2">
         <SortableContext
           items={items.map((item) => item.serialNumber)}
           strategy={verticalListSortingStrategy}

@@ -63,7 +63,6 @@ function ItemsTable({
             key={item.serialNumber}
             refCode={refCode}
             item={item}
-            showStage
           />
         ))}
       </div>

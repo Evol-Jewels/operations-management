@@ -1,3 +1,4 @@
+import { getPreviewImageUrls } from "@/lib/inventory-media";
 import { normalizeMetalType } from "@/lib/metalDisplay";
 import { normalizePerson } from "@/lib/people";
 import type {
@@ -245,6 +246,11 @@ function baseOrderFromBackend(
     lastUpdatedAt: enquiry.updatedAt,
     activityFeed: [],
     enquiryStatus: enquiry.status,
+    ...("itemCount" in enquiry && {
+      itemCount: enquiry.itemCount,
+      itemCategories: enquiry.categories,
+      previewImages: getPreviewImageUrls(enquiry.previewImages),
+    }),
   };
 }
 

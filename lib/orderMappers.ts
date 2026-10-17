@@ -1,4 +1,5 @@
 import { mergeActivityFeed } from "@/lib/enquiryMappers";
+import { getPreviewImageUrls } from "@/lib/inventory-media";
 import { normalizeMetalType } from "@/lib/metalDisplay";
 import { normalizePerson } from "@/lib/people";
 import type {
@@ -258,6 +259,7 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
       createdAt: order.createdAt,
       lastUpdatedAt: order.updatedAt,
       orderStatus: order.status,
+      previewImages: getPreviewImageUrls(order.previewImages),
       activityFeed: [],
       sourceEnquiryId:
         order.sourceEnquiry !== null && order.sourceEnquiry !== undefined
@@ -303,6 +305,7 @@ function baseOrderFromBackend(order: BackendOrderRow): Order {
     createdAt: order.createdAt,
     lastUpdatedAt: order.updatedAt,
     orderStatus: order.status,
+    previewImages: getPreviewImageUrls(order.previewImages),
     activityFeed: [],
     sourceEnquiryId:
       order.sourceEnquiry !== null && order.sourceEnquiry !== undefined

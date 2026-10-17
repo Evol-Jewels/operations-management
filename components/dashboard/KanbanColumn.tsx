@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import type { Order } from "@/types";
 import type { KanbanColumnConfig } from "./KanbanBoard";
 import { KanbanCard } from "./KanbanCard";
+import { KanbanColumnHeader } from "./KanbanColumnHeader";
 
 interface KanbanColumnProps {
   column: KanbanColumnConfig;
@@ -18,14 +19,6 @@ interface KanbanColumnProps {
   emptyLabel?: string;
   cardActionLabel?: string;
 }
-
-const COLUMN_COLORS: Record<string, string> = {
-  Enquiry: "bg-muted/30 dark:bg-muted/20",
-  Estimation: "bg-amber-500/5 dark:bg-amber-500/10",
-  "Order Confirmed": "bg-emerald-500/5 dark:bg-emerald-500/10",
-  Closed: "bg-muted/30 dark:bg-muted/20",
-  Cancelled: "bg-muted/30 dark:bg-muted/20",
-};
 
 export function KanbanColumn({
   column,
@@ -42,44 +35,24 @@ export function KanbanColumn({
     },
   });
 
-  const colorClass = COLUMN_COLORS[column.id] ?? "bg-muted/40";
-
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "flex min-h-80 w-[240px] flex-shrink-0 flex-col snap-center rounded-xl border transition-all duration-200",
+        "flex min-h-80 w-[264px] flex-shrink-0 flex-col snap-center rounded-xl border transition-all duration-200",
         isOver
           ? "border-foreground/40 bg-foreground/5 shadow-lg"
           : "border-border bg-card/50",
       )}
     >
-      {/* Column header */}
-      <div
-        className={cn(
-          "sticky top-0 z-10 rounded-t-xl border-b px-3 py-2.5",
-          colorClass,
-        )}
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground">
-            {column.shortLabel ?? column.label}
-          </h3>
-          <span
-            className={cn(
-              "flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-medium",
-              orders.length > 0
-                ? "bg-foreground text-background"
-                : "bg-muted text-muted-foreground",
-            )}
-          >
-            {orders.length}
-          </span>
-        </div>
-      </div>
+      <KanbanColumnHeader
+        status={column.id}
+        label={column.shortLabel ?? column.label}
+        count={orders.length}
+      />
 
       {/* Cards container */}
-      <div className="flex-1 space-y-2 overflow-y-auto p-2">
+      <div className="flex-1 space-y-2.5 overflow-y-auto p-2">
         <SortableContext
           items={orders.map((o) => o.id)}
           strategy={verticalListSortingStrategy}

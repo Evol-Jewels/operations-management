@@ -1,4 +1,5 @@
 import type { InventoryMedia, InventoryProduct } from "@/types/inventory-api";
+import type { BackendPreviewImage } from "@/types/order-api";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
 const productMediaProxyUrl = apiBaseUrl
@@ -33,4 +34,10 @@ export function getInventoryMediaUrls(product: InventoryProduct) {
 
 export function getInventoryImages(product: InventoryProduct) {
   return product.media.filter((item) => item.mediaType === "IMAGE");
+}
+
+export function getPreviewImageUrls(images: BackendPreviewImage[] = []) {
+  return images.map(({ mediaId, url }) =>
+    mediaId ? getInventoryMediaUrl({ id: mediaId, storageKey: url }) : url,
+  );
 }
