@@ -39,7 +39,7 @@ export function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex min-h-80 w-[264px] flex-shrink-0 flex-col snap-center rounded-xl border transition-all duration-200",
+        "flex min-h-0 w-[264px] flex-shrink-0 flex-col snap-center rounded-xl border transition-all duration-200",
         isOver
           ? "border-foreground/40 bg-foreground/5 shadow-lg"
           : "border-border bg-card/50",
@@ -51,8 +51,12 @@ export function KanbanColumn({
         count={orders.length}
       />
 
-      {/* Cards container */}
-      <div className="flex-1 space-y-2.5 overflow-y-auto p-2">
+      <section
+        aria-label={`${column.label} records`}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: Scrollable stage lists need keyboard access.
+        tabIndex={0}
+        className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-y-contain p-2 scrollbar-thin focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
         <SortableContext
           items={orders.map((o) => o.id)}
           strategy={verticalListSortingStrategy}
@@ -79,7 +83,7 @@ export function KanbanColumn({
           )}
         </SortableContext>
         {column.footer}
-      </div>
+      </section>
     </div>
   );
 }
