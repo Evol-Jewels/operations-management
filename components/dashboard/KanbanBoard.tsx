@@ -158,11 +158,11 @@ export function KanbanBoard({
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveOrder(null)}
     >
-      <div className="relative">
+      <div className="relative flex h-full min-h-0 flex-col">
         {/* Kanban board container */}
         <div
           className={cn(
-            "flex gap-3 overflow-x-auto overflow-y-hidden pb-4 pt-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent",
+            "flex min-h-0 flex-1 gap-3 overflow-x-auto overflow-y-hidden pb-4 pt-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent",
             activeOrder
               ? "snap-none scroll-auto"
               : "snap-x snap-mandatory scroll-smooth",
@@ -181,7 +181,7 @@ export function KanbanBoard({
         </div>
 
         {/* Mobile scroll hint */}
-        <p className="mt-1 text-center text-[11px] text-muted-foreground/50 sm:hidden">
+        <p className="mt-1 shrink-0 text-center text-[11px] text-muted-foreground/50 sm:hidden">
           Swipe to see all stages →
         </p>
 

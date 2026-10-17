@@ -19,7 +19,7 @@ export function KanbanColumnHeader({
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-2 rounded-t-xl border-b px-3 py-2.5",
+        "flex shrink-0 items-center justify-between gap-2 rounded-t-xl border-b px-3 py-2.5",
         getStatusTone(status).surface,
       )}
     >
