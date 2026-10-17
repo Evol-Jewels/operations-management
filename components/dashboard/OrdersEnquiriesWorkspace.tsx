@@ -1264,7 +1264,13 @@ export function OrdersEnquiriesWorkspace() {
         : shownRecordCount;
 
   return (
-    <div className="space-y-4">
+    <div
+      className={cn(
+        isKanbanMode && (typeTab === "order" || typeTab === "enquiry")
+          ? "flex h-[calc(100svh-5.25rem)] min-h-[36rem] flex-col gap-4 sm:h-[calc(100svh-3rem)] [&>*]:shrink-0"
+          : "space-y-4",
+      )}
+    >
       <div className="flex flex-col gap-2 text-left sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center justify-between gap-3">
@@ -1619,7 +1625,7 @@ export function OrdersEnquiriesWorkspace() {
           </div>
         </>
       ) : (
-        <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+        <section className="min-h-0 flex-1 rounded-xl border border-border bg-card p-4 shadow-sm">
           <KanbanBoard
             orders={kanbanRecords}
             columns={kanbanColumns}
