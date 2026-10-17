@@ -17,6 +17,7 @@ import {
   Plus,
   ShieldUser,
   ShoppingBag,
+  Sparkles,
   SunMedium,
   Warehouse,
 } from "lucide-react";
@@ -57,6 +58,12 @@ const navItems = [
     icon: House,
     label: "Home",
     href: "/",
+    roles: ["ADMIN", "OPERATIONS", "SALES"],
+  },
+  {
+    icon: Sparkles,
+    label: "Assistant",
+    href: "/assistant",
     roles: ["ADMIN", "OPERATIONS", "SALES"],
   },
   {
