@@ -39,6 +39,30 @@ export function getMetalPurities(metalType: string): readonly string[] {
   return GOLD_PURITIES;
 }
 
+export function getMetalPurityError(
+  metalType: string,
+  purity: string,
+): string | undefined {
+  if (
+    !purity.trim() ||
+    !METAL_TYPES.some(
+      (metal) => metal.toLowerCase() === metalType.trim().toLowerCase(),
+    )
+  )
+    return undefined;
+  const metal =
+    METAL_TYPES.find(
+      (value) => value.toLowerCase() === metalType.trim().toLowerCase(),
+    ) ?? metalType;
+  const normalized = purity.trim().toUpperCase().replace(/\s+/g, "");
+  const canonical =
+    metal === "Gold" ? normalized.replace(/K(?:T)?$/, "KT") : normalized;
+  const allowed = getMetalPurities(metal);
+  return allowed.includes(canonical)
+    ? undefined
+    : `${metal} purity must be ${allowed.join(", ")}.`;
+}
+
 export function getMetalColours(metalType: string): readonly string[] {
   if (metalType === "Silver" || metalType === "Platinum") return ["White"];
   return METAL_COLOURS;
@@ -92,11 +116,7 @@ export const DIAMOND_COLOURS = [
   "J",
 ] as const;
 
-export const COLOR_STONE_TYPES = [
-  "Ruby",
-  "Emerald",
-  "Sapphire",
-] as const;
+export const COLOR_STONE_TYPES = ["Ruby", "Emerald", "Sapphire"] as const;
 
 export const COLOR_STONE_NATURES = [
   "Natural",

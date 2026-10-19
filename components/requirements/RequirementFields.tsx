@@ -83,6 +83,7 @@ export function OptionTextField({
   placeholder = "Select or type",
   required,
   visualKind,
+  error,
 }: {
   label: string;
   value?: string;
@@ -91,6 +92,7 @@ export function OptionTextField({
   placeholder?: string;
   required?: boolean;
   visualKind?: JewelryVisualKind;
+  error?: string;
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -142,7 +144,7 @@ export function OptionTextField({
   };
 
   return (
-    <FormField label={label} htmlFor={id} required={required}>
+    <FormField label={label} htmlFor={id} required={required} error={error}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverAnchor asChild>
           <div className="relative">
