@@ -11,6 +11,7 @@ import {
   CERTIFICATIONS,
   getMetalColours,
   getMetalPurities,
+  getMetalPurityError,
   METAL_TYPES,
   POLISH_OPTIONS,
 } from "./requirement-options";
@@ -82,6 +83,7 @@ export function MetalDetailsSection({
           label="Metal KT / purity"
           value={value.metalPurity}
           options={metalPurities}
+          error={getMetalPurityError(value.metalType, value.metalPurity)}
           onChange={(metalPurity) => onChange({ ...value, metalPurity })}
         />
         <OptionTextField

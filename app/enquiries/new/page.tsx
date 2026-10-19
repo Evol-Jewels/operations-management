@@ -33,6 +33,7 @@ import {
   mediaFromReference,
   revokeReferenceUrls,
 } from "@/components/requirements/requirement-form-utils";
+import { getMetalPurityError } from "@/components/requirements/requirement-options";
 import { Button } from "@/components/ui/button";
 import { validatePhone } from "@/components/ui/phone-input";
 import { useCreateEnquiry } from "@/hooks/useEnquiries";
@@ -202,6 +203,8 @@ function EnquiryCreateForm() {
     if (!value.category.trim())
       nextErrors.requirement = "Select a product category";
     if (!value.metalType.trim()) nextErrors.requirement = "Select a metal type";
+    const purityError = getMetalPurityError(value.metalType, value.metalPurity);
+    if (purityError) nextErrors.requirement = purityError;
     if (value.colorStones.some(hasColorStoneDetailsWithoutType)) {
       nextErrors.requirement = "Select a color stone type";
     }
@@ -336,6 +339,9 @@ function EnquiryCreateForm() {
     const nextErrors: Record<string, string> = {};
     if (requirements.length === 0) {
       nextErrors.requirement = "Add at least one custom requirement";
+    }
+    for (const requirement of requirements) {
+      Object.assign(nextErrors, validateRequirement(requirement));
     }
     if (hasRequirementContent(requirementDraft)) {
       nextErrors.requirement = editingRequirementId

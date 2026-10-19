@@ -29,6 +29,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  clearInvalidDependentAnswers,
+  enquiryMetalQuestions,
+  resolveAssistantQuestions,
+} from "@/lib/assistantFormQuestions";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   AssistantAnswer,
@@ -411,20 +416,25 @@ export function QuestionForm({
   submitting: boolean;
   onSubmit: (answers: Record<string, AssistantAnswer>) => void;
 }) {
+  const questions = enquiryMetalQuestions(interaction.questions);
   const [values, setValues] = useState<Record<string, Value>>(() =>
-    Object.fromEntries(
-      interaction.questions.map((question) => [
-        question.id,
-        initialValue(question),
-      ]),
+    clearInvalidDependentAnswers(
+      questions,
+      Object.fromEntries(
+        questions.map((question) => [question.id, initialValue(question)]),
+      ),
     ),
+  );
+  const resolvedQuestions = resolveAssistantQuestions(
+    questions,
+    interaction.status === "answered" ? (interaction.answers ?? {}) : values,
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const quickReply =
-    interaction.questions.length === 1 &&
-    interaction.questions[0].type === "choice" &&
-    !interaction.questions[0].allowOther &&
-    (interaction.questions[0].options?.length ?? 0) <= 6;
+    resolvedQuestions.length === 1 &&
+    resolvedQuestions[0].type === "choice" &&
+    !resolvedQuestions[0].allowOther &&
+    (resolvedQuestions[0].options?.length ?? 0) <= 6;
 
   if (interaction.status !== "pending" || !actionable) {
     const answered = interaction.status === "answered";
@@ -447,7 +457,7 @@ export function QuestionForm({
         </div>
         {answered && interaction.answers && (
           <dl className="mt-2 grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
-            {interaction.questions.map((question) => (
+            {resolvedQuestions.map((question) => (
               <div key={question.id} className="min-w-0">
                 <dt className="text-[11px] text-muted-foreground">
                   {question.label}
@@ -469,10 +479,17 @@ export function QuestionForm({
   const submit = (override?: Record<string, Value>) => {
     const current = override ?? values;
     const nextErrors: Record<string, string> = {};
-    for (const question of interaction.questions) {
+    for (const question of resolveAssistantQuestions(questions, current)) {
       const value = current[question.id];
       if (question.required && isEmpty(value))
         nextErrors[question.id] = "Required";
+      else if (
+        question.type === "choice" &&
+        !isEmpty(value) &&
+        !question.allowOther &&
+        !question.options?.some((option) => option.value === value)
+      )
+        nextErrors[question.id] = "Choose a valid option";
       else if (
         (question.type === "number" || question.type === "currency") &&
         !isEmpty(value) &&
@@ -488,11 +505,11 @@ export function QuestionForm({
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    onSubmit(toAnswers(interaction.questions, current));
+    onSubmit(toAnswers(resolveAssistantQuestions(questions, current), current));
   };
 
   if (quickReply) {
-    const question = interaction.questions[0];
+    const question = resolvedQuestions[0];
     return (
       <div className="space-y-2">
         <p className="text-sm font-medium">
@@ -542,7 +559,7 @@ export function QuestionForm({
         )}
       </div>
       <div className="grid gap-4 px-4 py-4 sm:grid-cols-2">
-        {interaction.questions.map((question) => {
+        {resolvedQuestions.map((question) => {
           const id = `${toolCallId}-${question.id}`;
           const wide =
             question.type === "textarea" ||
@@ -557,7 +574,7 @@ export function QuestionForm({
                 htmlFor={id}
                 className="flex items-baseline gap-1.5 text-sm font-medium"
               >
-                {question.label}
+                {question.label.replace(/\s*\(optional\)$/i, "")}
                 {!question.required && (
                   <span className="text-xs font-normal text-muted-foreground">
                     optional
@@ -565,15 +582,21 @@ export function QuestionForm({
                 )}
               </label>
               <QuestionInput
+                key={`${id}:${question.optionsFrom ? String(values[question.optionsFrom.questionId] ?? "") : ""}`}
                 id={id}
                 question={question}
                 value={values[question.id] ?? ""}
-                disabled={submitting}
+                disabled={
+                  submitting ||
+                  Boolean(question.optionsFrom && !question.options?.length)
+                }
                 onChange={(value) => {
-                  setValues((current) => ({
-                    ...current,
-                    [question.id]: value,
-                  }));
+                  setValues((current) =>
+                    clearInvalidDependentAnswers(questions, {
+                      ...current,
+                      [question.id]: value,
+                    }),
+                  );
                   if (errors[question.id])
                     setErrors(({ [question.id]: _removed, ...rest }) => rest);
                 }}

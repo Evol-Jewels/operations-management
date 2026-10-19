@@ -113,6 +113,13 @@ export type AssistantQuestion = {
   type: AssistantQuestionType;
   required: boolean;
   options?: { value: string; label: string; description?: string }[];
+  optionsFrom?: {
+    questionId: string;
+    optionsByValue: Record<
+      string,
+      { value: string; label: string; description?: string }[]
+    >;
+  };
   allowOther?: boolean;
   placeholder?: string;
   help?: string;
