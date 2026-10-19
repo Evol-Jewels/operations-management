@@ -1,19 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  BarChart3,
-  CalendarClock,
-  Gem,
-  LoaderCircle,
-  type LucideIcon,
-  PackageCheck,
-  PencilRuler,
-  RotateCcw,
-  Sparkles,
-  UserPlus,
-  Wrench,
-} from "lucide-react";
+import { ArrowUpRight, LoaderCircle, RotateCcw } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { fetchAssistantCapabilities } from "@/lib/assistantApi";
@@ -21,65 +9,31 @@ import { cn } from "@/lib/utils";
 import type { AssistantMessage, AssistantPageContext } from "@/types/assistant";
 import { AssistantComposer, type ComposerHandle } from "./AssistantComposer";
 import { AssistantMessageView } from "./AssistantMessages";
+import { EvolE } from "./EvolE";
 import { type AssistantChat, assistantKeys } from "./useAssistantChat";
 
-type Suggestion = {
-  icon: LucideIcon;
-  title: string;
-  prompt: string;
-  tool: string;
-};
-
 // Ordered by usefulness; only those the user's role can run are shown.
-const SUGGESTIONS: Suggestion[] = [
+const SUGGESTIONS = [
+  { prompt: "I want to create a new enquiry", tool: "create_enquiry" },
   {
-    icon: PencilRuler,
-    title: "Create an enquiry",
-    prompt: "I want to create a new enquiry",
-    tool: "create_enquiry",
-  },
-  {
-    icon: CalendarClock,
-    title: "What's overdue?",
-    prompt: "Which orders are overdue, and which are due in the next 7 days?",
+    prompt: "Which orders are overdue, and which are due this week?",
     tool: "search_orders",
   },
+  { prompt: "I need to update an order's status", tool: "update_order_status" },
   {
-    icon: PackageCheck,
-    title: "Move an order forward",
-    prompt: "I need to update an order's status",
-    tool: "update_order_status",
-  },
-  {
-    icon: Gem,
-    title: "Find stock",
     prompt: "Show available 18K rings under ₹60,000",
     tool: "search_inventory",
   },
   {
-    icon: BarChart3,
-    title: "How are sales this month?",
     prompt: "How are sales this month? Who is leading?",
     tool: "get_sales_analytics",
   },
   {
-    icon: BarChart3,
-    title: "How am I doing?",
     prompt: "How am I doing against my target this month?",
     tool: "get_sales_performance",
   },
-  {
-    icon: Wrench,
-    title: "Log a repair",
-    prompt: "I need to log a repair for a customer",
-    tool: "create_repair",
-  },
-  {
-    icon: UserPlus,
-    title: "Invite a teammate",
-    prompt: "Invite a new team member",
-    tool: "invite_team_member",
-  },
+  { prompt: "I need to log a repair for a customer", tool: "create_repair" },
+  { prompt: "Invite a new team member", tool: "invite_team_member" },
 ];
 
 function EmptyState({
@@ -95,50 +49,42 @@ function EmptyState({
   const picks = SUGGESTIONS.filter(
     (item) =>
       tools.has(item.tool) && !(item.tool === "get_sales_performance" && role),
-  ).slice(0, compact ? 4 : 6);
+  ).slice(0, compact ? 4 : 5);
   return (
-    <div className="flex min-h-full flex-col items-center justify-center px-4 py-10 text-center">
-      <div className="mb-4 flex size-12 items-center justify-center rounded-2xl border bg-card shadow-xs">
-        <Sparkles className="size-5" strokeWidth={1.5} />
-      </div>
-      <h2
-        className={cn(
-          "font-semibold tracking-tight",
-          compact ? "text-lg" : "text-2xl",
-        )}
-      >
-        What should we get done?
-      </h2>
-      <p className="mt-1.5 max-w-md text-sm text-muted-foreground">
-        Look things up or take action across enquiries, orders, repairs,
-        inventory and more. I'll ask for anything I need and confirm before
-        changing data.
-      </p>
-      {picks.length > 0 && (
-        <div
-          className={cn(
-            "mt-6 grid w-full max-w-xl gap-2 text-left",
-            !compact && "sm:grid-cols-2",
-          )}
-        >
-          {picks.map((item) => (
-            <button
-              key={item.title}
-              type="button"
-              onClick={() => onPick(item.prompt)}
-              className="group flex items-start gap-3 rounded-xl border bg-card px-3.5 py-3 text-left shadow-xs transition-colors hover:border-foreground/20 hover:bg-muted/40"
-            >
-              <item.icon className="mt-0.5 size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">{item.title}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {item.prompt}
-                </span>
-              </span>
-            </button>
-          ))}
+    <div className="flex min-h-full flex-col justify-center px-5 py-10">
+      <div className="mx-auto w-full max-w-xl">
+        <div className="flex flex-col items-center text-center">
+          <EvolE size={compact ? 56 : 72} className="text-foreground" />
+          <h2
+            className={cn(
+              "mt-4 tracking-tight text-balance",
+              compact ? "text-lg" : "text-2xl",
+            )}
+          >
+            Get things done with <span className="font-semibold">Evol-E</span>
+          </h2>
+          <p className="mt-2 max-w-sm text-sm text-balance text-muted-foreground">
+            Look up or update enquiries, orders, repairs and stock. I always
+            check with you before changing anything.
+          </p>
         </div>
-      )}
+        {picks.length > 0 && (
+          <ul className={cn("space-y-0.5", compact ? "mt-6" : "mt-9")}>
+            {picks.map((item) => (
+              <li key={item.tool}>
+                <button
+                  type="button"
+                  onClick={() => onPick(item.prompt)}
+                  className="group flex w-full items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  {item.prompt}
+                  <ArrowUpRight className="size-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -237,7 +183,7 @@ export function AssistantPanel({
           <div
             className={cn(
               "mx-auto w-full space-y-6 py-6",
-              compact ? "px-4" : "max-w-3xl px-2 sm:px-4",
+              compact ? "px-4" : "max-w-2xl px-4",
             )}
           >
             {messages.map((message) => (
@@ -249,10 +195,11 @@ export function AssistantPanel({
             ))}
             {(status || chat.isRunningElsewhere) && (
               <output className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="relative flex size-2">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-foreground/40" />
-                  <span className="relative inline-flex size-2 rounded-full bg-foreground/70" />
-                </span>
+                <EvolE
+                  size={26}
+                  mood="thinking"
+                  className="-ml-1 text-foreground"
+                />
                 {status ?? "Finishing the previous request…"}
               </output>
             )}
@@ -262,22 +209,23 @@ export function AssistantPanel({
       <div
         className={cn(
           "shrink-0 space-y-2 pt-2",
-          compact ? "px-3 pb-3" : "mx-auto w-full max-w-3xl px-2 pb-1 sm:px-4",
+          compact ? "px-3 pb-3" : "mx-auto w-full max-w-2xl px-4 pb-4",
         )}
       >
         {chat.error && (
           <div
             role="alert"
-            className="flex items-center justify-between gap-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+            className="flex items-center justify-between gap-3 rounded-xl bg-destructive/10 py-1.5 pr-1.5 pl-3.5 text-xs text-destructive"
           >
             <p>{chat.error}</p>
             <Button
               variant="ghost"
-              size="icon-sm"
-              aria-label="Reload"
+              size="xs"
+              className="gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
               onClick={chat.reload}
             >
-              <RotateCcw className="size-4" />
+              <RotateCcw className="size-3" />
+              Retry
             </Button>
           </div>
         )}
@@ -290,7 +238,7 @@ export function AssistantPanel({
           placeholder={
             chat.pendingId
               ? "Answer above, or type to change course…"
-              : "Ask anything or tell me what to do…"
+              : "Ask Evol-E anything, or tell it what to do…"
           }
           onSend={(text, attachments) => {
             stick.current = true;
@@ -298,12 +246,6 @@ export function AssistantPanel({
           }}
           onStop={chat.stop}
         />
-        {!compact && (
-          <p className="text-center text-[11px] text-muted-foreground">
-            The assistant acts with your permissions and always asks before
-            changing anything.
-          </p>
-        )}
       </div>
     </div>
   );

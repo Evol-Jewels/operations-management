@@ -4,8 +4,6 @@ import {
   Check,
   ChevronRight,
   CircleAlert,
-  FileAudio,
-  FileVideo,
   LoaderCircle,
   MapPinned,
 } from "lucide-react";
@@ -16,12 +14,12 @@ import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import type {
   AssistantAnswer,
-  AssistantAttachment,
   AssistantMessage,
   AssistantToolPart,
 } from "@/types/assistant";
 import { AssistantCardView } from "./AssistantCards";
 import { ConfirmationCard, QuestionForm } from "./AssistantInteractions";
+import { MediaPreview } from "./AssistantMedia";
 
 export function MarkdownText({ text }: { text: string }) {
   return (
@@ -42,37 +40,6 @@ export function MarkdownText({ text }: { text: string }) {
         {text}
       </ReactMarkdown>
     </div>
-  );
-}
-
-function AttachmentPreview({ file }: { file: AssistantAttachment }) {
-  if (file.type === "IMAGE")
-    return (
-      <a
-        href={file.url}
-        target="_blank"
-        rel="noreferrer"
-        className="block size-20 overflow-hidden rounded-lg border bg-muted"
-      >
-        {/* biome-ignore lint/performance/noImgElement: uploaded media URL */}
-        <img
-          src={file.url}
-          alt={file.name ?? "Attachment"}
-          className="size-full object-cover"
-        />
-      </a>
-    );
-  const Icon = file.type === "VIDEO" ? FileVideo : FileAudio;
-  return (
-    <a
-      href={file.url}
-      target="_blank"
-      rel="noreferrer"
-      className="flex h-10 max-w-48 items-center gap-2 rounded-lg border bg-background px-2.5 text-xs"
-    >
-      <Icon className="size-4 shrink-0 text-muted-foreground" />
-      <span className="truncate">{file.name ?? file.type.toLowerCase()}</span>
-    </a>
   );
 }
 
@@ -215,12 +182,12 @@ export function AssistantMessageView({
         {message.attachments?.length ? (
           <div className="flex flex-wrap justify-end gap-1.5">
             {message.attachments.map((file) => (
-              <AttachmentPreview key={file.url} file={file} />
+              <MediaPreview key={file.url} file={file} />
             ))}
           </div>
         ) : null}
         {message.text && (
-          <div className="max-w-[85%] rounded-2xl rounded-br-md bg-foreground px-4 py-2.5 text-background">
+          <div className="max-w-[85%] rounded-3xl rounded-br-lg bg-muted px-4 py-2.5 text-foreground">
             <span className="sr-only">You: </span>
             <p className="text-sm leading-6 break-words whitespace-pre-wrap">
               {message.text}

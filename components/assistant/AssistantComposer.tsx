@@ -154,20 +154,19 @@ export const AssistantComposer = forwardRef<
         event.preventDefault();
         addFiles([...event.dataTransfer.files]);
       }}
-      className={cn(
-        "rounded-2xl border bg-card shadow-sm transition-shadow focus-within:border-foreground/25 focus-within:shadow-md",
-        compact ? "p-2" : "p-2.5",
-      )}
+      className="rounded-3xl border bg-card p-2 shadow-xs transition-colors focus-within:border-foreground/25"
     >
       {contextLabel && (
-        <p className="mb-1.5 flex items-center gap-1.5 px-1.5 pt-0.5 text-[11px] text-muted-foreground">
-          <MapPinned className="size-3" aria-hidden="true" />
-          Using this page:{" "}
-          <span className="font-medium text-foreground/80">{contextLabel}</span>
+        <p className="mx-1 mt-0.5 inline-flex max-w-full items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
+          <MapPinned className="size-3 shrink-0" aria-hidden="true" />
+          <span className="truncate">
+            On{" "}
+            <span className="font-medium text-foreground">{contextLabel}</span>
+          </span>
         </p>
       )}
       {uploads.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-2 px-1 pt-1">
+        <div className="flex flex-wrap gap-2 px-1.5 pt-1.5">
           {uploads.map((upload) => (
             <div
               key={upload.key}
@@ -220,7 +219,7 @@ export const AssistantComposer = forwardRef<
         rows={1}
         maxLength={4000}
         disabled={disabled}
-        placeholder={placeholder ?? "Ask anything or tell me what to do…"}
+        placeholder={placeholder}
         onChange={(event) => setDraft(event.target.value)}
         onPaste={(event) => {
           const files = [...event.clipboardData.files];
@@ -239,7 +238,10 @@ export const AssistantComposer = forwardRef<
             void submit();
           }
         }}
-        className="field-sizing-content max-h-40 min-h-11 w-full resize-none bg-transparent px-2 py-2 text-base outline-none placeholder:text-muted-foreground md:text-sm"
+        className={cn(
+          "field-sizing-content max-h-48 w-full resize-none bg-transparent px-2.5 pt-2 text-base outline-none placeholder:text-muted-foreground/80 md:text-sm",
+          compact ? "min-h-12" : "min-h-16",
+        )}
       />
       <div className="flex items-center justify-between gap-2">
         <input
@@ -256,19 +258,20 @@ export const AssistantComposer = forwardRef<
         <Button
           type="button"
           variant="ghost"
-          size="sm"
-          className="gap-1.5 rounded-lg text-muted-foreground"
+          size="icon-sm"
+          className="rounded-full text-muted-foreground"
+          aria-label="Attach files"
+          title="Attach images, video or audio"
           disabled={disabled || busy}
           onClick={() => picker.current?.click()}
         >
           <Paperclip className="size-4" />
-          <span className={cn(compact && "sr-only")}>Attach</span>
         </Button>
         {busy ? (
           <Button
             type="button"
             size="icon-sm"
-            className="rounded-lg"
+            className="rounded-full"
             aria-label="Stop"
             onClick={onStop}
           >
@@ -278,7 +281,7 @@ export const AssistantComposer = forwardRef<
           <Button
             type="submit"
             size="icon-sm"
-            className="rounded-lg"
+            className="rounded-full disabled:opacity-30"
             aria-label="Send"
             disabled={!canSend}
           >

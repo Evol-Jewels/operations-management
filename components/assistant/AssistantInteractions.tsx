@@ -37,11 +37,13 @@ import {
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   AssistantAnswer,
+  AssistantAttachment,
   AssistantField,
   AssistantInteraction,
   AssistantQuestion,
 } from "@/types/assistant";
 import { AssistantCardView } from "./AssistantCards";
+import { filesIn, listIn, MediaPreview } from "./AssistantMedia";
 
 type QuestionInteraction = Extract<AssistantInteraction, { kind: "question" }>;
 type ConfirmInteraction = Extract<AssistantInteraction, { kind: "confirm" }>;
@@ -655,7 +657,16 @@ function ChangeValue({ field }: { field: AssistantField }) {
   );
 }
 
-function FieldRows({ fields }: { fields: AssistantField[] }) {
+// The backend summarises uploads as "4 file(s)"; show the files themselves instead.
+const FILE_COUNT = /^\d+ file\(s\)$/;
+
+function FieldRows({
+  fields,
+  files = [],
+}: {
+  fields: AssistantField[];
+  files?: AssistantAttachment[];
+}) {
   return (
     <dl className="divide-y">
       {fields.map((field) => (
@@ -665,7 +676,19 @@ function FieldRows({ fields }: { fields: AssistantField[] }) {
         >
           <dt className="text-muted-foreground">{field.label}</dt>
           <dd className="min-w-0 break-words">
-            <ChangeValue field={field} />
+            {files.length > 0 && FILE_COUNT.test(field.value) ? (
+              <div className="flex flex-wrap gap-1.5 py-0.5">
+                {files.map((file) => (
+                  <MediaPreview
+                    key={file.url}
+                    file={file}
+                    className="size-14"
+                  />
+                ))}
+              </div>
+            ) : (
+              <ChangeValue field={field} />
+            )}
           </dd>
         </div>
       ))}
@@ -713,6 +736,8 @@ export function ConfirmationCard({
       : null;
   const collapsed = !pending && interaction.status !== "failed";
   const fields = useMemo(() => confirmation.fields, [confirmation.fields]);
+  const files = useMemo(() => filesIn(interaction.input), [interaction.input]);
+  const requirements = listIn(interaction.input, "requirements");
 
   return (
     <div className="space-y-2">
@@ -762,13 +787,16 @@ export function ConfirmationCard({
         </div>
         {!collapsed && (
           <>
-            {fields.length > 0 && <FieldRows fields={fields} />}
-            {confirmation.groups?.map((group) => (
+            {fields.length > 0 && <FieldRows fields={fields} files={files} />}
+            {confirmation.groups?.map((group, index) => (
               <div key={group.title} className="border-t">
                 <p className="bg-muted/30 px-4 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                   {group.title}
                 </p>
-                <FieldRows fields={group.fields} />
+                <FieldRows
+                  fields={group.fields}
+                  files={filesIn(requirements[index])}
+                />
               </div>
             ))}
           </>
