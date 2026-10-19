@@ -143,6 +143,21 @@ export function latestPendingInteraction(messages: AssistantMessage[]) {
   return null;
 }
 
+// The open conversation is kept per browser tab so it survives navigation and
+// is shared by the side panel and the full-page view.
+const savedKey = (userId: string) => `assistant:thread:${userId}`;
+
+function savedThread(userId?: string) {
+  if (!userId || typeof window === "undefined") return null;
+  return window.sessionStorage.getItem(savedKey(userId));
+}
+
+function saveThread(userId: string | undefined, id: string | null) {
+  if (!userId) return;
+  if (id) window.sessionStorage.setItem(savedKey(userId), id);
+  else window.sessionStorage.removeItem(savedKey(userId));
+}
+
 type Options = {
   /** Keep the open thread in the page URL (?thread=) — the full-page view does. */
   syncUrl?: boolean;
@@ -155,9 +170,10 @@ export function useAssistantChat({
 }: Options) {
   const { data: auth } = authClient.useSession();
   const queryClient = useQueryClient();
-  const scope = `${auth?.user.id ?? ""}:${getSessionRole(auth)}`;
+  const userId = auth?.user.id;
+  const scope = `${userId ?? ""}:${getSessionRole(auth)}`;
   const [threadId, setThreadId] = useState<string | null>(
-    initialThreadId ?? null,
+    () => initialThreadId ?? savedThread(userId),
   );
   const [live, setLive] = useState<AssistantMessage[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -191,12 +207,25 @@ export function useAssistantChat({
     [syncUrl],
   );
 
+  // The session can load after mount; restore (or remember the URL's thread) once it does.
+  const restored = useRef(false);
+  useEffect(() => {
+    if (!userId || restored.current) return;
+    restored.current = true;
+    if (threadId) return saveThread(userId, threadId);
+    const saved = savedThread(userId);
+    if (!saved) return;
+    setThreadId(saved);
+    writeUrl(saved);
+  }, [userId, threadId, writeUrl]);
+
   const select = (id: string | null) => {
     if (busyRef.current) return;
     setThreadId(id);
     setLive(null);
     setError("");
     writeUrl(id);
+    saveThread(userId, id);
   };
 
   const send = async (input: AssistantSendInput) => {
@@ -233,6 +262,7 @@ export function useAssistantChat({
         id = created.id;
         setThreadId(id);
         writeUrl(id);
+        saveThread(userId, id);
       }
       const activeId = id;
       await streamAssistantTurn(activeId, input, controller.signal, (event) => {
