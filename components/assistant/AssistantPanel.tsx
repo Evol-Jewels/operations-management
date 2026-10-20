@@ -164,7 +164,7 @@ export function AssistantPanel({
             stick.current =
               el.scrollHeight - el.scrollTop - el.clientHeight < 120;
         }}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
       >
         {loading ? (
           <div className="flex justify-center gap-2 py-16 text-sm text-muted-foreground">
