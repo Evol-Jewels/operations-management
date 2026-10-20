@@ -696,6 +696,62 @@ function FieldRows({
   );
 }
 
+type Group = NonNullable<ConfirmInteraction["confirmation"]["groups"]>[number];
+const GROUP_PREVIEW = 4;
+
+/** Lines of a proposal (e.g. bulk order designs); long lists start collapsed. */
+function ConfirmationGroups({
+  groups,
+  files,
+}: {
+  groups: Group[];
+  files: AssistantAttachment[][];
+}) {
+  const [all, setAll] = useState(groups.length <= GROUP_PREVIEW + 2);
+  const shown = all ? groups : groups.slice(0, GROUP_PREVIEW);
+  return (
+    <>
+      {shown.map((group, index) => (
+        <div key={group.title} className="border-t">
+          <p className="bg-muted/30 px-4 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+            {group.title}
+          </p>
+          {group.image !== undefined ? (
+            <div className="flex gap-3 pl-4">
+              <div className="mt-2 size-16 shrink-0 overflow-hidden rounded-md border bg-muted">
+                {group.image ? (
+                  // biome-ignore lint/performance/noImgElement: uploaded media URL
+                  <img
+                    src={group.image}
+                    alt={group.title}
+                    loading="lazy"
+                    className="size-full object-cover"
+                  />
+                ) : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <FieldRows fields={group.fields} files={files[index]} />
+              </div>
+            </div>
+          ) : (
+            <FieldRows fields={group.fields} files={files[index]} />
+          )}
+        </div>
+      ))}
+      {groups.length > shown.length ||
+      (all && groups.length > GROUP_PREVIEW + 2) ? (
+        <button
+          type="button"
+          onClick={() => setAll((value) => !value)}
+          className="w-full border-t px-4 py-2 text-left text-xs font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+        >
+          {all ? "Show fewer lines" : `Show all ${groups.length} lines`}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
 const statusCopy = {
   confirmed: {
     label: "Done",
@@ -788,17 +844,14 @@ export function ConfirmationCard({
         {!collapsed && (
           <>
             {fields.length > 0 && <FieldRows fields={fields} files={files} />}
-            {confirmation.groups?.map((group, index) => (
-              <div key={group.title} className="border-t">
-                <p className="bg-muted/30 px-4 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-                  {group.title}
-                </p>
-                <FieldRows
-                  fields={group.fields}
-                  files={filesIn(requirements[index])}
-                />
-              </div>
-            ))}
+            {confirmation.groups?.length ? (
+              <ConfirmationGroups
+                groups={confirmation.groups}
+                files={confirmation.groups.map((_, index) =>
+                  filesIn(requirements[index]),
+                )}
+              />
+            ) : null}
           </>
         )}
         {interaction.status === "failed" && interaction.error && (

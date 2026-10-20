@@ -1,4 +1,4 @@
-import { FileAudio, FileVideo } from "lucide-react";
+import { FileAudio, FileSpreadsheet, FileText, FileVideo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AssistantAttachment } from "@/types/assistant";
 
@@ -57,7 +57,14 @@ export function MediaPreview({
         />
       </a>
     );
-  const Icon = file.type === "VIDEO" ? FileVideo : FileAudio;
+  const Icon =
+    file.type === "DOCUMENT"
+      ? /\.xls/i.test(file.name ?? "")
+        ? FileSpreadsheet
+        : FileText
+      : file.type === "VIDEO"
+        ? FileVideo
+        : FileAudio;
   return (
     <a
       href={file.url}
