@@ -113,6 +113,8 @@ export type InventoryProductListQuery = {
   status?: string;
   purity?: number;
   locationId?: string;
+  /** A vendor id, or "unlinked" for products without a linked vendor. */
+  vendorId?: string;
   isCustomerProduct?: boolean;
   netWeightFrom?: number;
   netWeightTo?: number;
@@ -182,5 +184,6 @@ export type InventoryAnalyticsResponse = {
     byLocation: InventoryAnalyticsLocationBucket[];
     byCategoryLocation: InventoryAnalyticsMatrixCell[];
     byColorPurity: InventoryAnalyticsColorPurityCell[];
+    byVendor?: InventoryAnalyticsBucket[];
   };
 };

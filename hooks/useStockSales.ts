@@ -19,6 +19,7 @@ import {
 } from "@/lib/stockSalesApi";
 import type {
   ListStockSalesQuery,
+  RecentProductSalesQuery,
   StockSalesAnalyticsQuery,
   StockSalesPersonAnalyticsQuery,
 } from "@/types/stock-sales-api";
@@ -28,8 +29,8 @@ export const stockSalesKeys = {
   lists: () => [...stockSalesKeys.all, "list"] as const,
   list: (query: ListStockSalesQuery = {}) =>
     [...stockSalesKeys.lists(), query] as const,
-  recentProducts: (limit: number) =>
-    [...stockSalesKeys.all, "recent-products", limit] as const,
+  recentProducts: (limit: number, query: RecentProductSalesQuery = {}) =>
+    [...stockSalesKeys.all, "recent-products", limit, query] as const,
   analytics: (query: StockSalesAnalyticsQuery = {}) =>
     [...stockSalesKeys.all, "analytics", query] as const,
   leaderboard: (query: StockSalesAnalyticsQuery = {}) =>
@@ -41,14 +42,16 @@ export const stockSalesKeys = {
 };
 
 export function useRecentProductSales(
+  query: RecentProductSalesQuery = {},
   options: { enabled?: boolean; limit?: number } = {},
 ) {
   const limit = options.limit ?? RECENT_PRODUCT_SALES_DEFAULT_LIMIT;
 
   return useInfiniteQuery({
-    queryKey: stockSalesKeys.recentProducts(limit),
+    queryKey: stockSalesKeys.recentProducts(limit, query),
     queryFn: ({ pageParam }) =>
       fetchRecentProductSales({
+        ...query,
         limit,
         cursor: pageParam || undefined,
       }),

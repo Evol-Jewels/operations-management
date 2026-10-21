@@ -61,6 +61,14 @@ import { ENQUIRY_STATUS_LABELS, getRecordStatus } from "@/lib/enquiryStatus";
 import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 import { shouldPromptForVendorDetails } from "@/lib/orderVendorDetails";
 import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
+import {
+  getRecentSalesFilters,
+  getRecentSalesRangeError,
+  getRecentSalesUrlChanges,
+  hasRecentSalesFilters,
+  type RecentSalesFilters as RecentSalesFilterValues,
+  toRecentProductSalesQuery,
+} from "@/lib/recentSalesFilters";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import {
   isOlderTerminalRecord,
@@ -72,6 +80,7 @@ import type { BackendOrderStatus } from "@/types/order-api";
 import type { BackendStockSaleRow } from "@/types/stock-sales-api";
 import { KanbanBoard, type KanbanColumnConfig } from "./KanbanBoard";
 import { RecentProductSalesGrid } from "./RecentProductSalesGrid";
+import { RecentSalesFilters } from "./RecentSalesFilters";
 import {
   type DateFilter,
   type SortBy,
@@ -265,6 +274,7 @@ function getWorkspaceFilters(searchParams: URLSearchParams) {
     }),
     dateFrom: isValidLocalDate(from) ? from : "",
     dateTo: isValidLocalDate(to) ? to : "",
+    recentSales: getRecentSalesFilters(searchParams),
     sortBy:
       tab === "enquiry" && sortBy === "deliveryDate" ? "createdAt" : sortBy,
     sortOrder:
@@ -734,6 +744,8 @@ export function OrdersEnquiriesWorkspace() {
   );
   const [dateFrom, setDateFrom] = useState(urlFilters.dateFrom);
   const [dateTo, setDateTo] = useState(urlFilters.dateTo);
+  const [recentSalesFilters, setRecentSalesFilters] =
+    useState<RecentSalesFilterValues>(urlFilters.recentSales);
   useEffect(() => {
     const timeout = window.setTimeout(
       () => setDebouncedSearch(search.trim()),
@@ -752,10 +764,17 @@ export function OrdersEnquiriesWorkspace() {
   const syncStockSalesMutation = useSyncStockSales();
   const stockSalesLoadMoreRef = useRef<HTMLDivElement>(null);
   const activeTypeTabRef = useRef<HTMLButtonElement>(null);
-  const recentProductSalesQuery = useRecentProductSales({
-    enabled: typeTab === "recent-sale" && canViewRecentSales,
-    limit: 12,
-  });
+  const recentSalesRangeError = getRecentSalesRangeError(recentSalesFilters);
+  const recentProductSalesQuery = useRecentProductSales(
+    toRecentProductSalesQuery(recentSalesFilters, debouncedSearch),
+    {
+      enabled:
+        typeTab === "recent-sale" &&
+        canViewRecentSales &&
+        !recentSalesRangeError,
+      limit: 12,
+    },
+  );
   const recentProductSalesLoadMoreRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() =>
     getInitialViewMode(searchParams),
@@ -774,6 +793,7 @@ export function OrdersEnquiriesWorkspace() {
     setOlderColumns(urlFilters.olderColumns);
     setDateFrom(urlFilters.dateFrom);
     setDateTo(urlFilters.dateTo);
+    setRecentSalesFilters(urlFilters.recentSales);
     setSortBy(urlFilters.sortBy);
     setSortOrder(urlFilters.sortOrder);
   }, [urlFilters]);
@@ -1116,6 +1136,15 @@ export function OrdersEnquiriesWorkspace() {
     captureProductEvent("workspace_filters_cleared", {
       record_type: typeTab,
       active_filter_count: activeFilterCount,
+    });
+  };
+  const updateRecentSalesFilters = (
+    changes: Partial<RecentSalesFilterValues>,
+  ) => {
+    setRecentSalesFilters((current) => ({ ...current, ...changes }));
+    replaceWorkspaceUrl(getRecentSalesUrlChanges(changes));
+    captureProductEvent("recent_sales_filter_changed", {
+      filter_keys: Object.keys(changes).join(","),
     });
   };
   const handleTypeTabChange = (tab: TypeTab) => {
@@ -1527,6 +1556,18 @@ export function OrdersEnquiriesWorkspace() {
               ) : null}
             </div>
           ) : null}
+
+          {typeTab === "recent-sale" ? (
+            <RecentSalesFilters
+              search={search}
+              onSearchChange={(value) => {
+                setSearch(value);
+                replaceWorkspaceUrl({ search: value || null });
+              }}
+              filters={recentSalesFilters}
+              onChange={updateRecentSalesFilters}
+            />
+          ) : null}
         </div>
       )}
 
@@ -1595,6 +1636,10 @@ export function OrdersEnquiriesWorkspace() {
           isFetchingNextPage={recentProductSalesQuery.isFetchingNextPage}
           hasNextPage={Boolean(recentProductSalesQuery.hasNextPage)}
           loadMoreRef={recentProductSalesLoadMoreRef}
+          isFiltered={
+            Boolean(debouncedSearch) ||
+            hasRecentSalesFilters(recentSalesFilters)
+          }
         />
       ) : typeTab === "purchase" ? (
         <StockPurchasesTable
