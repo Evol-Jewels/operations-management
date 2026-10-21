@@ -132,6 +132,12 @@ const ORDER_STAGE_TO_STATUS: Record<
   Closed: "CLOSED",
   Cancelled: "CANCELLED",
 };
+const PHOTOGRAPHY_ORDER_STAGES = [
+  "In Photoshoot",
+  "Editing",
+  "Post Editing",
+  "Website Upload",
+] as const;
 const KANBAN_BLOCKED_ORDER_STAGES = new Set<string>(["Closed", "Cancelled"]);
 const ENQUIRY_KANBAN_COLUMNS: KanbanColumnConfig[] = [
   ...ENQUIRY_STATUSES.map((status) => ({
@@ -717,9 +723,7 @@ export function OrdersEnquiriesWorkspace() {
   const isPhotography = getSessionRole(session) === "PHOTOGRAPHY";
   const [typeTab, setTypeTab] = useState<TypeTab>(() => {
     const initialTab = getInitialTypeTab(searchParams);
-    return isPhotography && initialTab !== "order" && initialTab !== "enquiry"
-      ? "order"
-      : initialTab;
+    return isPhotography ? "order" : initialTab;
   });
   const [statusOrder, setStatusOrder] = useState<Order | null>(null);
   const updateOrderStatusMutation = useUpdateAnyOrderStatus();
@@ -857,7 +861,7 @@ export function OrdersEnquiriesWorkspace() {
     const queryTab = getTypeTabFromSearchParams(searchParams);
     if (
       queryTab &&
-      (!isPhotography || queryTab === "order" || queryTab === "enquiry") &&
+      (!isPhotography || queryTab === "order") &&
       ((queryTab !== "purchase" && queryTab !== "recent-sale") ||
         canViewPurchases)
     ) {
@@ -871,7 +875,7 @@ export function OrdersEnquiriesWorkspace() {
       session &&
       ((!canViewPurchases &&
         (typeTab === "purchase" || typeTab === "recent-sale")) ||
-        (isPhotography && typeTab !== "order" && typeTab !== "enquiry"))
+        (isPhotography && typeTab !== "order"))
     ) {
       setTypeTab("order");
       setViewMode("kanban");
@@ -1006,13 +1010,13 @@ export function OrdersEnquiriesWorkspace() {
   const typeTabs = useMemo(
     () => [
       { key: "order" as const, label: "Orders", count: tabCounts.order },
-      {
-        key: "enquiry" as const,
-        label: "Enquiries",
-        count: tabCounts.enquiry,
-      },
       ...(!isPhotography
         ? [
+            {
+              key: "enquiry" as const,
+              label: "Enquiries",
+              count: tabCounts.enquiry,
+            },
             { key: "bulk-order" as const, label: "Bulk orders" },
             { key: "repair" as const, label: "Repairs" },
           ]
@@ -1198,9 +1202,17 @@ export function OrdersEnquiriesWorkspace() {
   const handleKanbanOrderMove = async (record: Order, newColumnId: string) => {
     if (record.type === "enquiry") {
       toast.error(
-        isPhotography
-          ? "Enquiries are view-only."
-          : "Enquiry status can't be changed in kanban mode, please open enquiry detail",
+        "Enquiry status can't be changed in kanban mode, please open enquiry detail",
+      );
+      return;
+    }
+
+    if (
+      isPhotography &&
+      !PHOTOGRAPHY_ORDER_STAGES.some((stage) => stage === newColumnId)
+    ) {
+      toast.error(
+        `Orders can only be moved to ${PHOTOGRAPHY_ORDER_STAGES.join(", ")}.`,
       );
       return;
     }
@@ -1275,7 +1287,7 @@ export function OrdersEnquiriesWorkspace() {
         <div className="min-w-0">
           <div className="flex items-center justify-between gap-3">
             <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-              Orders and enquiries
+              {isPhotography ? "Orders" : "Orders and enquiries"}
             </h1>
             {!isPhotography && (
               <div className="flex shrink-0 items-center gap-2 sm:hidden">
@@ -1307,7 +1319,7 @@ export function OrdersEnquiriesWorkspace() {
           </div>
           <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
             {isPhotography
-              ? "View orders and enquiries. Select an order to update its status."
+              ? "View orders. Select an order to update its status."
               : "Filter, review, and move production records without crowding the dashboard."}
           </p>
         </div>
@@ -1534,7 +1546,7 @@ export function OrdersEnquiriesWorkspace() {
         <OrderStatusDialog
           key={statusOrder.id}
           order={statusOrder}
-          stages={ORDER_STAGES}
+          stages={isPhotography ? PHOTOGRAPHY_ORDER_STAGES : ORDER_STAGES}
           isPending={updateOrderStatusMutation.isPending}
           onClose={() => setStatusOrder(null)}
           onSubmit={(stage) => commitKanbanOrderMove(statusOrder, stage)}
@@ -1636,11 +1648,7 @@ export function OrdersEnquiriesWorkspace() {
             }}
             onCardClick={handleRecordClick}
             cardActionLabel={
-              isPhotography
-                ? typeTab === "order"
-                  ? "Click to update order status"
-                  : "Enquiries are view-only"
-                : undefined
+              isPhotography ? "Click to update order status" : undefined
             }
           />
         </section>
