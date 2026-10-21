@@ -15,6 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useVendors } from "@/hooks/useVendors";
 import { findOrderVendor, type Vendor } from "@/lib/vendors";
 
 interface VendorComboboxProps {
@@ -152,5 +153,31 @@ export function VendorCombobox({
         </p>
       ) : null}
     </div>
+  );
+}
+
+/** Loads saved vendors itself, for forms that only keep the vendor name. */
+export function VendorNameCombobox({
+  id,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  value: string;
+  onChange: (name: string) => void;
+  disabled?: boolean;
+}) {
+  const vendorsQuery = useVendors();
+  return (
+    <VendorCombobox
+      id={id}
+      name={value}
+      vendorId={null}
+      vendors={vendorsQuery.data ?? []}
+      onChange={(name) => onChange(name)}
+      disabled={disabled}
+      isLoading={vendorsQuery.isLoading}
+    />
   );
 }

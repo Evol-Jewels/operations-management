@@ -19,10 +19,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { VendorNameCombobox } from "@/components/vendors/VendorCombobox";
 import { useVendorAccess } from "@/hooks/useVendors";
 import { calculateMakingCharge } from "@/lib/calculator/pricing";
 import {
@@ -313,11 +313,10 @@ function EnquiryCalculatorEditor({
             {canManageVendor ? (
               <div className="grid gap-2">
                 <Label htmlFor={`vendor-${productId}`}>Vendor name</Label>
-                <Input
+                <VendorNameCombobox
                   id={`vendor-${productId}`}
                   value={vendorName}
-                  onChange={(event) => setVendorName(event.target.value)}
-                  placeholder="Enter vendor name"
+                  onChange={setVendorName}
                 />
               </div>
             ) : null}

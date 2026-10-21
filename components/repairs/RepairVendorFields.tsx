@@ -3,7 +3,7 @@
 import { useId } from "react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { FormField } from "@/components/ui/form-field";
-import { Input } from "@/components/ui/input";
+import { VendorNameCombobox } from "@/components/vendors/VendorCombobox";
 import type { RepairVendor } from "@/lib/repairs";
 
 export function RepairVendorFields({
@@ -33,16 +33,10 @@ export function RepairVendorFields({
         optional={!required}
         error={errors.vendorName}
       >
-        <Input
+        <VendorNameCombobox
           id={vendorNameId}
           value={values.vendorName}
-          placeholder="Enter vendor name"
-          autoComplete="off"
-          required={required}
-          aria-invalid={Boolean(errors.vendorName)}
-          onChange={(event) =>
-            onChange({ ...values, vendorName: event.target.value })
-          }
+          onChange={(vendorName) => onChange({ ...values, vendorName })}
         />
       </FormField>
       {(
