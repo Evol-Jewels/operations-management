@@ -3,6 +3,7 @@ import type {
   BackendStockSaleRow,
   ListStockSalesQuery,
   RecentProductSalesPageResponse,
+  RecentProductSalesQuery,
   StockSalesAnalyticsQuery,
   StockSalesAnalyticsResponse,
   StockSalesLeaderboardResponse,
@@ -68,7 +69,7 @@ export function fetchStockSales(query: ListStockSalesQuery = {}) {
 }
 
 export function fetchRecentProductSales(
-  query: { limit?: number; cursor?: string } = {},
+  query: RecentProductSalesQuery & { limit?: number; cursor?: string } = {},
 ) {
   return apiFetch<RecentProductSalesPageResponse>(
     buildUrl("api/v1/stock-sales/recent-products", query),

@@ -59,6 +59,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { VendorFilterSelect } from "@/components/vendors/VendorFilterSelect";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { useMyInternalProfile } from "@/hooks/useInternalProfile";
 import {
@@ -67,7 +68,7 @@ import {
   useSyncInventoryProducts,
 } from "@/hooks/useInventoryProducts";
 import { useLocations } from "@/hooks/useManageProducts";
-import { useVendorAccess } from "@/hooks/useVendors";
+import { useVendorAccess, useVendors } from "@/hooks/useVendors";
 import { captureProductEvent } from "@/lib/analytics";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
 import {
@@ -80,6 +81,11 @@ import {
   normalizeInventoryProductEstimate,
 } from "@/lib/inventoryProductMapping";
 import { cn, formatCurrency } from "@/lib/utils";
+import {
+  getVendorFilterLabel,
+  type Vendor,
+  type VendorFilter,
+} from "@/lib/vendors";
 import type { CalculatorSettings } from "@/types";
 import type {
   InventoryProduct,
@@ -220,6 +226,7 @@ const PURITY_LABELS: Record<Exclude<PurityFilter, "ALL">, string> = {
 };
 
 const SEARCH_DEBOUNCE_MS = 300;
+const NO_VENDORS: Vendor[] = [];
 
 const QUERY_PARAM_KEYS = {
   search: "q",
@@ -228,6 +235,7 @@ const QUERY_PARAM_KEYS = {
   purity: "purity",
   source: "source",
   location: "locationId",
+  vendor: "vendorId",
   netWeightFrom: "netWeightFrom",
   netWeightTo: "netWeightTo",
   priceFrom: "priceFrom",
@@ -1074,6 +1082,9 @@ export function InventoryPageClient() {
   const [locationFilter, setLocationFilter] = useState<string>(
     () => searchParams.get(QUERY_PARAM_KEYS.location) ?? "ALL",
   );
+  const [vendorFilter, setVendorFilter] = useState<VendorFilter>(
+    () => searchParams.get(QUERY_PARAM_KEYS.vendor) ?? "ALL",
+  );
 
   const [netWeightFrom, setNetWeightFrom] = useState(() =>
     getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightFrom),
@@ -1102,6 +1113,10 @@ export function InventoryPageClient() {
   const profileQuery = useMyInternalProfile();
   const syncInventoryMutation = useSyncInventoryProducts();
 
+  const canViewVendor = useVendorAccess();
+  const vendorsQuery = useVendors();
+  const vendors = vendorsQuery.data ?? NO_VENDORS;
+
   const debouncedSearch = useDebouncedValue(
     searchInput.trim(),
     SEARCH_DEBOUNCE_MS,
@@ -1118,6 +1133,8 @@ export function InventoryPageClient() {
         color: colorFilter === "ALL" ? undefined : colorFilter,
         purity: purityFilter === "ALL" ? undefined : Number(purityFilter),
         locationId: locationFilter === "ALL" ? undefined : locationFilter,
+        vendorId:
+          canViewVendor && vendorFilter !== "ALL" ? vendorFilter : undefined,
         isCustomerProduct,
         netWeightFrom: netWeightFrom ? Number(netWeightFrom) : undefined,
         netWeightTo: netWeightTo ? Number(netWeightTo) : undefined,
@@ -1140,6 +1157,8 @@ export function InventoryPageClient() {
       sourceCreatedFrom,
       sourceCreatedTo,
       sourceFilter,
+      canViewVendor,
+      vendorFilter,
     ]),
   );
 
@@ -1155,7 +1174,6 @@ export function InventoryPageClient() {
   const canSyncProducts =
     internalRole === "ADMIN" || internalRole === "OPERATIONS";
   const canScanInventory = canSyncProducts;
-  const canViewVendor = useVendorAccess();
 
   const updateSearchParams = useCallback(
     (
@@ -1207,6 +1225,7 @@ export function InventoryPageClient() {
     setPurityFilter(getPurityQueryValue(searchParams));
     setSourceFilter(getSourceQueryValue(searchParams));
     setLocationFilter(searchParams.get(QUERY_PARAM_KEYS.location) ?? "ALL");
+    setVendorFilter(searchParams.get(QUERY_PARAM_KEYS.vendor) ?? "ALL");
     setNetWeightFrom(
       getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightFrom),
     );
@@ -1257,6 +1276,7 @@ export function InventoryPageClient() {
     setPurityFilter("ALL");
     setSourceFilter("ALL");
     setLocationFilter("ALL");
+    setVendorFilter("ALL");
     setNetWeightFrom("");
     setNetWeightTo("");
     setPriceFrom("");
@@ -1269,6 +1289,7 @@ export function InventoryPageClient() {
       params.delete(QUERY_PARAM_KEYS.purity);
       params.delete(QUERY_PARAM_KEYS.source);
       params.delete(QUERY_PARAM_KEYS.location);
+      params.delete(QUERY_PARAM_KEYS.vendor);
       params.delete(QUERY_PARAM_KEYS.netWeightFrom);
       params.delete(QUERY_PARAM_KEYS.netWeightTo);
       params.delete(QUERY_PARAM_KEYS.priceFrom);
@@ -1325,6 +1346,7 @@ export function InventoryPageClient() {
     (purityFilter !== "ALL" ? 1 : 0) +
     (sourceFilter !== "ALL" ? 1 : 0) +
     (locationFilter !== "ALL" ? 1 : 0) +
+    (canViewVendor && vendorFilter !== "ALL" ? 1 : 0) +
     (netWeightFrom ? 1 : 0) +
     (netWeightTo ? 1 : 0) +
     (priceFrom ? 1 : 0) +
@@ -1405,6 +1427,17 @@ export function InventoryPageClient() {
         onRemove: () => {
           setLocationFilter("ALL");
           clearQueryParam(QUERY_PARAM_KEYS.location);
+        },
+      });
+    }
+
+    if (canViewVendor && vendorFilter !== "ALL") {
+      chips.push({
+        key: QUERY_PARAM_KEYS.vendor,
+        label: `Vendor: ${getVendorFilterLabel(vendorFilter, vendors)}`,
+        onRemove: () => {
+          setVendorFilter("ALL");
+          clearQueryParam(QUERY_PARAM_KEYS.vendor);
         },
       });
     }
@@ -1490,6 +1523,9 @@ export function InventoryPageClient() {
     sourceCreatedFrom,
     sourceCreatedTo,
     sourceFilter,
+    canViewVendor,
+    vendorFilter,
+    vendors,
   ]);
 
   function trackFilterChange(filterKey: string, value: string) {
@@ -1604,6 +1640,19 @@ export function InventoryPageClient() {
           ))}
         </SelectContent>
       </Select>
+
+      {canViewVendor ? (
+        <VendorFilterSelect
+          value={vendorFilter}
+          vendors={vendors}
+          isLoading={vendorsQuery.isLoading}
+          onChange={(value) => {
+            setVendorFilter(value);
+            updateQueryParam(QUERY_PARAM_KEYS.vendor, value);
+            trackFilterChange(QUERY_PARAM_KEYS.vendor, value);
+          }}
+        />
+      ) : null}
     </>
   );
 

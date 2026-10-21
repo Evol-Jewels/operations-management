@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  CalendarDays,
+  Factory,
   Gem,
   IndianRupee,
   MapPin,
@@ -18,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { captureProductEvent } from "@/lib/analytics";
 import { getInventoryMediaUrl } from "@/lib/inventory-media";
 import { getInventoryPrimaryImage } from "@/lib/inventoryProductMapping";
+import { formatSaleMonth } from "@/lib/recentSalesFilters";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { RecentProductSale } from "@/types/stock-sales-api";
 
@@ -62,6 +65,7 @@ function ProductSaleCard({
     sale.storeName ||
     "Location unavailable";
   const salesperson = sale.salesPerson?.name ?? "N/A";
+  const vendor = product?.vendor?.trim();
   const colorLabel = product
     ? (COLOR_LABELS[product.color] ?? product.color)
     : null;
@@ -108,6 +112,13 @@ function ProductSaleCard({
             <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
               {sale.productCode}
             </p>
+            {vendor ? (
+              <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                <Factory className="size-3 shrink-0" aria-hidden="true" />
+                <span className="sr-only">Vendor: </span>
+                <span className="truncate">{vendor}</span>
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-2 flex min-w-0 flex-nowrap items-center gap-1.5">
@@ -145,6 +156,13 @@ function ProductSaleCard({
               <MapPin className="size-3" aria-hidden="true" />
               <span className="truncate">{city}</span>
             </Badge>
+            {sale.saleMonth ? (
+              <Badge variant="outline" className="gap-1 font-normal">
+                <CalendarDays className="size-3" aria-hidden="true" />
+                <span className="sr-only">Sold in </span>
+                {formatSaleMonth(sale.saleMonth)}
+              </Badge>
+            ) : null}
           </div>
         </div>
       </div>
@@ -211,6 +229,7 @@ export function RecentProductSalesGrid({
   isFetchingNextPage,
   hasNextPage,
   loadMoreRef,
+  isFiltered = false,
 }: {
   sales: RecentProductSale[];
   isLoading: boolean;
@@ -218,6 +237,7 @@ export function RecentProductSalesGrid({
   isFetchingNextPage: boolean;
   hasNextPage: boolean;
   loadMoreRef: RefObject<HTMLDivElement | null>;
+  isFiltered?: boolean;
 }) {
   if (isLoading) {
     return (
@@ -249,6 +269,11 @@ export function RecentProductSalesGrid({
         <p className="mt-3 text-sm font-medium text-foreground">
           No recent product sales found
         </p>
+        {isFiltered ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            Try widening the months or clearing some filters.
+          </p>
+        ) : null}
       </div>
     );
   }

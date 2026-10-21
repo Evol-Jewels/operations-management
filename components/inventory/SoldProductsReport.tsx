@@ -16,9 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useVendors } from "@/hooks/useVendors";
 import {
-  fetchSoldProducts,
   fetchSoldProductLocations,
+  fetchSoldProducts,
 } from "@/lib/soldProductsApi";
 import type {
   SoldProductsQuery,
@@ -32,8 +33,8 @@ import {
   type PurityFilter,
 } from "./AnalyticsFilterControls";
 import { AnalyticsFilterPopover } from "./AnalyticsFilterPopover";
+import { isValidMonth, MonthPicker } from "./MonthPicker";
 import { SoldProductsSearch } from "./SoldProductsSearch";
-import { MonthPicker, isValidMonth } from "./MonthPicker";
 import { SoldProductsTable } from "./SoldProductsTable";
 
 const categories = [
@@ -73,6 +74,7 @@ const reportKeys = [
   "purity",
   "color",
   "locationId",
+  "soldVendor",
 ];
 const pageSize = 25;
 
@@ -92,6 +94,8 @@ export function SoldProductsReport() {
   const monthFrom = params.get("monthFrom") ?? "";
   const monthTo = params.get("monthTo") ?? "";
   const search = params.get("soldSearch") ?? "";
+  const vendor = params.get("soldVendor") ?? "ALL";
+  const vendorsQuery = useVendors();
   const requestedPage = Number(params.get("soldPage") ?? "1");
   const page =
     Number.isSafeInteger(requestedPage) &&
@@ -114,6 +118,7 @@ export function SoldProductsReport() {
     ownership:
       ownership === "STOCK" || ownership === "CUSTOMER" ? ownership : undefined,
     location: params.get("soldLocation") || undefined,
+    vendorId: vendor === "ALL" ? undefined : vendor,
     monthFrom: monthFrom || undefined,
     monthTo: monthTo || undefined,
     sortBy,
@@ -167,6 +172,7 @@ export function SoldProductsReport() {
                 query.category,
                 query.ownership,
                 query.location,
+                query.vendorId,
                 query.monthFrom,
                 query.monthTo,
               ].filter(Boolean).length
@@ -178,6 +184,7 @@ export function SoldProductsReport() {
                 soldLocation: "",
                 soldCategory: "",
                 soldOwnership: "",
+                soldVendor: "",
                 monthFrom: "",
                 monthTo: "",
               })
@@ -195,8 +202,17 @@ export function SoldProductsReport() {
                 name,
               }))}
               locationsLoading={locations.isLoading || locations.isError}
+              vendor={vendor}
+              vendors={vendorsQuery.data}
+              vendorsLoading={vendorsQuery.isLoading}
               onFilterChange={(key, value) =>
-                update({ [key === "locationId" ? "soldLocation" : key]: value })
+                update({
+                  [key === "locationId"
+                    ? "soldLocation"
+                    : key === "vendorId"
+                      ? "soldVendor"
+                      : key]: value,
+                })
               }
             />
             {locations.isError && (

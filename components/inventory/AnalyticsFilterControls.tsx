@@ -1,4 +1,6 @@
 "use client";
+import { useId } from "react";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -6,8 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useId } from "react";
-import { Label } from "@/components/ui/label";
+import { VendorFilterSelect } from "@/components/vendors/VendorFilterSelect";
+import type { Vendor, VendorFilter } from "@/lib/vendors";
 import type { ProductColor } from "@/types/inventory-api";
 export type ColorFilter = "ALL" | ProductColor;
 export type PurityFilter = "ALL" | "9" | "14" | "18" | "22" | "24";
@@ -35,6 +37,9 @@ export function AnalyticsFilterControls({
   locationsLoading,
   locationLabel = "Location",
   purity,
+  vendor,
+  vendors = [],
+  vendorsLoading,
   onFilterChange,
 }: {
   color: ColorFilter;
@@ -43,9 +48,13 @@ export function AnalyticsFilterControls({
   locationLabel?: string;
   locationsLoading: boolean;
   purity: PurityFilter;
+  /** Shows the vendor filter when set. */
+  vendor?: VendorFilter;
+  vendors?: Vendor[];
+  vendorsLoading?: boolean;
   onFilterChange: (
-    key: "color" | "locationId" | "purity",
-    value: ColorFilter | LocationFilter | PurityFilter,
+    key: "color" | "locationId" | "purity" | "vendorId",
+    value: string,
   ) => void;
 }) {
   const id = useId();
@@ -118,6 +127,19 @@ export function AnalyticsFilterControls({
           </SelectContent>
         </Select>
       </div>
+      {vendor !== undefined && (
+        <div className="col-span-2 min-w-0 space-y-1.5">
+          <Label htmlFor={`${id}-vendor`}>Vendor</Label>
+          <VendorFilterSelect
+            id={`${id}-vendor`}
+            value={vendor}
+            vendors={vendors}
+            isLoading={vendorsLoading}
+            onChange={(value) => onFilterChange("vendorId", value)}
+            className="h-9"
+          />
+        </div>
+      )}
     </div>
   );
 }
