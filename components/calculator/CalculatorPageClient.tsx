@@ -20,6 +20,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
+import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import {
   formatWeight,
   NumericLineInput,
@@ -27,7 +28,6 @@ import {
 } from "@/components/calculator/CalculatorFields";
 import { MetalRow } from "@/components/calculator/CalculatorMetalRow";
 import { StoneRow } from "@/components/calculator/CalculatorStoneRow";
-import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import {
   EstimationSummaryCard,
   EstimationSummaryDownloadButton,
@@ -55,12 +55,12 @@ import { captureProductEvent } from "@/lib/analytics";
 import { getSessionRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
+import { consumeCalculatorImport } from "@/lib/calculator/import";
 import {
   calculateMakingCharge,
   computeEstimateFromInputs,
   resolveMetalRate,
 } from "@/lib/calculator/pricing";
-import { consumeCalculatorImport } from "@/lib/calculator/import";
 import {
   type CalculatorTab,
   isCalculatorTab,
@@ -1606,9 +1606,7 @@ export function CalculatorPageClient({
       setIsMakingChargeEdited(imported.isMakingChargeEdited);
       setActiveTab("calculate");
     } catch {
-      toast.error(
-        "Could not load that estimate. Open it from the enquiry and try again.",
-      );
+      toast.error("Could not load that estimate. Open it again and retry.");
     }
     const next = new URLSearchParams(searchParams.toString());
     next.delete("import");

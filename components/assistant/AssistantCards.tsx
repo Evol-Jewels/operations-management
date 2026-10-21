@@ -19,6 +19,7 @@ import type {
   AssistantRecord,
   AssistantTone,
 } from "@/types/assistant";
+import { AssistantEstimateCard } from "./AssistantEstimateCard";
 
 const toneStyles: Record<AssistantTone, string> = {
   neutral: "border-border bg-muted text-muted-foreground",
@@ -504,6 +505,8 @@ export function AssistantCardView({ card }: { card: AssistantCard }) {
       return <InventoryCard card={card} />;
     case "done":
       return <DoneCard card={card} />;
+    case "estimate":
+      return <AssistantEstimateCard card={card} />;
   }
 }
 

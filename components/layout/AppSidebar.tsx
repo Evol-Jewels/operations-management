@@ -62,7 +62,7 @@ const navItems = [
   },
   {
     icon: Sparkles,
-    label: "Assistant",
+    label: "AI agent",
     href: "/assistant",
     roles: ["ADMIN", "OPERATIONS", "SALES"],
   },

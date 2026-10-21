@@ -49,19 +49,20 @@ export function deleteAssistantThread(id: string) {
   );
 }
 
-/** Uploads a chat attachment through the same endpoints the forms use. */
+/** Documents and screenshots can also be read into bulk-order drafts. */
 export const DOCUMENT_ACCEPT =
-  ".pdf,.xlsx,.xlsm,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  ".pdf,.xlsx,.xlsm,.txt,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 export function isDocumentFile(file: File) {
   return (
     file.type === "application/pdf" ||
+    file.type === "text/plain" ||
     file.type.includes("spreadsheetml") ||
-    /\.(pdf|xlsx|xlsm)$/i.test(file.name)
+    /\.(pdf|xlsx|xlsm|txt)$/i.test(file.name)
   );
 }
 
-/** PDF/Excel files go to the assistant, which starts reading them right away. */
+/** Retains file bytes for reading; image responses still render as normal photos. */
 export function uploadAssistantDocument(file: File) {
   if (file.size > 20 * 1024 * 1024)
     throw new Error(`${file.name} is larger than 20 MB.`);
@@ -76,7 +77,12 @@ export function uploadAssistantDocument(file: File) {
 export async function uploadAssistantAttachment(
   file: File,
 ): Promise<AssistantAttachment> {
-  if (isDocumentFile(file)) return uploadAssistantDocument(file);
+  if (
+    isDocumentFile(file) ||
+    ["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
+    /\.(png|jpe?g|webp)$/i.test(file.name)
+  )
+    return uploadAssistantDocument(file);
   const type = file.type.startsWith("image/")
     ? "IMAGE"
     : file.type.startsWith("video/")
@@ -86,7 +92,7 @@ export async function uploadAssistantAttachment(
         : null;
   if (!type)
     throw new Error(
-      `${file.name} is not a supported image, video, audio, PDF or Excel file.`,
+      `${file.name} is not a supported image, video, audio, PDF, Excel or text file.`,
     );
   const uploaded =
     type === "IMAGE"
