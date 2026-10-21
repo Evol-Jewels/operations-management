@@ -52,6 +52,7 @@ import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { VendorNameCombobox } from "@/components/vendors/VendorCombobox";
 import { enquiryKeys, useEnquiryDetails } from "@/hooks/useEnquiries";
 import { useCreateOrders } from "@/hooks/useOrders";
 import { useVendorAccess } from "@/hooks/useVendors";
@@ -2225,12 +2226,11 @@ function OrderItemCard({
         )}
       >
         {canViewVendor ? (
-          <FormField label="Vendor" optional>
-            <Input
-              placeholder="e.g. ABC Jewellers"
+          <FormField label="Vendor" htmlFor={`vendor-${item.id}`} optional>
+            <VendorNameCombobox
+              id={`vendor-${item.id}`}
               value={item.vendor}
-              onChange={(e) => updateItem(item.id, { vendor: e.target.value })}
-              className="h-10 w-full"
+              onChange={(vendor) => updateItem(item.id, { vendor })}
             />
           </FormField>
         ) : null}
