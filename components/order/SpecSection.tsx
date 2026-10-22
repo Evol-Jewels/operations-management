@@ -14,7 +14,7 @@ export function SpecLine({
   if (!value && value !== 0) return null;
 
   return (
-    <div className="grid min-w-0 gap-1 sm:grid-cols-[7rem_minmax(0,1fr)]">
+    <div className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] gap-x-3 gap-y-1 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-x-1">
       <span className="text-[11px] leading-5 text-muted-foreground">
         {label}
       </span>

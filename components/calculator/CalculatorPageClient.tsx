@@ -22,12 +22,14 @@ import { toast } from "sonner";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
 import {
+  fieldLabelClassName,
   formatWeight,
   NumericLineInput,
   SectionLabel,
 } from "@/components/calculator/CalculatorFields";
 import { MetalRow } from "@/components/calculator/CalculatorMetalRow";
 import { StoneRow } from "@/components/calculator/CalculatorStoneRow";
+import { CalculatorTotalBar } from "@/components/calculator/CalculatorTotalBar";
 import {
   EstimationSummaryCard,
   EstimationSummaryDownloadButton,
@@ -603,7 +605,7 @@ function RecentEstimatesList({
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError]);
 
   return (
-    <section className="my-5 space-y-2">
+    <section className="space-y-1 sm:my-5 sm:space-y-2">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-base font-semibold">Recent Estimates</h2>
         <Button
@@ -759,7 +761,7 @@ function RecentEstimateSummaryDialog({
           <DialogTitle className="text-lg font-semibold tracking-tight">
             Summary
           </DialogTitle>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
             Review the estimate before downloading or loading it into the
             calculator.
           </p>
@@ -810,14 +812,15 @@ function RecentEstimateSummaryDialog({
                 isDownloading,
                 isSharing,
               }) => (
-                <div className="flex flex-wrap items-center justify-end gap-2.5">
+                <div className="grid gap-2.5 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
                   <EstimationSummaryDownloadButton
                     downloadSummaryPdf={downloadSummaryPdf}
                     downloadSummaryPng={downloadSummaryPng}
                     shareSummaryPng={shareSummaryPng}
                     isDownloading={isDownloading}
                     isSharing={isSharing}
-                    className="h-11 justify-center rounded-lg"
+                    className="h-11 flex-1 justify-center rounded-lg"
+                    containerClassName="flex sm:inline-flex"
                   />
                   <Button
                     type="button"
@@ -1013,8 +1016,8 @@ function SearchPanel({
   }, [searchInput]);
 
   return (
-    <div className="space-y-4 py-4">
-      <div className="grid gap-4 sm:grid-cols-[minmax(180px,2fr)_1fr]">
+    <div className="space-y-4 sm:py-4">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(180px,2fr)_1fr] sm:gap-4">
         <div className="relative min-w-0">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -1026,17 +1029,20 @@ function SearchPanel({
               if (event.key === "Enter") searchInventoryProducts(searchInput);
             }}
             placeholder="Search product code"
-            className="h-9 w-full min-w-0 rounded-lg border border-border bg-background px-3 pl-10 text-sm uppercase outline-none transition-shadow focus:ring-2 focus:ring-ring/20"
+            enterKeyHint="search"
+            autoCapitalize="characters"
+            className="h-11 w-full min-w-0 rounded-lg border border-border bg-background px-3 pl-10 text-base uppercase outline-none md:h-9 md:text-sm transition-shadow focus:ring-2 focus:ring-ring/20"
           />
         </div>
         <Button
           type="button"
           variant="outline"
           onClick={() => setIsScannerOpen(true)}
-          className="h-9 rounded-lg"
+          className="h-11 rounded-lg md:h-9"
         >
           <ScanLine className="h-4 w-4" />
-          Scan Barcode
+          <span className="sm:hidden">Scan</span>
+          <span className="hidden sm:inline">Scan Barcode</span>
         </Button>
       </div>
 
@@ -1087,7 +1093,7 @@ function SearchPanel({
                 key={product.id}
                 type="button"
                 onClick={() => loadInventoryProduct(product)}
-                className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+                className="grid min-h-14 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
                   {imageUrl ? (
@@ -1109,9 +1115,13 @@ function SearchPanel({
                   </p>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {product.productCode} - {product.color} {product.purity}K
+                    <span className="sm:hidden">
+                      {" "}
+                      - {product.location.name}
+                    </span>
                   </p>
                 </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
+                <span className="hidden max-w-48 truncate text-xs text-muted-foreground sm:block">
                   {product.location.name}
                 </span>
               </button>
@@ -1157,7 +1167,6 @@ function CalculatorForm({
   updateStone,
   addStone,
   removeStone,
-  resetForm,
   fileInputRef,
   onImageChange,
   onAdvancedGstChange,
@@ -1175,7 +1184,6 @@ function CalculatorForm({
   updateStone: (stoneId: string, patch: Partial<CalculatorStoneInput>) => void;
   addStone: () => void;
   removeStone: (stoneId: string) => void;
-  resetForm: () => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onImageChange: (file: File | null) => void;
   onAdvancedGstChange: (gstRate: number) => void;
@@ -1184,21 +1192,7 @@ function CalculatorForm({
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   return (
-    <div className="min-w-0 space-y-5">
-      <div className="flex min-h-9 items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">Calculator</h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-9 gap-1.5 px-2.5"
-          onClick={resetForm}
-        >
-          <RefreshCcw className="size-3.5" />
-          Reset
-        </Button>
-      </div>
-
+    <div className="min-w-0 space-y-4 sm:space-y-5">
       <section className="space-y-3">
         <SectionLabel
           title="Metals"
@@ -1273,14 +1267,12 @@ function CalculatorForm({
           onImageChange={onImageChange}
         />
         <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Product Name
-          </p>
+          <p className={fieldLabelClassName}>Product Name</p>
           <input
             value={form.productName}
             onChange={(event) => updateForm("productName", event.target.value)}
             placeholder="Please enter a product name"
-            className="w-full border-b border-border bg-transparent pb-2 text-sm outline-none placeholder:text-muted-foreground/40 focus:border-foreground"
+            className="w-full border-b border-border bg-transparent pb-2 text-base outline-none md:text-sm placeholder:text-muted-foreground/40 focus:border-foreground"
           />
         </div>
       </section>
@@ -1346,9 +1338,7 @@ function CalculatorForm({
               </div>
               <div className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 min-[430px]:gap-5">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    GST
-                  </p>
+                  <p className={fieldLabelClassName}>GST</p>
                   <NumericLineInput
                     value={Number((form.gstRate * 100).toFixed(2))}
                     onChange={(gstPercentage) =>
@@ -1360,9 +1350,7 @@ function CalculatorForm({
                   />
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    Making Charges
-                  </p>
+                  <p className={fieldLabelClassName}>Making Charges</p>
                   <NumericLineInput
                     value={form.makingCharge}
                     onChange={(makingCharge) =>
@@ -1376,7 +1364,7 @@ function CalculatorForm({
                 <div className="space-y-2">
                   <label
                     htmlFor="calculator-diamond-colour"
-                    className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+                    className={fieldLabelClassName}
                   >
                     Diamond Colour
                   </label>
@@ -1387,13 +1375,13 @@ function CalculatorForm({
                       updateForm("diamondColor", event.target.value)
                     }
                     placeholder="e.g. EF"
-                    className="h-9 w-full border-b border-border bg-transparent px-0 text-sm uppercase outline-none placeholder:normal-case placeholder:text-muted-foreground/35 focus:border-foreground"
+                    className="h-10 w-full border-b border-border bg-transparent px-0 text-base uppercase md:h-9 md:text-sm outline-none placeholder:normal-case placeholder:text-muted-foreground/35 focus:border-foreground"
                   />
                 </div>
                 <div className="space-y-2">
                   <label
                     htmlFor="calculator-diamond-clarity"
-                    className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+                    className={fieldLabelClassName}
                   >
                     Diamond Clarity
                   </label>
@@ -1407,14 +1395,12 @@ function CalculatorForm({
                       )
                     }
                     placeholder="e.g. VVS/VS"
-                    className="h-9 w-full border-b border-border bg-transparent px-0 text-sm uppercase outline-none placeholder:normal-case placeholder:text-muted-foreground/35 focus:border-foreground"
+                    className="h-10 w-full border-b border-border bg-transparent px-0 text-base uppercase md:h-9 md:text-sm outline-none placeholder:normal-case placeholder:text-muted-foreground/35 focus:border-foreground"
                   />
                 </div>
               </div>
               <div className="space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Note
-                </p>
+                <p className={fieldLabelClassName}>Note</p>
                 <textarea
                   value={form.productNote}
                   onChange={(event) =>
@@ -1422,7 +1408,7 @@ function CalculatorForm({
                   }
                   placeholder="Any notes for the customer (optional)"
                   rows={2}
-                  className="w-full resize-none border-b border-border bg-transparent pb-2 text-sm leading-6 outline-none placeholder:text-muted-foreground/40 focus:border-foreground"
+                  className="w-full resize-none border-b border-border bg-transparent pb-2 text-base leading-6 md:text-sm outline-none placeholder:text-muted-foreground/40 focus:border-foreground"
                 />
               </div>
             </div>
@@ -1867,18 +1853,36 @@ export function CalculatorPageClient({
     loadProductFromQuery();
   }, [hasRestoredPersistedForm, searchParams, settings]);
 
+  const calculatorSummaryData = {
+    kind: "calculator" as const,
+    form,
+    breakdown: summaryBreakdown,
+    gstRate: form.gstRate,
+  };
+
   return (
     <RequireInternalAuth>
       <div className="mx-auto w-full">
-        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-2xl">
+        <div className="mb-4 flex flex-wrap items-center gap-3 sm:mb-5 sm:flex-nowrap sm:items-start sm:gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
               Calculator
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
               Add weights. Rates and totals update instantly.
             </p>
           </div>
+          {activeTab === "calculate" ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-10 gap-1.5 px-3 sm:h-11"
+              onClick={resetForm}
+            >
+              <RefreshCcw className="size-4" />
+              Reset
+            </Button>
+          ) : null}
           <TabsSwitcher
             activeTab={activeTab}
             onTabChange={handleActiveTabChange}
@@ -1886,13 +1890,11 @@ export function CalculatorPageClient({
         </div>
 
         {activeTab === "search" ? (
-          <div className="">
-            <SearchPanel
-              settings={settings}
-              onLoadProduct={loadInventoryProduct}
-              canUseRecentEstimates={canUseRecentEstimates}
-            />
-          </div>
+          <SearchPanel
+            settings={settings}
+            onLoadProduct={loadInventoryProduct}
+            canUseRecentEstimates={canUseRecentEstimates}
+          />
         ) : (
           <div className="space-y-4">
             {form.metals?.some((metal) => metal.rateOverride !== undefined) ? (
@@ -1901,7 +1903,7 @@ export function CalculatorPageClient({
                 <span>One or more metal rates use a custom override.</span>
               </output>
             ) : null}
-            <div className="grid items-start gap-5 lg:grid-cols-[minmax(380px,520px)_minmax(420px,760px)] xl:grid-cols-[minmax(420px,560px)_minmax(460px,760px)]">
+            <div className="grid items-start gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-[minmax(380px,520px)_minmax(420px,760px)] xl:grid-cols-[minmax(420px,560px)_minmax(460px,760px)]">
               <CalculatorForm
                 settings={settings}
                 form={form}
@@ -1912,25 +1914,41 @@ export function CalculatorPageClient({
                 updateStone={updateStone}
                 addStone={addStone}
                 removeStone={removeStone}
-                resetForm={resetForm}
                 fileInputRef={fileInputRef}
                 onImageChange={handleImageChange}
                 onAdvancedGstChange={updateAdvancedGst}
                 onAdvancedMakingChange={updateAdvancedMakingCharge}
               />
+              <CalculatorTotalBar
+                total={canShowSummary ? summaryBreakdown.total : null}
+                hint="Enter metal net weight to see the total"
+                className="md:hidden"
+              >
+                <EstimationSummaryCard
+                  data={calculatorSummaryData}
+                  compact
+                  showHeader={false}
+                  className="border-0 bg-transparent p-0 shadow-none"
+                  onImageSelect={(imageUrl) =>
+                    updateForm("productImageUrl", imageUrl)
+                  }
+                  renderActions={(actions) => (
+                    <EstimationSummaryDownloadButton
+                      {...actions}
+                      className="h-11 flex-1 justify-center"
+                      containerClassName="flex w-full"
+                    />
+                  )}
+                />
+              </CalculatorTotalBar>
               <div
                 ref={summaryCardRef}
-                className="min-w-0 h-full w-full max-w-[760px]"
+                className="h-full w-full min-w-0 max-w-[760px] scroll-mt-[calc(var(--mobile-top-h,0px)+1rem)]"
               >
                 {canShowSummary ? (
                   <EstimationSummaryCard
-                    data={{
-                      kind: "calculator",
-                      form,
-                      breakdown: summaryBreakdown,
-                      gstRate: form.gstRate,
-                    }}
-                    className="lg:sticky lg:top-6 lg:self-start"
+                    data={calculatorSummaryData}
+                    className="border-0 bg-transparent p-0 md:sticky md:top-4 md:self-start md:border md:bg-background md:p-5 lg:top-6"
                     onImageSelect={(imageUrl) =>
                       updateForm("productImageUrl", imageUrl)
                     }
@@ -1938,7 +1956,7 @@ export function CalculatorPageClient({
                 ) : (
                   <EstimateRequirementsCard
                     requirements={estimateRequirements}
-                    className="lg:sticky lg:top-6 lg:self-start"
+                    className="hidden md:sticky md:top-4 md:flex md:self-start lg:top-6"
                   />
                 )}
               </div>

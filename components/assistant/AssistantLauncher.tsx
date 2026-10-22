@@ -88,7 +88,7 @@ export function AssistantLauncher() {
         onClick={() => setOpen(true)}
         aria-label="Ask Evol-E"
         title="Ask Evol-E (Ctrl/⌘ + J)"
-        className="print-hide fixed right-4 bottom-4 z-40 flex h-12 items-center gap-1.5 rounded-full bg-foreground px-[5px] text-sm font-medium text-background shadow-lg transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none sm:right-6 sm:bottom-6 sm:pr-4"
+        className="print-hide fixed right-4 bottom-[calc(var(--mobile-nav-h,0px)+1rem)] z-40 flex h-12 items-center gap-1.5 rounded-full bg-foreground px-[5px] text-sm font-medium text-background shadow-lg transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none sm:right-6 md:bottom-6 sm:pr-4"
       >
         <EvolE size={38} className="text-background" />
         <span className="hidden sm:inline">Ask Evol-E</span>

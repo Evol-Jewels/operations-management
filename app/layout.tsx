@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
@@ -23,7 +23,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:4000"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:4000",
+  ),
   title: "EVOL Jewels - Operations",
   description: "Order tracking and operations dashboard for EVOL Jewels.",
   openGraph: {
@@ -42,6 +44,12 @@ export const metadata: Metadata = {
     description: "Order tracking and operations dashboard for EVOL Jewels.",
     images: ["/evol-logo.webp"],
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

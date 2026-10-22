@@ -131,19 +131,36 @@ function ProductForm({ mode, productId = "", product }: FormProps) {
     );
   }
 
+  const submitLabel = mutation.isPending
+    ? "Saving to Shopify..."
+    : mode === "create"
+      ? "Create product draft"
+      : "Save changes";
+  const submitIcon = mutation.isPending ? (
+    <LoaderCircle className="animate-spin" />
+  ) : (
+    <Save />
+  );
+
   return (
-    <main className="mx-auto w-full max-w-7xl pb-12">
-      <form onSubmit={submit} className="space-y-8">
-        <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-          <div className="flex items-start gap-4">
-            <Button asChild type="button" variant="ghost" size="icon-sm">
-              <Link href="/shopify-products">
+    <main className="mx-auto w-full max-w-7xl lg:pb-12">
+      <form onSubmit={submit} className="space-y-6 sm:space-y-8">
+        <header className="flex items-start justify-between gap-3 sm:gap-4">
+          <div className="flex min-w-0 items-start gap-2 sm:gap-4">
+            <Button
+              asChild
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="-ml-2 shrink-0 sm:ml-0"
+            >
+              <Link href="/shopify-products" aria-label="Back to products">
                 <ArrowLeft />
               </Link>
             </Button>
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-semibold tracking-tight">
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2 pt-1 sm:pt-0">
+                <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
                   {mode === "create"
                     ? "Upload new product"
                     : "Edit product details"}
@@ -152,7 +169,7 @@ function ProductForm({ mode, productId = "", product }: FormProps) {
                   {product?.status ?? "DRAFT"}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="hidden text-sm text-muted-foreground sm:block">
                 {mode === "create"
                   ? "New products are always created as unpublished Shopify drafts."
                   : "Status and publishing remain controlled in Shopify Admin."}
@@ -160,16 +177,28 @@ function ProductForm({ mode, productId = "", product }: FormProps) {
             </div>
           </div>
           {product ? (
-            <Button asChild type="button" size="sm" variant="outline">
-              <a href={product.adminUrl} target="_blank" rel="noreferrer">
-                Open in Shopify <ArrowUpRight />
+            <Button
+              asChild
+              type="button"
+              size="sm"
+              variant="outline"
+              className="shrink-0 max-sm:size-9 max-sm:px-0"
+            >
+              <a
+                href={product.adminUrl}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Open in Shopify"
+              >
+                <span className="hidden sm:inline">Open in Shopify</span>
+                <ArrowUpRight />
               </a>
             </Button>
           ) : null}
         </header>
 
         {isActive ? (
-          <div className="flex gap-3 border-y border-amber-500/30 bg-amber-500/5 px-1 py-4 text-sm">
+          <div className="flex gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-3 text-sm sm:rounded-none sm:border-x-0 sm:px-1 sm:py-4">
             <ShieldCheck className="mt-0.5 size-5 shrink-0" />
             <p>
               This product is active. Detail changes saved here can be visible
@@ -178,9 +207,9 @@ function ProductForm({ mode, productId = "", product }: FormProps) {
           </div>
         ) : null}
 
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.65fr)_minmax(20rem,0.85fr)]">
-          <div className="min-w-0 space-y-8">
-            <section className="border-b pb-8">
+        <div className="grid items-start gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1.65fr)_minmax(20rem,0.85fr)]">
+          <div className="min-w-0 space-y-6 sm:space-y-8">
+            <section className="border-b pb-6 sm:pb-8">
               <ProductBasicsFields
                 state={state}
                 onChange={setState}
@@ -193,7 +222,7 @@ function ProductForm({ mode, productId = "", product }: FormProps) {
               allowOptionChanges={mode === "create"}
             />
           </div>
-          <aside className="space-y-8 lg:sticky lg:top-6">
+          <aside className="min-w-0 space-y-6 border-t pt-6 sm:space-y-8 lg:sticky lg:top-6 lg:border-t-0 lg:pt-0">
             <ProductMediaUploader
               media={media}
               existingMedia={product?.media.nodes}
@@ -201,7 +230,7 @@ function ProductForm({ mode, productId = "", product }: FormProps) {
             />
             <section className="space-y-4 border-t pt-6">
               <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 size-5 text-primary" />
+                <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" />
                 <div>
                   <p className="font-medium">Shopify is the source of truth</p>
                   <p className="text-sm text-muted-foreground">
@@ -211,22 +240,25 @@ function ProductForm({ mode, productId = "", product }: FormProps) {
               </div>
               <Button
                 type="submit"
-                className="w-full"
+                className="hidden w-full lg:inline-flex"
                 disabled={mutation.isPending}
               >
-                {mutation.isPending ? (
-                  <LoaderCircle className="animate-spin" />
-                ) : (
-                  <Save />
-                )}
-                {mutation.isPending
-                  ? "Saving to Shopify..."
-                  : mode === "create"
-                    ? "Create product draft"
-                    : "Save changes"}
+                {submitIcon}
+                {submitLabel}
               </Button>
             </section>
           </aside>
+        </div>
+
+        <div className="sticky bottom-[var(--mobile-nav-h,0px)] z-20 -mx-4 flex border-t bg-background/95 py-3 pr-20 pl-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6 lg:hidden">
+          <Button
+            type="submit"
+            className="h-11 w-full sm:w-auto sm:min-w-60"
+            disabled={mutation.isPending}
+          >
+            {submitIcon}
+            {submitLabel}
+          </Button>
         </div>
       </form>
     </main>

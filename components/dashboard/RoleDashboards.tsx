@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { OrderTypeBadge } from "@/components/orders/order-type-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +66,8 @@ interface AnalyticsDashboardProps {
   analyticsLoading: boolean;
   onRetryAnalytics: () => void;
 }
+
+const RECORD_PREVIEW_LIMIT = 8;
 
 const TAB_TRIGGER_CLASS =
   "h-11 flex-none rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none";
@@ -180,10 +182,12 @@ function ActivityToggle() {
       size="sm"
       onClick={toggle}
       aria-pressed={isOpen}
-      className="print-hide"
+      className="print-hide max-sm:size-10 max-sm:px-0"
     >
       <Icon className="size-4" />
-      {isOpen ? "Hide activity" : "Show activity"}
+      <span className="max-sm:sr-only">
+        {isOpen ? "Hide activity" : "Show activity"}
+      </span>
     </Button>
   );
 }
@@ -245,36 +249,39 @@ function RecordRow({ order }: { order: Order }) {
   return (
     <Link
       href={getRecordHref(order)}
-      className="group flex items-start justify-between gap-3 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      className="group flex items-center gap-3 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
-      <div className="min-w-0 space-y-1.5">
-        <div className="flex flex-wrap items-center gap-2">
-          {order.type === "order" ? (
-            <OrderTypeBadge
-              productType={order.productType}
-              isRefill={order.isRefill}
-            />
-          ) : (
-            <Badge variant="outline" className="text-[10px]">
-              Enquiry
-            </Badge>
-          )}
-          <span className="text-xs font-medium text-muted-foreground">
-            {order.currentStage}
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            {order.type === "order" ? (
+              <OrderTypeBadge
+                productType={order.productType}
+                isRefill={order.isRefill}
+              />
+            ) : (
+              <Badge variant="outline" className="text-[10px]">
+                Enquiry
+              </Badge>
+            )}
+            <span className="truncate text-xs font-medium text-muted-foreground">
+              {order.currentStage}
+            </span>
+          </div>
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {formatRelativeTime(order.lastUpdatedAt)}
           </span>
         </div>
         <p className="truncate text-base font-semibold text-foreground">
           {order.customerName}
         </p>
-        <p className="truncate text-sm text-muted-foreground">
-          {order.orderNumber ?? "Enquiry"} · {order.category}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-3 text-right">
-        <div>
+        <div className="flex items-center justify-between gap-3">
+          <p className="truncate text-sm text-muted-foreground">
+            {order.orderNumber ?? "Enquiry"} · {order.category}
+          </p>
           <p
             className={cn(
-              "text-sm font-medium",
+              "shrink-0 text-sm font-medium",
               urgency === "overdue" && "text-red-600 dark:text-red-400",
               urgency === "due-soon" && "text-amber-600 dark:text-amber-400",
               urgency === "on-track" &&
@@ -284,12 +291,9 @@ function RecordRow({ order }: { order: Order }) {
           >
             {formatDaysRemaining(order.deliveryDate)}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {formatRelativeTime(order.lastUpdatedAt)}
-          </p>
         </div>
-        <ArrowRight className="size-4 text-muted-foreground/35 transition-colors group-hover:text-muted-foreground max-sm:hidden" />
       </div>
+      <ArrowRight className="size-4 shrink-0 text-muted-foreground/35 transition-colors group-hover:text-muted-foreground max-sm:hidden" />
     </Link>
   );
 }
@@ -356,8 +360,8 @@ export function AdminDashboard(props: AnalyticsDashboardProps) {
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gap-5">
-        <div className="flex items-end justify-between gap-4 border-b border-border">
-          <TabsList className="h-auto justify-start gap-6 rounded-none border-0 bg-transparent p-0 text-muted-foreground">
+        <div className="-mx-4 flex items-end justify-between gap-4 overflow-x-auto border-b border-border px-4 scrollbar-none sm:mx-0 sm:px-0">
+          <TabsList className="h-auto shrink-0 justify-start gap-6 rounded-none border-0 bg-transparent p-0 text-muted-foreground">
             <TabsTrigger value="orders-enquiries" className={TAB_TRIGGER_CLASS}>
               <ChartNoAxesColumn className="size-4" />
               Orders & Enquiries
@@ -422,6 +426,7 @@ export function SalesDashboard({
   storeRecordsError: Error | null;
 }) {
   const { analytics } = analyticsProps;
+  const [showAllRecords, setShowAllRecords] = useState(false);
   const data = useMemo(() => {
     const byLastUpdated = (a: Order, b: Order) =>
       new Date(b.lastUpdatedAt).getTime() - new Date(a.lastUpdatedAt).getTime();
@@ -478,6 +483,13 @@ export function SalesDashboard({
   ];
   const isStoreTab =
     activeTab === "store-orders" || activeTab === "store-enquiries";
+  const activeCount =
+    salesTabs.find((tab) => tab.key === activeTab)?.count ?? 0;
+  const hiddenRecordCount = showAllRecords
+    ? 0
+    : Math.max(activeCount - RECORD_PREVIEW_LIMIT, 0);
+  const limitRecords = (records: Order[]) =>
+    showAllRecords ? records : records.slice(0, RECORD_PREVIEW_LIMIT);
   const storeName = storeLocation?.name ?? "your store";
 
   return (
@@ -487,8 +499,134 @@ export function SalesDashboard({
         description="Keep an eye on your customers and sales pipeline."
       />
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(20rem,2fr)] lg:items-start">
-        <div className="min-w-0 space-y-5">
+      <div className="grid gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-[minmax(0,3fr)_minmax(20rem,2fr)] lg:items-start">
+        <MySalesPerformanceCard className="md:col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-1" />
+
+        <section
+          aria-label="Your records"
+          className="min-w-0 md:col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-2"
+        >
+          <div
+            role="toolbar"
+            aria-label="Record lists"
+            className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-0.5 scrollbar-none sm:mx-0 sm:px-0"
+          >
+            {salesTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => {
+                    onActiveTabChange(tab.key);
+                    setShowAllRecords(false);
+                  }}
+                  aria-pressed={isActive}
+                  className={cn(
+                    "flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                    isActive
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {tab.label}
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+                      isActive
+                        ? "bg-background/20 text-background"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 overflow-hidden rounded-lg border border-border/70 bg-card">
+            {activeTab === "orders" &&
+              (data.openOrders.length > 0 ? (
+                limitRecords(data.openOrders).map((order) => (
+                  <RecordRow key={order.id} order={order} />
+                ))
+              ) : (
+                <EmptyRows
+                  title="No open orders"
+                  description="All orders are either complete or not yet created."
+                />
+              ))}
+            {activeTab === "enquiries" &&
+              (data.openEnquiries.length > 0 ? (
+                limitRecords(data.openEnquiries).map((order) => (
+                  <EnquiryRow key={order.id} order={order} />
+                ))
+              ) : (
+                <EmptyRows
+                  title="No open enquiries"
+                  description="Create a new enquiry to get started."
+                />
+              ))}
+            {isStoreTab && storeRecordsLoading && (
+              <div className="space-y-3 p-4" aria-live="polite">
+                <span className="sr-only">Loading store records</span>
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            )}
+            {isStoreTab && storeRecordsError && (
+              <div className="px-5 py-8 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  Store records could not be loaded.
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {storeRecordsError.message}
+                </p>
+              </div>
+            )}
+            {activeTab === "store-orders" &&
+              !storeRecordsLoading &&
+              !storeRecordsError &&
+              (data.openStoreOrders.length > 0 ? (
+                limitRecords(data.openStoreOrders).map((order) => (
+                  <RecordRow key={order.id} order={order} />
+                ))
+              ) : (
+                <EmptyRows
+                  title="No open store orders"
+                  description={`There are no open orders for ${storeName}.`}
+                />
+              ))}
+            {activeTab === "store-enquiries" &&
+              !storeRecordsLoading &&
+              !storeRecordsError &&
+              (data.openStoreEnquiries.length > 0 ? (
+                limitRecords(data.openStoreEnquiries).map((order) => (
+                  <EnquiryRow key={order.id} order={order} />
+                ))
+              ) : (
+                <EmptyRows
+                  title="No open store enquiries"
+                  description={`There are no open enquiries for ${storeName}.`}
+                />
+              ))}
+          </div>
+          {hiddenRecordCount > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="mt-2 h-10 w-full text-muted-foreground"
+              onClick={() => setShowAllRecords(true)}
+            >
+              Show {hiddenRecordCount} more
+            </Button>
+          )}
+        </section>
+
+        <div className="min-w-0 md:col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-3">
           {analytics ? (
             <MetricsGrid>
               <MetricCard card={activeOrdersCard(analytics)} />
@@ -511,109 +649,15 @@ export function SalesDashboard({
               onRetry={analyticsProps.onRetryAnalytics}
             />
           )}
-
-          <MySalesPerformanceCard />
         </div>
 
-        <SalesLeaderboardCard />
-      </div>
+        <SalesLeaderboardCard className="md:col-span-2 lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:row-span-3" />
 
-      {analytics && <OrdersAnalyticsCharts analytics={analytics} />}
-
-      <div>
-        <div className="-mx-4 flex items-center gap-1 overflow-x-auto border-b border-border px-4 scrollbar-none sm:mx-0 sm:px-0">
-          {salesTabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => onActiveTabChange(tab.key)}
-                aria-pressed={activeTab === tab.key}
-                className={cn(
-                  "flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                  activeTab === tab.key
-                    ? "border-foreground text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className="size-4" />
-                {tab.label}
-                <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 overflow-hidden rounded-lg border border-border/70 bg-card">
-          {activeTab === "orders" &&
-            (data.openOrders.length > 0 ? (
-              data.openOrders.map((order) => (
-                <RecordRow key={order.id} order={order} />
-              ))
-            ) : (
-              <EmptyRows
-                title="No open orders"
-                description="All orders are either complete or not yet created."
-              />
-            ))}
-          {activeTab === "enquiries" &&
-            (data.openEnquiries.length > 0 ? (
-              data.openEnquiries.map((order) => (
-                <EnquiryRow key={order.id} order={order} />
-              ))
-            ) : (
-              <EmptyRows
-                title="No open enquiries"
-                description="Create a new enquiry to get started."
-              />
-            ))}
-          {isStoreTab && storeRecordsLoading && (
-            <div className="space-y-3 p-4" aria-live="polite">
-              <span className="sr-only">Loading store records</span>
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-            </div>
-          )}
-          {isStoreTab && storeRecordsError && (
-            <div className="px-5 py-8 text-center">
-              <p className="text-sm font-medium text-foreground">
-                Store records could not be loaded.
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {storeRecordsError.message}
-              </p>
-            </div>
-          )}
-          {activeTab === "store-orders" &&
-            !storeRecordsLoading &&
-            !storeRecordsError &&
-            (data.openStoreOrders.length > 0 ? (
-              data.openStoreOrders.map((order) => (
-                <RecordRow key={order.id} order={order} />
-              ))
-            ) : (
-              <EmptyRows
-                title="No open store orders"
-                description={`There are no open orders for ${storeName}.`}
-              />
-            ))}
-          {activeTab === "store-enquiries" &&
-            !storeRecordsLoading &&
-            !storeRecordsError &&
-            (data.openStoreEnquiries.length > 0 ? (
-              data.openStoreEnquiries.map((order) => (
-                <EnquiryRow key={order.id} order={order} />
-              ))
-            ) : (
-              <EmptyRows
-                title="No open store enquiries"
-                description={`There are no open enquiries for ${storeName}.`}
-              />
-            ))}
-        </div>
+        {analytics && (
+          <div className="min-w-0 md:col-span-2 lg:row-start-4">
+            <OrdersAnalyticsCharts analytics={analytics} />
+          </div>
+        )}
       </div>
     </div>
   );

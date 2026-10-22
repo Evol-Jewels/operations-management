@@ -73,8 +73,8 @@ function LoginForm() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-7rem)] max-w-md items-center">
-      <div className="w-full rounded-xl border border-border bg-card p-6 shadow-sm">
+    <div className="mx-auto flex min-h-[calc(100svh-2.5rem)] max-w-md flex-col justify-center pb-[env(safe-area-inset-bottom)] sm:min-h-[calc(100svh-3rem)]">
+      <div className="w-full rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-8">
         <div className="mb-6 space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             EVOL Jewels
@@ -98,7 +98,11 @@ function LoginForm() {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="your-username"
                 autoComplete="username"
-                className="h-10"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="next"
+                className="h-11 sm:h-10"
                 required
               />
             </div>
@@ -112,14 +116,15 @@ function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
                 autoComplete="current-password"
-                className="h-10"
+                enterKeyHint="go"
+                className="h-11 sm:h-10"
                 required
               />
             </div>
 
             <Button
               type="submit"
-              className="w-full gap-2"
+              className="h-11 w-full gap-2 sm:h-10"
               disabled={usernamePending}
             >
               {usernamePending ? (
@@ -143,7 +148,7 @@ function LoginForm() {
           <Button
             type="button"
             variant="outline"
-            className="w-full gap-2"
+            className="h-11 w-full gap-2 sm:h-10"
             onClick={handleGoogleLogin}
             disabled={googlePending}
           >

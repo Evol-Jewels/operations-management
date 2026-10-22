@@ -163,7 +163,7 @@ export const AssistantComposer = forwardRef<
         event.preventDefault();
         addFiles([...event.dataTransfer.files]);
       }}
-      className="rounded-3xl border bg-card p-2 shadow-xs transition-colors focus-within:border-foreground/25"
+      className="rounded-3xl border bg-card p-2 shadow-xs transition-colors focus-within:border-foreground/25 max-md:[&_[data-size=icon-sm]]:size-10"
     >
       {contextLabel && (
         <p className="mx-1 mt-0.5 inline-flex max-w-full items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
@@ -182,7 +182,7 @@ export const AssistantComposer = forwardRef<
               className={cn(
                 "group relative flex h-14 items-center justify-center overflow-hidden rounded-lg border bg-muted",
                 upload.kind === "DOCUMENT"
-                  ? "w-48 justify-start gap-2 px-3 pr-7"
+                  ? "w-48 max-w-full justify-start gap-2 px-3 pr-7"
                   : "w-14",
                 upload.failed && "border-destructive/50",
               )}
@@ -233,7 +233,7 @@ export const AssistantComposer = forwardRef<
                     current.filter((item) => item.key !== upload.key),
                   )
                 }
-                className="absolute top-0.5 right-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm"
+                className="absolute top-0.5 right-0.5 flex size-5 items-center justify-center rounded-full bg-background/90 text-foreground shadow-sm pointer-coarse:size-6"
               >
                 <X className="size-3" />
               </button>
@@ -271,8 +271,8 @@ export const AssistantComposer = forwardRef<
           }
         }}
         className={cn(
-          "field-sizing-content max-h-48 w-full resize-none bg-transparent px-2.5 pt-2 text-base outline-none placeholder:text-muted-foreground/80 md:text-sm",
-          compact ? "min-h-12" : "min-h-16",
+          "field-sizing-content max-h-[min(12rem,30svh)] w-full resize-none bg-transparent px-2.5 pt-2 text-base outline-none placeholder:text-muted-foreground/80 md:text-sm",
+          compact ? "min-h-11 md:min-h-12" : "min-h-11 md:min-h-16",
         )}
       />
       <div className="flex items-center justify-between gap-2">

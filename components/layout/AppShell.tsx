@@ -1,15 +1,22 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useEffectEvent } from "react";
 import { AssistantLauncher } from "@/components/assistant/AssistantLauncher";
 import { AppSidebar } from "@/components/layout/AppSidebar";
-import { MobileGoldRateAction } from "@/components/layout/MobileGoldRateAction";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
+import { MobileTopBar } from "@/components/layout/MobileTopBar";
 import {
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { getSessionRole } from "@/lib/auth";
+import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
+
+const BOTTOM_NAV_ROLES = ["ADMIN", "OPERATIONS", "SALES"];
+const WIDE_SCREEN_QUERY = "(min-width: 64rem)";
 
 function Loading() {
   return (
@@ -19,11 +26,37 @@ function Loading() {
   );
 }
 
+// Portrait tablets get the icon rail so content has room; wide screens keep the full sidebar.
+function SidebarWidthSync() {
+  const { setOpen } = useSidebar();
+  // Only sync on breakpoint changes so a manual toggle sticks.
+  const syncOpen = useEffectEvent((open: boolean) => setOpen(open));
+
+  useEffect(() => {
+    const query = window.matchMedia(WIDE_SCREEN_QUERY);
+    if (!query.matches) syncOpen(false);
+    const onChange = (event: MediaQueryListEvent) => syncOpen(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  return null;
+}
+
+function isFocusedFlow(pathname: string) {
+  return /\/(new|edit)(\/|$)/.test(pathname) || pathname === "/assistant";
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { data: session } = authClient.useSession();
   const showSidebar = pathname !== "/login";
   // The assistant page manages its own full-height layout.
   const fullBleed = pathname === "/assistant";
+  const showBottomNav =
+    Boolean(session) &&
+    BOTTOM_NAV_ROLES.includes(getSessionRole(session)) &&
+    !isFocusedFlow(pathname);
 
   if (!showSidebar) {
     return (
@@ -37,18 +70,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider className="h-svh overflow-hidden">
+      <SidebarWidthSync />
       <AppSidebar />
       <SidebarInset
         id="app-content"
-        className="h-svh overflow-x-clip overflow-y-auto"
+        className={cn(
+          "h-svh overflow-x-clip overflow-y-auto [--mobile-nav-h:0px] [--mobile-top-h:3.5rem] md:[--mobile-top-h:0px]",
+          showBottomNav &&
+            "[--mobile-nav-h:calc(4rem+env(safe-area-inset-bottom))] md:[--mobile-nav-h:0px]",
+        )}
       >
-        <SidebarTrigger className="fixed top-4 left-4 z-40 rounded-full border border-border/70 bg-background/90 shadow-sm backdrop-blur md:hidden print-hide" />
+        <MobileTopBar />
         {fullBleed ? (
           <Suspense fallback={<Loading />}>{children}</Suspense>
         ) : (
           <>
-            <MobileGoldRateAction />
-            <div className="mx-auto min-h-full w-full max-w-400 px-4 pt-16 pb-5 sm:p-6">
+            <div className="mx-auto min-h-full w-full max-w-400 shrink-0 px-4 pt-4 pb-[calc(var(--mobile-nav-h)+1.25rem)] sm:px-6 sm:pt-6 md:pb-6">
               <Suspense fallback={<Loading />}>{children}</Suspense>
             </div>
             <Suspense fallback={null}>
@@ -56,6 +93,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Suspense>
           </>
         )}
+        {showBottomNav && <MobileBottomNav />}
       </SidebarInset>
     </SidebarProvider>
   );

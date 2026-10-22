@@ -1,9 +1,15 @@
 "use client";
 
-import { LayoutGrid, List, Search, Wrench } from "lucide-react";
+import { Search, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { KanbanStageStrip } from "@/components/dashboard/KanbanStageStrip";
+import {
+  FilterField,
+  WorkspaceFiltersSheet,
+} from "@/components/dashboard/WorkspaceFiltersSheet";
+import { WorkspaceViewToggle } from "@/components/dashboard/WorkspaceViewToggle";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -72,6 +78,22 @@ export function RepairsWorkspace({
       Object.keys(validateRepairVendor(pendingMove.repair.vendor)).length,
   );
   const query = search.trim().toLowerCase();
+  const productTypeSelect = (id: string, className: string) => (
+    <Select value={productType} onValueChange={setProductType}>
+      <SelectTrigger
+        id={id}
+        aria-label="Filter repairs by product type"
+        className={className}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All types</SelectItem>
+        <SelectItem value="Customer">Customer</SelectItem>
+        <SelectItem value="Stock">Stock</SelectItem>
+      </SelectContent>
+    </Select>
+  );
   const activeStage = viewMode === "table" ? stage : "all";
   const filtered = repairs.filter(
     (repair) =>
@@ -132,33 +154,49 @@ export function RepairsWorkspace({
     }
   };
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 md:space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <h2 className="text-base font-medium lg:mr-auto">
+        <h2 className="text-base font-medium max-lg:sr-only lg:mr-auto">
           Repairs{" "}
           <span className="text-muted-foreground">({filtered.length})</span>
         </h2>
-        <div className="relative min-w-0 lg:w-72">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            aria-label={
-              canManageVendor
-                ? "Search repairs by customer, vendor, barcode, or repair"
-                : "Search repairs by customer, barcode, or repair"
-            }
-            placeholder={
-              canManageVendor
-                ? "Search customer, vendor, or barcode"
-                : "Search customer or barcode"
-            }
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="pl-9"
-            maxLength={255}
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1 lg:w-72 lg:flex-none">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              aria-label={
+                canManageVendor
+                  ? "Search repairs by customer, vendor, barcode, or repair"
+                  : "Search repairs by customer, barcode, or repair"
+              }
+              placeholder={
+                canManageVendor
+                  ? "Search customer, vendor, or barcode"
+                  : "Search customer or barcode"
+              }
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="h-10 pl-9 lg:h-9"
+              maxLength={255}
+            />
+          </div>
+          <WorkspaceFiltersSheet
+            activeCount={productType === "all" ? 0 : 1}
+            onReset={() => setProductType("all")}
+            className="lg:hidden"
+          >
+            <FilterField label="Repair type" htmlFor="repair-type-sheet">
+              {productTypeSelect("repair-type-sheet", "h-11 w-full")}
+            </FilterField>
+          </WorkspaceFiltersSheet>
+          <WorkspaceViewToggle
+            value={viewMode}
+            onChange={onViewModeChange}
+            className="lg:hidden"
           />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="hidden flex-wrap items-center gap-2 lg:flex">
           {viewMode === "table" && (
             <Select value={stage} onValueChange={setStage}>
               <SelectTrigger aria-label="Filter repairs by stage">
@@ -174,16 +212,7 @@ export function RepairsWorkspace({
               </SelectContent>
             </Select>
           )}
-          <Select value={productType} onValueChange={setProductType}>
-            <SelectTrigger aria-label="Filter repairs by product type">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="Customer">Customer</SelectItem>
-              <SelectItem value="Stock">Stock</SelectItem>
-            </SelectContent>
-          </Select>
+          {productTypeSelect("repair-type", "")}
           {(search || activeStage !== "all" || productType !== "all") && (
             <Button
               variant="ghost"
@@ -197,28 +226,20 @@ export function RepairsWorkspace({
               Clear
             </Button>
           )}
-          <div className="flex gap-1 lg:hidden">
-            <Button
-              aria-label="Repair table view"
-              aria-pressed={viewMode === "table"}
-              variant={viewMode === "table" ? "secondary" : "ghost"}
-              size="icon"
-              onClick={() => onViewModeChange("table")}
-            >
-              <List className="size-4" />
-            </Button>
-            <Button
-              aria-label="Repair kanban view"
-              aria-pressed={viewMode === "kanban"}
-              variant={viewMode === "kanban" ? "secondary" : "ghost"}
-              size="icon"
-              onClick={() => onViewModeChange("kanban")}
-            >
-              <LayoutGrid className="size-4" />
-            </Button>
-          </div>
         </div>
       </div>
+      {viewMode === "table" && (
+        <KanbanStageStrip
+          label="Filter by stage"
+          className="lg:hidden"
+          stages={[
+            { id: "all", label: "All" },
+            ...REPAIR_STAGES.map((value) => ({ id: value, label: value })),
+          ]}
+          activeId={stage}
+          onSelect={setStage}
+        />
+      )}
       {isLoading ? (
         <p className="py-12 text-center text-sm text-muted-foreground">
           Loading repairs…
@@ -257,15 +278,12 @@ export function RepairsWorkspace({
         />
       ) : (
         <>
-          <div className="grid gap-3 sm:hidden">
+          <div className="grid gap-2 md:grid-cols-2 md:gap-3 lg:hidden">
             {filtered.map((repair) => (
-              <div key={repair.id} className="space-y-2">
-                <RepairStageBadge stage={repair.stage} />
-                <RepairWorkspaceCard repair={repair} />
-              </div>
+              <RepairWorkspaceCard key={repair.id} repair={repair} showStage />
             ))}
           </div>
-          <div className="hidden overflow-hidden rounded-xl border bg-card sm:block">
+          <div className="hidden overflow-hidden rounded-xl border bg-card lg:block">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40">

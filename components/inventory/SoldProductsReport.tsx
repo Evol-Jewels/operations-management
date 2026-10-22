@@ -34,6 +34,7 @@ import {
 } from "./AnalyticsFilterControls";
 import { AnalyticsFilterPopover } from "./AnalyticsFilterPopover";
 import { isValidMonth, MonthPicker } from "./MonthPicker";
+import { SoldProductsCards } from "./SoldProductsCards";
 import { SoldProductsSearch } from "./SoldProductsSearch";
 import { SoldProductsTable } from "./SoldProductsTable";
 
@@ -142,6 +143,13 @@ export function SoldProductsReport() {
     router.replace(`${pathname}?${next}`, { scroll: false });
   }
 
+  function handleSort(sort: SoldProductsSort) {
+    update({
+      soldSort: sort,
+      soldOrder: sort === sortBy && sortOrder === "asc" ? "desc" : "asc",
+    });
+  }
+
   function reset() {
     const next = new URLSearchParams(params);
     for (const key of reportKeys) next.delete(key);
@@ -159,7 +167,7 @@ export function SoldProductsReport() {
             </Badge>
           )}
         </div>
-        <div className="flex w-full items-center gap-2 sm:w-auto">
+        <div className="flex w-full items-center gap-2 md:w-auto">
           <SoldProductsSearch
             value={search}
             onSearch={(value) => update({ soldSearch: value })}
@@ -331,18 +339,20 @@ export function SoldProductsReport() {
           {report.data && !report.isError && (
             <>
               {report.data.data.length ? (
-                <SoldProductsTable
-                  rows={report.data.data}
-                  sortBy={sortBy}
-                  sortOrder={sortOrder}
-                  onSort={(sort) =>
-                    update({
-                      soldSort: sort,
-                      soldOrder:
-                        sort === sortBy && sortOrder === "asc" ? "desc" : "asc",
-                    })
-                  }
-                />
+                <>
+                  <SoldProductsTable
+                    rows={report.data.data}
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                  <SoldProductsCards
+                    rows={report.data.data}
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                </>
               ) : (
                 <div className="rounded-md border border-dashed p-10 text-center">
                   <p className="text-sm text-muted-foreground">
@@ -362,10 +372,11 @@ export function SoldProductsReport() {
                 </p>
                 <nav
                   aria-label="Sold products pagination"
-                  className="flex flex-wrap gap-2"
+                  className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap"
                 >
                   <Button
                     variant="outline"
+                    className="h-10 sm:h-9"
                     disabled={page === 1 || report.isFetching}
                     onClick={() => update({ soldPage: String(page - 1) })}
                   >
@@ -408,6 +419,7 @@ export function SoldProductsReport() {
                     ))}
                   <Button
                     variant="outline"
+                    className="h-10 sm:h-9"
                     disabled={
                       page * pageSize >= report.data.total || report.isFetching
                     }

@@ -43,7 +43,7 @@ const statusStyles = {
     "border-red-500/20 bg-red-500/10 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400",
 };
 
-function InviteActivity({ invite }: { invite: InternalInviteRow }) {
+function inviteActivity(invite: InternalInviteRow) {
   const date =
     invite.status === "ACCEPTED"
       ? invite.acceptedAt
@@ -52,6 +52,20 @@ function InviteActivity({ invite }: { invite: InternalInviteRow }) {
         : invite.expirationAt;
   const label =
     invite.status === "PENDING" ? "Expires" : formatLabel(invite.status);
+  return { date, label };
+}
+
+function InviteActivityLabel({ invite }: { invite: InternalInviteRow }) {
+  const { date, label } = inviteActivity(invite);
+  return (
+    <span title={formatDateTime(date)}>
+      {label} {formatDate(date)}
+    </span>
+  );
+}
+
+function InviteActivity({ invite }: { invite: InternalInviteRow }) {
+  const { date, label } = inviteActivity(invite);
 
   return (
     <div title={formatDateTime(date)}>
@@ -87,7 +101,7 @@ function InviteActions({
           variant="ghost"
           size="icon-sm"
           aria-label={`Actions for invite to ${invite.email}`}
-          className="mx-auto cursor-pointer"
+          className="size-10 shrink-0 cursor-pointer md:mx-auto md:size-8"
           onClick={(e) => e.stopPropagation()}
           disabled={isLoading}
         >
@@ -99,7 +113,7 @@ function InviteActions({
           {canUpdate && (
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+              className="flex w-full items-center gap-2 rounded-sm px-3 py-2.5 text-sm hover:bg-accent md:py-2 disabled:opacity-50"
               onClick={(e) => {
                 e.stopPropagation();
                 onUpdateInvite();
@@ -112,7 +126,7 @@ function InviteActions({
           {canResetPassword && (
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+              className="flex w-full items-center gap-2 rounded-sm px-3 py-2.5 text-sm hover:bg-accent md:py-2 disabled:opacity-50"
               onClick={(e) => {
                 e.stopPropagation();
                 onResetPassword();
@@ -150,68 +164,50 @@ export function InvitesTable({
 
   return (
     <div className="overflow-hidden rounded-md border border-border/70 [&_[data-slot=table-container]]:pr-0">
-      <div className="space-y-3 p-3 sm:hidden">
+      <ul className="divide-y divide-border/70 md:hidden">
         {invites.map((invite) => (
-          <div
+          <li
             key={invite.id}
-            className="relative rounded-md border border-border/70 bg-background p-4"
+            className="flex items-center gap-1 py-3 pr-1.5 pl-3"
           >
-            <div className="flex min-w-0 items-start justify-between gap-3">
-              <div className="min-w-0">
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-center gap-2">
                 <p className="truncate font-medium text-foreground">
                   {invite.email}
                 </p>
-                {invite.username && (
-                  <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {invite.username}
-                  </p>
-                )}
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "shrink-0 border px-1.5 py-0 text-[11px]",
+                    statusStyles[invite.status],
+                  )}
+                >
+                  {formatLabel(invite.status)}
+                </Badge>
               </div>
-              <Badge
-                variant="outline"
-                className={cn("shrink-0 border", statusStyles[invite.status])}
-              >
-                {formatLabel(invite.status)}
-              </Badge>
-            </div>
-            <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
-              <div className="flex justify-between gap-3">
-                <span>Role</span>
+              {invite.username && (
+                <p className="truncate text-xs text-muted-foreground">
+                  {invite.username}
+                </p>
+              )}
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 <span className="font-medium text-foreground">
                   {formatLabel(invite.role)}
-                </span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span>Activity</span>
-                <div className="text-right font-medium text-foreground">
-                  <InviteActivity invite={invite} />
-                </div>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span>Created</span>
-                <span
-                  className="text-right font-medium text-foreground"
-                  title={formatDateTime(invite.createdAt)}
-                >
-                  {formatDate(invite.createdAt)}
-                </span>
-              </div>
+                </span>{" "}
+                · <InviteActivityLabel invite={invite} />
+              </p>
             </div>
-            {(invite.status !== "ACCEPTED" || Boolean(invite.username)) && (
-              <div className="mt-3 flex justify-end border-t border-border/70 pt-2">
-                <InviteActions
-                  invite={invite}
-                  onUpdateInvite={() => onUpdateInvite(invite)}
-                  onResetPassword={() => onResetPassword(invite)}
-                  isLoading={actionLoading === invite.id}
-                />
-              </div>
-            )}
-          </div>
+            <InviteActions
+              invite={invite}
+              onUpdateInvite={() => onUpdateInvite(invite)}
+              onResetPassword={() => onResetPassword(invite)}
+              isLoading={actionLoading === invite.id}
+            />
+          </li>
         ))}
-      </div>
+      </ul>
 
-      <div className="hidden sm:block">
+      <div className="hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>

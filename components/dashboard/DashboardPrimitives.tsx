@@ -34,14 +34,18 @@ export function DashboardHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+    <div className="flex items-center justify-between gap-3 sm:flex-wrap sm:items-end sm:gap-x-4 sm:gap-y-3">
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+        <h1 className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
           {title}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
+          {description}
+        </p>
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex shrink-0 items-center gap-2">{actions}</div>
+      )}
     </div>
   );
 }
@@ -49,7 +53,9 @@ export function DashboardHeader({
 export function MetricsGrid({ children }: { children: React.ReactNode }) {
   return (
     <div className="@container">
-      <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-4">{children}</div>
+      <div className="grid grid-cols-2 gap-2.5 @md:gap-3 @2xl:grid-cols-4">
+        {children}
+      </div>
     </div>
   );
 }
@@ -59,11 +65,13 @@ export function MetricCard({ card }: { card: MetricCardData }) {
   const content = (
     <>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{card.label}</p>
+        <p className="truncate text-xs text-muted-foreground @[12rem]/metric:text-sm">
+          {card.label}
+        </p>
         {Icon && (
           <span
             className={cn(
-              "flex size-8 shrink-0 items-center justify-center rounded-md max-sm:hidden",
+              "hidden size-8 shrink-0 items-center justify-center rounded-md @[12rem]/metric:flex",
               TONE_CLASSES[card.tone ?? "blue"],
             )}
           >
@@ -71,16 +79,18 @@ export function MetricCard({ card }: { card: MetricCardData }) {
           </span>
         )}
       </div>
-      <p className="mt-1 text-xl font-semibold tabular-nums tracking-tight text-foreground sm:text-2xl">
+      <p className="mt-1 truncate text-xl font-semibold tabular-nums tracking-tight text-foreground @[12rem]/metric:text-2xl">
         {card.value}
       </p>
       {card.helper && (
-        <p className="mt-1 text-xs text-muted-foreground">{card.helper}</p>
+        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground @[12rem]/metric:line-clamp-none">
+          {card.helper}
+        </p>
       )}
     </>
   );
   const className =
-    "group relative flex min-w-0 flex-col rounded-lg border border-border/70 bg-card p-3 sm:p-4";
+    "@container/metric group relative flex min-w-0 flex-col rounded-lg border border-border/70 bg-card p-3 sm:p-4";
 
   if (card.href) {
     return (

@@ -118,7 +118,7 @@ export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="overflow-hidden rounded-xl border border-border bg-background transition-shadow focus-within:ring-2 focus-within:ring-ring/30"
+      className="scroll-mb-4 overflow-hidden rounded-xl border border-border bg-background transition-shadow focus-within:ring-2 focus-within:ring-ring/30 max-md:scroll-mb-[calc(var(--mobile-nav-h,0px)+5.5rem)]"
     >
       <label htmlFor="activity-message" className="sr-only">
         Message
@@ -130,7 +130,7 @@ export function ComposeBox({ onSubmit, isSubmitting }: ComposeBoxProps) {
         onChange={(event) => setMessage(event.target.value)}
         rows={3}
         disabled={busy}
-        className="min-h-24 resize-none rounded-none border-0 bg-transparent! text-sm shadow-none focus-visible:ring-0"
+        className="min-h-20 scroll-mt-[calc(var(--mobile-top-h,0px)+1rem)] scroll-mb-[calc(var(--mobile-nav-h,0px)+9rem)] resize-none rounded-none border-0 bg-transparent! text-base shadow-none focus-visible:ring-0 sm:min-h-24 md:text-sm"
       />
 
       {media.length > 0 ? (

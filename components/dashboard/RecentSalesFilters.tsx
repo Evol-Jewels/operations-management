@@ -39,6 +39,7 @@ import {
 } from "@/lib/recentSalesFilters";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getVendorFilterLabel } from "@/lib/vendors";
+import { FilterField, WorkspaceFiltersSheet } from "./WorkspaceFiltersSheet";
 
 const INVENTORY_LABELS: Record<Exclude<RecentSalesInventory, "ALL">, string> = {
   FOUND: "In inventory",
@@ -51,6 +52,72 @@ function titleCase(value: string) {
   return value.charAt(0) + value.slice(1).toLowerCase();
 }
 
+function SaleMonthOptions({
+  from,
+  to,
+  onChange,
+  onPresetSelect,
+}: {
+  from: string;
+  to: string;
+  onChange: (from: string, to: string) => void;
+  onPresetSelect?: () => void;
+}) {
+  const today = new Date();
+  const current = shiftMonth(today, 0);
+  const presets = [
+    { label: "This month", from: current, to: current },
+    { label: "Last 3 months", from: shiftMonth(today, 2), to: current },
+    { label: "Last 6 months", from: shiftMonth(today, 5), to: current },
+    { label: "Last 12 months", from: shiftMonth(today, 11), to: current },
+    { label: "This year", from: `${today.getFullYear()}-01`, to: current },
+    { label: "All months", from: "", to: "" },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-1">
+        {presets.map((preset) => {
+          const active = from === preset.from && to === preset.to;
+          return (
+            <Button
+              key={preset.label}
+              type="button"
+              size="sm"
+              variant={active ? "secondary" : "ghost"}
+              aria-pressed={active}
+              className="h-10 justify-start font-normal sm:h-8"
+              onClick={() => {
+                onChange(preset.from, preset.to);
+                onPresetSelect?.();
+              }}
+            >
+              {preset.label}
+            </Button>
+          );
+        })}
+      </div>
+      <div className="grid grid-cols-2 gap-3 border-t pt-3">
+        <MonthPicker
+          label="From"
+          value={from}
+          max={to || undefined}
+          onChange={(value) => onChange(value, to)}
+        />
+        <MonthPicker
+          label="To"
+          value={to}
+          min={from || undefined}
+          onChange={(value) => onChange(from, value)}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Sales are recorded by month. Months are inclusive.
+      </p>
+    </div>
+  );
+}
+
 function SaleMonthFilter({
   from,
   to,
@@ -61,15 +128,6 @@ function SaleMonthFilter({
   onChange: (from: string, to: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const today = new Date();
-  const current = shiftMonth(today, 0);
-  const presets = [
-    { label: "This month", from: current },
-    { label: "Last 3 months", from: shiftMonth(today, 2) },
-    { label: "Last 6 months", from: shiftMonth(today, 5) },
-    { label: "Last 12 months", from: shiftMonth(today, 11) },
-    { label: "This year", from: `${today.getFullYear()}-01` },
-  ];
   const label = getSaleMonthRangeLabel(from, to);
 
   return (
@@ -101,59 +159,14 @@ function SaleMonthFilter({
         align="end"
         collisionPadding={16}
         aria-label="Sale month range"
-        className="w-[min(20rem,calc(100vw-2rem))] space-y-3 p-3"
+        className="w-[min(20rem,calc(100vw-2rem))] p-3"
       >
-        <div className="grid grid-cols-2 gap-1">
-          {presets.map((preset) => {
-            const active = from === preset.from && to === current;
-            return (
-              <Button
-                key={preset.label}
-                type="button"
-                size="sm"
-                variant={active ? "secondary" : "ghost"}
-                aria-pressed={active}
-                className="justify-start font-normal"
-                onClick={() => {
-                  onChange(preset.from, current);
-                  setOpen(false);
-                }}
-              >
-                {preset.label}
-              </Button>
-            );
-          })}
-          <Button
-            type="button"
-            size="sm"
-            variant={!from && !to ? "secondary" : "ghost"}
-            aria-pressed={!from && !to}
-            className="justify-start font-normal"
-            onClick={() => {
-              onChange("", "");
-              setOpen(false);
-            }}
-          >
-            All months
-          </Button>
-        </div>
-        <div className="grid grid-cols-2 gap-3 border-t pt-3">
-          <MonthPicker
-            label="From"
-            value={from}
-            max={to || undefined}
-            onChange={(value) => onChange(value, to)}
-          />
-          <MonthPicker
-            label="To"
-            value={to}
-            min={from || undefined}
-            onChange={(value) => onChange(from, value)}
-          />
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Sales are recorded by month. Months are inclusive.
-        </p>
+        <SaleMonthOptions
+          from={from}
+          to={to}
+          onChange={onChange}
+          onPresetSelect={() => setOpen(false)}
+        />
       </PopoverContent>
     </Popover>
   );
@@ -296,10 +309,165 @@ export function RecentSalesFilters({
       remove: { priceFrom: "", priceTo: "" },
     });
 
+  const moreFields = (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="min-w-0 space-y-1.5">
+          <Label htmlFor={`${id}-category`}>Category</Label>
+          <Select
+            value={filters.category}
+            onValueChange={(category) => onChange({ category })}
+          >
+            <SelectTrigger id={`${id}-category`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All categories</SelectItem>
+              {RECENT_SALES_CATEGORIES.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {titleCase(value)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-0 space-y-1.5">
+          <Label htmlFor={`${id}-inventory`}>Inventory match</Label>
+          <Select
+            value={filters.inventory}
+            onValueChange={(inventory) =>
+              onChange({ inventory: inventory as RecentSalesInventory })
+            }
+          >
+            <SelectTrigger id={`${id}-inventory`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All sales</SelectItem>
+              <SelectItem value="FOUND">{INVENTORY_LABELS.FOUND}</SelectItem>
+              <SelectItem value="NOT_FOUND">
+                {INVENTORY_LABELS.NOT_FOUND}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-0 space-y-1.5">
+          <Label htmlFor={`${id}-purity`}>Purity</Label>
+          <Select
+            value={filters.purity}
+            onValueChange={(purity) => onChange({ purity })}
+          >
+            <SelectTrigger id={`${id}-purity`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All purities</SelectItem>
+              {RECENT_SALES_PURITIES.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {value}K
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-0 space-y-1.5">
+          <Label htmlFor={`${id}-color`}>Color</Label>
+          <Select
+            value={filters.color}
+            onValueChange={(color) => onChange({ color })}
+          >
+            <SelectTrigger id={`${id}-color`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All colors</SelectItem>
+              {RECENT_SALES_COLORS.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {titleCase(value)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="col-span-2 min-w-0 space-y-1.5">
+          <Label htmlFor={`${id}-location`}>Sale location</Label>
+          <Select
+            value={filters.locationId}
+            onValueChange={(locationId) => onChange({ locationId })}
+            disabled={locationsQuery.isLoading}
+          >
+            <SelectTrigger id={`${id}-location`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All locations</SelectItem>
+              {locations.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.name} · {item.city}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="col-span-2 min-w-0 space-y-1.5">
+          <Label htmlFor={`${id}-seller`}>Salesperson</Label>
+          <Select
+            value={filters.salesPersonId}
+            onValueChange={(salesPersonId) => onChange({ salesPersonId })}
+            disabled={salesPeopleQuery.isLoading}
+          >
+            <SelectTrigger id={`${id}-seller`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All salespeople</SelectItem>
+              {salesPeople.map((person) => (
+                <SelectItem key={person.id} value={person.id}>
+                  {person.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <PriceInput
+          id={`${id}-price-from`}
+          label="Min price (₹)"
+          value={filters.priceFrom}
+          onCommit={(priceFrom) => onChange({ priceFrom })}
+        />
+        <PriceInput
+          id={`${id}-price-to`}
+          label="Max price (₹)"
+          value={filters.priceTo}
+          onCommit={(priceTo) => onChange({ priceTo })}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Category, purity, color and vendor match the product in inventory. Price
+        is the sale amount.
+      </p>
+    </>
+  );
+  const resetMoreFilters = () =>
+    onChange({
+      locationId: "ALL",
+      salesPersonId: "ALL",
+      category: "ALL",
+      purity: "ALL",
+      color: "ALL",
+      inventory: "ALL",
+      priceFrom: "",
+      priceTo: "",
+    });
+  const activeCount =
+    moreCount +
+    (filters.vendorId !== "ALL" ? 1 : 0) +
+    (filters.monthFrom || filters.monthTo ? 1 : 0);
+
   return (
     <div className="min-w-0 flex-1 space-y-2.5">
       <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-        <div className="relative w-full min-w-0 sm:w-64 sm:shrink-0">
+        <div className="relative min-w-0 flex-1 sm:w-64 sm:flex-none sm:shrink-0">
           <Search
             aria-hidden="true"
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -311,174 +479,52 @@ export function RecentSalesFilters({
             placeholder="Search product code or name…"
             aria-label="Search recent sales"
             maxLength={255}
-            className="h-9 pl-9"
+            className="h-10 pl-9 sm:h-9"
           />
         </div>
-        <VendorFilterSelect
-          value={filters.vendorId}
-          vendors={vendors}
-          isLoading={vendorsQuery.isLoading}
-          onChange={(vendorId) => onChange({ vendorId })}
-          className="h-9 w-full sm:w-52"
-        />
-        <SaleMonthFilter
-          from={filters.monthFrom}
-          to={filters.monthTo}
-          onChange={(monthFrom, monthTo) => onChange({ monthFrom, monthTo })}
-        />
-        <AnalyticsFilterPopover
-          count={moreCount}
-          onReset={() =>
-            onChange({
-              locationId: "ALL",
-              salesPersonId: "ALL",
-              category: "ALL",
-              purity: "ALL",
-              color: "ALL",
-              inventory: "ALL",
-              priceFrom: "",
-              priceTo: "",
-            })
-          }
+        <WorkspaceFiltersSheet
+          activeCount={activeCount}
+          onReset={() => onChange(EMPTY_RECENT_SALES_FILTERS)}
+          description="Narrow down recent product sales"
+          className="sm:hidden"
         >
-          <div className="grid grid-cols-2 gap-3">
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor={`${id}-category`}>Category</Label>
-              <Select
-                value={filters.category}
-                onValueChange={(category) => onChange({ category })}
-              >
-                <SelectTrigger id={`${id}-category`} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All categories</SelectItem>
-                  {RECENT_SALES_CATEGORIES.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {titleCase(value)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor={`${id}-inventory`}>Inventory match</Label>
-              <Select
-                value={filters.inventory}
-                onValueChange={(inventory) =>
-                  onChange({ inventory: inventory as RecentSalesInventory })
-                }
-              >
-                <SelectTrigger id={`${id}-inventory`} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All sales</SelectItem>
-                  <SelectItem value="FOUND">
-                    {INVENTORY_LABELS.FOUND}
-                  </SelectItem>
-                  <SelectItem value="NOT_FOUND">
-                    {INVENTORY_LABELS.NOT_FOUND}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor={`${id}-purity`}>Purity</Label>
-              <Select
-                value={filters.purity}
-                onValueChange={(purity) => onChange({ purity })}
-              >
-                <SelectTrigger id={`${id}-purity`} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All purities</SelectItem>
-                  {RECENT_SALES_PURITIES.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {value}K
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor={`${id}-color`}>Color</Label>
-              <Select
-                value={filters.color}
-                onValueChange={(color) => onChange({ color })}
-              >
-                <SelectTrigger id={`${id}-color`} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All colors</SelectItem>
-                  {RECENT_SALES_COLORS.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {titleCase(value)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2 min-w-0 space-y-1.5">
-              <Label htmlFor={`${id}-location`}>Sale location</Label>
-              <Select
-                value={filters.locationId}
-                onValueChange={(locationId) => onChange({ locationId })}
-                disabled={locationsQuery.isLoading}
-              >
-                <SelectTrigger id={`${id}-location`} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All locations</SelectItem>
-                  {locations.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.name} · {item.city}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2 min-w-0 space-y-1.5">
-              <Label htmlFor={`${id}-seller`}>Salesperson</Label>
-              <Select
-                value={filters.salesPersonId}
-                onValueChange={(salesPersonId) => onChange({ salesPersonId })}
-                disabled={salesPeopleQuery.isLoading}
-              >
-                <SelectTrigger id={`${id}-seller`} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All salespeople</SelectItem>
-                  {salesPeople.map((person) => (
-                    <SelectItem key={person.id} value={person.id}>
-                      {person.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <PriceInput
-              id={`${id}-price-from`}
-              label="Min price (₹)"
-              value={filters.priceFrom}
-              onCommit={(priceFrom) => onChange({ priceFrom })}
+          <FilterField label="Vendor">
+            <VendorFilterSelect
+              value={filters.vendorId}
+              vendors={vendors}
+              isLoading={vendorsQuery.isLoading}
+              onChange={(vendorId) => onChange({ vendorId })}
+              className="h-10 w-full"
             />
-            <PriceInput
-              id={`${id}-price-to`}
-              label="Max price (₹)"
-              value={filters.priceTo}
-              onCommit={(priceTo) => onChange({ priceTo })}
+          </FilterField>
+          <FilterField label="Sale months">
+            <SaleMonthOptions
+              from={filters.monthFrom}
+              to={filters.monthTo}
+              onChange={(monthFrom, monthTo) =>
+                onChange({ monthFrom, monthTo })
+              }
             />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Category, purity, color and vendor match the product in inventory.
-            Price is the sale amount.
-          </p>
-        </AnalyticsFilterPopover>
+          </FilterField>
+          {moreFields}
+        </WorkspaceFiltersSheet>
+        <div className="hidden sm:contents">
+          <VendorFilterSelect
+            value={filters.vendorId}
+            vendors={vendors}
+            isLoading={vendorsQuery.isLoading}
+            onChange={(vendorId) => onChange({ vendorId })}
+            className="h-9 w-52"
+          />
+          <SaleMonthFilter
+            from={filters.monthFrom}
+            to={filters.monthTo}
+            onChange={(monthFrom, monthTo) => onChange({ monthFrom, monthTo })}
+          />
+          <AnalyticsFilterPopover count={moreCount} onReset={resetMoreFilters}>
+            {moreFields}
+          </AnalyticsFilterPopover>
+        </div>
       </div>
       {rangeError ? (
         <p role="alert" className="text-sm text-destructive lg:text-right">

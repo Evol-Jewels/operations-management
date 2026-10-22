@@ -14,6 +14,10 @@ import {
   ComposeBox,
   type ComposeBoxSubmitData,
 } from "@/components/order/ComposeBox";
+import {
+  RecordActionBar,
+  RecordActionBarSpacer,
+} from "@/components/order/RecordActionBar";
 import { RelativeTime } from "@/components/RelativeTime";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -327,35 +331,33 @@ export function EnquiryDetailPage({
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <div className="mb-5">
-        <Button
-          variant="ghost"
-          size="sm"
-          asChild
-          className="-ml-2 gap-1.5 text-muted-foreground"
-        >
-          <Link href="/orders-workspace">
-            <ArrowLeft className="size-3.5" />
-            All enquiries
-          </Link>
-        </Button>
-      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        asChild
+        className="-ml-2 mb-3 gap-1.5 text-muted-foreground sm:mb-5"
+      >
+        <Link href="/orders-workspace">
+          <ArrowLeft className="size-3.5" />
+          All enquiries
+        </Link>
+      </Button>
 
-      <header className="mb-7 border-b border-border pb-6">
-        <div className="flex flex-col gap-5 lg:flex-row items-center lg:justify-between">
+      <header className="mb-5 border-b border-border pb-4 sm:mb-7 sm:pb-6">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-              <h1 className="text-3xl font-semibold text-foreground sm:text-4xl">
+              <h1 className="text-xl font-semibold text-foreground sm:text-4xl">
                 {order.customerName}
               </h1>
-              <span className="text-2xl font-normal text-muted-foreground sm:text-3xl">
+              <span className="text-lg font-normal text-muted-foreground sm:text-3xl">
                 {`#${order.refCode}`}
               </span>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground sm:text-base">
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground sm:mt-3 sm:gap-y-2 sm:text-base">
               <span
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium",
+                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium sm:px-3 sm:py-1 sm:text-sm",
                   enquiryStatusBadgeClass(enquiryStatus),
                 )}
               >
@@ -376,40 +378,37 @@ export function EnquiryDetailPage({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            {!isFinalized ? (
+          {!isFinalized ? (
+            <RecordActionBar className="md:shrink-0 md:justify-end">
               <Button
                 size="sm"
                 asChild
-                className="bg-foreground text-background hover:bg-foreground/90"
+                className="bg-foreground text-background hover:bg-foreground/90 max-md:flex-1"
               >
                 <Link href={`/orders/new?from=${order.id}`}>
                   <Calendar className="size-4" />
-                  <span className="hidden sm:inline">Convert to Order</span>
-                  <span className="sm:hidden">Convert</span>
+                  Convert<span className="max-sm:hidden"> to Order</span>
                 </Link>
               </Button>
-            ) : null}
-            {!isFinalized ? (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCloseDialogOpen(true)}
-                >
-                  <X className="size-4" />
-                  Close enquiry
-                </Button>
-                <CloseEnquiryDialog
-                  open={closeDialogOpen}
-                  onOpenChange={setCloseDialogOpen}
-                  isSubmitting={isClosingEnquiry}
-                  onSubmit={handleCloseEnquiry}
-                />
-              </>
-            ) : null}
-          </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="max-md:flex-1"
+                onClick={() => setCloseDialogOpen(true)}
+              >
+                <X className="size-4" />
+                <span className="md:hidden">Close</span>
+                <span className="max-md:hidden">Close enquiry</span>
+              </Button>
+            </RecordActionBar>
+          ) : null}
+          <CloseEnquiryDialog
+            open={closeDialogOpen}
+            onOpenChange={setCloseDialogOpen}
+            isSubmitting={isClosingEnquiry}
+            onSubmit={handleCloseEnquiry}
+          />
         </div>
       </header>
 
@@ -419,12 +418,12 @@ export function EnquiryDetailPage({
         </div>
       ) : null}
 
-      <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_370px]">
-        <div className="space-y-6">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_370px] xl:gap-7">
+        <div className="min-w-0 space-y-5 sm:space-y-6">
           <EnquiryStageBar currentStage={stage} />
 
           {order.customerNotes || order.budget ? (
-            <section className="rounded-xl border border-border bg-card px-6 py-6">
+            <section className="rounded-xl border border-border bg-card p-4 sm:p-6">
               <div className="flex items-start justify-between gap-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                   Notes
@@ -438,13 +437,13 @@ export function EnquiryDetailPage({
                   </p>
                 ) : null}
               </div>
-              <p className="mt-4 text-base leading-7 text-foreground">
+              <p className="mt-3 text-sm leading-6 text-foreground sm:mt-4 sm:text-base sm:leading-7">
                 {order.customerNotes ?? "No notes added."}
               </p>
             </section>
           ) : null}
 
-          <section className="my-8">
+          <section className="sm:pt-2">
             <EnquiryProductList
               enquiryRefCode={order.refCode ?? 0}
               selectedProducts={selectedProducts}
@@ -456,50 +455,15 @@ export function EnquiryDetailPage({
               isSavingEstimation={isSavingEstimation}
             />
           </section>
-
-          <section>
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                Activity
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {order.activityFeed.length}{" "}
-                {order.activityFeed.length === 1 ? "event" : "events"}
-              </span>
-            </div>
-
-            <div>
-              <ActivityTimeline entries={order.activityFeed} />
-            </div>
-
-            <div className="border-t border-dashed border-border" />
-
-            <div className="pt-4">
-              <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
-                Post an update
-              </p>
-              <ComposeBox
-                onSubmit={handlePostUpdate}
-                isSubmitting={isPostingUpdate}
-              />
-              {isPostingUpdate ? (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Posting update...
-                </p>
-              ) : null}
-            </div>
-
-            <div id="timeline-end" />
-          </section>
         </div>
 
-        <aside className="xl:sticky xl:top-6 xl:self-start">
-          <section className="overflow-hidden rounded-xl border border-border bg-card">
-            <div className="px-5 py-5">
-              <p className="mb-5 text-sm font-semibold text-foreground">
+        <aside className="min-w-0 xl:sticky xl:top-6 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:self-start">
+          <section className="overflow-hidden rounded-xl border border-border bg-card md:grid md:grid-cols-2 xl:block">
+            <div className="p-4 sm:px-5 sm:py-5">
+              <p className="mb-4 text-sm font-semibold text-foreground sm:mb-5">
                 People
               </p>
-              <div className="space-y-5">
+              <div className="space-y-4 sm:space-y-5">
                 <PersonCard
                   name={order.customerName}
                   detail={order.customerPhone}
@@ -520,11 +484,11 @@ export function EnquiryDetailPage({
               </div>
             </div>
 
-            <div className="border-t border-border px-5 py-5">
+            <div className="border-t border-border p-4 sm:px-5 sm:py-5 md:border-t-0 md:border-l xl:border-t xl:border-l-0">
               <p className="mb-4 text-sm font-semibold text-foreground">
                 Overview
               </p>
-              <dl className="space-y-4">
+              <dl className="space-y-3 sm:space-y-4">
                 <DetailMetric
                   label="Delivery date"
                   value={deliveryDates.join(", ")}
@@ -544,9 +508,44 @@ export function EnquiryDetailPage({
             </div>
           </section>
         </aside>
+
+        <section className="min-w-0 xl:col-start-1">
+          <div className="mb-4 flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+              Activity
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {order.activityFeed.length}{" "}
+              {order.activityFeed.length === 1 ? "event" : "events"}
+            </span>
+          </div>
+
+          <div>
+            <ActivityTimeline entries={order.activityFeed} />
+          </div>
+
+          <div className="border-t border-dashed border-border" />
+
+          <div className="pt-4">
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+              Post an update
+            </p>
+            <ComposeBox
+              onSubmit={handlePostUpdate}
+              isSubmitting={isPostingUpdate}
+            />
+            {isPostingUpdate ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Posting update...
+              </p>
+            ) : null}
+          </div>
+
+          <div id="timeline-end" />
+        </section>
       </div>
 
-      <div className="h-16" />
+      <RecordActionBarSpacer />
     </div>
   );
 }

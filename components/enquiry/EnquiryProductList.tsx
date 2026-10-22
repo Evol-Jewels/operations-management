@@ -3,6 +3,8 @@
 import {
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Download,
   FileImage,
   FileText,
@@ -191,12 +193,18 @@ function Header({
   onStatusFilterChange: (value: StatusFilter) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm font-semibold text-muted-foreground">
-        Product Requirements ({totalCount} item{totalCount === 1 ? "" : "s"})
+    <div className="flex items-center justify-between gap-3">
+      <p className="min-w-0 text-sm font-semibold text-muted-foreground">
+        <span className="max-sm:hidden">Product </span>Requirements (
+        {totalCount}
+        <span className="max-sm:hidden">
+          {" "}
+          item{totalCount === 1 ? "" : "s"}
+        </span>
+        )
       </p>
       <Select value={statusFilter} onValueChange={onStatusFilterChange}>
-        <SelectTrigger className="w-full bg-background sm:w-44">
+        <SelectTrigger className="w-36 shrink-0 bg-background sm:w-44">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -439,18 +447,47 @@ function RequirementCarouselCard({
 
   return (
     <RequirementCard>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-3 py-2.5">
-        <p className="text-sm font-medium uppercase tracking-wide text-foreground">
-          Item {activeIndex + 1}{" "}
-          <span className="font-normal text-muted-foreground">
-            of {totalCount}
-          </span>
-        </p>
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border px-3 py-2.5">
+        <div className="flex items-center gap-1">
+          <p className="text-sm font-medium uppercase tracking-wide text-foreground">
+            Item {activeIndex + 1}{" "}
+            <span className="font-normal text-muted-foreground">
+              of {totalCount}
+            </span>
+          </p>
+          {hasMany ? (
+            <div className="ml-2 flex items-center gap-1 pointer-fine:sm:hidden">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-9"
+                aria-label="Previous requirement"
+                onClick={() =>
+                  onSelectItem((activeIndex - 1 + totalCount) % totalCount)
+                }
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-9"
+                aria-label="Next requirement"
+                onClick={() => onSelectItem((activeIndex + 1) % totalCount)}
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2 max-sm:contents sm:ml-auto">
           {(item.kind === "custom" && vendorDetails) ||
           item.estimation?.vendorName ? (
-            <Label className="flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground">
+            <Label className="flex min-h-9 cursor-pointer max-sm:ml-auto items-center gap-2 rounded-md px-1.5 text-xs font-normal text-muted-foreground hover:text-foreground sm:min-h-8">
               <Checkbox
+                className="min-h-0"
                 checked={hideVendorDetails}
                 onCheckedChange={(checked) =>
                   setHideVendorDetails(checked === true)
@@ -461,7 +498,7 @@ function RequirementCarouselCard({
               <span className="sm:hidden">Hide vendor</span>
             </Label>
           ) : null}
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center gap-2 max-sm:w-full sm:justify-end">
             {isLoadingEstimate ? (
               <span role="status" className="text-xs text-muted-foreground">
                 Loading saved estimate…
@@ -507,7 +544,7 @@ function RequirementCarouselCard({
                   size="sm"
                   onClick={handlePrimaryDownload}
                   disabled={isSharing}
-                  className="h-8 gap-1.5 rounded-none border-0 px-2.5 text-xs shadow-none hover:bg-accent"
+                  className="h-9 gap-1.5 rounded-none border-0 px-2.5 text-xs shadow-none hover:bg-accent sm:h-8"
                 >
                   {isSharing ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -524,7 +561,7 @@ function RequirementCarouselCard({
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    className="h-8 w-7 rounded-none border-0 border-l border-input shadow-none hover:bg-accent"
+                    className="h-9 w-8 rounded-none border-0 border-l border-input shadow-none hover:bg-accent sm:h-8 sm:w-7"
                     disabled={isSharing}
                     aria-label="Choose specification download or sharing action"
                   >
@@ -588,7 +625,7 @@ function RequirementCarouselCard({
             })}
           </div>
           {hasMany ? (
-            <div className="hidden items-center gap-1.5 sm:flex">
+            <div className="hidden items-center gap-1.5 pointer-fine:sm:flex">
               {itemIds.map((itemId, index) => (
                 <button
                   type="button"

@@ -106,7 +106,7 @@ function ProductSaleCard({
   return (
     <article
       className={cn(
-        "relative w-full rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-colors",
+        "@container relative flex w-full min-w-0 flex-col rounded-xl border border-border bg-card p-2 text-left shadow-sm transition-colors sm:p-3",
         product && "hover:border-foreground/25 hover:bg-muted/20",
         isSelected && "border-foreground ring-1 ring-foreground",
       )}
@@ -126,7 +126,7 @@ function ProductSaleCard({
             fill
             priority={priority}
             unoptimized
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            sizes="(max-width: 768px) 50vw, 33vw"
             className="object-cover"
           />
         ) : (
@@ -137,10 +137,10 @@ function ProductSaleCard({
         )}
       </div>
 
-      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-3 pt-3 max-[420px]:grid-cols-2">
+      <div className="grid flex-1 items-start gap-2 pt-2.5 @[17rem]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] @[17rem]:gap-3 @[17rem]:pt-3">
         <div className="min-w-0">
           <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-foreground">
+            <h3 className="truncate text-sm font-semibold text-foreground @[17rem]:text-base">
               {product?.name ?? sale.productCode}
             </h3>
             <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
@@ -155,7 +155,7 @@ function ProductSaleCard({
             ) : null}
           </div>
 
-          <div className="mt-2 flex min-w-0 flex-nowrap items-center gap-1.5">
+          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
             {product && colorLabel ? (
               <>
                 <Badge variant="secondary" className="gap-1 font-normal">
@@ -175,13 +175,27 @@ function ProductSaleCard({
           </div>
         </div>
 
-        <div className="min-w-0 space-y-2 text-right">
+        <div className="min-w-0 space-y-2 @[17rem]:text-right">
           <p className="text-sm font-semibold tabular-nums text-foreground">
             <span className="sr-only">Selling price: </span>
             {formatSellingPrice(sale.sellingPrice)}
           </p>
 
-          <div className="flex min-w-0 flex-wrap justify-end gap-1.5">
+          <div className="space-y-0.5 text-xs text-muted-foreground @[17rem]:hidden">
+            <p className="flex min-w-0 items-center gap-1">
+              <UserRound className="size-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">{salesperson}</span>
+            </p>
+            <p className="flex min-w-0 items-center gap-1">
+              <MapPin className="size-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">
+                {city}
+                {sale.saleMonth ? ` · ${formatSaleMonth(sale.saleMonth)}` : ""}
+              </span>
+            </p>
+          </div>
+
+          <div className="hidden min-w-0 flex-wrap gap-1.5 @[17rem]:flex @[17rem]:justify-end">
             <Badge variant="outline" className="max-w-full gap-1 font-normal">
               <UserRound className="size-3" aria-hidden="true" />
               <span className="truncate">{salesperson}</span>
@@ -201,14 +215,14 @@ function ProductSaleCard({
         </div>
       </div>
 
-      <div className="relative z-20 mt-3 border-t border-border pt-3">
+      <div className="relative z-20 mt-2.5 border-t border-border pt-2.5 @[17rem]:mt-3 @[17rem]:pt-3">
         {isSelected ? (
           <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="size-11"
+              className="size-10 @[17rem]:size-11"
               aria-label={
                 quantity === 1 ? "Remove from refill" : "Decrease quantity"
               }
@@ -224,7 +238,7 @@ function ProductSaleCard({
               type="button"
               variant="outline"
               size="icon"
-              className="size-11"
+              className="size-10 @[17rem]:size-11"
               aria-label="Increase quantity"
               disabled={quantity >= MAX_REFILL_QUANTITY}
               onClick={() => onQuantityChange(quantity + 1)}
@@ -233,14 +247,24 @@ function ProductSaleCard({
             </Button>
           </div>
         ) : !product ? (
-          <Button className="min-h-11 w-full gap-2" variant="outline" disabled>
+          <Button
+            className="min-h-10 w-full gap-2 px-2 @[17rem]:min-h-11"
+            variant="outline"
+            disabled
+          >
             <PackageSearch className="size-4" aria-hidden="true" />
             Refill unavailable
           </Button>
         ) : (
-          <div className={cn("grid gap-2", !isSelecting && "grid-cols-2")}>
+          <div
+            className={cn("grid gap-2", !isSelecting && "@[15rem]:grid-cols-2")}
+          >
             {!isSelecting ? (
-              <Button asChild className="min-h-11 gap-2" variant="outline">
+              <Button
+                asChild
+                className="min-h-10 gap-2 px-2 @[17rem]:min-h-11"
+                variant="outline"
+              >
                 <Link
                   href={`/orders/new?refill=${encodeURIComponent(sale.productCode)}`}
                   onClick={() =>
@@ -250,13 +274,16 @@ function ProductSaleCard({
                   }
                 >
                   <PackagePlus className="size-4" aria-hidden="true" />
-                  Refill product
+                  <span>
+                    Refill
+                    <span className="hidden @[17rem]:inline"> product</span>
+                  </span>
                 </Link>
               </Button>
             ) : null}
             <Button
               type="button"
-              className="min-h-11 gap-2"
+              className="min-h-10 gap-2 px-2 @[17rem]:min-h-11"
               variant="outline"
               onClick={() => onQuantityChange(1)}
             >
@@ -272,9 +299,9 @@ function ProductSaleCard({
 
 function ProductSaleSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
+    <div className="rounded-xl border border-border bg-card p-2 sm:p-3">
       <Skeleton className="aspect-square w-full rounded-lg" />
-      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-start gap-3 pt-3 max-[420px]:grid-cols-2">
+      <div className="grid flex-1 items-start gap-2 pt-2.5 @[17rem]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] @[17rem]:gap-3 @[17rem]:pt-3">
         <div className="space-y-2">
           <div className="space-y-1.5">
             <Skeleton className="h-5 w-28 max-w-full" />
@@ -287,8 +314,8 @@ function ProductSaleSkeleton() {
         </div>
 
         <div className="space-y-2">
-          <Skeleton className="ml-auto h-5 w-20" />
-          <div className="flex flex-wrap justify-end gap-1.5">
+          <Skeleton className="h-5 w-20" />
+          <div className="flex flex-wrap gap-1.5">
             <Skeleton className="h-5 w-24" />
             <Skeleton className="h-5 w-20" />
           </div>
@@ -345,7 +372,7 @@ export function RecentProductSalesGrid({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3">
         {SKELETON_KEYS.map((key) => (
           <ProductSaleSkeleton key={key} />
         ))}
@@ -384,7 +411,7 @@ export function RecentProductSalesGrid({
 
   return (
     <section aria-label="Recent product sales" className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3">
         {sales.map((sale, index) => (
           <ProductSaleCard
             key={sale.saleItemId}

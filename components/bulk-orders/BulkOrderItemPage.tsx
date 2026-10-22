@@ -23,6 +23,10 @@ import {
 import { RequirementImageCarousel } from "@/components/enquiry/requirements/RequirementMediaPanel";
 import type { RequirementDisplayItem } from "@/components/enquiry/requirements/requirement-display-utils";
 import { SpecLine, SpecSection } from "@/components/order/SpecSection";
+import {
+  RecordActionBar,
+  RecordActionBarSpacer,
+} from "@/components/order/RecordActionBar";
 import { StageBar } from "@/components/order/StageBar";
 import { Button } from "@/components/ui/button";
 import {
@@ -168,19 +172,25 @@ export function BulkOrderItemPage({
 
   return (
     <div className="@container/bulk-item mx-auto w-full min-w-0 max-w-6xl">
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div className="mb-3 flex items-center justify-between gap-3 sm:mb-5">
         <Button
           variant="ghost"
           size="sm"
           asChild
-          className="-ml-2 gap-1.5 text-muted-foreground"
+          className="-ml-2 min-w-0 gap-1.5 text-muted-foreground"
         >
           <Link href={orderHref}>
             <ArrowLeft className="size-3.5" />
-            {formatBulkOrderRef(order.refCode)} · {order.packingListNumber}
+            <span className="truncate">
+              {formatBulkOrderRef(order.refCode)}
+              <span className="max-sm:hidden">
+                {" "}
+                · {order.packingListNumber}
+              </span>
+            </span>
           </Link>
         </Button>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -196,7 +206,7 @@ export function BulkOrderItemPage({
               <ChevronLeft className="size-4" />
             )}
           </Button>
-          <span className="text-xs tabular-nums text-muted-foreground">
+          <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
             Item {index + 1} of {order.items.length}
           </span>
           <Button
@@ -217,86 +227,82 @@ export function BulkOrderItemPage({
         </div>
       </div>
 
-      <div className="mb-6">
-        <h1 className="mb-2 break-words text-xl font-semibold tracking-tight text-foreground">
-          {item.vendorDesignNumber}
-          <span className="ml-2 font-normal text-muted-foreground">·</span>
-          <span className="ml-2 text-base font-normal text-muted-foreground">
-            {item.category}
-          </span>
-        </h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <FulfilmentBadge status={status} withIcon className="h-7 px-3" />
-          <span className="font-mono text-sm text-muted-foreground">
-            {formatBulkOrderRef(order.refCode)}-{item.serialNumber}
-          </span>
-          {status === "Pending" && (
-            <span
-              className={cn(
-                "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                urgency === "overdue" &&
-                  "bg-red-500/10 text-red-600 dark:text-red-400",
-                urgency === "due-soon" &&
-                  "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-                urgency === "on-track" &&
-                  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-              )}
-            >
-              <UrgencyDot level={urgency} />
-              {formatDaysRemaining(item.estimatedDeliveryDate)}
+      <header className="mb-4 flex flex-wrap items-start gap-x-4 gap-y-3 sm:mb-6">
+        <div className="min-w-0 flex-1 basis-64">
+          <h1 className="mb-2 break-words text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            {item.vendorDesignNumber}
+            <span className="ml-2 font-normal text-muted-foreground">·</span>
+            <span className="ml-2 text-sm font-normal text-muted-foreground sm:text-base">
+              {item.category}
             </span>
-          )}
-          <div className="ml-auto">
-            <Select
-              value={item.stage}
-              disabled={isLocked}
-              onValueChange={(value) => {
-                const stage = BULK_ITEM_STAGES.find(
-                  (option) => option === value,
-                );
-                if (stage) requestMove(item, stage);
-              }}
-            >
-              <SelectTrigger
-                size="sm"
-                aria-label="Item stage"
-                className="h-8 min-w-36 text-xs"
-                title={isLocked ? `${item.stage} items are locked` : undefined}
+          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <FulfilmentBadge status={status} withIcon className="h-7 px-3" />
+            <span className="font-mono text-sm text-muted-foreground">
+              {formatBulkOrderRef(order.refCode)}-{item.serialNumber}
+            </span>
+            {status === "Pending" && (
+              <span
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                  urgency === "overdue" &&
+                    "bg-red-500/10 text-red-600 dark:text-red-400",
+                  urgency === "due-soon" &&
+                    "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                  urgency === "on-track" &&
+                    "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                )}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {BULK_ITEM_STAGES.map((stage) => {
-                  const closeBlocked =
-                    stage === "Closed" && !isFilledStage(item.stage);
-                  return (
-                    <SelectItem
-                      key={stage}
-                      value={stage}
-                      disabled={closeBlocked}
-                    >
-                      {stage}
-                      {closeBlocked && (
-                        <span className="text-[10px] text-muted-foreground">
-                          after {FILLED_FROM_STAGE}
-                        </span>
-                      )}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+                <UrgencyDot level={urgency} />
+                {formatDaysRemaining(item.estimatedDeliveryDate)}
+              </span>
+            )}
           </div>
         </div>
-      </div>
+        <RecordActionBar className="md:ml-auto">
+          <Select
+            value={item.stage}
+            disabled={isLocked}
+            onValueChange={(value) => {
+              const stage = BULK_ITEM_STAGES.find((option) => option === value);
+              if (stage) requestMove(item, stage);
+            }}
+          >
+            <SelectTrigger
+              size="sm"
+              aria-label="Item stage"
+              className="h-8 min-w-36 text-xs"
+              title={isLocked ? `${item.stage} items are locked` : undefined}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper" align="end">
+              {BULK_ITEM_STAGES.map((stage) => {
+                const closeBlocked =
+                  stage === "Closed" && !isFilledStage(item.stage);
+                return (
+                  <SelectItem key={stage} value={stage} disabled={closeBlocked}>
+                    {stage}
+                    {closeBlocked && (
+                      <span className="text-[10px] text-muted-foreground">
+                        after {FILLED_FROM_STAGE}
+                      </span>
+                    )}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </RecordActionBar>
+      </header>
 
       {item.stage !== "Cancelled" && (
-        <div className="mb-5 px-5 py-4">
+        <div className="mb-3 sm:mb-5 sm:px-5 sm:py-4">
           <StageBar currentStage={item.stage} stages={BULK_ITEM_FLOW_STAGES} />
         </div>
       )}
 
-      <div className="grid min-w-0 items-start gap-5 @[60rem]/bulk-item:grid-cols-[minmax(0,1fr)_320px] @[60rem]/bulk-item:gap-7">
+      <div className="grid min-w-0 items-start gap-5 @[52rem]/bulk-item:grid-cols-[minmax(0,1fr)_300px] @[52rem]/bulk-item:gap-6 @[60rem]/bulk-item:grid-cols-[minmax(0,1fr)_320px] @[60rem]/bulk-item:gap-7">
         <main className="min-w-0 space-y-5">
           <BulkItemStageRemark item={item} />
           <RequirementCard>
@@ -347,9 +353,9 @@ export function BulkOrderItemPage({
           </RequirementCard>
         </main>
 
-        <aside className="min-w-0 @[60rem]/bulk-item:sticky @[60rem]/bulk-item:top-6 @[60rem]/bulk-item:self-start">
+        <aside className="min-w-0 @[52rem]/bulk-item:sticky @[52rem]/bulk-item:top-6 @[52rem]/bulk-item:self-start">
           <section className="overflow-hidden rounded-xl border border-border bg-card">
-            <div className="space-y-6 px-5 py-4">
+            <div className="space-y-6 p-4 sm:px-5">
               <SpecSection icon={Wrench} title="Overview">
                 <SpecLine
                   label="Vendor design"
@@ -397,7 +403,7 @@ export function BulkOrderItemPage({
         </aside>
       </div>
       <BulkItemActivity item={item} />
-      <div className="h-16" />
+      <RecordActionBarSpacer />
       {dialog}
     </div>
   );

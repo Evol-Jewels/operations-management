@@ -1,6 +1,7 @@
 import { ExternalLink, ImageIcon, Video } from "lucide-react";
 import { AudioPreviewPlayer } from "@/components/requirements/AudioPreviewPlayer";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { ActivityEntry } from "@/types";
 
 type CommentMedia = NonNullable<ActivityEntry["media"]>[number];
@@ -34,12 +35,17 @@ export function CommentMediaGallery({ media }: { media: CommentMedia[] }) {
   if (media.length === 0) return null;
 
   return (
-    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+    <div
+      className={cn(
+        "mt-3 grid grid-cols-2 gap-2",
+        media.length === 1 && "max-w-sm grid-cols-1",
+      )}
+    >
       {media.map((item, index) => {
         const key = `${item.url}-${index}`;
         if (item.type === "audio") {
           return (
-            <div key={key} className="sm:col-span-2">
+            <div key={key} className="col-span-full">
               <AudioPreviewPlayer
                 src={item.url}
                 durationSeconds={item.durationSeconds}

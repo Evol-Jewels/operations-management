@@ -325,7 +325,7 @@ export function RequirementMediaRecorder({
         <div className="space-y-4 px-5">
           <div
             className={cn(
-              "relative flex min-h-64 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30",
+              "relative flex min-h-56 items-center sm:min-h-64 justify-center overflow-hidden rounded-xl border border-border bg-muted/30",
               isVideo && "bg-black",
             )}
           >
@@ -408,7 +408,7 @@ export function RequirementMediaRecorder({
         </div>
 
         <DialogFooter className="border-t border-border bg-muted/15 px-5 py-3">
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex w-full gap-2 sm:w-auto sm:justify-end [&>button]:h-11 [&>button]:flex-1 sm:[&>button]:h-9 sm:[&>button]:flex-none">
             {state === "preview" ? (
               <>
                 <Button type="button" variant="outline" onClick={retake}>

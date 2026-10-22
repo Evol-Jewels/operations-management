@@ -472,6 +472,7 @@ export function EstimationSummaryDownloadButton({
   isDownloading,
   isSharing,
   className,
+  containerClassName,
 }: {
   downloadSummaryPdf: () => Promise<void>;
   downloadSummaryPng: () => Promise<void>;
@@ -479,6 +480,7 @@ export function EstimationSummaryDownloadButton({
   isDownloading: boolean;
   isSharing: boolean;
   className?: string;
+  containerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [downloadFormat, setDownloadFormat] = useState<DownloadFormat>("png");
@@ -528,7 +530,12 @@ export function EstimationSummaryDownloadButton({
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      <div className="inline-flex overflow-hidden rounded-md border border-input shadow-xs">
+      <div
+        className={cn(
+          "inline-flex overflow-hidden rounded-md border border-input shadow-xs",
+          containerClassName,
+        )}
+      >
         <Button
           type="button"
           variant="ghost"
@@ -554,7 +561,7 @@ export function EstimationSummaryDownloadButton({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="h-8 w-7 rounded-none border-0 border-l border-input shadow-none hover:bg-accent"
+            className="h-auto min-h-8 w-7 self-stretch rounded-none border-0 border-l border-input shadow-none hover:bg-accent"
             disabled={isDownloading || isSharing}
             aria-label="Choose download or sharing action"
           >
@@ -618,7 +625,7 @@ function CompactSummary({
 
   return (
     <div
-      className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.18fr)_minmax(240px,0.82fr)]"
+      className="grid grid-cols-1 @lg:grid-cols-[minmax(0,1.18fr)_minmax(240px,0.82fr)]"
       data-estimation-summary-compact
     >
       <div className="min-w-0" data-estimation-summary-compact-breakup>
@@ -753,7 +760,7 @@ function CompactSummary({
       </div>
 
       <div
-        className="flex min-w-0 flex-col border-t border-border lg:border-t-0 lg:border-l"
+        className="flex min-w-0 flex-col border-t border-border @lg:border-t-0 @lg:border-l"
         data-estimation-summary-compact-product
       >
         <div className="border-b border-border bg-muted/35 px-4 py-2.5 text-center">
@@ -763,8 +770,8 @@ function CompactSummary({
         </div>
         <div
           className={cn(
-            "group relative flex min-h-40 flex-1 items-center justify-center overflow-hidden bg-muted/60 lg:min-h-64",
-            !summary.imageUrl && "hidden lg:flex",
+            "group relative flex min-h-40 flex-1 items-center justify-center overflow-hidden bg-muted/60 @lg:min-h-64",
+            !summary.imageUrl && "hidden @lg:flex",
           )}
           data-estimation-summary-compact-media
         >
@@ -1049,8 +1056,10 @@ export function EstimationSummaryCard({
       {showHeader ? (
         <>
           <div className="mb-4 flex flex-wrap items-start gap-4">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+            <div className="min-w-fit flex-1">
+              <h2 className="whitespace-nowrap text-base font-semibold tracking-tight sm:text-lg">
+                {title}
+              </h2>
             </div>
             {showDownloadButton || renderHeaderActions ? (
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
@@ -1111,7 +1120,7 @@ export function EstimationSummaryCard({
 
       <div
         ref={cardRef}
-        className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
+        className="@container overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
         data-estimation-summary-card
         data-estimation-summary-format={summaryFormat}
       >
@@ -1153,13 +1162,13 @@ export function EstimationSummaryCard({
         ) : (
           <>
             <div
-              className="grid grid-cols-1 lg:grid-cols-2"
+              className="grid grid-cols-1 @lg:grid-cols-2"
               data-estimation-summary-hero
             >
               <div
                 className={cn(
-                  "group relative flex min-h-40 items-center justify-center overflow-hidden bg-muted/60 lg:aspect-square lg:min-h-0",
-                  !summary.imageUrl && "hidden lg:flex",
+                  "group relative flex min-h-40 items-center justify-center overflow-hidden bg-muted/60 @lg:aspect-square @lg:min-h-0",
+                  !summary.imageUrl && "hidden @lg:flex",
                 )}
                 data-estimation-summary-media
               >
@@ -1195,7 +1204,7 @@ export function EstimationSummaryCard({
 
               <div
                 className={cn(
-                  "flex min-h-36 min-w-0 flex-col justify-between border-t border-border px-4 lg:min-h-0 lg:border-t-0 lg:border-l",
+                  "flex min-h-36 min-w-0 flex-col justify-between border-t border-border px-4 @lg:min-h-0 @lg:border-t-0 @lg:border-l",
                   !summary.imageUrl && "border-t-0",
                   compact ? "py-3" : "py-4",
                 )}

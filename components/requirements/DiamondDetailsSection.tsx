@@ -79,7 +79,7 @@ export function DiamondDetailsSection({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-xs"
+                size="icon-sm"
                 onClick={() => removeDiamond(diamond.id)}
                 aria-label={`Remove diamond ${index + 1}`}
                 className="text-muted-foreground hover:text-destructive"
@@ -135,12 +135,14 @@ export function DiamondDetailsSection({
                 label="Pieces"
                 value={diamond.pieces}
                 placeholder="12"
+                inputMode="numeric"
                 onChange={(pieces) => updateDiamond(diamond.id, { pieces })}
               />
               <TextField
                 label="Diamond wt (in cts)"
                 value={diamond.weight}
                 placeholder="5.80..."
+                inputMode="decimal"
                 onChange={(weight) => updateDiamond(diamond.id, { weight })}
               />
               <NotesField

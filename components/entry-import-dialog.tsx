@@ -14,15 +14,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 export function EntryImportDialog({
   entryType,
   disabled,
   onImport,
+  className,
 }: {
   entryType: "order" | "enquiry";
   disabled?: boolean;
   onImport: (refCode: number) => Promise<void>;
+  className?: string;
 }) {
   const id = useId();
   const busyRef = useRef(false);
@@ -63,10 +66,18 @@ export function EntryImportDialog({
   }
 
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+    <div
+      className={cn(
+        "flex shrink-0 flex-col-reverse items-end gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2",
+        className,
+      )}
+    >
       {importedRef !== null && (
         <output className="text-xs text-muted-foreground">
-          Imported from {entryType} #{importedRef}. You can edit the details.
+          <span className="sm:hidden">From #{importedRef}</span>
+          <span className="hidden sm:inline">
+            Imported from {entryType} #{importedRef}. You can edit the details.
+          </span>
         </output>
       )}
       <Dialog
@@ -81,9 +92,18 @@ export function EntryImportDialog({
         }}
       >
         <DialogTrigger asChild>
-          <Button type="button" variant="outline" size="sm" disabled={disabled}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            className="h-10 sm:h-8"
+          >
             <Copy className="size-4" />
-            Import from existing {entryType}
+            <span className="sm:hidden">Import</span>
+            <span className="hidden sm:inline">
+              Import from existing {entryType}
+            </span>
           </Button>
         </DialogTrigger>
         <DialogContent showCloseButton={!loading}>
@@ -100,6 +120,8 @@ export function EntryImportDialog({
               id={id}
               inputMode="numeric"
               placeholder="e.g. 1"
+              enterKeyHint="go"
+              className="h-11 md:h-9"
               value={refCode}
               disabled={loading}
               aria-invalid={Boolean(error)}

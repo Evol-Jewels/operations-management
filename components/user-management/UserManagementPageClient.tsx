@@ -102,10 +102,10 @@ function Metric({
       onClick={onClick}
       disabled={value === null}
       aria-pressed={selected}
-      className={`cursor-pointer px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default ${selected ? "bg-muted/40" : ""}`}
+      className={`cursor-pointer px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default sm:px-4 sm:py-3 ${selected ? "bg-muted/40" : ""}`}
     >
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1.5 text-2xl font-semibold leading-none tabular-nums text-foreground">
+      <p className="text-xs text-muted-foreground sm:text-sm">{label}</p>
+      <p className="mt-1 text-xl font-semibold leading-none tabular-nums text-foreground sm:mt-1.5 sm:text-2xl">
         {value ?? "—"}
       </p>
     </button>
@@ -451,13 +451,13 @@ export function UserManagementPageClient() {
   const statusActionLabel = isBlocking ? "Block" : "Unblock";
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+    <div className="flex flex-col gap-4 sm:gap-5">
+      <div className="flex items-center justify-between gap-3 sm:items-start">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
             Users
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
             Manage users, roles, and invitations.
           </p>
         </div>
@@ -470,11 +470,13 @@ export function UserManagementPageClient() {
               loadInvites();
             }}
             disabled={usersLoading || invitesLoading}
+            aria-label="Refresh users and invites"
+            className="max-sm:size-9 max-sm:px-0"
           >
             <RefreshCw
               className={`size-4 ${usersLoading || invitesLoading ? "animate-spin" : ""}`}
             />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
           <SendInviteDialog
             isSubmitting={inviteSubmitting}
@@ -483,7 +485,7 @@ export function UserManagementPageClient() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-background [&>button]:border-border [&>button]:border-b [&>button:nth-child(odd)]:border-r [&>button:nth-last-child(-n+2)]:border-b-0 lg:grid-cols-4 lg:[&>button]:border-b-0 lg:[&>button:not(:last-child)]:border-r">
+      <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-background [&>button]:border-border [&>button]:border-b [&>button:nth-child(odd)]:border-r [&>button:nth-last-child(-n+2)]:border-b-0 md:grid-cols-4 md:[&>button]:border-b-0 md:[&>button:not(:last-child)]:border-r">
         <Metric
           label="User accounts"
           value={usersLoading || usersError ? null : users.length}
@@ -539,9 +541,12 @@ export function UserManagementPageClient() {
         />
       </div>
 
-      <Tabs value={tab} onValueChange={setTab} className="gap-4">
+      <Tabs value={tab} onValueChange={setTab} className="gap-3 sm:gap-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <TabsList className="w-fit shrink-0" aria-label="User management">
+          <TabsList
+            className="w-full shrink-0 sm:w-fit"
+            aria-label="User management"
+          >
             {[
               {
                 value: "users",

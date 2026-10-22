@@ -72,7 +72,7 @@ export function SalesAnalyticsDateFilter({
       <PopoverTrigger asChild>
         <Button
           aria-label={`Date range: ${label}`}
-          className="h-9 max-w-full justify-between gap-2 self-start px-3 font-normal"
+          className="h-10 max-w-full shrink-0 justify-between gap-2 self-start px-3 font-normal sm:h-9"
           variant="outline"
         >
           <span className="flex min-w-0 items-center gap-2">
@@ -107,7 +107,7 @@ export function SalesAnalyticsDateFilter({
               <Button
                 aria-pressed={isSelected}
                 className={cn(
-                  "h-8 w-full justify-between rounded-sm px-2 font-normal has-[>svg]:px-2",
+                  "h-10 w-full justify-between rounded-sm px-2 font-normal has-[>svg]:px-2 sm:h-8",
                   isSelected && "bg-accent font-medium text-accent-foreground",
                 )}
                 key={option.value}
@@ -129,7 +129,7 @@ export function SalesAnalyticsDateFilter({
               <Button
                 aria-pressed={view === option}
                 className={cn(
-                  "h-7 rounded-sm text-xs",
+                  "h-9 rounded-sm text-xs sm:h-7",
                   view === option
                     ? "bg-background shadow-xs hover:bg-background"
                     : "text-muted-foreground",

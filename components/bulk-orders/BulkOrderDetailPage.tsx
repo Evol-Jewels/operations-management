@@ -8,6 +8,7 @@ import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
 import { SpecLine, SpecSection } from "@/components/order/SpecSection";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useBulkOrder } from "@/hooks/useBulkOrders";
 import {
   type BulkOrder,
@@ -68,11 +69,11 @@ function StatTile({
   children?: ReactNode;
 }) {
   return (
-    <div className="min-w-0 rounded-xl border border-border bg-card px-4 py-3.5">
+    <div className="min-w-0 rounded-xl border border-border bg-card px-3.5 py-3 sm:px-4 sm:py-3.5">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
         {label}
       </p>
-      <p className="mt-1.5 truncate text-xl font-semibold tracking-tight tabular-nums text-foreground">
+      <p className="mt-1 truncate text-lg font-semibold tracking-tight tabular-nums text-foreground sm:mt-1.5 sm:text-xl">
         {value}
       </p>
       {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
@@ -94,9 +95,9 @@ function OrderInfoCard({
     <section className="overflow-hidden rounded-xl border border-border bg-card">
       <div
         className={cn(
-          "px-5 py-4",
+          "p-4 sm:px-5",
           wide
-            ? "grid gap-6 @[48rem]/bulk-detail:grid-cols-3 @[48rem]/bulk-detail:gap-8"
+            ? "grid gap-6 @[40rem]/bulk-detail:grid-cols-2 @[56rem]/bulk-detail:grid-cols-3 @[48rem]/bulk-detail:gap-8"
             : "space-y-6",
         )}
       >
@@ -137,9 +138,12 @@ function BulkOrderDashboard({ order }: { order: BulkOrder }) {
   const searchParams = useSearchParams();
   const { requestMove, dialog } = useBulkItemMove(order.refCode);
   const { items } = order;
-  const [view, setView] = useState<BulkOrderView>(
-    searchParams.get("view") === "table" ? "table" : "kanban",
+  const isMobile = useIsMobile();
+  const viewParam = searchParams.get("view");
+  const [chosenView, setView] = useState<BulkOrderView | null>(
+    viewParam === "table" || viewParam === "kanban" ? viewParam : null,
   );
+  const view = chosenView ?? (isMobile ? "table" : "kanban");
   const summary = summarizeBulkOrder(order);
   const isDone = summary.status === "Filled" || summary.status === "Cancelled";
   const urgency = getUrgencyLevel(order.expectedDeliveryDate);
@@ -158,30 +162,28 @@ function BulkOrderDashboard({ order }: { order: BulkOrder }) {
 
   return (
     <div className="@container/bulk-detail mx-auto w-full min-w-0 max-w-6xl">
-      <div className="mb-5">
-        <Button
-          variant="ghost"
-          size="sm"
-          asChild
-          className="-ml-2 gap-1.5 text-muted-foreground"
-        >
-          <Link href={BULK_ORDERS_HREF}>
-            <ArrowLeft className="size-3.5" />
-            All bulk orders
-          </Link>
-        </Button>
-      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        asChild
+        className="-ml-2 mb-3 gap-1.5 text-muted-foreground sm:mb-5"
+      >
+        <Link href={BULK_ORDERS_HREF}>
+          <ArrowLeft className="size-3.5" />
+          All bulk orders
+        </Link>
+      </Button>
 
-      <header className="mb-6 space-y-3 border-b border-border pb-5">
+      <header className="mb-4 space-y-2.5 border-b border-border pb-4 sm:mb-6 sm:space-y-3 sm:pb-5">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="break-words text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
             {order.vendorName}
           </h1>
-          <span className="font-mono text-lg text-muted-foreground">
+          <span className="font-mono text-base text-muted-foreground sm:text-lg">
             {formatBulkOrderRef(order.refCode)}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-xs text-muted-foreground sm:text-sm">
           <FulfilmentBadge
             status={summary.status}
             withIcon
@@ -215,7 +217,7 @@ function BulkOrderDashboard({ order }: { order: BulkOrder }) {
         </div>
       </header>
 
-      <div className="mb-5 grid grid-cols-2 gap-3 @[48rem]/bulk-detail:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:mb-5 sm:gap-3 @[40rem]/bulk-detail:grid-cols-4">
         <StatTile
           label="Pieces filled"
           value={`${summary.filled}/${summary.pieces}`}

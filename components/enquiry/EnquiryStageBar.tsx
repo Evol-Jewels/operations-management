@@ -23,7 +23,7 @@ export function EnquiryStageBar({ currentStage }: EnquiryStageBarProps) {
 
   return (
     <div className="relative grid w-full grid-cols-3 gap-2 py-1">
-      <div className="absolute left-[18%] right-[18%] top-5 h-px bg-border" />
+      <div className="absolute left-[18%] right-[18%] top-4 h-px bg-border sm:top-5" />
       {ENQUIRY_STAGES.map((stage, index) => {
         const isCurrent = index === currentIndex;
         const isComplete = index <= currentIndex;
@@ -35,7 +35,7 @@ export function EnquiryStageBar({ currentStage }: EnquiryStageBarProps) {
           >
             <div
               className={cn(
-                "flex size-10 items-center justify-center rounded-full border-2 bg-card transition-colors",
+                "flex size-8 items-center justify-center rounded-full border-2 bg-card transition-colors sm:size-10",
                 isCurrent && "border-foreground bg-foreground text-background",
                 isComplete && "border-foreground bg-foreground text-background",
                 !isCurrent &&
@@ -44,7 +44,7 @@ export function EnquiryStageBar({ currentStage }: EnquiryStageBarProps) {
               )}
             >
               {isComplete ? (
-                <Check className="size-4" />
+                <Check className="size-3.5 sm:size-4" />
               ) : (
                 <span
                   className={cn(

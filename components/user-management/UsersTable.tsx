@@ -69,7 +69,7 @@ function UserActions({
   if (isOwnUser || isAdmin) {
     return (
       <span
-        className="whitespace-nowrap text-xs text-muted-foreground"
+        className="shrink-0 whitespace-nowrap px-2 text-xs text-muted-foreground"
         title={
           isOwnUser
             ? "Account actions are unavailable for your own account."
@@ -92,7 +92,7 @@ function UserActions({
           variant="ghost"
           size="icon-sm"
           aria-label={`Actions for ${user.username || user.name || user.email}`}
-          className="mx-auto cursor-pointer"
+          className="size-10 shrink-0 cursor-pointer md:mx-auto md:size-8"
           onClick={(e) => e.stopPropagation()}
           disabled={isLoading}
         >
@@ -103,7 +103,7 @@ function UserActions({
         <div className="flex flex-col">
           <button
             type="button"
-            className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+            className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-3 py-2.5 text-sm hover:bg-accent md:py-2 disabled:opacity-50"
             onClick={(event) => {
               event.stopPropagation();
               onEdit();
@@ -115,7 +115,7 @@ function UserActions({
           </button>
           <button
             type="button"
-            className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+            className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-3 py-2.5 text-sm hover:bg-accent md:py-2 disabled:opacity-50"
             onClick={(event) => {
               event.stopPropagation();
               if (canUnblock) onUnblock();
@@ -133,7 +133,7 @@ function UserActions({
           {canResetPassword && (
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+              className="flex w-full items-center gap-2 rounded-sm px-3 py-2.5 text-sm hover:bg-accent md:py-2 disabled:opacity-50"
               onClick={(e) => {
                 e.stopPropagation();
                 onResetPassword();
@@ -174,88 +174,69 @@ export function UsersTable({
 
   return (
     <div className="overflow-hidden rounded-md border border-border/70 [&_[data-slot=table-container]]:pr-0">
-      <div className="space-y-3 p-3 sm:hidden">
+      <ul className="divide-y divide-border/70 md:hidden">
         {users.map((user) => {
           const isAdminUser = user.profile?.role === "ADMIN";
 
           return (
-            <div
-              key={user.id}
-              className="relative rounded-md border border-border/70 bg-background p-4"
-            >
+            <li key={user.id} className="flex items-center gap-1 pr-1.5">
               <button
                 type="button"
                 onClick={() => {
                   if (!isAdminUser) onOpenUserProfile(user);
                 }}
                 className={cn(
-                  "w-full text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                  isAdminUser
-                    ? "cursor-default"
-                    : "cursor-pointer hover:bg-muted/40",
+                  "flex min-w-0 flex-1 items-center gap-3 py-3 pl-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40",
+                  isAdminUser ? "cursor-default" : "cursor-pointer",
                 )}
                 disabled={isAdminUser}
               >
-                <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
-                    {initials(user.name, user.email)}
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
+                  {initials(user.name, user.email)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate font-medium text-foreground">
+                      {user.username || user.name || "Unnamed user"}
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "shrink-0 border px-1.5 py-0 text-[11px]",
+                        statusStyles[user.status],
+                      )}
+                    >
+                      {formatLabel(user.status)}
+                    </Badge>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium text-foreground">
-                          {user.username || user.name || "Unnamed user"}
-                        </p>
-                        <p className="mt-1 truncate text-xs text-muted-foreground">
-                          {user.email}
-                        </p>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "shrink-0 border",
-                          statusStyles[user.status],
-                        )}
-                      >
-                        {formatLabel(user.status)}
-                      </Badge>
-                    </div>
-                    <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
-                      <div className="flex justify-between gap-3">
-                        <span>Role</span>
-                        <span className="font-medium text-foreground">
-                          {user.profile?.role
-                            ? formatLabel(user.profile.role)
-                            : "Not set"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between gap-3">
-                        <span>Created</span>
-                        <span className="font-medium text-foreground">
-                          {formatDate(user.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {user.email}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">
+                      {user.profile?.role
+                        ? formatLabel(user.profile.role)
+                        : "No role"}
+                    </span>{" "}
+                    · Joined {formatDate(user.createdAt)}
+                  </p>
                 </div>
               </button>
-              <div className="mt-3 flex justify-end border-t border-border/70 pt-2">
-                <UserActions
-                  user={user}
-                  currentUserEmail={currentUserEmail}
-                  onBlock={() => onBlock(user)}
-                  onUnblock={() => onUnblock(user)}
-                  onResetPassword={() => onResetPassword(user)}
-                  onEdit={() => onOpenUserProfile(user)}
-                  isLoading={actionLoading === user.id}
-                />
-              </div>
-            </div>
+              <UserActions
+                user={user}
+                currentUserEmail={currentUserEmail}
+                onBlock={() => onBlock(user)}
+                onUnblock={() => onUnblock(user)}
+                onResetPassword={() => onResetPassword(user)}
+                onEdit={() => onOpenUserProfile(user)}
+                isLoading={actionLoading === user.id}
+              />
+            </li>
           );
         })}
-      </div>
+      </ul>
 
-      <div className="hidden sm:block">
+      <div className="hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>

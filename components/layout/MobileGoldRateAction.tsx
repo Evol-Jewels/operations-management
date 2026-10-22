@@ -9,7 +9,7 @@ import { authClient } from "@/lib/auth-client";
 import { formatCurrency } from "@/lib/utils";
 
 const actionClassName =
-  "fixed top-4 right-4 z-40 flex h-9 items-center gap-1.5 rounded-full border border-border/70 bg-background/90 px-3 text-xs font-semibold tabular-nums shadow-sm backdrop-blur transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden print-hide";
+  "flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-background px-3 text-xs font-semibold tabular-nums transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function MobileGoldRateAction() {
   const { data: session } = authClient.useSession();
@@ -38,7 +38,11 @@ export function MobileGoldRateAction() {
     return (
       <GoldRatesDialog
         trigger={
-          <button type="button" className={actionClassName}>
+          <button
+            type="button"
+            className={actionClassName}
+            aria-label={`Today's gold rates. 24K: ${value}`}
+          >
             {content}
           </button>
         }

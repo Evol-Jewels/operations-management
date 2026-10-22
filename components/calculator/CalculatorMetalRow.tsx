@@ -1,7 +1,10 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { NumericLineInput } from "@/components/calculator/CalculatorFields";
+import {
+  fieldLabelClassName,
+  NumericLineInput,
+} from "@/components/calculator/CalculatorFields";
 import { JewelryVisual } from "@/components/jewelry/JewelryVisual";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,7 +66,7 @@ export function MetalRow({
   return (
     <div className="space-y-2.5 rounded-xl border border-border bg-muted/10 p-3">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        <p className="text-xs font-semibold text-muted-foreground">
           Metal {index + 1}
         </p>
         <div className="flex items-start gap-1.5">
@@ -109,7 +112,7 @@ export function MetalRow({
                 })
               }
               className={cn(
-                "flex h-9 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-w-24 sm:gap-2 sm:px-3",
+                "flex h-10 min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-9 sm:min-w-24 sm:gap-2 sm:px-3",
                 isActive
                   ? (style?.active ??
                       "border-border bg-background text-foreground shadow-xs")
@@ -128,11 +131,11 @@ export function MetalRow({
         })}
       </div>
 
-      <div className="grid grid-cols-1 items-end gap-3 min-[430px]:grid-cols-2 min-[430px]:gap-4">
+      <div className="grid grid-cols-2 items-end gap-3 sm:gap-4">
         <div className="space-y-1.5">
           <label
             htmlFor={`calculator-metal-purity-${metal.id}`}
-            className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+            className={fieldLabelClassName}
           >
             Purity
           </label>
@@ -144,7 +147,7 @@ export function MetalRow({
           >
             <SelectTrigger
               id={`calculator-metal-purity-${metal.id}`}
-              className="w-full bg-background px-3 font-semibold uppercase shadow-none"
+              className="w-full bg-background px-3 font-semibold uppercase shadow-none data-[size=default]:h-10 md:data-[size=default]:h-9"
             >
               <SelectValue placeholder="Select purity" />
             </SelectTrigger>
@@ -168,9 +171,7 @@ export function MetalRow({
           </Select>
         </div>
         <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Net weight
-          </p>
+          <p className={fieldLabelClassName}>Net weight</p>
           <NumericLineInput
             value={metal.weight}
             onChange={(weight) => onChange({ weight })}

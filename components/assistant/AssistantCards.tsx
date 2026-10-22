@@ -146,7 +146,7 @@ function CardShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+    <div className="@container overflow-hidden rounded-xl border bg-card shadow-xs">
       {(title || href) && (
         <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-3.5 py-2">
           <p className="truncate text-xs font-medium text-muted-foreground">
@@ -161,7 +161,7 @@ function CardShell({
           {href && (
             <Link
               href={href}
-              className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              className="-my-1 inline-flex min-h-8 shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
               Open
               <ExternalLink className="size-3" aria-hidden="true" />
@@ -217,7 +217,7 @@ function RecordsCard({
 
 function FieldGrid({ fields }: { fields: AssistantField[] }) {
   return (
-    <dl className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
+    <dl className="grid gap-x-6 gap-y-2.5 @md:grid-cols-2">
       {fields.map((field) => (
         <div key={field.label} className="min-w-0">
           <dt className="text-[11px] text-muted-foreground">{field.label}</dt>
@@ -238,8 +238,8 @@ function RecordCard({
   const { record } = card;
   return (
     <CardShell>
-      <div className="flex items-start justify-between gap-3 px-4 pt-3.5">
-        <div className="min-w-0">
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 px-4 pt-3.5">
+        <div className="min-w-0 flex-1 basis-48">
           <p className="font-mono text-xs text-muted-foreground">
             {record.code}
           </p>
@@ -259,7 +259,7 @@ function RecordCard({
           {record.href && (
             <Link
               href={record.href}
-              className="inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs hover:bg-muted"
+              className="inline-flex h-8 items-center gap-1 rounded-md border px-2.5 text-xs hover:bg-muted"
             >
               Open
               <ArrowUpRight className="size-3.5" aria-hidden="true" />
@@ -314,13 +314,16 @@ function StatsCard({
     <CardShell title={card.title} aside={card.subtitle} href={card.href}>
       {card.metrics.length > 0 && (
         <div className="overflow-hidden">
-          <div className="-mr-px -mb-px grid grid-cols-2 sm:grid-cols-3">
+          <div className="-mr-px -mb-px grid grid-cols-2 @md:grid-cols-3">
             {card.metrics.map((metric) => (
-              <div key={metric.label} className="border-r border-b px-3.5 py-3">
+              <div
+                key={metric.label}
+                className="min-w-0 border-r border-b px-3.5 py-3 last:odd:col-span-2 @md:last:odd:col-span-1"
+              >
                 <p className="text-[11px] text-muted-foreground">
                   {metric.label}
                 </p>
-                <p className="mt-1 text-lg font-semibold tracking-tight tabular-nums">
+                <p className="mt-1 truncate text-lg font-semibold tracking-tight tabular-nums">
                   {formatMetric(metric)}
                 </p>
                 {metric.hint && (
@@ -345,16 +348,16 @@ function StatsCard({
               <p className="mb-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                 {breakdown.title}
               </p>
-              <ul className="space-y-1.5">
+              <ul className="space-y-2.5 @sm:space-y-1.5">
                 {breakdown.rows.map((row) => (
                   <li
                     key={row.label}
-                    className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3 text-xs"
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-xs @sm:grid-cols-[minmax(0,9rem)_1fr_auto]"
                   >
                     <span className="truncate" title={row.label}>
                       {row.label}
                     </span>
-                    <span className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <span className="order-last col-span-2 h-1.5 overflow-hidden rounded-full bg-muted @sm:order-none @sm:col-span-1">
                       <span
                         className="block h-full rounded-full bg-foreground/70"
                         style={{
@@ -447,14 +450,14 @@ function InventoryCard({
       </CardShell>
     );
   return (
-    <div className="space-y-2">
+    <div className="@container space-y-2">
       {card.total > card.items.length && (
         <p className="text-xs text-muted-foreground">
           Showing {card.offset + 1}–{card.offset + card.items.length} of{" "}
           {card.total.toLocaleString("en-IN")} products
         </p>
       )}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 @lg:grid-cols-3">
         {card.items.map((item) => (
           <ProductTile key={item.id} item={item} />
         ))}

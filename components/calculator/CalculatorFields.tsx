@@ -45,7 +45,7 @@ export function NumericLineInput({
   }
 
   return (
-    <div className="flex h-9 items-end gap-2 border-b border-border pb-1.5 focus-within:border-foreground">
+    <div className="flex h-10 items-end gap-2 border-b border-border pb-1.5 focus-within:border-foreground md:h-9">
       <input
         type="text"
         role="spinbutton"
@@ -57,7 +57,7 @@ export function NumericLineInput({
         aria-valuenow={value}
         aria-label={ariaLabel}
         data-step={step}
-        className="min-w-0 flex-1 bg-transparent px-0 text-sm outline-none placeholder:text-muted-foreground/35"
+        className="min-w-0 flex-1 bg-transparent px-0 text-base outline-none placeholder:text-muted-foreground/35 md:text-sm"
       />
       {suffix ? (
         <span className="shrink-0 pb-0.5 text-sm text-muted-foreground">
@@ -68,6 +68,9 @@ export function NumericLineInput({
   );
 }
 
+export const fieldLabelClassName =
+  "block text-xs font-medium text-muted-foreground";
+
 export function SectionLabel({
   title,
   action,
@@ -77,9 +80,7 @@ export function SectionLabel({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        {title}
-      </p>
+      <p className="text-sm font-semibold">{title}</p>
       {action}
     </div>
   );

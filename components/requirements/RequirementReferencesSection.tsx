@@ -170,9 +170,9 @@ export function RequirementReferencesSection({
       title="Add product references or image or any link references"
     >
       <div className="space-y-3">
-        <div className="grid gap-3 md:grid-cols-[10rem_minmax(0,1fr)]">
+        <div className="grid grid-cols-3 gap-2 md:grid-cols-[10rem_minmax(0,1fr)] md:gap-3">
           <ImageUpload onAdd={addFiles} acceptVideos={localOnly} />
-          <div className="grid content-start gap-3">
+          <div className="order-last col-span-3 grid content-start gap-3 pt-1 md:order-none md:col-span-1 md:pt-0">
             {productField ?? (
               <ProductSearch
                 selectedCode={productCode}
@@ -184,6 +184,16 @@ export function RequirementReferencesSection({
             )}
             <LinkInput onAdd={addLink} />
           </div>
+          <div className="contents md:col-span-2 md:grid md:grid-cols-2 md:gap-2">
+            <RecordButton
+              kind="video"
+              onClick={() => setRecorderKind("video")}
+            />
+            <RecordButton
+              kind="audio"
+              onClick={() => setRecorderKind("audio")}
+            />
+          </div>
         </div>
 
         {mediaError && (
@@ -191,10 +201,6 @@ export function RequirementReferencesSection({
             {mediaError}
           </p>
         )}
-        <div className="grid gap-2 md:grid-cols-2">
-          <RecordButton kind="video" onClick={() => setRecorderKind("video")} />
-          <RecordButton kind="audio" onClick={() => setRecorderKind("audio")} />
-        </div>
 
         {recordedReferences.length ? (
           <p className="text-xs text-muted-foreground">
@@ -316,16 +322,16 @@ function RecordButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-border bg-muted/15 px-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/15 px-2 text-center transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:min-h-14 md:flex-row md:justify-start md:gap-3 md:px-3 md:text-left"
     >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-xs">
-        <Icon className="size-4 text-muted-foreground" />
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-xs md:size-9">
+        <Icon className="size-5 text-muted-foreground md:size-4" />
       </span>
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-foreground">
+        <span className="block text-xs font-medium text-foreground sm:text-sm">
           Record {kind}
         </span>
-        <span className="block text-xs text-muted-foreground">
+        <span className="hidden text-xs text-muted-foreground md:block">
           {isVideo
             ? "Camera + microphone · max 10 MB"
             : "Microphone only · max 3 MB"}
@@ -348,8 +354,10 @@ function ImageUpload({
 
   return (
     <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-muted/15 px-2 text-center transition-colors hover:border-primary/40 hover:bg-muted/30 focus-within:ring-2 focus-within:ring-ring/30">
-      <Upload className="size-4 text-muted-foreground" />
-      <span className="text-sm font-medium">
+      <span className="flex size-10 items-center justify-center rounded-full border border-border bg-background shadow-xs md:size-auto md:border-0 md:bg-transparent md:shadow-none">
+        <Upload className="size-5 text-muted-foreground md:size-4" />
+      </span>
+      <span className="text-xs font-medium sm:text-sm">
         {acceptVideos ? "Upload media" : "Upload images"}
       </span>
       <input
@@ -386,6 +394,9 @@ function LinkInput({ onAdd }: { onAdd: (value: string) => boolean }) {
               submit();
             }
           }}
+          inputMode="url"
+          enterKeyHint="done"
+          autoCapitalize="none"
           className="h-10 pl-9"
         />
       </div>
@@ -448,7 +459,7 @@ export function ImageReferenceCard({
   onRemove?: () => void;
 }) {
   return (
-    <div className="group relative size-14 overflow-hidden rounded-md border border-border bg-muted">
+    <div className="group relative size-16 overflow-hidden rounded-md border border-border bg-muted sm:size-14">
       <ImagePreviewDialog src={reference.url} alt={reference.name}>
         <button
           type="button"
@@ -466,7 +477,7 @@ export function ImageReferenceCard({
         <RemoveButton
           label="Remove image"
           onClick={onRemove}
-          className="absolute top-0.5 right-0.5 size-6 bg-background/85 opacity-90"
+          className="absolute top-0.5 right-0.5 size-7 rounded-full bg-background/85 opacity-90 sm:size-6 sm:rounded-md"
         />
       )}
     </div>

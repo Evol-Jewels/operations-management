@@ -3,63 +3,21 @@
 import {
   AlertCircle,
   ArrowLeft,
-  Calculator,
-  Diamond,
-  Download,
-  Gem,
-  MapPin,
+  Grid2x2,
   PackageSearch,
-  Palette,
   RefreshCw,
   ScanLine,
   Search,
   SlidersHorizontal,
-  X,
+  Square,
 } from "lucide-react";
-import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  type RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BarcodeScanDialog } from "@/components/calculator/BarcodeScanDialog";
-import { EstimationSummaryCard } from "@/components/calculator/EstimationSummaryCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Carousel,
-  type CarouselApi,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
-import { DatePicker } from "@/components/ui/date-picker";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
-import { VendorFilterSelect } from "@/components/vendors/VendorFilterSelect";
 import { useCalculatorSettings } from "@/hooks/useCalculatorSettings";
 import { useMyInternalProfile } from "@/hooks/useInternalProfile";
 import {
@@ -71,968 +29,55 @@ import { useLocations } from "@/hooks/useManageProducts";
 import { useVendorAccess, useVendors } from "@/hooks/useVendors";
 import { captureProductEvent } from "@/lib/analytics";
 import { normalizeDecodedId } from "@/lib/barcodeScanner";
-import {
-  getInventoryImages,
-  getInventoryMediaUrl,
-  isInventoryMediaProxyUrl,
-} from "@/lib/inventory-media";
-import {
-  getInventoryPrimaryImage,
-  normalizeInventoryProductEstimate,
-} from "@/lib/inventoryProductMapping";
 import { cn, formatCurrency } from "@/lib/utils";
+import { getVendorFilterLabel, type Vendor } from "@/lib/vendors";
+import type { InventoryProductListQuery } from "@/types/inventory-api";
 import {
-  getVendorFilterLabel,
-  type Vendor,
-  type VendorFilter,
-} from "@/lib/vendors";
-import type { CalculatorSettings } from "@/types";
-import type {
-  InventoryProduct,
-  InventoryProductListQuery,
-  ProductColor,
-} from "@/types/inventory-api";
-
-type InventoryCategory =
-  | "RING"
-  | "NECKLACE"
-  | "EARRING"
-  | "BRACELET"
-  | "PENDANT"
-  | "BANGLE"
-  | "ANKLET"
-  | "ACCESSORY"
-  | "CHAIN"
-  | "OTHER";
-type SourceFilter = "ALL" | "CUSTOMER" | "STOCK";
-type ColorFilter = "ALL" | ProductColor;
-type PurityFilter = "ALL" | "9" | "14" | "18" | "22" | "24";
-type ActiveFilterChip = {
-  key: string;
-  label: string;
-  onRemove: () => void;
-};
-
-function getImageExtension(blob: Blob, imageUrl: string) {
-  const typeExtension = blob.type.split("/")[1]?.split("+")[0];
-  if (typeExtension) return typeExtension === "jpeg" ? "jpg" : typeExtension;
-
-  const urlExtension = imageUrl.match(/\.([a-z0-9]+)(?:[?#]|$)/i)?.[1];
-  return urlExtension?.toLowerCase() || "jpg";
-}
-
-function InventoryImageDownloadButton({
-  imageUrl,
-  productCode,
-}: {
-  imageUrl: string;
-  productCode: string;
-}) {
-  const [isDownloading, setIsDownloading] = useState(false);
-
-  async function downloadImage() {
-    setIsDownloading(true);
-
-    try {
-      const response = await fetch(imageUrl, {
-        credentials: isInventoryMediaProxyUrl(imageUrl)
-          ? "include"
-          : "same-origin",
-        cache: "no-store",
-      });
-      if (!response.ok) throw new Error("Image request failed");
-
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const safeProductCode =
-        productCode.trim().replace(/[^a-z0-9_-]+/gi, "-") || "product";
-
-      link.href = objectUrl;
-      link.download = `${safeProductCode}.${getImageExtension(blob, imageUrl)}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(objectUrl);
-      toast.success("Product image downloaded");
-    } catch {
-      toast.error("Unable to download the product image");
-    } finally {
-      setIsDownloading(false);
-    }
-  }
-
-  return (
-    <Button
-      type="button"
-      size="icon"
-      variant="secondary"
-      disabled={isDownloading}
-      aria-label={`Download image for ${productCode}`}
-      onClick={(event) => {
-        event.stopPropagation();
-        void downloadImage();
-      }}
-      className="absolute top-2 right-2 z-20 size-9 cursor-pointer border border-border/70 bg-background/90 opacity-100 shadow-sm backdrop-blur-sm transition-opacity duration-200 hover:bg-background focus-visible:opacity-100 sm:opacity-0 sm:group-hover/image:opacity-100"
-    >
-      {isDownloading ? (
-        <RefreshCw className="size-4 animate-spin" />
-      ) : (
-        <Download className="size-4" />
-      )}
-    </Button>
-  );
-}
-
-const CATEGORY_VALUES: readonly InventoryCategory[] = [
-  "RING",
-  "NECKLACE",
-  "EARRING",
-  "BRACELET",
-  "PENDANT",
-  "BANGLE",
-  "ANKLET",
-  "ACCESSORY",
-  "CHAIN",
-  "OTHER",
-] as const;
-
-const CATEGORY_LABELS: Record<InventoryCategory, string> = {
-  RING: "Ring",
-  NECKLACE: "Necklace",
-  EARRING: "Earring",
-  BRACELET: "Bracelet",
-  PENDANT: "Pendant",
-  BANGLE: "Bangle",
-  ANKLET: "Anklet",
-  ACCESSORY: "Accessory",
-  CHAIN: "Chain",
-  OTHER: "Other",
-};
-
-const COLOR_LABELS: Record<ProductColor, string> = {
-  YELLOW: "Yellow",
-  ROSE: "Rose",
-  WHITE: "White",
-  OTHERS: "Others",
-};
-
-const PURITY_LABELS: Record<Exclude<PurityFilter, "ALL">, string> = {
-  "9": "9K",
-  "14": "14K",
-  "18": "18K",
-  "22": "22K",
-  "24": "24K",
-};
+  type ActiveFilterChip,
+  ActiveFilterChips,
+  InventoryFiltersPanel,
+} from "./InventoryFilters";
+import {
+  CATEGORY_LABELS,
+  COLOR_LABELS,
+  EMPTY_FILTERS,
+  FILTER_KEYS,
+  FILTER_PARAM_KEYS,
+  getErrorMessage,
+  type InventoryFilterKey,
+  type InventoryFilters,
+  isFilterActive,
+  PURITY_LABELS,
+  readFiltersFromParams,
+  SEARCH_PARAM_KEY,
+} from "./inventory-utils";
+import {
+  PRODUCT_GRID_CLASS,
+  PRODUCT_RAIL_CLASS,
+  ProductCard,
+  ProductGridSkeleton,
+} from "./ProductCard";
+import {
+  ProductDetail,
+  ProductDetailSkeleton,
+  ProductEstimationSection,
+  ProductShareButton,
+  ProductSpecification,
+} from "./ProductDetail";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const NO_VENDORS: Vendor[] = [];
-
-const QUERY_PARAM_KEYS = {
-  search: "q",
-  category: "category",
-  color: "color",
-  purity: "purity",
-  source: "source",
-  location: "locationId",
-  vendor: "vendorId",
-  netWeightFrom: "netWeightFrom",
-  netWeightTo: "netWeightTo",
-  priceFrom: "priceFrom",
-  priceTo: "priceTo",
-  sourceCreatedFrom: "sourceCreatedFrom",
-  sourceCreatedTo: "sourceCreatedTo",
-} as const;
-
-function formatWeight(value: string | number, unit: string) {
-  const numeric = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numeric)) return `- ${unit}`;
-  return `${numeric.toFixed(2)} ${unit}`;
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Something went wrong";
-}
+const TRACKED_FILTER_KEYS = new Set<InventoryFilterKey>([
+  "category",
+  "color",
+  "purity",
+  "source",
+  "location",
+  "vendor",
+]);
 
 function formatProductCount(count: number | undefined) {
   return typeof count === "number" ? count.toLocaleString("en-IN") : null;
-}
-
-function getQueryValue(params: URLSearchParams, key: string) {
-  return params.get(key) ?? "";
-}
-
-function getCategoryQueryValue(params: URLSearchParams) {
-  const value = params.get(QUERY_PARAM_KEYS.category);
-  return value && CATEGORY_VALUES.includes(value as InventoryCategory)
-    ? (value as InventoryCategory)
-    : "ALL";
-}
-
-function getColorQueryValue(params: URLSearchParams) {
-  const value = params.get(QUERY_PARAM_KEYS.color);
-  return value && Object.keys(COLOR_LABELS).includes(value)
-    ? (value as ColorFilter)
-    : "ALL";
-}
-
-function getPurityQueryValue(params: URLSearchParams) {
-  const value = params.get(QUERY_PARAM_KEYS.purity);
-  return value && Object.keys(PURITY_LABELS).includes(value)
-    ? (value as PurityFilter)
-    : "ALL";
-}
-
-function getSourceQueryValue(params: URLSearchParams) {
-  const value = params.get(QUERY_PARAM_KEYS.source);
-  return value === "CUSTOMER" || value === "STOCK" ? value : "ALL";
-}
-
-function getMetalLabel(product: InventoryProduct) {
-  const color = product.color.trim().toLowerCase();
-  const metalColor = color.includes("rose")
-    ? "Rose Gold"
-    : color.includes("white")
-      ? "White Gold"
-      : color.includes("yellow") || color === "gold"
-        ? "Yellow Gold"
-        : product.color;
-
-  return `${metalColor} ${product.purity}K`;
-}
-
-function getTotalStonePieces(product: InventoryProduct) {
-  return (product.stones ?? []).reduce((sum, stone) => sum + stone.pieces, 0);
-}
-
-function getTotalStoneCarat(product: InventoryProduct) {
-  const totalStoneWeight = Number(product.totalStoneWeight);
-  if (Number.isFinite(totalStoneWeight) && totalStoneWeight > 0) {
-    return totalStoneWeight;
-  }
-
-  return (product.stones ?? []).reduce(
-    (sum, stone) => sum + (Number(stone.netWeight) || 0),
-    0,
-  );
-}
-
-function InventoryProductImage({
-  image,
-  sizes,
-  className,
-  showLabel = false,
-}: {
-  image: ReturnType<typeof getInventoryPrimaryImage>;
-  sizes: string;
-  className: string;
-  showLabel?: boolean;
-}) {
-  const imageUrl = image ? getInventoryMediaUrl(image) : null;
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const hasError = Boolean(imageUrl && failedUrl === imageUrl);
-
-  if (!image || !imageUrl || hasError) {
-    return (
-      <div
-        role="img"
-        aria-label="Product image unavailable"
-        className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_35%,color-mix(in_oklab,var(--muted-foreground)_10%,transparent),transparent_58%)] text-muted-foreground"
-      >
-        <div className="absolute inset-3 rounded-[inherit] border border-dashed border-current/10" />
-        <div className="relative flex size-11 items-center justify-center rounded-full border border-current/15 bg-background/55 shadow-sm backdrop-blur-sm">
-          <Diamond className="size-5 opacity-45" strokeWidth={1.5} />
-        </div>
-        {showLabel ? (
-          <span className="relative mt-3 text-[10px] font-medium uppercase tracking-[0.16em] opacity-55">
-            Image unavailable
-          </span>
-        ) : null}
-      </div>
-    );
-  }
-
-  return (
-    <Image
-      src={imageUrl}
-      alt={image.altText}
-      fill
-      unoptimized
-      sizes={sizes}
-      className={className}
-      onError={() => setFailedUrl(imageUrl)}
-    />
-  );
-}
-
-function ProductMediaCarousel({ product }: { product: InventoryProduct }) {
-  const images = useMemo(() => getInventoryImages(product), [product]);
-  const [api, setApi] = useState<CarouselApi>();
-  const [selectedIndex, setSelectedIndex] = useState(0);
-
-  useEffect(() => {
-    if (!api) return;
-
-    const updateSelection = () => setSelectedIndex(api.selectedScrollSnap());
-    updateSelection();
-    api.on("select", updateSelection);
-    api.on("reInit", updateSelection);
-
-    return () => {
-      api.off("select", updateSelection);
-      api.off("reInit", updateSelection);
-    };
-  }, [api]);
-
-  if (!images.length) {
-    return (
-      <div className="relative flex aspect-[4/3] min-h-72 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-[radial-gradient(circle_at_50%_36%,color-mix(in_oklab,var(--muted-foreground)_12%,transparent),transparent_58%)] lg:min-h-[30rem]">
-        <div className="absolute inset-4 rounded-lg border border-dashed border-border/70" />
-        <div className="relative flex flex-col items-center gap-3 text-muted-foreground">
-          <div className="flex size-14 items-center justify-center rounded-full border border-border bg-background/70 shadow-sm backdrop-blur-sm">
-            <PackageSearch className="size-6 opacity-50" />
-          </div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em]">
-            Images unavailable
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (images.length === 1) {
-    const image = images[0];
-    if (!image) return null;
-
-    return (
-      <div className="bg-muted/20 p-3 sm:p-4">
-        <div className="group/image relative aspect-[4/3] overflow-hidden rounded-xl border border-border/70 bg-background shadow-sm">
-          <InventoryProductImage
-            image={image}
-            sizes="(min-width: 1280px) 50vw, 100vw"
-            className="object-contain p-2 transition-transform duration-300 ease-out group-hover/image:scale-[1.01] motion-reduce:transition-none sm:p-3"
-            showLabel
-          />
-          <InventoryImageDownloadButton
-            imageUrl={getInventoryMediaUrl(image)}
-            productCode={product.productCode}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex min-w-0 flex-col gap-3 bg-muted/20 p-3 sm:p-4">
-      <Carousel
-        setApi={setApi}
-        opts={{ loop: images.length > 1 }}
-        className="min-w-0"
-        aria-label={`${product.name} product images`}
-      >
-        <CarouselContent className="ml-0">
-          {images.map((image) => (
-            <CarouselItem key={image.id} className="pl-0">
-              <div className="group/image relative aspect-[4/3] overflow-hidden rounded-xl border border-border/70 bg-background shadow-sm">
-                <InventoryProductImage
-                  image={image}
-                  sizes="(min-width: 1280px) 50vw, 100vw"
-                  className="object-contain p-2 transition-transform duration-300 ease-out group-hover/image:scale-[1.01] motion-reduce:transition-none sm:p-3"
-                  showLabel
-                />
-                <InventoryImageDownloadButton
-                  imageUrl={getInventoryMediaUrl(image)}
-                  productCode={product.productCode}
-                />
-              </div>
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-
-        <div className="absolute top-3 left-3 z-20 rounded-full border border-border/70 bg-background/90 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-foreground shadow-sm backdrop-blur-md">
-          {selectedIndex + 1} / {images.length}
-        </div>
-        <CarouselPrevious
-          variant="secondary"
-          className="left-3 z-30 size-11 cursor-pointer border-border/70 bg-background/90 shadow-md backdrop-blur-md hover:bg-background"
-        />
-        <CarouselNext
-          variant="secondary"
-          className="right-3 z-30 size-11 cursor-pointer border-border/70 bg-background/90 shadow-md backdrop-blur-md hover:bg-background"
-        />
-      </Carousel>
-
-      <nav
-        className="scrollbar-none flex gap-2 overflow-x-auto pb-0.5"
-        aria-label="Choose a product image"
-      >
-        {images.map((image, index) => (
-          <button
-            key={image.id}
-            type="button"
-            aria-label={`Show image ${index + 1} of ${images.length}`}
-            aria-current={selectedIndex === index ? "true" : undefined}
-            onClick={() => api?.scrollTo(index)}
-            className={cn(
-              "relative size-16 shrink-0 cursor-pointer overflow-hidden rounded-lg border bg-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:size-[4.5rem]",
-              selectedIndex === index
-                ? "border-foreground ring-1 ring-foreground/15"
-                : "border-border/80 opacity-65 hover:border-foreground/40 hover:opacity-100",
-            )}
-          >
-            <Image
-              src={getInventoryMediaUrl(image)}
-              alt=""
-              fill
-              unoptimized
-              sizes="72px"
-              className="object-contain p-1"
-            />
-          </button>
-        ))}
-      </nav>
-    </div>
-  );
-}
-
-function getInventoryGridClass(hasSelectedProduct: boolean) {
-  if (hasSelectedProduct) return "grid-cols-1";
-  return "sm:grid-cols-2 lg:grid-cols-3";
-}
-
-function InventoryStat({
-  label,
-  value,
-  emphasis = false,
-  onClick,
-}: {
-  label: string;
-  value: string;
-  emphasis?: boolean;
-  onClick?: () => void;
-}) {
-  const className = cn(
-    "rounded-xl border px-4 py-3.5 text-left",
-    emphasis
-      ? "border-foreground bg-foreground"
-      : "border-border bg-background",
-    onClick &&
-      "min-h-20 cursor-pointer transition-colors hover:border-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-  );
-  const content = (
-    <>
-      <p
-        className={cn(
-          "text-[11px] font-semibold uppercase tracking-[0.2em]",
-          emphasis ? "text-background/70" : "text-muted-foreground",
-        )}
-      >
-        {label}
-      </p>
-      <p
-        className={cn(
-          "mt-2 text-sm font-medium",
-          emphasis ? "text-background" : "text-foreground",
-        )}
-      >
-        {value}
-      </p>
-    </>
-  );
-
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className={className}
-        aria-label="View estimation price breakdown"
-      >
-        {content}
-      </button>
-    );
-  }
-
-  return <div className={className}>{content}</div>;
-}
-
-function ProductListItem({
-  product,
-  selected,
-  compact = false,
-  onSelect,
-}: {
-  product: InventoryProduct;
-  selected: boolean;
-  compact?: boolean;
-  onSelect: () => void;
-}) {
-  const image = getInventoryPrimaryImage(product);
-  const city = product.location.city?.trim() || "City unavailable";
-  const colorLabel =
-    COLOR_LABELS[product.color as ProductColor] ?? product.color;
-
-  return (
-    <div
-      className={cn(
-        "relative w-full rounded-xl border bg-card text-left shadow-sm transition-colors hover:border-foreground/25 hover:bg-muted/20 has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring has-[button:focus-visible]:ring-offset-2",
-        compact ? "flex items-stretch gap-2.5 p-2.5" : "flex flex-col p-2.5",
-        selected
-          ? "border-foreground/60 ring-1 ring-foreground/10"
-          : "border-border",
-      )}
-    >
-      <button
-        type="button"
-        onClick={onSelect}
-        aria-label={`View ${product.name}`}
-        className="absolute inset-0 z-0 cursor-pointer rounded-xl"
-      />
-      <div
-        className={cn(
-          "group/image pointer-events-none relative z-10 aspect-square w-full overflow-hidden rounded-lg border border-border bg-muted/60",
-          compact && "h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20",
-        )}
-      >
-        {image ? (
-          <>
-            <Image
-              src={getInventoryMediaUrl(image)}
-              alt={image.altText}
-              fill
-              unoptimized
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className={compact ? "object-contain p-1" : "object-cover"}
-            />
-            <div className="pointer-events-auto">
-              <InventoryImageDownloadButton
-                imageUrl={getInventoryMediaUrl(image)}
-                productCode={product.productCode}
-              />
-            </div>
-          </>
-        ) : null}
-      </div>
-
-      <div
-        className={cn(
-          "pointer-events-none relative z-10 min-w-0",
-          compact ? "flex flex-1 flex-col justify-between py-0.5" : "pt-2",
-        )}
-      >
-        {compact ? (
-          <>
-            <div className="min-w-0">
-              <h3
-                className="truncate text-base font-semibold text-foreground"
-                title={product.name}
-              >
-                {product.name}
-              </h3>
-              <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-                {product.productCode}
-              </p>
-            </div>
-            <div className="flex min-w-0 items-end justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{city}</span>
-              </div>
-              <p className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
-                {formatCurrency(product.price.total)}
-              </p>
-            </div>
-          </>
-        ) : (
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto_auto] gap-x-3 gap-y-1 max-[420px]:flex max-[420px]:flex-col">
-            <h3
-              className="col-start-1 row-start-1 truncate text-base font-semibold text-foreground max-[420px]:order-1"
-              title={product.name}
-            >
-              {product.name}
-            </h3>
-            <p className="col-start-1 row-start-2 truncate font-mono text-xs text-muted-foreground max-[420px]:order-2">
-              {product.productCode}
-            </p>
-            <p className="col-start-2 row-span-2 row-start-1 self-center text-lg font-bold tabular-nums tracking-tight text-foreground max-[420px]:order-3">
-              {formatCurrency(product.price.total)}
-            </p>
-            <div className="col-start-1 row-start-3 flex gap-1.5 pt-1 max-[420px]:order-4">
-              <Badge variant="secondary" className="gap-1 font-normal">
-                <Gem className="size-3" aria-hidden="true" />
-                {product.purity}K
-              </Badge>
-              <Badge variant="secondary" className="gap-1 font-normal">
-                <Palette className="size-3" aria-hidden="true" />
-                {colorLabel}
-              </Badge>
-            </div>
-            <Badge
-              variant="outline"
-              className="col-start-2 row-start-3 justify-self-end gap-1 font-normal max-[420px]:order-5"
-            >
-              <MapPin className="size-3" aria-hidden="true" />
-              {city}
-            </Badge>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ProductDetail({
-  product,
-  settings,
-  estimationSectionRef,
-}: {
-  product: InventoryProduct;
-  settings: CalculatorSettings;
-  estimationSectionRef: RefObject<HTMLElement | null>;
-}) {
-  const canViewVendor = useVendorAccess();
-  const estimateResult = useMemo(
-    () => normalizeInventoryProductEstimate(product, settings),
-    [product, settings],
-  );
-
-  function scrollToEstimation() {
-    captureProductEvent("inventory_estimation_viewed", {
-      product_code: product.productCode,
-      category: product.category,
-      product_source: product.isCustomerProduct ? "customer" : "stock",
-    });
-    estimationSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }
-
-  return (
-    <section className="@container overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-      <div className="grid @min-[56rem]:grid-cols-[minmax(0,1.12fr)_minmax(19rem,0.88fr)]">
-        <ProductMediaCarousel product={product} />
-
-        <div className="flex flex-col justify-between p-5 lg:p-6">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                variant="default"
-                className="rounded-full px-3 py-1 text-xs"
-              >
-                {product.category}
-              </Badge>
-              <Badge
-                variant="outline"
-                className="rounded-full px-3 py-1 text-xs"
-              >
-                {product.color}
-              </Badge>
-            </div>
-
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
-              {product.name}
-            </h2>
-            <p className="mt-1 font-mono text-sm text-muted-foreground">
-              {product.productCode}
-            </p>
-            {canViewVendor ? (
-              <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                {product.vendor}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="mt-8 space-y-3">
-            <div className="grid gap-3 min-[1180px]:grid-cols-2">
-              <InventoryStat label="Metal" value={getMetalLabel(product)} />
-              <InventoryStat
-                label="Net wt"
-                value={formatWeight(product.netWeight, "g")}
-              />
-            </div>
-            <div className="grid gap-3 min-[1180px]:grid-cols-2">
-              <InventoryStat
-                label="Stone wt"
-                value={formatWeight(getTotalStoneCarat(product), "ct")}
-              />
-              <InventoryStat
-                label="Gross wt"
-                value={formatWeight(product.grossWeight, "g")}
-              />
-            </div>
-            <div className="grid gap-3 min-[1180px]:grid-cols-2">
-              <InventoryStat label="Location" value={product.location.city} />
-              <InventoryStat
-                label="Price"
-                value={formatCurrency(product.price.total)}
-                emphasis
-                onClick={scrollToEstimation}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ProductEstimationSection({
-  product,
-  settings,
-  estimationSectionRef,
-}: {
-  product: InventoryProduct;
-  settings: CalculatorSettings;
-  estimationSectionRef: RefObject<HTMLElement | null>;
-}) {
-  const estimateResult = useMemo(
-    () => normalizeInventoryProductEstimate(product, settings),
-    [product, settings],
-  );
-  const router = useRouter();
-
-  function loadIntoCalculator() {
-    const params = new URLSearchParams({
-      tab: "calculate",
-      productCode: product.productCode,
-    });
-    router.push(`/calculator?${params.toString()}`);
-  }
-
-  return (
-    <section ref={estimationSectionRef} className="scroll-mt-4">
-      <EstimationSummaryCard
-        title="Product estimation"
-        data={{ kind: "estimate", result: estimateResult }}
-        renderHeaderActions={() => (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0 rounded-md px-2.5 sm:px-3"
-            onClick={loadIntoCalculator}
-          >
-            <Calculator className="h-4 w-4" />
-            <span className="hidden sm:inline">Load in Calculator</span>
-          </Button>
-        )}
-      />
-    </section>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid grid-cols-[7rem_1fr] gap-4">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words text-sm text-foreground">{value}</dd>
-    </div>
-  );
-}
-
-function ProductSpecification({ product }: { product: InventoryProduct }) {
-  const canViewVendor = useVendorAccess();
-  const totalStonePieces = getTotalStonePieces(product);
-  const totalStoneTypes = product.stones?.length ?? 0;
-  const totalStoneCarat = getTotalStoneCarat(product);
-
-  return (
-    <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
-            Specification
-          </h2>
-        </div>
-        <Badge variant="outline">{product.category}</Badge>
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <dl className="space-y-3">
-          <DetailRow label="Code" value={product.productCode} />
-          {canViewVendor ? (
-            <DetailRow label="Vendor" value={product.vendor} />
-          ) : null}
-        </dl>
-        <dl className="space-y-3">
-          <DetailRow
-            label="Gross wt"
-            value={formatWeight(product.grossWeight, "g")}
-          />
-          <DetailRow
-            label="Source"
-            value={
-              product.isCustomerProduct ? "Customer product" : "Stock product"
-            }
-          />
-        </dl>
-      </div>
-
-      <Separator className="my-6" />
-
-      <div>
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-medium text-foreground">
-            Inventory position
-          </p>
-        </div>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {product.location.name} · {product.location.city} ·{" "}
-          {product.location.type}
-        </p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {product.location.notes ?? "-"}
-        </p>
-      </div>
-
-      {(product.stones?.length ?? 0) > 0 ? (
-        <>
-          <Separator className="my-6" />
-          <div>
-            <div className="flex items-center gap-2">
-              <Diamond className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-medium text-foreground">
-                Stone composition
-              </p>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <InventoryStat
-                label="Total stones"
-                value={totalStoneTypes.toLocaleString("en-IN")}
-              />
-              <InventoryStat
-                label="Total carat"
-                value={formatWeight(totalStoneCarat, "ct")}
-              />
-              <InventoryStat
-                label="Total pieces"
-                value={`${totalStonePieces.toLocaleString("en-IN")} pcs`}
-              />
-            </div>
-            <div className="mt-4 space-y-3">
-              {(product.stones ?? []).map((stone) => (
-                <div
-                  key={stone.id}
-                  className="rounded-xl border border-border bg-background px-4 py-3"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {stone.stoneName ?? stone.slabName}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {stone.slabName} · {formatCurrency(stone.ratePerCarat)}
-                        /ct
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-foreground">
-                        {formatCurrency(stone.amount)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {formatWeight(stone.netWeight, "ct")} ·{" "}
-                        {stone.pieces.toLocaleString("en-IN")} pcs
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      ) : null}
-    </section>
-  );
-}
-
-function ProductListSkeleton() {
-  const rows = ["row-1", "row-2", "row-3", "row-4", "row-5", "row-6"];
-
-  return (
-    <div className="space-y-2.5">
-      {rows.map((row) => (
-        <div
-          key={row}
-          className="rounded-xl border border-border bg-card p-3 shadow-sm"
-        >
-          <Skeleton className="aspect-square w-full rounded-lg" />
-          <div className="mt-3 space-y-2">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-36" />
-              <Skeleton className="h-3 w-24" />
-            </div>
-            <div className="flex gap-1.5 pt-1">
-              <Skeleton className="h-5 w-16 rounded-full" />
-              <Skeleton className="h-5 w-10 rounded-full" />
-              <Skeleton className="h-5 w-20 rounded-full" />
-            </div>
-            <Skeleton className="mt-3 h-7 w-28" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ProductGridSkeleton() {
-  const rows = ["row-1", "row-2", "row-3", "row-4", "row-5", "row-6"];
-
-  return (
-    <div className={cn("grid gap-3", getInventoryGridClass(false))}>
-      {rows.map((row) => (
-        <div
-          key={row}
-          className="rounded-xl border border-border bg-card p-3 shadow-sm"
-        >
-          <Skeleton className="aspect-square w-full rounded-lg" />
-          <div className="mt-3 space-y-2">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-36" />
-              <Skeleton className="h-3 w-24" />
-            </div>
-            <div className="flex gap-1.5 pt-1">
-              <Skeleton className="h-5 w-16 rounded-full" />
-              <Skeleton className="h-5 w-10 rounded-full" />
-              <Skeleton className="h-5 w-20 rounded-full" />
-            </div>
-            <Skeleton className="mt-3 h-7 w-28" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ProductDetailSkeleton() {
-  return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <div className="grid min-h-[26rem] lg:grid-cols-[minmax(320px,0.95fr)_1fr]">
-          <Skeleton className="min-h-72 rounded-xl" />
-          <div className="space-y-6 p-5 lg:p-6">
-            <div className="flex gap-2">
-              <Skeleton className="h-7 w-24 rounded-full" />
-              <Skeleton className="h-7 w-20 rounded-full" />
-            </div>
-            <div className="space-y-3">
-              <Skeleton className="h-7 w-56" />
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Skeleton className="h-20 rounded-xl" />
-              <Skeleton className="h-20 rounded-xl" />
-              <Skeleton className="h-20 rounded-xl" />
-            </div>
-          </div>
-        </div>
-      </section>
-      <Skeleton className="h-80 rounded-xl" />
-    </div>
-  );
 }
 
 function ErrorPanel({ title, message }: { title: string; message: string }) {
@@ -1064,49 +109,15 @@ export function InventoryPageClient() {
   const searchParams = useSearchParams();
   const selectedProductCode = searchParams.get("productCode");
 
-  const [searchInput, setSearchInput] = useState(() =>
-    getQueryValue(searchParams, QUERY_PARAM_KEYS.search),
+  const [searchInput, setSearchInput] = useState(
+    () => searchParams.get(SEARCH_PARAM_KEY) ?? "",
   );
-  const [categoryFilter, setCategoryFilter] = useState<
-    InventoryCategory | "ALL"
-  >(() => getCategoryQueryValue(searchParams));
-  const [colorFilter, setColorFilter] = useState<ColorFilter>(() =>
-    getColorQueryValue(searchParams),
+  const [filters, setFilters] = useState<InventoryFilters>(() =>
+    readFiltersFromParams(searchParams),
   );
-  const [purityFilter, setPurityFilter] = useState<PurityFilter>(() =>
-    getPurityQueryValue(searchParams),
-  );
-  const [sourceFilter, setSourceFilter] = useState<SourceFilter>(() =>
-    getSourceQueryValue(searchParams),
-  );
-  const [locationFilter, setLocationFilter] = useState<string>(
-    () => searchParams.get(QUERY_PARAM_KEYS.location) ?? "ALL",
-  );
-  const [vendorFilter, setVendorFilter] = useState<VendorFilter>(
-    () => searchParams.get(QUERY_PARAM_KEYS.vendor) ?? "ALL",
-  );
-
-  const [netWeightFrom, setNetWeightFrom] = useState(() =>
-    getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightFrom),
-  );
-  const [netWeightTo, setNetWeightTo] = useState(() =>
-    getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightTo),
-  );
-  const [priceFrom, setPriceFrom] = useState(() =>
-    getQueryValue(searchParams, QUERY_PARAM_KEYS.priceFrom),
-  );
-  const [priceTo, setPriceTo] = useState(() =>
-    getQueryValue(searchParams, QUERY_PARAM_KEYS.priceTo),
-  );
-  const [sourceCreatedFrom, setSourceCreatedFrom] = useState(() =>
-    getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedFrom),
-  );
-  const [sourceCreatedTo, setSourceCreatedTo] = useState(() =>
-    getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedTo),
-  );
-
-  const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [showTwoPerRow, setShowTwoPerRow] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const estimationSectionRef = useRef<HTMLElement | null>(null);
   const { settings } = useCalculatorSettings();
@@ -1123,51 +134,42 @@ export function InventoryPageClient() {
   );
 
   const listQuery = useInfiniteInventoryProducts(
-    useMemo<InventoryProductListQuery>(() => {
-      const isCustomerProduct =
-        sourceFilter === "ALL" ? undefined : sourceFilter === "CUSTOMER";
-
-      const filters: InventoryProductListQuery = {
+    useMemo<InventoryProductListQuery>(
+      () => ({
         q: debouncedSearch || undefined,
-        category: categoryFilter === "ALL" ? undefined : categoryFilter,
-        color: colorFilter === "ALL" ? undefined : colorFilter,
-        purity: purityFilter === "ALL" ? undefined : Number(purityFilter),
-        locationId: locationFilter === "ALL" ? undefined : locationFilter,
+        category: filters.category === "ALL" ? undefined : filters.category,
+        color: filters.color === "ALL" ? undefined : filters.color,
+        purity: filters.purity === "ALL" ? undefined : Number(filters.purity),
+        locationId: filters.location === "ALL" ? undefined : filters.location,
         vendorId:
-          canViewVendor && vendorFilter !== "ALL" ? vendorFilter : undefined,
-        isCustomerProduct,
-        netWeightFrom: netWeightFrom ? Number(netWeightFrom) : undefined,
-        netWeightTo: netWeightTo ? Number(netWeightTo) : undefined,
-        priceFrom: priceFrom ? Number(priceFrom) : undefined,
-        priceTo: priceTo ? Number(priceTo) : undefined,
-        sourceCreatedFrom: sourceCreatedFrom || undefined,
-        sourceCreatedTo: sourceCreatedTo || undefined,
-      };
-      return filters;
-    }, [
-      categoryFilter,
-      colorFilter,
-      debouncedSearch,
-      locationFilter,
-      netWeightFrom,
-      netWeightTo,
-      priceFrom,
-      priceTo,
-      purityFilter,
-      sourceCreatedFrom,
-      sourceCreatedTo,
-      sourceFilter,
-      canViewVendor,
-      vendorFilter,
-    ]),
+          canViewVendor && filters.vendor !== "ALL"
+            ? filters.vendor
+            : undefined,
+        isCustomerProduct:
+          filters.source === "ALL" ? undefined : filters.source === "CUSTOMER",
+        netWeightFrom: filters.netWeightFrom
+          ? Number(filters.netWeightFrom)
+          : undefined,
+        netWeightTo: filters.netWeightTo
+          ? Number(filters.netWeightTo)
+          : undefined,
+        priceFrom: filters.priceFrom ? Number(filters.priceFrom) : undefined,
+        priceTo: filters.priceTo ? Number(filters.priceTo) : undefined,
+        sourceCreatedFrom: filters.sourceCreatedFrom || undefined,
+        sourceCreatedTo: filters.sourceCreatedTo || undefined,
+      }),
+      [canViewVendor, debouncedSearch, filters],
+    ),
   );
 
   const detailQuery = useInventoryProductByCode(selectedProductCode);
   const locationsQuery = useLocations({ limit: 100 });
+  const locations = locationsQuery.data?.data;
 
   const products = listQuery.data?.pages.flatMap((page) => page.data) ?? [];
-  const totalProducts = listQuery.data?.pages[0]?.total;
-  const formattedTotalProducts = formatProductCount(totalProducts);
+  const formattedTotalProducts = formatProductCount(
+    listQuery.data?.pages[0]?.total,
+  );
   const hasSelectedProduct = Boolean(selectedProductCode);
   const selectedProduct = detailQuery.data ?? null;
   const internalRole = profileQuery.data?.profile?.role;
@@ -1193,52 +195,96 @@ export function InventoryPageClient() {
     [pathname, router, searchParams],
   );
 
-  const updateQueryParam = useCallback(
-    (key: string, value: string, fallbackValue = "ALL") => {
-      updateSearchParams((params) => {
-        if (!value || value === fallbackValue) {
-          params.delete(key);
-          return;
-        }
-        params.set(key, value);
-      });
-    },
-    [updateSearchParams],
-  );
-
-  const handleSyncProducts = useCallback(async () => {
-    captureProductEvent("inventory_sync_started");
-    try {
-      await syncInventoryMutation.mutateAsync();
-      captureProductEvent("inventory_sync_completed");
-      toast.success("Product sync completed");
-    } catch (error) {
-      captureProductEvent("inventory_sync_failed");
-      toast.error(getErrorMessage(error));
-    }
-  }, [syncInventoryMutation]);
+  useEffect(() => {
+    setSearchInput(searchParams.get(SEARCH_PARAM_KEY) ?? "");
+    setFilters(readFiltersFromParams(searchParams));
+  }, [searchParams]);
 
   useEffect(() => {
-    setSearchInput(getQueryValue(searchParams, QUERY_PARAM_KEYS.search));
-    setCategoryFilter(getCategoryQueryValue(searchParams));
-    setColorFilter(getColorQueryValue(searchParams));
-    setPurityFilter(getPurityQueryValue(searchParams));
-    setSourceFilter(getSourceQueryValue(searchParams));
-    setLocationFilter(searchParams.get(QUERY_PARAM_KEYS.location) ?? "ALL");
-    setVendorFilter(searchParams.get(QUERY_PARAM_KEYS.vendor) ?? "ALL");
-    setNetWeightFrom(
-      getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightFrom),
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (
+          entry.isIntersecting &&
+          listQuery.hasNextPage &&
+          !listQuery.isFetchingNextPage
+        ) {
+          listQuery.fetchNextPage();
+        }
+      },
+      { rootMargin: "360px" },
     );
-    setNetWeightTo(getQueryValue(searchParams, QUERY_PARAM_KEYS.netWeightTo));
-    setPriceFrom(getQueryValue(searchParams, QUERY_PARAM_KEYS.priceFrom));
-    setPriceTo(getQueryValue(searchParams, QUERY_PARAM_KEYS.priceTo));
-    setSourceCreatedFrom(
-      getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedFrom),
-    );
-    setSourceCreatedTo(
-      getQueryValue(searchParams, QUERY_PARAM_KEYS.sourceCreatedTo),
-    );
-  }, [searchParams]);
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [
+    listQuery.fetchNextPage,
+    listQuery.hasNextPage,
+    listQuery.isFetchingNextPage,
+  ]);
+
+  const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
+    const locationName =
+      locations?.find((location) => location.id === filters.location)?.name ??
+      "Selected location";
+    const labels: Record<InventoryFilterKey, () => string> = {
+      category: () =>
+        `Category: ${filters.category === "ALL" ? "" : CATEGORY_LABELS[filters.category]}`,
+      color: () =>
+        `Color: ${filters.color === "ALL" ? "" : COLOR_LABELS[filters.color]}`,
+      purity: () =>
+        `Purity: ${filters.purity === "ALL" ? "" : PURITY_LABELS[filters.purity]}`,
+      source: () =>
+        filters.source === "CUSTOMER" ? "Customer product" : "Stock product",
+      location: () => `Location: ${locationName}`,
+      vendor: () => `Vendor: ${getVendorFilterLabel(filters.vendor, vendors)}`,
+      netWeightFrom: () => `Net wt from: ${filters.netWeightFrom}g`,
+      netWeightTo: () => `Net wt to: ${filters.netWeightTo}g`,
+      priceFrom: () =>
+        `Price from: ${formatCurrency(Number(filters.priceFrom))}`,
+      priceTo: () => `Price to: ${formatCurrency(Number(filters.priceTo))}`,
+      sourceCreatedFrom: () => `Created from: ${filters.sourceCreatedFrom}`,
+      sourceCreatedTo: () => `Created to: ${filters.sourceCreatedTo}`,
+    };
+
+    return FILTER_KEYS.filter(
+      (key) =>
+        (key !== "vendor" || canViewVendor) && isFilterActive(filters[key]),
+    ).map((key) => ({ key, label: labels[key]() }));
+  }, [canViewVendor, filters, locations, vendors]);
+  const activeFilterCount = activeFilterChips.length;
+
+  function setFilter(key: InventoryFilterKey, value: string) {
+    setFilters((current) => ({ ...current, [key]: value }));
+    updateSearchParams((params) => {
+      if (isFilterActive(value)) params.set(FILTER_PARAM_KEYS[key], value);
+      else params.delete(FILTER_PARAM_KEYS[key]);
+    });
+    if (TRACKED_FILTER_KEYS.has(key)) {
+      captureProductEvent("inventory_filter_changed", {
+        filter_key: FILTER_PARAM_KEYS[key],
+        filter_state: isFilterActive(value) ? "applied" : "cleared",
+      });
+    }
+  }
+
+  const productGridClass = cn(
+    hasSelectedProduct ? PRODUCT_RAIL_CLASS : PRODUCT_GRID_CLASS,
+    !showTwoPerRow && "max-sm:grid-cols-1 max-sm:gap-3",
+  );
+
+  function resetFilters() {
+    captureProductEvent("inventory_filters_cleared", {
+      active_filter_count: activeFilterCount,
+    });
+    setFilters(EMPTY_FILTERS);
+    updateSearchParams((params) => {
+      for (const key of FILTER_KEYS) params.delete(FILTER_PARAM_KEYS[key]);
+    });
+  }
 
   function selectProduct(productCode: string) {
     const product = products.find((item) => item.productCode === productCode);
@@ -1267,38 +313,6 @@ export function InventoryPageClient() {
     }, "push");
   }
 
-  function resetDialogFilters() {
-    captureProductEvent("inventory_filters_cleared", {
-      active_filter_count: activeDialogFilterCount,
-    });
-    setCategoryFilter("ALL");
-    setColorFilter("ALL");
-    setPurityFilter("ALL");
-    setSourceFilter("ALL");
-    setLocationFilter("ALL");
-    setVendorFilter("ALL");
-    setNetWeightFrom("");
-    setNetWeightTo("");
-    setPriceFrom("");
-    setPriceTo("");
-    setSourceCreatedFrom("");
-    setSourceCreatedTo("");
-    updateSearchParams((params) => {
-      params.delete(QUERY_PARAM_KEYS.category);
-      params.delete(QUERY_PARAM_KEYS.color);
-      params.delete(QUERY_PARAM_KEYS.purity);
-      params.delete(QUERY_PARAM_KEYS.source);
-      params.delete(QUERY_PARAM_KEYS.location);
-      params.delete(QUERY_PARAM_KEYS.vendor);
-      params.delete(QUERY_PARAM_KEYS.netWeightFrom);
-      params.delete(QUERY_PARAM_KEYS.netWeightTo);
-      params.delete(QUERY_PARAM_KEYS.priceFrom);
-      params.delete(QUERY_PARAM_KEYS.priceTo);
-      params.delete(QUERY_PARAM_KEYS.sourceCreatedFrom);
-      params.delete(QUERY_PARAM_KEYS.sourceCreatedTo);
-    });
-  }
-
   function handleDecodedBarcode(rawCode: string) {
     const code = normalizeDecodedId(rawCode);
     if (!code) return;
@@ -1309,410 +323,94 @@ export function InventoryPageClient() {
     setSearchInput(code);
     setIsScannerOpen(false);
     updateSearchParams((params) => {
-      params.set(QUERY_PARAM_KEYS.search, code);
+      params.set(SEARCH_PARAM_KEY, code);
       params.set("productCode", code);
     }, "push");
   }
 
-  useEffect(() => {
-    const sentinel = loadMoreRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        if (
-          entry.isIntersecting &&
-          listQuery.hasNextPage &&
-          !listQuery.isFetchingNextPage
-        ) {
-          listQuery.fetchNextPage();
-        }
-      },
-      { rootMargin: "360px" },
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [
-    listQuery.fetchNextPage,
-    listQuery.hasNextPage,
-    listQuery.isFetchingNextPage,
-  ]);
-
-  const activeDialogFilterCount =
-    (categoryFilter !== "ALL" ? 1 : 0) +
-    (colorFilter !== "ALL" ? 1 : 0) +
-    (purityFilter !== "ALL" ? 1 : 0) +
-    (sourceFilter !== "ALL" ? 1 : 0) +
-    (locationFilter !== "ALL" ? 1 : 0) +
-    (canViewVendor && vendorFilter !== "ALL" ? 1 : 0) +
-    (netWeightFrom ? 1 : 0) +
-    (netWeightTo ? 1 : 0) +
-    (priceFrom ? 1 : 0) +
-    (priceTo ? 1 : 0) +
-    (sourceCreatedFrom ? 1 : 0) +
-    (sourceCreatedTo ? 1 : 0);
-
-  const hasActiveDialogFilters = activeDialogFilterCount > 0;
-
-  const clearQueryParam = useCallback(
-    (key: string) => {
-      updateSearchParams((params) => {
-        params.delete(key);
-      });
-    },
-    [updateSearchParams],
-  );
-
-  const locationLabel =
-    locationFilter === "ALL"
-      ? null
-      : (locationsQuery.data?.data.find(
-          (location) => location.id === locationFilter,
-        )?.name ?? "Selected location");
-
-  const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
-    const chips: ActiveFilterChip[] = [];
-
-    if (categoryFilter !== "ALL") {
-      chips.push({
-        key: QUERY_PARAM_KEYS.category,
-        label: `Category: ${CATEGORY_LABELS[categoryFilter]}`,
-        onRemove: () => {
-          setCategoryFilter("ALL");
-          clearQueryParam(QUERY_PARAM_KEYS.category);
-        },
-      });
+  async function handleSyncProducts() {
+    captureProductEvent("inventory_sync_started");
+    try {
+      await syncInventoryMutation.mutateAsync();
+      captureProductEvent("inventory_sync_completed");
+      toast.success("Product sync completed");
+    } catch (error) {
+      captureProductEvent("inventory_sync_failed");
+      toast.error(getErrorMessage(error));
     }
-
-    if (colorFilter !== "ALL") {
-      chips.push({
-        key: QUERY_PARAM_KEYS.color,
-        label: `Color: ${COLOR_LABELS[colorFilter]}`,
-        onRemove: () => {
-          setColorFilter("ALL");
-          clearQueryParam(QUERY_PARAM_KEYS.color);
-        },
-      });
-    }
-
-    if (purityFilter !== "ALL") {
-      chips.push({
-        key: QUERY_PARAM_KEYS.purity,
-        label: `Purity: ${PURITY_LABELS[purityFilter]}`,
-        onRemove: () => {
-          setPurityFilter("ALL");
-          clearQueryParam(QUERY_PARAM_KEYS.purity);
-        },
-      });
-    }
-
-    if (sourceFilter !== "ALL") {
-      chips.push({
-        key: QUERY_PARAM_KEYS.source,
-        label:
-          sourceFilter === "CUSTOMER" ? "Customer product" : "Stock product",
-        onRemove: () => {
-          setSourceFilter("ALL");
-          clearQueryParam(QUERY_PARAM_KEYS.source);
-        },
-      });
-    }
-
-    if (locationFilter !== "ALL") {
-      chips.push({
-        key: QUERY_PARAM_KEYS.location,
-        label: `Location: ${locationLabel}`,
-        onRemove: () => {
-          setLocationFilter("ALL");
-          clearQueryParam(QUERY_PARAM_KEYS.location);
-        },
-      });
-    }
-
-    if (canViewVendor && vendorFilter !== "ALL") {
-      chips.push({
-        key: QUERY_PARAM_KEYS.vendor,
-        label: `Vendor: ${getVendorFilterLabel(vendorFilter, vendors)}`,
-        onRemove: () => {
-          setVendorFilter("ALL");
-          clearQueryParam(QUERY_PARAM_KEYS.vendor);
-        },
-      });
-    }
-
-    if (netWeightFrom) {
-      chips.push({
-        key: QUERY_PARAM_KEYS.netWeightFrom,
-        label: `Net wt from: ${netWeightFrom}g`,
-        onRemove: () => {
-          setNetWeightFrom("");
-          clearQueryParam(QUERY_PARAM_KEYS.netWeightFrom);
-        },
-      });
-    }
-
-    if (netWeightTo) {
-      chips.push({
-        key: QUERY_PARAM_KEYS.netWeightTo,
-        label: `Net wt to: ${netWeightTo}g`,
-        onRemove: () => {
-          setNetWeightTo("");
-          clearQueryParam(QUERY_PARAM_KEYS.netWeightTo);
-        },
-      });
-    }
-
-    if (priceFrom) {
-      chips.push({
-        key: QUERY_PARAM_KEYS.priceFrom,
-        label: `Price from: ${formatCurrency(Number(priceFrom))}`,
-        onRemove: () => {
-          setPriceFrom("");
-          clearQueryParam(QUERY_PARAM_KEYS.priceFrom);
-        },
-      });
-    }
-
-    if (priceTo) {
-      chips.push({
-        key: QUERY_PARAM_KEYS.priceTo,
-        label: `Price to: ${formatCurrency(Number(priceTo))}`,
-        onRemove: () => {
-          setPriceTo("");
-          clearQueryParam(QUERY_PARAM_KEYS.priceTo);
-        },
-      });
-    }
-
-    if (sourceCreatedFrom) {
-      chips.push({
-        key: QUERY_PARAM_KEYS.sourceCreatedFrom,
-        label: `Created from: ${sourceCreatedFrom}`,
-        onRemove: () => {
-          setSourceCreatedFrom("");
-          clearQueryParam(QUERY_PARAM_KEYS.sourceCreatedFrom);
-        },
-      });
-    }
-
-    if (sourceCreatedTo) {
-      chips.push({
-        key: QUERY_PARAM_KEYS.sourceCreatedTo,
-        label: `Created to: ${sourceCreatedTo}`,
-        onRemove: () => {
-          setSourceCreatedTo("");
-          clearQueryParam(QUERY_PARAM_KEYS.sourceCreatedTo);
-        },
-      });
-    }
-
-    return chips;
-  }, [
-    categoryFilter,
-    clearQueryParam,
-    colorFilter,
-    locationFilter,
-    locationLabel,
-    netWeightFrom,
-    netWeightTo,
-    priceFrom,
-    priceTo,
-    purityFilter,
-    sourceCreatedFrom,
-    sourceCreatedTo,
-    sourceFilter,
-    canViewVendor,
-    vendorFilter,
-    vendors,
-  ]);
-
-  function trackFilterChange(filterKey: string, value: string) {
-    captureProductEvent("inventory_filter_changed", {
-      filter_key: filterKey,
-      filter_state: value === "ALL" || !value ? "cleared" : "applied",
-    });
   }
 
-  const filterControls = (
-    <>
-      <Select
-        value={categoryFilter}
-        onValueChange={(value) => {
-          setCategoryFilter(value as InventoryCategory | "ALL");
-          updateQueryParam(QUERY_PARAM_KEYS.category, value);
-          trackFilterChange(QUERY_PARAM_KEYS.category, value);
-        }}
-      >
-        <SelectTrigger className="h-10 w-full">
-          <SelectValue placeholder="Category" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="ALL">All categories</SelectItem>
-          {CATEGORY_VALUES.map((category) => (
-            <SelectItem key={category} value={category}>
-              {CATEGORY_LABELS[category]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={colorFilter}
-        onValueChange={(value) => {
-          setColorFilter(value as ColorFilter);
-          updateQueryParam(QUERY_PARAM_KEYS.color, value);
-          trackFilterChange(QUERY_PARAM_KEYS.color, value);
-        }}
-      >
-        <SelectTrigger className="h-10 w-full">
-          <SelectValue placeholder="Color" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="ALL">All colors</SelectItem>
-          {(Object.keys(COLOR_LABELS) as ProductColor[]).map((color) => (
-            <SelectItem key={color} value={color}>
-              {COLOR_LABELS[color]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={purityFilter}
-        onValueChange={(value) => {
-          setPurityFilter(value as PurityFilter);
-          updateQueryParam(QUERY_PARAM_KEYS.purity, value);
-          trackFilterChange(QUERY_PARAM_KEYS.purity, value);
-        }}
-      >
-        <SelectTrigger className="h-10 w-full">
-          <SelectValue placeholder="Purity" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="ALL">All purities</SelectItem>
-          {(
-            Object.keys(PURITY_LABELS) as Array<Exclude<PurityFilter, "ALL">>
-          ).map((purity) => (
-            <SelectItem key={purity} value={purity}>
-              {PURITY_LABELS[purity]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={sourceFilter}
-        onValueChange={(value) => {
-          setSourceFilter(value as SourceFilter);
-          updateQueryParam(QUERY_PARAM_KEYS.source, value);
-          trackFilterChange(QUERY_PARAM_KEYS.source, value);
-        }}
-      >
-        <SelectTrigger className="h-10 w-full">
-          <SelectValue placeholder="Source" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="ALL">All sources</SelectItem>
-          <SelectItem value="CUSTOMER">Customer product</SelectItem>
-          <SelectItem value="STOCK">Stock product</SelectItem>
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={locationFilter}
-        onValueChange={(value) => {
-          setLocationFilter(value);
-          updateQueryParam(QUERY_PARAM_KEYS.location, value);
-          trackFilterChange(QUERY_PARAM_KEYS.location, value);
-        }}
-      >
-        <SelectTrigger className="h-10 w-full">
-          <SelectValue placeholder="Location" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="ALL">All locations</SelectItem>
-          {locationsQuery.data?.data.map((location) => (
-            <SelectItem key={location.id} value={location.id}>
-              {location.name} · {location.city}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {canViewVendor ? (
-        <VendorFilterSelect
-          value={vendorFilter}
-          vendors={vendors}
-          isLoading={vendorsQuery.isLoading}
-          onChange={(value) => {
-            setVendorFilter(value);
-            updateQueryParam(QUERY_PARAM_KEYS.vendor, value);
-            trackFilterChange(QUERY_PARAM_KEYS.vendor, value);
-          }}
-        />
-      ) : null}
-    </>
-  );
-
   return (
-    <div className="flex h-[calc(100svh-5.25rem)] min-h-0 flex-col gap-6 sm:h-[calc(100svh-3rem)]">
-      <div className={cn("shrink-0", hasSelectedProduct && "hidden lg:block")}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              Product Inventory
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Search products, narrow by inventory attributes, and open any item
-              for a full detail view.
+    <div className="flex min-w-0 flex-col gap-3 sm:gap-4 lg:h-[calc(100svh-3rem)] lg:min-h-0 lg:gap-6">
+      <div
+        className={cn(
+          "flex shrink-0 items-start justify-between gap-3",
+          hasSelectedProduct && "hidden lg:flex",
+        )}
+      >
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            Product Inventory
+          </h1>
+          <p className="mt-1 hidden max-w-2xl text-sm text-muted-foreground sm:block">
+            Search products, narrow by inventory attributes, and open any item
+            for a full detail view.
+          </p>
+          {formattedTotalProducts ? (
+            <p className="mt-0.5 text-sm text-muted-foreground lg:hidden">
+              {formattedTotalProducts} products
             </p>
-          </div>
-          {canSyncProducts ? (
-            <Button
-              size="sm"
-              type="button"
-              variant="outline"
-              onClick={handleSyncProducts}
-              disabled={syncInventoryMutation.isPending}
-              className="w-fit shrink-0 gap-2"
-            >
-              <RefreshCw
-                className={cn(
-                  "h-4 w-4",
-                  syncInventoryMutation.isPending && "animate-spin",
-                )}
-              />
-              {syncInventoryMutation.isPending
-                ? "Syncing..."
-                : "Sync from Catalog"}
-            </Button>
           ) : null}
         </div>
+        {canSyncProducts ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSyncProducts}
+            disabled={syncInventoryMutation.isPending}
+            className="h-10 shrink-0 gap-2 sm:h-9"
+          >
+            <RefreshCw
+              className={cn(
+                "h-4 w-4",
+                syncInventoryMutation.isPending && "animate-spin",
+              )}
+            />
+            {syncInventoryMutation.isPending ? (
+              "Syncing..."
+            ) : (
+              <>
+                <span className="sm:hidden">Sync</span>
+                <span className="hidden sm:inline">Sync from Catalog</span>
+              </>
+            )}
+          </Button>
+        ) : null}
       </div>
 
       <section
         className={cn(
-          "grid shrink-0 gap-3 lg:grid-cols-[minmax(0,40%)_minmax(0,60%)] lg:items-center",
+          "sticky top-[var(--mobile-top-h,0px)] z-20 -mx-4 shrink-0 bg-background/95 px-4 py-2 backdrop-blur-md sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:grid lg:grid-cols-[minmax(0,40%)_minmax(0,60%)] lg:items-center lg:gap-3 lg:bg-transparent lg:p-0 lg:backdrop-blur-none",
           hasSelectedProduct && "hidden lg:grid",
         )}
       >
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold tracking-tight text-foreground">
-            All Products
-            {formattedTotalProducts ? ` (${formattedTotalProducts})` : null}
-          </h2>
-        </div>
-        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center">
-          <div className="relative min-w-0">
+        <h2 className="hidden min-w-0 text-lg font-semibold tracking-tight text-foreground lg:block">
+          All Products
+          {formattedTotalProducts ? ` (${formattedTotalProducts})` : null}
+        </h2>
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              type="search"
               value={searchInput}
               onChange={(event) => {
                 const { value } = event.target;
                 setSearchInput(value);
-                updateQueryParam(QUERY_PARAM_KEYS.search, value.trim(), "");
+                updateSearchParams((params) => {
+                  if (value.trim()) params.set(SEARCH_PARAM_KEY, value.trim());
+                  else params.delete(SEARCH_PARAM_KEY);
+                });
               }}
               onBlur={() => {
                 const query = searchInput.trim();
@@ -1726,6 +424,7 @@ export function InventoryPageClient() {
                   ? "Search code, vendor, location, category"
                   : "Search code, location, category"
               }
+              aria-label="Search products"
               className="h-10 pl-9"
             />
           </div>
@@ -1734,215 +433,83 @@ export function InventoryPageClient() {
               type="button"
               variant="outline"
               onClick={() => setIsScannerOpen(true)}
-              className="h-10 shrink-0 gap-2"
+              aria-label="Scan barcode"
+              className="size-10 shrink-0 gap-2 sm:w-auto sm:px-3"
             >
               <ScanLine className="h-4 w-4" />
-              Scan
+              <span className="hidden sm:inline">Scan</span>
             </Button>
           ) : null}
           <Button
             type="button"
-            variant={hasActiveDialogFilters ? "default" : "outline"}
+            variant={activeFilterCount > 0 ? "default" : "outline"}
             onClick={() => {
-              setIsAdvancedFiltersOpen(true);
+              setIsFiltersOpen(true);
               captureProductEvent("inventory_filters_opened", {
-                active_filter_count: activeDialogFilterCount,
+                active_filter_count: activeFilterCount,
               });
             }}
-            className="h-10 shrink-0 gap-2"
+            aria-label="Filters"
+            className="h-10 shrink-0 gap-2 px-3"
           >
             <SlidersHorizontal className="h-4 w-4" />
-            Filters
-            {hasActiveDialogFilters ? (
-              <Badge variant="secondary" className="ml-0.5 px-1.5">
-                {activeDialogFilterCount}
+            <span className="hidden sm:inline">Filters</span>
+            {activeFilterCount > 0 ? (
+              <Badge variant="secondary" className="px-1.5">
+                {activeFilterCount}
               </Badge>
             ) : null}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowTwoPerRow((value) => !value)}
+            aria-label={
+              showTwoPerRow ? "Show one product per row" : "Show two per row"
+            }
+            className="size-10 shrink-0 sm:hidden"
+          >
+            {showTwoPerRow ? (
+              <Square className="h-4 w-4" />
+            ) : (
+              <Grid2x2 className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </section>
 
-      {activeFilterChips.length > 0 ? (
-        <ul
-          className={cn(
-            "shrink-0 flex-wrap items-center gap-2",
-            hasSelectedProduct && "hidden lg:flex",
-            !hasSelectedProduct && "flex",
-          )}
-          aria-label="Selected inventory filters"
-        >
-          {activeFilterChips.map((filter) => (
-            <li key={filter.key}>
-              <Badge
-                variant="secondary"
-                className="h-8 gap-1.5 rounded-md border border-border bg-muted/60 px-2.5 text-xs font-medium text-foreground"
-              >
-                <span>{filter.label}</span>
-                <button
-                  type="button"
-                  onClick={filter.onRemove}
-                  className="-mr-1 inline-flex size-5 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label={`Remove ${filter.label} filter`}
-                >
-                  <X className="size-3.5" />
-                </button>
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <ActiveFilterChips
+        chips={activeFilterChips}
+        onRemove={(key) => setFilter(key, EMPTY_FILTERS[key])}
+        className={cn(
+          "scrollbar-none -mx-4 -mt-1 flex shrink-0 items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:mt-0 sm:flex-wrap sm:px-0",
+          hasSelectedProduct && "hidden lg:flex",
+        )}
+      />
 
-      <Dialog
-        open={isAdvancedFiltersOpen}
-        onOpenChange={setIsAdvancedFiltersOpen}
-      >
-        <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto p-0 sm:max-w-2xl">
-          <DialogHeader>
-            <div className="px-5 pt-5 sm:px-6 sm:pt-6">
-              <DialogTitle>Filters</DialogTitle>
-              <DialogDescription className="mt-2">
-                Refine inventory results by product attributes, location, price,
-                weight, and source date.
-              </DialogDescription>
-            </div>
-          </DialogHeader>
-          <div className="space-y-6 px-5 pb-5 sm:px-6">
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Product attributes</Label>
-              <div className="grid gap-3 sm:grid-cols-2">{filterControls}</div>
-            </div>
-
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Estimated price (₹)
-                </Label>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    step="1"
-                    value={priceFrom}
-                    onChange={(event) => {
-                      const { value } = event.target;
-                      setPriceFrom(value);
-                      updateQueryParam(QUERY_PARAM_KEYS.priceFrom, value, "");
-                    }}
-                    placeholder="Minimum price"
-                    aria-label="Minimum estimated price"
-                  />
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    step="1"
-                    value={priceTo}
-                    onChange={(event) => {
-                      const { value } = event.target;
-                      setPriceTo(value);
-                      updateQueryParam(QUERY_PARAM_KEYS.priceTo, value, "");
-                    }}
-                    placeholder="Maximum price"
-                    aria-label="Maximum estimated price"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Net weight (g)</Label>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    step="0.01"
-                    value={netWeightFrom}
-                    onChange={(event) => {
-                      const { value } = event.target;
-                      setNetWeightFrom(value);
-                      updateQueryParam(
-                        QUERY_PARAM_KEYS.netWeightFrom,
-                        value,
-                        "",
-                      );
-                    }}
-                    placeholder="From"
-                  />
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    step="0.01"
-                    value={netWeightTo}
-                    onChange={(event) => {
-                      const { value } = event.target;
-                      setNetWeightTo(value);
-                      updateQueryParam(QUERY_PARAM_KEYS.netWeightTo, value, "");
-                    }}
-                    placeholder="To"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Source created at</Label>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <DatePicker
-                    value={sourceCreatedFrom}
-                    placeholder="From date"
-                    onChange={(value) => {
-                      setSourceCreatedFrom(value);
-                      updateQueryParam(
-                        QUERY_PARAM_KEYS.sourceCreatedFrom,
-                        value,
-                        "",
-                      );
-                    }}
-                  />
-                  <DatePicker
-                    value={sourceCreatedTo}
-                    placeholder="To date"
-                    onChange={(value) => {
-                      setSourceCreatedTo(value);
-                      updateQueryParam(
-                        QUERY_PARAM_KEYS.sourceCreatedTo,
-                        value,
-                        "",
-                      );
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="border-t border-border px-5 py-4 sm:px-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={resetDialogFilters}
-              className="w-full sm:w-auto"
-            >
-              Clear all filters
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <InventoryFiltersPanel
+        open={isFiltersOpen}
+        onOpenChange={setIsFiltersOpen}
+        filters={filters}
+        activeCount={activeFilterCount}
+        onFilterChange={setFilter}
+        onReset={resetFilters}
+        locations={locations ?? []}
+        canViewVendor={canViewVendor}
+        vendors={vendors}
+        vendorsLoading={vendorsQuery.isLoading}
+      />
 
       <div
         className={cn(
-          "grid min-h-0 w-full flex-1 gap-3",
-          hasSelectedProduct
-            ? "lg:grid-cols-[minmax(0,1fr)_17rem] lg:overflow-hidden"
-            : "overflow-hidden",
+          "grid min-w-0 gap-6 lg:min-h-0 lg:flex-1 lg:gap-3 lg:overflow-hidden",
+          hasSelectedProduct && "lg:grid-cols-[minmax(0,1fr)_17rem]",
         )}
       >
         <section
           className={cn(
-            "min-h-0 rounded-md",
-            hasSelectedProduct &&
-              "order-2 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pl-3",
-            !hasSelectedProduct && "overflow-y-auto pr-3",
+            "min-w-0 pb-10 lg:min-h-0 lg:overflow-y-auto lg:pb-0",
+            hasSelectedProduct ? "order-2 lg:pl-1" : "lg:pr-3",
           )}
         >
           {hasSelectedProduct ? (
@@ -1958,29 +525,20 @@ export function InventoryPageClient() {
             </div>
           ) : null}
           {listQuery.isLoading ? (
-            hasSelectedProduct ? (
-              <ProductListSkeleton />
-            ) : (
-              <ProductGridSkeleton />
-            )
+            <ProductGridSkeleton className={productGridClass} />
           ) : listQuery.isError ? (
             <ErrorPanel
               title="Unable to load products"
               message={getErrorMessage(listQuery.error)}
             />
           ) : products.length > 0 ? (
-            <div
-              className={cn(
-                "grid gap-3",
-                getInventoryGridClass(hasSelectedProduct),
-              )}
-            >
+            <div className={productGridClass}>
               {products.map((product) => (
-                <ProductListItem
+                <ProductCard
                   key={product.id}
                   product={product}
                   selected={product.productCode === selectedProductCode}
-                  compact={false}
+                  rowOnLg={hasSelectedProduct}
                   onSelect={() => selectProduct(product.productCode)}
                 />
               ))}
@@ -2009,23 +567,24 @@ export function InventoryPageClient() {
         </section>
 
         {hasSelectedProduct ? (
-          <div className="order-1 min-w-0 space-y-3 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:pr-3">
-            <div>
+          <div className="order-1 min-w-0 space-y-3 lg:min-h-0 lg:overflow-y-auto lg:pr-3">
+            <div className="flex items-center justify-between gap-2">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={closeProductDetails}
-                className="h-9 gap-2 px-2"
+                className="-ml-2 h-10 gap-2 px-2"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to inventory
               </Button>
+              {selectedProduct ? (
+                <ProductShareButton product={selectedProduct} />
+              ) : null}
             </div>
-            {selectedProductCode &&
-            detailQuery.isLoading &&
-            !selectedProduct ? (
+            {detailQuery.isLoading && !selectedProduct ? (
               <ProductDetailSkeleton />
-            ) : selectedProductCode && detailQuery.isError ? (
+            ) : detailQuery.isError ? (
               <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
                 <ErrorPanel
                   title="Unable to load product details"
@@ -2036,7 +595,6 @@ export function InventoryPageClient() {
               <>
                 <ProductDetail
                   product={selectedProduct}
-                  settings={settings}
                   estimationSectionRef={estimationSectionRef}
                 />
                 <ProductSpecification product={selectedProduct} />

@@ -3,7 +3,7 @@
 import { useDndContext } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertTriangle, Clock } from "lucide-react";
+import { AlertTriangle, ArrowRightLeft, Clock } from "lucide-react";
 import { JewelryVisual } from "@/components/jewelry/JewelryVisual";
 import { OrderTypeBadge } from "@/components/orders/order-type-badge";
 import {
@@ -35,6 +35,7 @@ import {
 interface KanbanCardProps {
   order: Order;
   onClick: () => void;
+  onMove?: () => void;
   actionLabel?: string;
 }
 
@@ -119,6 +120,7 @@ export function KanbanCardPreview({
   return (
     <KanbanRecordCard
       {...props}
+      compact
       images={order.previewImages}
       imageAlt={[order.customerName, category].filter(Boolean).join(" ")}
       category={category}
@@ -163,7 +165,7 @@ export function KanbanCardPreview({
             </CardChip>
           ) : null}
           {hasMetal && (
-            <CardChip>
+            <CardChip className="max-xl:hidden">
               <JewelryVisual
                 kind="metal"
                 value={order.metalType}
@@ -173,6 +175,18 @@ export function KanbanCardPreview({
             </CardChip>
           )}
         </>
+      }
+      summary={
+        showDue && order.deliveryDate ? (
+          <DueValue
+            date={order.deliveryDate}
+            urgency={getUrgencyLevel(order.deliveryDate)}
+          />
+        ) : (
+          <span className="font-normal text-muted-foreground">
+            {formatCardDate(order.createdAt)}
+          </span>
+        )
       }
       stats={[
         {
@@ -200,7 +214,12 @@ export function KanbanCardPreview({
   );
 }
 
-export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
+export function KanbanCard({
+  order,
+  onClick,
+  onMove,
+  actionLabel,
+}: KanbanCardProps) {
   const canViewVendor = useVendorAccess();
   const { active } = useDndContext();
   const {
@@ -224,55 +243,69 @@ export function KanbanCard({ order, onClick, actionLabel }: KanbanCardProps) {
     : formatDueTooltip(order.deliveryDate);
 
   return (
-    <TooltipProvider>
-      <Tooltip open={active ? false : undefined}>
-        <TooltipTrigger asChild>
-          <KanbanCardPreview
-            order={order}
-            draggableCard
-            ref={setNodeRef}
-            style={{ transform: CSS.Transform.toString(transform), transition }}
-            {...attributes}
-            {...listeners}
-            className={cn(isDragging && "pointer-events-none opacity-30")}
-            onClick={onClick}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onClick();
-              }
-            }}
-          />
-        </TooltipTrigger>
-        <TooltipContent
-          side="right"
-          className="border border-border bg-popover text-popover-foreground shadow-md [&_svg]:bg-popover [&_svg]:fill-popover"
-        >
-          <div className="space-y-1">
-            <p className="font-medium">{order.customerName}</p>
-            <p className="text-xs text-muted-foreground">
-              {actionLabel ??
-                `Click to open ${order.type === "enquiry" ? "enquiry" : "order"} details`}
-            </p>
-            {canViewVendor && order.vendorName && (
-              <p className="text-[11px] text-muted-foreground">
-                Vendor: {order.vendorName}
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn("relative", isDragging && "pointer-events-none opacity-30")}
+    >
+      <TooltipProvider>
+        <Tooltip open={active ? false : undefined}>
+          <TooltipTrigger asChild>
+            <KanbanCardPreview
+              order={order}
+              draggableCard
+              {...attributes}
+              {...listeners}
+              className={cn(onMove && "max-xl:pr-12")}
+              onClick={onClick}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onClick();
+                }
+              }}
+            />
+          </TooltipTrigger>
+          <TooltipContent
+            side="right"
+            className="border border-border bg-popover text-popover-foreground shadow-md [&_svg]:bg-popover [&_svg]:fill-popover"
+          >
+            <div className="space-y-1">
+              <p className="font-medium">{order.customerName}</p>
+              <p className="text-xs text-muted-foreground">
+                {actionLabel ??
+                  `Click to open ${order.type === "enquiry" ? "enquiry" : "order"} details`}
               </p>
-            )}
-            {(daysSinceCreated !== null || dueTooltip) && (
-              <div className="border-t border-border/60 pt-1.5 text-[11px] text-muted-foreground">
-                {daysSinceCreated !== null && (
-                  <p>
-                    Going for {daysSinceCreated} day
-                    {daysSinceCreated === 1 ? "" : "s"}
-                  </p>
-                )}
-                {dueTooltip && <p>{dueTooltip}</p>}
-              </div>
-            )}
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+              {canViewVendor && order.vendorName && (
+                <p className="text-[11px] text-muted-foreground">
+                  Vendor: {order.vendorName}
+                </p>
+              )}
+              {(daysSinceCreated !== null || dueTooltip) && (
+                <div className="border-t border-border/60 pt-1.5 text-[11px] text-muted-foreground">
+                  {daysSinceCreated !== null && (
+                    <p>
+                      Going for {daysSinceCreated} day
+                      {daysSinceCreated === 1 ? "" : "s"}
+                    </p>
+                  )}
+                  {dueTooltip && <p>{dueTooltip}</p>}
+                </div>
+              )}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      {onMove && (
+        <button
+          type="button"
+          onClick={onMove}
+          aria-label={`Move ${order.customerName} to another stage`}
+          className="absolute right-1 top-1/2 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xl:hidden xl:pointer-coarse:left-2 xl:pointer-coarse:top-2 xl:pointer-coarse:flex xl:pointer-coarse:size-9 xl:pointer-coarse:translate-y-0 xl:pointer-coarse:rounded-full xl:pointer-coarse:border xl:pointer-coarse:bg-background/90 xl:pointer-coarse:shadow-xs"
+        >
+          <ArrowRightLeft className="size-4" aria-hidden="true" />
+        </button>
+      )}
+    </div>
   );
 }

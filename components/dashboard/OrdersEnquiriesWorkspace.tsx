@@ -1,24 +1,8 @@
 "use client";
 
-import {
-  History,
-  LayoutGrid,
-  List,
-  PackagePlus,
-  Plus,
-  RefreshCw,
-  Search,
-} from "lucide-react";
-import Link from "next/link";
+import { History, RefreshCw, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  type RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BulkOrdersTab } from "@/components/bulk-orders/BulkOrdersTab";
 import { OrderStatusDialog } from "@/components/order/OrderStatusDialog";
@@ -26,26 +10,9 @@ import {
   VendorDetailsDialog,
   type VendorDetailsValues,
 } from "@/components/order/VendorDetailsDialog";
-import { OrderTypeBadge } from "@/components/orders/order-type-badge";
 import { RepairsWorkspace } from "@/components/repairs/RepairsWorkspace";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useEnquiries } from "@/hooks/useEnquiries";
 import { useInfiniteOrders, useUpdateAnyOrderStatus } from "@/hooks/useOrders";
 import {
@@ -60,7 +27,6 @@ import { mapBackendEnquiryListItemToOrder } from "@/lib/enquiryMappers";
 import { ENQUIRY_STATUS_LABELS, getRecordStatus } from "@/lib/enquiryStatus";
 import { mapBackendOrderListItemToOrder } from "@/lib/orderMappers";
 import { shouldPromptForVendorDetails } from "@/lib/orderVendorDetails";
-import { getFirstName, getInitials, normalizePerson } from "@/lib/people";
 import {
   getRecentSalesFilters,
   getRecentSalesRangeError,
@@ -69,23 +35,23 @@ import {
   type RecentSalesFilters as RecentSalesFilterValues,
   toRecentProductSalesQuery,
 } from "@/lib/recentSalesFilters";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import {
-  isOlderTerminalRecord,
-  statusBadgeClass,
-} from "@/lib/workspaceRecords";
-import type { Order, PersonSummary, RecordType } from "@/types";
+import { cn } from "@/lib/utils";
+import { isOlderTerminalRecord } from "@/lib/workspaceRecords";
+import type { Order, RecordType } from "@/types";
 import type { BackendEnquiryStatus } from "@/types/enquiry-api";
 import type { BackendOrderStatus } from "@/types/order-api";
-import type { BackendStockSaleRow } from "@/types/stock-sales-api";
 import { KanbanBoard, type KanbanColumnConfig } from "./KanbanBoard";
+import { KanbanStageStrip } from "./KanbanStageStrip";
 import { RecentProductSalesGrid } from "./RecentProductSalesGrid";
 import { RecentSalesFilters } from "./RecentSalesFilters";
+import { StockPurchasesTable } from "./StockPurchasesList";
+import { WorkspaceHeader } from "./WorkspaceHeader";
 import {
   type DateFilter,
   type SortBy,
   WorkspaceRecordFilters,
 } from "./WorkspaceRecordFilters";
+import { WorkspaceRecordsList } from "./WorkspaceRecordsList";
 
 type TypeTab =
   | RecordType
@@ -311,414 +277,8 @@ function isOrderStage(value: string): value is (typeof ORDER_STAGES)[number] {
   return ORDER_STAGES.some((stage) => stage === value);
 }
 
-function PersonAvatar({
-  person,
-  className,
-}: {
-  person?: PersonSummary | string;
-  className?: string;
-}) {
-  const normalized = normalizePerson(person);
-
-  return (
-    <Avatar className={cn("size-7 shrink-0", className)}>
-      {normalized.image ? (
-        <AvatarImage src={normalized.image} alt={normalized.name} />
-      ) : null}
-      <AvatarFallback className="text-xs font-medium">
-        {getInitials(normalized)}
-      </AvatarFallback>
-    </Avatar>
-  );
-}
-
-function RecordsTable({
-  records,
-  onRowClick,
-  showOrderType,
-  canOpenDetails = true,
-}: {
-  records: Order[];
-  onRowClick: (record: Order) => void;
-  showOrderType: boolean;
-  canOpenDetails?: boolean;
-}) {
-  if (records.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-border py-16 text-center">
-        <p className="text-sm font-medium text-muted-foreground">
-          No records match these filters
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground/70">
-          Clear filters or switch tabs to see more records.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="min-w-56">Customer</TableHead>
-              {showOrderType ? <TableHead>Order type</TableHead> : null}
-              <TableHead className="min-w-36">Status</TableHead>
-              <TableHead className="min-w-36">Created</TableHead>
-              <TableHead className="min-w-36">Created By</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {records.map((record) => {
-              const status = getRecordStatus(record);
-              const href =
-                record.type === "enquiry"
-                  ? `/enquiries/${record.refCode}`
-                  : `/orders/${record.refCode}`;
-
-              return (
-                <TableRow
-                  key={record.id}
-                  className={
-                    canOpenDetails || record.type === "order"
-                      ? "cursor-pointer"
-                      : undefined
-                  }
-                  onClick={() => onRowClick(record)}
-                >
-                  <TableCell>
-                    <div className="min-w-0">
-                      {canOpenDetails ? (
-                        <Link
-                          href={href}
-                          className="font-medium text-foreground"
-                        >
-                          {record.customerName}
-                        </Link>
-                      ) : (
-                        <span className="font-medium text-foreground">
-                          {record.customerName}
-                        </span>
-                      )}
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {record.type === "enquiry"
-                          ? `#${record.refCode}`
-                          : (record.orderNumber ?? `#${record.refCode}`)}
-                      </p>
-                    </div>
-                  </TableCell>
-                  {showOrderType ? (
-                    <TableCell>
-                      <OrderTypeBadge
-                        productType={record.productType}
-                        isRefill={record.isRefill}
-                      />
-                    </TableCell>
-                  ) : null}
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "whitespace-nowrap",
-                        statusBadgeClass(status),
-                      )}
-                    >
-                      {status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(record.createdAt)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <PersonAvatar
-                        person={record.createdBy ?? record.salespersonName}
-                      />
-                      <span className="truncate text-foreground">
-                        {getFirstName(
-                          record.createdBy ?? record.salespersonName,
-                        )}
-                      </span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
-  );
-}
-
-function RecordsMobileList({
-  records,
-  onRowClick,
-  showOrderType,
-  canOpenDetails = true,
-}: {
-  records: Order[];
-  onRowClick: (record: Order) => void;
-  showOrderType: boolean;
-  canOpenDetails?: boolean;
-}) {
-  if (records.length === 0) {
-    return (
-      <div className="rounded-lg border border-dashed border-border py-10 text-center">
-        <p className="text-sm font-medium text-muted-foreground">
-          No records match these filters
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground/70">
-          Clear filters or switch tabs to see more records.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {records.map((record) => {
-        const status = getRecordStatus(record);
-
-        return (
-          <button
-            key={record.id}
-            type="button"
-            onClick={() => onRowClick(record)}
-            disabled={!canOpenDetails && record.type === "enquiry"}
-            className="w-full rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-          >
-            <div className="flex min-w-0 items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-foreground">
-                  {record.customerName}
-                </p>
-                <p className="mt-1 truncate text-xs text-muted-foreground">
-                  {record.type === "enquiry"
-                    ? `#${record.refCode}`
-                    : (record.orderNumber ?? `#${record.refCode}`)}
-                </p>
-              </div>
-              <Badge
-                variant="outline"
-                className={cn(
-                  "shrink-0 whitespace-nowrap",
-                  statusBadgeClass(status),
-                )}
-              >
-                {status}
-              </Badge>
-            </div>
-            <div className="mt-4 grid gap-2 text-xs text-muted-foreground">
-              <div className="flex items-center justify-between gap-3">
-                <span>Created</span>
-                <span className="font-medium text-foreground">
-                  {formatDate(record.createdAt)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span>Created by</span>
-                <div className="flex min-w-0 items-center gap-2">
-                  <PersonAvatar
-                    person={record.createdBy ?? record.salespersonName}
-                    className="size-6"
-                  />
-                  <span className="min-w-0 truncate font-medium text-foreground">
-                    {getFirstName(record.createdBy ?? record.salespersonName)}
-                  </span>
-                </div>
-              </div>
-              {showOrderType ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span>Order type</span>
-                  <OrderTypeBadge
-                    productType={record.productType}
-                    isRefill={record.isRefill}
-                  />
-                </div>
-              ) : null}
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function formatStockSaleAmount(amount: string) {
-  const parsed = Number(amount);
-  return Number.isFinite(parsed) ? formatCurrency(parsed) : amount;
-}
-
-function formatStockSaleMonth(saleMonth: string | null) {
-  if (!saleMonth) return "-";
-  return new Date(saleMonth).toLocaleDateString("en-IN", {
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function getStockSaleProductCodes(sale: BackendStockSaleRow) {
-  return sale.items.map((item) => item.productCode).filter(Boolean);
-}
-
 function getErrorMessage(error: unknown, fallback = "Something went wrong") {
   return error instanceof Error ? error.message : fallback;
-}
-
-function StockSaleProductCodes({ sale }: { sale: BackendStockSaleRow }) {
-  const codes = getStockSaleProductCodes(sale);
-  const visibleCodes = codes.slice(0, 2);
-  const hiddenCount = codes.length - visibleCodes.length;
-
-  if (codes.length === 0) {
-    return <span className="text-muted-foreground">-</span>;
-  }
-
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="flex max-w-72 flex-wrap gap-1">
-            {visibleCodes.map((code) => (
-              <Badge
-                className="font-mono text-[11px] font-medium"
-                key={code}
-                variant="secondary"
-              >
-                {code}
-              </Badge>
-            ))}
-            {hiddenCount > 0 && (
-              <Badge
-                className="border-border bg-transparent text-muted-foreground"
-                variant="outline"
-              >
-                +{hiddenCount} more
-              </Badge>
-            )}
-          </div>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-80" side="top" sideOffset={6}>
-          <div className="flex flex-wrap gap-1.5">
-            {codes.map((code) => (
-              <span
-                className="rounded border border-background/20 px-1.5 py-0.5 font-mono text-[11px]"
-                key={code}
-              >
-                {code}
-              </span>
-            ))}
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
-
-function StockPurchasesTable({
-  sales,
-  isLoading,
-  isError,
-  isFetchingNextPage,
-  hasNextPage,
-  loadMoreRef,
-}: {
-  sales: BackendStockSaleRow[];
-  isLoading: boolean;
-  isError: boolean;
-  isFetchingNextPage: boolean;
-  hasNextPage: boolean;
-  loadMoreRef: RefObject<HTMLDivElement | null>;
-}) {
-  if (isLoading) {
-    return (
-      <p className="text-sm text-muted-foreground">Loading purchases...</p>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="rounded-xl border border-dashed border-border py-16 text-center">
-        <p className="text-sm font-medium text-muted-foreground">
-          Could not load purchases
-        </p>
-      </div>
-    );
-  }
-
-  if (sales.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-border py-16 text-center">
-        <p className="text-sm font-medium text-muted-foreground">
-          No stock purchases found
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card my-4">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="min-w-52">Customer</TableHead>
-              <TableHead className="w-72 min-w-72">Product codes</TableHead>
-              <TableHead className="min-w-32">Amount</TableHead>
-              <TableHead className="min-w-40">Sales person</TableHead>
-              <TableHead className="min-w-36">Store</TableHead>
-              <TableHead className="min-w-40">Source</TableHead>
-              <TableHead className="min-w-28">Month</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sales.map((sale) => (
-              <TableRow key={sale.id}>
-                <TableCell>
-                  <p className="font-medium text-foreground">
-                    {sale.customerName}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {sale.stockType ?? "Stock sale"}
-                  </p>
-                </TableCell>
-                <TableCell className="w-72 min-w-72">
-                  <StockSaleProductCodes sale={sale} />
-                </TableCell>
-                <TableCell className="font-medium text-foreground">
-                  {formatStockSaleAmount(sale.totalAmount)}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {sale.salesPerson?.name ?? "-"}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {sale.location?.name ?? sale.storeName ?? "-"}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {sale.source ?? "-"}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatStockSaleMonth(sale.saleMonth)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <div ref={loadMoreRef} className="h-4" />
-      {isFetchingNextPage ? (
-        <p className="py-3 text-center text-xs text-muted-foreground">
-          Fetching more purchases...
-        </p>
-      ) : !hasNextPage ? (
-        <p className="py-3 text-center text-xs text-muted-foreground">
-          -- End of List --
-        </p>
-      ) : null}
-    </div>
-  );
 }
 
 export function OrdersEnquiriesWorkspace() {
@@ -767,7 +327,6 @@ export function OrdersEnquiriesWorkspace() {
   );
   const syncStockSalesMutation = useSyncStockSales();
   const stockSalesLoadMoreRef = useRef<HTMLDivElement>(null);
-  const activeTypeTabRef = useRef<HTMLButtonElement>(null);
   const recentSalesRangeError = getRecentSalesRangeError(recentSalesFilters);
   const recentProductSalesQuery = useRecentProductSales(
     toRecentProductSalesQuery(recentSalesFilters, debouncedSearch),
@@ -904,16 +463,6 @@ export function OrdersEnquiriesWorkspace() {
 
   useEffect(() => {
     writeStoredTypeTab(typeTab);
-  }, [typeTab]);
-
-  useEffect(() => {
-    const activeTab = activeTypeTabRef.current;
-    if (activeTab?.dataset.tab !== typeTab) return;
-
-    activeTab.scrollIntoView({
-      block: "nearest",
-      inline: "center",
-    });
   }, [typeTab]);
 
   useEffect(() => {
@@ -1308,156 +857,30 @@ export function OrdersEnquiriesWorkspace() {
     <div
       className={cn(
         isKanbanMode && (typeTab === "order" || typeTab === "enquiry")
-          ? "flex h-[calc(100svh-5.25rem)] min-h-[36rem] flex-col gap-4 sm:h-[calc(100svh-3rem)] [&>*]:shrink-0"
-          : "space-y-4",
+          ? "flex h-[calc(100svh-var(--mobile-top-h,0px)-var(--mobile-nav-h,0px)-2.25rem)] min-h-[30rem] flex-col gap-3 sm:h-[calc(100svh-var(--mobile-top-h,0px)-var(--mobile-nav-h,0px)-3rem)] md:gap-4 lg:min-h-[36rem] [&>*]:shrink-0"
+          : "space-y-3 md:space-y-4",
       )}
     >
-      <div className="flex flex-col gap-2 text-left sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-              {isPhotography ? "Orders" : "Orders and enquiries"}
-            </h1>
-            {!isPhotography && (
-              <div className="flex shrink-0 items-center gap-2 sm:hidden">
-                {typeTab === "repair" ? (
-                  <Button asChild size="sm">
-                    <Link href="/repairs/new">
-                      <Plus className="h-4 w-4" />
-                      New repair
-                    </Link>
-                  </Button>
-                ) : (
-                  <>
-                    <Button asChild size="sm">
-                      <Link href="/enquiries/new">
-                        <Plus className="h-4 w-4" />
-                        New enquiry
-                      </Link>
-                    </Button>
-                    <Button asChild size="sm" variant="secondary">
-                      <Link href="/orders/new">
-                        <PackagePlus className="h-4 w-4" />
-                        New order
-                      </Link>
-                    </Button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-          <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
-            {isPhotography
-              ? "View orders. Select an order to update its status."
-              : "Filter, review, and move production records without crowding the dashboard."}
-          </p>
-        </div>
-        {!isPhotography && (
-          <div className="hidden items-center gap-2 sm:flex">
-            {typeTab === "repair" ? (
-              <Button asChild>
-                <Link href="/repairs/new">
-                  <Plus className="h-4 w-4" />
-                  New repair
-                </Link>
-              </Button>
-            ) : (
-              <>
-                <Button asChild>
-                  <Link href="/enquiries/new">
-                    <Plus className="h-4 w-4" />
-                    New enquiry
-                  </Link>
-                </Button>
-                <Button asChild variant="secondary">
-                  <Link href="/orders/new">
-                    <PackagePlus className="h-4 w-4" />
-                    New order
-                  </Link>
-                </Button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pr-8 scrollbar-none sm:mx-0 sm:flex-wrap sm:px-0">
-          {typeTabs.map((tab) => (
-            <button
-              ref={typeTab === tab.key ? activeTypeTabRef : undefined}
-              data-tab={tab.key}
-              key={tab.key}
-              type="button"
-              onClick={() => handleTypeTabChange(tab.key)}
-              className={cn(
-                "flex min-h-8 shrink-0 cursor-pointer items-center rounded-full border px-4 text-sm font-medium transition-colors",
-                typeTab === tab.key
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-background text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div
-          className={cn(
-            "hidden w-full items-center gap-1 rounded-lg border border-border bg-background p-1 lg:w-auto",
-            typeTab === "purchase" ||
-              typeTab === "recent-sale" ||
-              typeTab === "bulk-order"
-              ? "lg:hidden"
-              : "lg:flex",
-          )}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              handleViewModeChange("table");
-              captureProductEvent("workspace_view_changed", {
-                record_type: typeTab,
-                view_mode: "table",
-                surface: "desktop",
-              });
-            }}
-            className={cn(
-              "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors sm:flex-none",
-              viewMode === "table"
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <List className="h-4 w-4" />
-            Table
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              handleViewModeChange("kanban");
-              captureProductEvent("workspace_view_changed", {
-                record_type: typeTab,
-                view_mode: "kanban",
-                surface: "desktop",
-              });
-            }}
-            className={cn(
-              "flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors sm:flex-none",
-              viewMode === "kanban"
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <LayoutGrid className="h-4 w-4" />
-            Kanban
-          </button>
-        </div>
-      </div>
+      <WorkspaceHeader
+        isPhotography={isPhotography}
+        tabs={typeTabs}
+        activeTab={typeTab}
+        onTabChange={handleTypeTabChange}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
+        showViewToggle={
+          typeTab === "order" || typeTab === "enquiry" || typeTab === "repair"
+        }
+      />
 
       {typeTab !== "repair" && typeTab !== "bulk-order" && (
-        <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start lg:gap-8">
-          <div className="flex min-h-9 shrink-0 items-center justify-between gap-3">
+        <div className="flex w-full flex-col gap-3 md:gap-4 lg:flex-row lg:items-start lg:gap-8">
+          <div
+            className={cn(
+              "flex min-h-9 shrink-0 items-center justify-between gap-3",
+              "max-lg:sr-only",
+            )}
+          >
             <h2 className="whitespace-nowrap text-base font-medium text-foreground">
               {sectionHeading}{" "}
               <span className="text-muted-foreground">({sectionCount})</span>
@@ -1523,8 +946,8 @@ export function OrdersEnquiriesWorkspace() {
           )}
 
           {typeTab === "purchase" ? (
-            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:min-w-0 lg:flex-1 lg:justify-end">
-              <div className="relative w-full sm:max-w-xs lg:w-80">
+            <div className="flex w-full items-center gap-2 lg:w-auto lg:min-w-0 lg:flex-1 lg:justify-end">
+              <div className="relative min-w-0 flex-1 sm:max-w-xs lg:w-80 lg:flex-none">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}
@@ -1561,9 +984,14 @@ export function OrdersEnquiriesWorkspace() {
                       syncStockSalesMutation.isPending && "animate-spin",
                     )}
                   />
-                  {syncStockSalesMutation.isPending
-                    ? "Syncing..."
-                    : "Sync purchases"}
+                  {syncStockSalesMutation.isPending ? (
+                    "Syncing..."
+                  ) : (
+                    <>
+                      <span className="sm:hidden">Sync</span>
+                      <span className="hidden sm:inline">Sync purchases</span>
+                    </>
+                  )}
                 </Button>
               ) : null}
             </div>
@@ -1664,25 +1092,31 @@ export function OrdersEnquiriesWorkspace() {
         />
       ) : viewMode === "table" ? (
         <>
-          <div className="sm:hidden">
-            <RecordsMobileList
-              records={filteredRecords}
-              showOrderType={typeTab === "order"}
-              canOpenDetails={!isPhotography}
-              onRowClick={handleRecordClick}
-            />
-          </div>
-          <div className="hidden sm:block">
-            <RecordsTable
-              records={filteredRecords}
-              showOrderType={typeTab === "order"}
-              canOpenDetails={!isPhotography}
-              onRowClick={handleRecordClick}
-            />
-          </div>
+          <KanbanStageStrip
+            label="Filter by status"
+            className="lg:hidden"
+            stages={[
+              { id: "all", label: "All" },
+              ...(typeTab === "order"
+                ? ORDER_KANBAN_COLUMNS
+                : ENQUIRY_KANBAN_COLUMNS
+              ).map((column) => ({ id: column.id, label: column.label })),
+            ]}
+            activeId={statusFilter}
+            onSelect={(value) => {
+              setStatusFilter(value);
+              replaceWorkspaceUrl({ status: value === "all" ? null : value });
+            }}
+          />
+          <WorkspaceRecordsList
+            records={filteredRecords}
+            showOrderType={typeTab === "order"}
+            canOpenDetails={!isPhotography}
+            onRowClick={handleRecordClick}
+          />
         </>
       ) : (
-        <section className="min-h-0 flex-1 rounded-xl border border-border bg-card p-4 shadow-sm">
+        <section className="min-h-0 flex-1 md:rounded-xl md:border md:border-border md:bg-card md:p-3 md:shadow-sm lg:p-4">
           <KanbanBoard
             orders={kanbanRecords}
             columns={kanbanColumns}
@@ -1692,6 +1126,15 @@ export function OrdersEnquiriesWorkspace() {
               void handleKanbanOrderMove(order, newColumnId);
             }}
             onCardClick={handleRecordClick}
+            canMoveCard={
+              typeTab === "order" && !isPhotography
+                ? (order) =>
+                    !KANBAN_BLOCKED_ORDER_STAGES.has(order.currentStage)
+                : undefined
+            }
+            moveTargetIds={ORDER_STAGES.filter(
+              (stage) => !KANBAN_BLOCKED_ORDER_STAGES.has(stage),
+            )}
             cardActionLabel={
               isPhotography ? "Click to update order status" : undefined
             }

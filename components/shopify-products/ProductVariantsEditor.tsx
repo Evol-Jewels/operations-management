@@ -74,8 +74,8 @@ export function ProductVariantsEditor({
 
   return (
     <section className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex items-start justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
           <h2 className="font-semibold">Options and variants</h2>
           <p className="text-sm text-muted-foreground">
             Manage up to three option groups and the commercial details for
@@ -83,7 +83,13 @@ export function ProductVariantsEditor({
           </p>
         </div>
         {allowOptionChanges && state.options.length < 3 ? (
-          <Button type="button" variant="outline" size="sm" onClick={addOption}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addOption}
+            className="shrink-0"
+          >
             <Plus /> Add option
           </Button>
         ) : null}
@@ -124,6 +130,8 @@ export function ProductVariantsEditor({
                   size="icon"
                   variant="ghost"
                   onClick={() => removeOption(index)}
+                  aria-label={`Remove option ${option.name || index + 1}`}
+                  className="justify-self-end max-sm:size-10"
                 >
                   <Trash2 />
                 </Button>
@@ -145,7 +153,89 @@ export function ProductVariantsEditor({
         </button>
       ) : null}
 
-      <Table className="border-y">
+      <ul className="space-y-3 md:hidden">
+        {state.variants.map((variant, index) => {
+          const title = variantTitle(variant);
+          const fieldId = `variant-${index}`;
+          return (
+            <li
+              key={variant.id || `${title}-${index}`}
+              className="rounded-lg border p-3"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0 truncate text-sm font-medium">{title}</p>
+                <Label className="flex shrink-0 items-center gap-2 text-xs font-normal text-muted-foreground">
+                  <Checkbox
+                    checked={variant.taxable}
+                    onCheckedChange={(checked) =>
+                      updateVariant(index, { taxable: checked === true })
+                    }
+                  />
+                  Taxable
+                </Label>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${fieldId}-price`} className="text-xs">
+                    Price
+                  </Label>
+                  <Input
+                    id={`${fieldId}-price`}
+                    value={variant.price ?? ""}
+                    onChange={(event) =>
+                      updateVariant(index, { price: event.target.value })
+                    }
+                    inputMode="decimal"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${fieldId}-compare`} className="text-xs">
+                    Compare at
+                  </Label>
+                  <Input
+                    id={`${fieldId}-compare`}
+                    value={variant.compareAtPrice ?? ""}
+                    onChange={(event) =>
+                      updateVariant(index, {
+                        compareAtPrice: event.target.value,
+                      })
+                    }
+                    inputMode="decimal"
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${fieldId}-sku`} className="text-xs">
+                    SKU
+                  </Label>
+                  <Input
+                    id={`${fieldId}-sku`}
+                    value={variant.sku ?? ""}
+                    onChange={(event) =>
+                      updateVariant(index, { sku: event.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${fieldId}-barcode`} className="text-xs">
+                    Barcode
+                  </Label>
+                  <Input
+                    id={`${fieldId}-barcode`}
+                    value={variant.barcode ?? ""}
+                    onChange={(event) =>
+                      updateVariant(index, { barcode: event.target.value })
+                    }
+                  />
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      <Table className="hidden border-y md:table">
         <TableHeader>
           <TableRow>
             <TableHead>Variant</TableHead>

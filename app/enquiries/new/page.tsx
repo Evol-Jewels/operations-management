@@ -1,6 +1,11 @@
 "use client";
 
-import { CheckCircle2, ChevronLeft, CircleAlert } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { RequireInternalAuth } from "@/components/auth/RequireInternalAuth";
@@ -19,6 +24,11 @@ import {
   type EnquiryCreateStep,
 } from "@/components/enquiries-v2/EnquiryCreateHeader";
 import { EntryImportDialog } from "@/components/entry-import-dialog";
+import {
+  CreateFlowLayout,
+  FLOW_PRIMARY_ACTION,
+  FLOW_SECONDARY_ACTION,
+} from "@/components/orders/create-flow-layout";
 import { CustomProductForm } from "@/components/requirements/CustomProductForm";
 import { RequirementSummaryList } from "@/components/requirements/RequirementSummaryList";
 import type { RequirementDraft } from "@/components/requirements/requirement-form-types";
@@ -166,6 +176,12 @@ function EnquiryCreateForm() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    void step;
+    void isRequirementFormOpen;
+    document.getElementById("app-content")?.scrollTo({ top: 0 });
+  }, [step, isRequirementFormOpen]);
 
   function validateCustomer() {
     const nextErrors: Record<string, string> = {};
@@ -394,28 +410,90 @@ function EnquiryCreateForm() {
     }
   }
 
+  function goBack() {
+    if (isRequirementFormOpen && requirements.length > 0) {
+      discardLocalReferences(requirementDraft.references);
+      setRequirementDraft(createEmptyRequirement());
+      setEditingRequirementId(null);
+      setErrors({});
+      setIsRequirementFormOpen(false);
+      return;
+    }
+    setStep("customer");
+  }
+
   if (submitted) {
     return <SuccessState customerName={customer.name} />;
   }
 
-  return (
-    <div className="mx-auto w-full max-w-5xl pb-24">
-      <EnquiryCreateHeader step={step} />
-      {step === "customer" && (
-        <div className="mx-auto max-w-xl">
-          <EntryImportDialog
-            entryType="enquiry"
-            disabled={!draftHydrated}
-            onImport={importEnquiry}
-          />
-        </div>
-      )}
+  const isCustomerStep = step === "customer";
+  const showRequirementForm =
+    isRequirementFormOpen || requirements.length === 0;
 
-      {step === "customer" ? (
+  return (
+    <CreateFlowLayout
+      actions={
+        isCustomerStep ? (
+          <Button
+            type="button"
+            onClick={goToRequirements}
+            disabled={!customer.phone.trim() || !customer.name.trim()}
+            className={FLOW_PRIMARY_ACTION}
+          >
+            Add requirements
+            <ChevronRight className="size-4" />
+          </Button>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={goBack}
+              className={FLOW_SECONDARY_ACTION}
+            >
+              <ChevronLeft className="size-4" />
+              Back
+            </Button>
+            <Button
+              type="button"
+              onClick={showRequirementForm ? addRequirement : handleSubmit}
+              disabled={
+                showRequirementForm
+                  ? !requirementDraft.category.trim() ||
+                    !requirementDraft.metalType.trim()
+                  : isSubmitting || requirements.length === 0
+              }
+              className={FLOW_PRIMARY_ACTION}
+            >
+              {showRequirementForm
+                ? editingRequirementId
+                  ? "Update requirement"
+                  : "Add requirement"
+                : isSubmitting
+                  ? "Saving..."
+                  : "Create enquiry"}
+            </Button>
+          </>
+        )
+      }
+    >
+      <EnquiryCreateHeader
+        step={step}
+        action={
+          isCustomerStep ? (
+            <EntryImportDialog
+              entryType="enquiry"
+              disabled={!draftHydrated}
+              onImport={importEnquiry}
+            />
+          ) : null
+        }
+      />
+
+      {isCustomerStep ? (
         <CustomerDetailsStep
           customer={customer}
           errors={errors}
-          isNextDisabled={!customer.phone.trim() || !customer.name.trim()}
           onChange={setCustomer}
           onPhoneValidityChange={setIsPhoneValid}
           onNext={goToRequirements}
@@ -423,142 +501,87 @@ function EnquiryCreateForm() {
       ) : (
         <RequirementStepPanel
           errors={errors}
-          isFormOpen={isRequirementFormOpen || requirements.length === 0}
-          isSubmitting={isSubmitting}
+          isFormOpen={showRequirementForm}
           requirementDraft={requirementDraft}
           requirements={requirements}
           editingRequirementId={editingRequirementId}
-          onBack={() => {
-            if (isRequirementFormOpen && requirements.length > 0) {
-              discardLocalReferences(requirementDraft.references);
-              setRequirementDraft(createEmptyRequirement());
-              setEditingRequirementId(null);
-              setErrors({});
-              setIsRequirementFormOpen(false);
-              return;
-            }
-            setStep("customer");
-          }}
           onAddRequirement={addRequirement}
           onAddNewRequirement={addNewRequirement}
           onChangeRequirement={setRequirementDraft}
-          onCreate={handleSubmit}
           onEdit={editRequirement}
           onRemove={removeRequirement}
         />
       )}
-    </div>
+    </CreateFlowLayout>
   );
 }
 
 function RequirementStepPanel({
   errors,
   isFormOpen,
-  isSubmitting,
   requirementDraft,
   requirements,
   editingRequirementId,
-  onBack,
   onAddRequirement,
   onAddNewRequirement,
   onChangeRequirement,
-  onCreate,
   onEdit,
   onRemove,
 }: {
   errors: Record<string, string>;
   isFormOpen: boolean;
-  isSubmitting: boolean;
   requirementDraft: RequirementDraft;
   requirements: RequirementDraft[];
   editingRequirementId: string | null;
-  onBack: () => void;
   onAddRequirement: () => void;
   onAddNewRequirement: () => void;
   onChangeRequirement: (value: RequirementDraft) => void;
-  onCreate: () => void;
   onEdit: (id: string) => void;
   onRemove: (id: string) => void;
 }) {
-  const isRequirementActionDisabled =
-    isFormOpen &&
-    (!requirementDraft.category.trim() || !requirementDraft.metalType.trim());
+  if (isFormOpen) {
+    return (
+      <div className="space-y-3">
+        <CustomProductForm
+          value={requirementDraft}
+          onChange={onChangeRequirement}
+          onSubmit={onAddRequirement}
+          submitLabel={
+            editingRequirementId ? "Update requirement" : "Add requirement"
+          }
+          showActions={false}
+          className="border-0 bg-transparent p-0 shadow-none sm:border sm:bg-card sm:p-5 sm:shadow-sm"
+        />
+        {errors.requirement ? (
+          <p className="text-sm text-destructive">{errors.requirement}</p>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-13rem)] min-h-[34rem] max-w-3xl flex-col rounded-lg border border-border">
-      <div className="border-b border-border p-5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-          Step 2 of 2
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
-          What is the customer interested in?
-        </h1>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto p-5">
-        {isFormOpen ? (
-          <div className="space-y-3">
-            <CustomProductForm
-              value={requirementDraft}
-              onChange={onChangeRequirement}
-              onSubmit={onAddRequirement}
-              submitLabel={
-                editingRequirementId ? "Update requirement" : "Add requirement"
-              }
-              showActions={false}
-              className="border-0 bg-transparent p-0 shadow-none sm:p-0"
-            />
-            {errors.requirement ? (
-              <p className="text-sm text-destructive">{errors.requirement}</p>
-            ) : null}
-          </div>
-        ) : (
-          <div className="mx-auto max-w-xl space-y-5 py-4">
-            <RequirementSummaryList
-              requirements={requirements}
-              onAdd={onAddNewRequirement}
-              onEdit={onEdit}
-              onRemove={onRemove}
-            />
-            {errors.submit ? (
-              <div
-                role="alert"
-                className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2.5 text-sm text-destructive"
-              >
-                <CircleAlert className="mt-0.5 size-4 shrink-0" />
-                <div>
-                  <p className="font-medium">Couldn&apos;t save the enquiry</p>
-                  <p className="mt-0.5 text-xs leading-5">{errors.submit}</p>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center gap-3 border-t border-border p-5">
-        <Button type="button" variant="outline" onClick={onBack}>
-          <ChevronLeft className="size-4" />
-          Back
-        </Button>
-        <Button
-          type="button"
-          onClick={isFormOpen ? onAddRequirement : onCreate}
-          disabled={
-            isRequirementActionDisabled ||
-            (!isFormOpen && (isSubmitting || requirements.length === 0))
-          }
-          className="ml-auto"
+    <div className="space-y-5">
+      <RequirementSummaryList
+        requirements={requirements}
+        onAdd={onAddNewRequirement}
+        onEdit={onEdit}
+        onRemove={onRemove}
+      />
+      {errors.requirement ? (
+        <p className="text-sm text-destructive">{errors.requirement}</p>
+      ) : null}
+      {errors.submit ? (
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2.5 text-sm text-destructive"
         >
-          {isFormOpen
-            ? editingRequirementId
-              ? "Update requirement"
-              : "Add requirement"
-            : isSubmitting
-              ? "Saving..."
-              : "Create enquiry"}
-        </Button>
-      </div>
+          <CircleAlert className="mt-0.5 size-4 shrink-0" />
+          <div>
+            <p className="font-medium">Couldn&apos;t save the enquiry</p>
+            <p className="mt-0.5 text-xs leading-5">{errors.submit}</p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

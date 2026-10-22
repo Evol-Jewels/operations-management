@@ -74,7 +74,7 @@ export function SendVendorEmailDialog({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-1.5 border-input text-xs print:hidden"
+          className="h-9 gap-1.5 border-input text-xs sm:h-8 print:hidden"
         >
           <Mail className="size-3.5" />
           Email vendor
@@ -154,7 +154,7 @@ export function SendVendorEmailDialog({
               Could not load the vendor email. Enter the recipient manually.
             </p>
           ) : null}
-          <DialogFooter>
+          <DialogFooter className="sticky -bottom-6 -mx-6 -mb-6 border-t border-border bg-background px-6 py-4 max-sm:flex-row max-sm:[&>button]:flex-1">
             <DialogClose asChild>
               <Button
                 type="button"
