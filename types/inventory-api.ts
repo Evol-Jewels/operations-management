@@ -75,6 +75,7 @@ export type InventoryProduct = {
   category: string;
   description: string;
   vendor: string;
+  vendorId?: string | null;
   color: ProductColor | string;
   purity: number;
   size: string | null;

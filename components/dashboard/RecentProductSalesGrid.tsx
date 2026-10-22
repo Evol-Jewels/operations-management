@@ -6,14 +6,17 @@ import {
   Gem,
   IndianRupee,
   MapPin,
+  Minus,
   PackagePlus,
   PackageSearch,
   Palette,
+  Plus,
   UserRound,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import type { RefObject } from "react";
+import { type RefObject, useState } from "react";
+import { CreateRefillRequestDialog } from "@/components/refill-requests/CreateRefillRequestDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,13 +50,40 @@ function formatSellingPrice(value: string) {
   return Number.isFinite(amount) ? formatCurrency(amount) : value;
 }
 
+const MAX_REFILL_QUANTITY = 1000;
+
+interface RefillSelection {
+  productCode: string;
+  name: string;
+  vendorId: string | null;
+  vendorName: string;
+  quantity: number;
+}
+
+function toRefillSelection(sale: RecentProductSale): RefillSelection | null {
+  const product = sale.product;
+  if (!product) return null;
+  return {
+    productCode: product.productCode,
+    name: product.name,
+    vendorId: product.vendorId ?? null,
+    vendorName: product.vendor,
+    quantity: 1,
+  };
+}
+
 function ProductSaleCard({
   sale,
   priority = false,
+  quantity,
+  onQuantityChange,
 }: {
   sale: RecentProductSale;
   priority?: boolean;
+  quantity: number;
+  onQuantityChange: (quantity: number) => void;
 }) {
+  const isSelected = quantity > 0;
   const image = sale.product
     ? getInventoryPrimaryImage(sale.product)
     : undefined;
@@ -75,6 +105,7 @@ function ProductSaleCard({
       className={cn(
         "relative w-full rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-colors",
         product && "hover:border-foreground/25 hover:bg-muted/20",
+        isSelected && "border-foreground ring-1 ring-foreground",
       )}
     >
       {product ? (
@@ -168,24 +199,46 @@ function ProductSaleCard({
       </div>
 
       <div className="relative z-20 mt-3 border-t border-border pt-3">
-        {product ? (
-          <Button asChild className="min-h-11 w-full gap-2" variant="outline">
-            <Link
-              href={`/orders/new?refill=${encodeURIComponent(sale.productCode)}`}
-              onClick={() =>
-                captureProductEvent("recent_sale_refill_started", {
-                  inventory_resolution: sale.inventoryResolution,
-                })
+        {isSelected ? (
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-11"
+              aria-label={
+                quantity === 1 ? "Remove from refill" : "Decrease quantity"
               }
+              onClick={() => onQuantityChange(quantity - 1)}
             >
-              <PackagePlus className="size-4" aria-hidden="true" />
-              Refill product
-            </Link>
-          </Button>
+              <Minus className="size-4" aria-hidden="true" />
+            </Button>
+            <p className="flex-1 text-center text-sm" aria-live="polite">
+              <span className="font-semibold tabular-nums">{quantity}</span>{" "}
+              <span className="text-muted-foreground">for refill</span>
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-11"
+              aria-label="Increase quantity"
+              disabled={quantity >= MAX_REFILL_QUANTITY}
+              onClick={() => onQuantityChange(quantity + 1)}
+            >
+              <Plus className="size-4" aria-hidden="true" />
+            </Button>
+          </div>
         ) : (
-          <Button className="min-h-11 w-full gap-2" variant="outline" disabled>
-            <PackageSearch className="size-4" aria-hidden="true" />
-            Refill unavailable
+          <Button
+            type="button"
+            className="min-h-11 w-full gap-2"
+            variant="outline"
+            disabled={!product}
+            onClick={() => onQuantityChange(1)}
+          >
+            <PackagePlus className="size-4" aria-hidden="true" />
+            {product ? "Select for refill" : "Refill unavailable"}
           </Button>
         )}
       </div>
@@ -239,6 +292,33 @@ export function RecentProductSalesGrid({
   loadMoreRef: RefObject<HTMLDivElement | null>;
   isFiltered?: boolean;
 }) {
+  const [selected, setSelected] = useState<Map<string, RefillSelection>>(
+    () => new Map(),
+  );
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const selection = [...selected.values()];
+  const vendorIds = new Set(selection.map((item) => item.vendorId));
+  const sharedVendor =
+    vendorIds.size === 1 && selection[0]?.vendorId ? selection[0] : null;
+  const pieces = selection.reduce((total, item) => total + item.quantity, 0);
+  const selectAll = new Map(selected);
+  for (const sale of sales) {
+    const item = toRefillSelection(sale);
+    if (item && !selectAll.has(item.productCode))
+      selectAll.set(item.productCode, item);
+  }
+
+  const setQuantity = (sale: RecentProductSale, quantity: number) => {
+    const item = toRefillSelection(sale);
+    if (!item) return;
+    setSelected((current) => {
+      const next = new Map(current);
+      if (quantity > 0) next.set(item.productCode, { ...item, quantity });
+      else next.delete(item.productCode);
+      return next;
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -286,9 +366,69 @@ export function RecentProductSalesGrid({
             key={sale.saleItemId}
             sale={sale}
             priority={index === 0}
+            quantity={selected.get(sale.productCode)?.quantity ?? 0}
+            onQuantityChange={(quantity) => setQuantity(sale, quantity)}
           />
         ))}
       </div>
+
+      {selection.length > 0 ? (
+        <div className="sticky bottom-4 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-2 rounded-xl border bg-background/95 p-2 pl-4 shadow-lg backdrop-blur">
+          <p className="text-sm">
+            <span className="font-medium">{selection.length} selected</span>
+            <span className="text-muted-foreground">
+              {" "}
+              · {pieces} pcs · {sharedVendor?.vendorName ?? "Multiple vendors"}
+            </span>
+          </p>
+          {selectAll.size > selected.size ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelected(selectAll)}
+            >
+              Select all {selectAll.size}
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelected(new Map())}
+          >
+            Clear
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="gap-2"
+            onClick={() => setIsDialogOpen(true)}
+          >
+            <PackagePlus className="size-4" aria-hidden="true" />
+            Create refill request
+          </Button>
+        </div>
+      ) : null}
+      {isDialogOpen ? (
+        <CreateRefillRequestDialog
+          defaultVendor={
+            sharedVendor?.vendorId
+              ? { id: sharedVendor.vendorId, name: sharedVendor.vendorName }
+              : null
+          }
+          items={selection}
+          onClose={() => setIsDialogOpen(false)}
+          onCreated={() => {
+            captureProductEvent("refill_request_created", {
+              product_count: selection.length,
+              piece_count: pieces,
+            });
+            setIsDialogOpen(false);
+            setSelected(new Map());
+          }}
+        />
+      ) : null}
 
       <div ref={loadMoreRef} className="h-1" aria-hidden="true" />
       <div
