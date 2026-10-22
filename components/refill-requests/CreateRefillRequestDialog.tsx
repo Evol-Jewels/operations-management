@@ -72,7 +72,7 @@ export function CreateRefillRequestDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create refill request</DialogTitle>
+          <DialogTitle>Create bulk refill request</DialogTitle>
           <DialogDescription>
             {items.length} {items.length === 1 ? "product" : "products"} ·{" "}
             {items.reduce((total, item) => total + item.quantity, 0)} pcs.

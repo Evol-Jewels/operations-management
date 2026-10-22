@@ -5,6 +5,7 @@ import {
   Factory,
   Gem,
   IndianRupee,
+  Layers,
   MapPin,
   Minus,
   PackagePlus,
@@ -76,11 +77,13 @@ function ProductSaleCard({
   sale,
   priority = false,
   quantity,
+  isSelecting,
   onQuantityChange,
 }: {
   sale: RecentProductSale;
   priority?: boolean;
   quantity: number;
+  isSelecting: boolean;
   onQuantityChange: (quantity: number) => void;
 }) {
   const isSelected = quantity > 0;
@@ -229,17 +232,38 @@ function ProductSaleCard({
               <Plus className="size-4" aria-hidden="true" />
             </Button>
           </div>
-        ) : (
-          <Button
-            type="button"
-            className="min-h-11 w-full gap-2"
-            variant="outline"
-            disabled={!product}
-            onClick={() => onQuantityChange(1)}
-          >
-            <PackagePlus className="size-4" aria-hidden="true" />
-            {product ? "Select for refill" : "Refill unavailable"}
+        ) : !product ? (
+          <Button className="min-h-11 w-full gap-2" variant="outline" disabled>
+            <PackageSearch className="size-4" aria-hidden="true" />
+            Refill unavailable
           </Button>
+        ) : (
+          <div className={cn("grid gap-2", !isSelecting && "grid-cols-2")}>
+            {!isSelecting ? (
+              <Button asChild className="min-h-11 gap-2" variant="outline">
+                <Link
+                  href={`/orders/new?refill=${encodeURIComponent(sale.productCode)}`}
+                  onClick={() =>
+                    captureProductEvent("recent_sale_refill_started", {
+                      inventory_resolution: sale.inventoryResolution,
+                    })
+                  }
+                >
+                  <PackagePlus className="size-4" aria-hidden="true" />
+                  Refill product
+                </Link>
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              className="min-h-11 gap-2"
+              variant="outline"
+              onClick={() => onQuantityChange(1)}
+            >
+              <Layers className="size-4" aria-hidden="true" />
+              Bulk refill
+            </Button>
+          </div>
         )}
       </div>
     </article>
@@ -367,6 +391,7 @@ export function RecentProductSalesGrid({
             sale={sale}
             priority={index === 0}
             quantity={selected.get(sale.productCode)?.quantity ?? 0}
+            isSelecting={selected.size > 0}
             onQuantityChange={(quantity) => setQuantity(sale, quantity)}
           />
         ))}
@@ -376,10 +401,7 @@ export function RecentProductSalesGrid({
         <div className="sticky bottom-4 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-2 rounded-xl border bg-background/95 p-2 pl-4 shadow-lg backdrop-blur">
           <p className="text-sm">
             <span className="font-medium">{selection.length} selected</span>
-            <span className="text-muted-foreground">
-              {" "}
-              · {pieces} pcs · {sharedVendor?.vendorName ?? "Multiple vendors"}
-            </span>
+            <span className="text-muted-foreground"> · {pieces} pcs</span>
           </p>
           {selectAll.size > selected.size ? (
             <Button
@@ -406,7 +428,7 @@ export function RecentProductSalesGrid({
             onClick={() => setIsDialogOpen(true)}
           >
             <PackagePlus className="size-4" aria-hidden="true" />
-            Create refill request
+            Create bulk refill request
           </Button>
         </div>
       ) : null}
