@@ -58,6 +58,22 @@ export interface RecentProductSale {
   product: InventoryProduct | null;
 }
 
+export type RecentProductSalesQuery = {
+  search?: string;
+  /** A vendor id, or "unlinked" for sales of products without a linked vendor. */
+  vendorId?: string;
+  monthFrom?: string;
+  monthTo?: string;
+  locationId?: string;
+  salesPersonId?: string;
+  category?: string;
+  purity?: number;
+  color?: string;
+  inventory?: "FOUND" | "NOT_FOUND";
+  priceFrom?: number;
+  priceTo?: number;
+};
+
 export interface RecentProductSalesPageResponse {
   data: RecentProductSale[];
   total: number;

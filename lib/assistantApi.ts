@@ -50,9 +50,33 @@ export function deleteAssistantThread(id: string) {
 }
 
 /** Uploads a chat attachment through the same endpoints the forms use. */
+export const DOCUMENT_ACCEPT =
+  ".pdf,.xlsx,.xlsm,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+export function isDocumentFile(file: File) {
+  return (
+    file.type === "application/pdf" ||
+    file.type.includes("spreadsheetml") ||
+    /\.(pdf|xlsx|xlsm)$/i.test(file.name)
+  );
+}
+
+/** PDF/Excel files go to the assistant, which starts reading them right away. */
+export function uploadAssistantDocument(file: File) {
+  if (file.size > 20 * 1024 * 1024)
+    throw new Error(`${file.name} is larger than 20 MB.`);
+  const body = new FormData();
+  body.set("file", file);
+  return apiFetch<AssistantAttachment>(buildUrl(`${base}/documents`), {
+    method: "POST",
+    body,
+  });
+}
+
 export async function uploadAssistantAttachment(
   file: File,
 ): Promise<AssistantAttachment> {
+  if (isDocumentFile(file)) return uploadAssistantDocument(file);
   const type = file.type.startsWith("image/")
     ? "IMAGE"
     : file.type.startsWith("video/")
@@ -62,7 +86,7 @@ export async function uploadAssistantAttachment(
         : null;
   if (!type)
     throw new Error(
-      `${file.name} is not a supported image, video or audio file.`,
+      `${file.name} is not a supported image, video, audio, PDF or Excel file.`,
     );
   const uploaded =
     type === "IMAGE"

@@ -47,6 +47,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInventoryAnalytics } from "@/hooks/useInventoryProducts";
 import { useLocations } from "@/hooks/useManageProducts";
+import { useVendors } from "@/hooks/useVendors";
 import { downloadInventoryAnalyticsCsv } from "@/lib/inventoryApi";
 import { cn } from "@/lib/utils";
 import type {
@@ -1175,20 +1176,23 @@ function InventoryAnalyticsContent() {
   const color = getColorFilter(searchParams);
   const purity = getPurityFilter(searchParams);
   const location = getLocationFilter(searchParams);
+  const vendor = searchParams.get("vendorId") ?? "ALL";
   const [isDownloading, setIsDownloading] = useState(false);
   const locationsQuery = useLocations({ limit: 100 });
+  const vendorsQuery = useVendors();
   const analyticsFilters = {
     ...(status === "ALL" ? {} : { status }),
     ...(color === "ALL" ? {} : { color }),
     ...(purity === "ALL" ? {} : { purity: Number(purity) }),
     ...(location === "ALL" ? {} : { locationId: location }),
+    ...(vendor === "ALL" ? {} : { vendorId: vendor }),
   };
   const analyticsQuery = useInventoryAnalytics(analyticsFilters);
   const analytics = analyticsQuery.data;
   const locations = locationsQuery.data?.data ?? [];
   function updateAnalyticsFilter(
-    key: "color" | "locationId" | "purity",
-    value: ColorFilter | LocationFilter | PurityFilter,
+    key: "color" | "locationId" | "purity" | "vendorId",
+    value: string,
   ) {
     const params = new URLSearchParams(searchParams);
     if (value === "ALL") {
@@ -1250,12 +1254,13 @@ function InventoryAnalyticsContent() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <AnalyticsFilterPopover
               count={
-                [color, purity, location].filter((value) => value !== "ALL")
-                  .length
+                [color, purity, location, vendor].filter(
+                  (value) => value !== "ALL",
+                ).length
               }
               onReset={() => {
                 const next = new URLSearchParams(searchParams);
-                for (const key of ["color", "purity", "locationId"])
+                for (const key of ["color", "purity", "locationId", "vendorId"])
                   next.delete(key);
                 router.replace(`${pathname}?${next}`, { scroll: false });
               }}
@@ -1266,6 +1271,9 @@ function InventoryAnalyticsContent() {
                 locations={locations}
                 locationsLoading={locationsQuery.isLoading}
                 purity={purity}
+                vendor={vendor}
+                vendors={vendorsQuery.data}
+                vendorsLoading={vendorsQuery.isLoading}
                 onFilterChange={updateAnalyticsFilter}
               />
             </AnalyticsFilterPopover>
