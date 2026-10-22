@@ -35,6 +35,9 @@ export function OrderStatusDialog({
 }) {
   const [stage, setStage] = useState<string>(order.currentStage);
   const isLocked = ["Closed", "Cancelled"].includes(order.currentStage);
+  const options = stages.includes(order.currentStage)
+    ? stages
+    : [order.currentStage, ...stages];
 
   return (
     <Dialog
@@ -61,8 +64,12 @@ export function OrderStatusDialog({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {stages.map((item) => (
-                <SelectItem key={item} value={item}>
+              {options.map((item) => (
+                <SelectItem
+                  key={item}
+                  value={item}
+                  disabled={!stages.includes(item)}
+                >
                   {item}
                 </SelectItem>
               ))}
