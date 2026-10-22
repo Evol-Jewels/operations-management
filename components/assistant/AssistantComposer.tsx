@@ -97,7 +97,9 @@ export const AssistantComposer = forwardRef<
     for (const file of files.slice(0, room)) {
       const kind = kindOf(file);
       if (!kind) {
-        toast.error(`${file.name} is not an image, video or audio file.`);
+        toast.error(
+          `${file.name} is not a supported image, video, audio, PDF, Excel or text file.`,
+        );
         continue;
       }
       const key = crypto.randomUUID();
@@ -291,7 +293,7 @@ export const AssistantComposer = forwardRef<
           size="icon-sm"
           className="rounded-full text-muted-foreground"
           aria-label="Attach files"
-          title="Attach images, video or audio"
+          title="Attach screenshots, images, documents, video or audio"
           disabled={disabled || busy}
           onClick={() => picker.current?.click()}
         >

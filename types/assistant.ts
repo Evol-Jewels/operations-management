@@ -94,7 +94,33 @@ export type AssistantCard =
       title: string;
       message?: string | null;
       record?: AssistantRecord | null;
+    }
+  | {
+      /** Calculator inputs; priced here with the calculator's own rates. */
+      type: "estimate";
+      title: string;
+      estimatedAt: string;
+      imageUrls: string[];
+      /** The stock product the estimate is for, with its photos. */
+      productCode?: string;
+      productImages?: { id: string; storageKey: string }[];
+      metal: { type: string; purity: string; netWeight: number };
+      stones: {
+        stoneType: string;
+        weight: number;
+        pieces: number;
+        pricePerCarat?: number;
+      }[];
+      makingCost?: number;
+      /** Percent, e.g. 3. */
+      gstPercent?: number;
+      total: number;
     };
+
+export type AssistantEstimateCard = Extract<
+  AssistantCard,
+  { type: "estimate" }
+>;
 
 export type AssistantQuestionType =
   | "text"
@@ -171,7 +197,7 @@ export type AssistantInteraction =
 
 export type AssistantAttachment = {
   type: "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT";
-  /** Set for PDF/Excel files read by the assistant. */
+  /** Set for images and documents that the assistant can read. */
   documentId?: string;
   url: string;
   name?: string;
