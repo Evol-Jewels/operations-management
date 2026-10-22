@@ -20,7 +20,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { BulkOrdersWorkspace } from "@/components/bulk-orders/BulkOrdersWorkspace";
+import { BulkOrdersTab } from "@/components/bulk-orders/BulkOrdersTab";
 import { OrderStatusDialog } from "@/components/order/OrderStatusDialog";
 import {
   VendorDetailsDialog,
@@ -1634,7 +1634,7 @@ export function OrdersEnquiriesWorkspace() {
       )}
 
       {typeTab === "bulk-order" ? (
-        <BulkOrdersWorkspace />
+        <BulkOrdersTab canManageRefills={canViewPurchases} />
       ) : typeTab === "repair" ? (
         <RepairsWorkspace
           viewMode={viewMode}

@@ -4,7 +4,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { CalendarDays, Layers, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
 import { WorkspaceCard } from "@/components/dashboard/WorkspaceCard";
 import { Button } from "@/components/ui/button";
@@ -66,11 +66,15 @@ function DeliveryDate({
   );
 }
 
-export function BulkOrdersWorkspace() {
+export function BulkOrdersWorkspace({
+  heading,
+}: {
+  heading?: (count: number) => ReactNode;
+}) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filter, setFilter] = useState<FulfilmentFilter>("all");
+  const [filter, setFilter] = useState<FulfilmentFilter>("pending");
   useEffect(() => {
     const timeout = window.setTimeout(
       () => setDebouncedSearch(search.trim()),
@@ -89,10 +93,16 @@ export function BulkOrdersWorkspace() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <h2 className="text-base font-medium lg:mr-auto">
-          Bulk orders{" "}
-          <span className="text-muted-foreground">({rows.length})</span>
-        </h2>
+        <div className="lg:mr-auto">
+          {heading ? (
+            heading(rows.length)
+          ) : (
+            <h2 className="text-base font-medium">
+              Bulk orders{" "}
+              <span className="text-muted-foreground">({rows.length})</span>
+            </h2>
+          )}
+        </div>
         <div className="relative min-w-0 lg:w-80">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -126,13 +136,13 @@ export function BulkOrdersWorkspace() {
               ))}
             </SelectContent>
           </Select>
-          {(search || filter !== "all") && (
+          {(search || filter !== "pending") && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 setSearch("");
-                setFilter("all");
+                setFilter("pending");
               }}
             >
               Clear
