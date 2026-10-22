@@ -16,7 +16,12 @@ import {
   type RequirementDraft,
 } from "./requirement-form-types";
 import { createEmptyColorStone } from "./requirement-form-utils";
-import { NotesField, OptionTextField, SectionShell, TextField } from "./RequirementFields";
+import {
+  NotesField,
+  OptionTextField,
+  SectionShell,
+  TextField,
+} from "./RequirementFields";
 
 export function ColorStoneDetailsSection({
   value,
@@ -81,7 +86,7 @@ export function ColorStoneDetailsSection({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-xs"
+                size="icon-sm"
                 onClick={() => removeStone(stone.id)}
                 aria-label={`Remove colour stone ${index + 1}`}
                 className="text-muted-foreground hover:text-destructive"
@@ -122,6 +127,7 @@ export function ColorStoneDetailsSection({
                 label="Color stone wt (in cts)"
                 value={stone.weight}
                 placeholder="1.20"
+                inputMode="decimal"
                 onChange={(weight) => updateStone(stone.id, { weight })}
               />
               <NotesField

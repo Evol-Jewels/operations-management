@@ -21,7 +21,7 @@ export function RequirementSummaryList({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-foreground">
           Added Requirements ({requirements.length}{" "}
           {requirements.length === 1 ? "item" : "items"})
@@ -37,7 +37,7 @@ export function RequirementSummaryList({
         {requirements.map((requirement, index) => (
           <div
             key={requirement.id}
-            className="flex min-w-0 items-center gap-3 px-3.5 py-3"
+            className="flex min-w-0 items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-3.5 sm:py-3"
           >
             <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground empty:hidden">
               <JewelryVisual
@@ -80,7 +80,7 @@ export function RequirementSummaryList({
             <Button
               type="button"
               variant="ghost"
-              size="icon-xs"
+              size="icon-sm"
               onClick={() => onEdit(requirement.id)}
               aria-label="Edit requirement"
               className="text-muted-foreground hover:text-foreground"
@@ -90,7 +90,7 @@ export function RequirementSummaryList({
             <Button
               type="button"
               variant="ghost"
-              size="icon-xs"
+              size="icon-sm"
               onClick={() => onRemove(requirement.id)}
               aria-label="Remove requirement"
               className="text-muted-foreground hover:text-destructive"

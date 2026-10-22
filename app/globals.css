@@ -266,7 +266,7 @@
 
   /* Ensure minimum touch target sizes on interactive elements */
   @media (max-width: 640px) {
-    button,
+    button:not([role="checkbox"], [role="switch"], [role="radio"]),
     a {
       min-height: 36px;
     }

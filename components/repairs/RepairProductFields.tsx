@@ -58,12 +58,13 @@ export function RepairProductFields({
               <Input
                 id={key}
                 type="number"
+                inputMode="decimal"
                 min="0"
                 step="0.001"
                 value={draft[key]}
                 onChange={(event) => onChange({ [key]: event.target.value })}
                 aria-invalid={Boolean(errors[key])}
-                className="h-9"
+                className="h-10 md:h-9"
                 placeholder="0.00"
               />
             </FormField>
@@ -135,12 +136,13 @@ export function RepairProductFields({
                 <Input
                   id={key}
                   type="number"
+                  inputMode={key === "diamondPieces" ? "numeric" : "decimal"}
                   min="0"
                   step={key === "diamondPieces" ? "1" : "0.001"}
                   value={draft[key]}
                   onChange={(event) => onChange({ [key]: event.target.value })}
                   aria-invalid={Boolean(errors[key])}
-                  className="h-9"
+                  className="h-10 md:h-9"
                   placeholder={key === "diamondPieces" ? "12" : "0.00"}
                 />
               </FormField>

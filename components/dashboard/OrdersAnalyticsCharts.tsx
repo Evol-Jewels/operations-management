@@ -62,7 +62,7 @@ function StageBars({ stages }: { stages: StageCount[] }) {
         <li key={stage.label}>
           <Link
             href={stage.href}
-            className="group grid grid-cols-[minmax(6rem,8.5rem)_minmax(0,1fr)_2.5rem] items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="group grid min-h-10 grid-cols-[minmax(6rem,8.5rem)_minmax(0,1fr)_2rem] items-center gap-3 rounded-md px-2 py-1 sm:min-h-9 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             <span className="truncate text-sm text-muted-foreground transition-colors group-hover:text-foreground">
               {stage.label}
@@ -157,12 +157,12 @@ function ActivityTrendChart({
     <EvilBarChart
       data={data}
       config={TREND_CHART_CONFIG}
-      className="h-64 w-full"
+      className="h-52 w-full sm:h-64"
       barRadius={3}
       chartProps={{ margin: { top: 4, right: 4, bottom: 0, left: -20 } }}
     >
       <Grid vertical={false} />
-      <XAxis dataKey="label" minTickGap={24} />
+      <XAxis dataKey="label" minTickGap={32} />
       <YAxis allowDecimals={false} />
       <EvilBarTooltip variant="frosted-glass" />
       <EvilBarLegend variant="circle" align="right" isClickable />
@@ -182,16 +182,16 @@ export function OrdersAnalyticsCharts({
 
   return (
     <div className="@container">
-      <div className="grid gap-4 @4xl:grid-cols-5">
+      <div className="grid gap-4 @2xl:grid-cols-5">
         <Panel
           title="Orders by stage"
           description="Open the stage to see its orders"
-          className="@4xl:col-span-3"
+          className="@2xl:col-span-3"
         >
           <StageBars stages={getStageCounts(currentSnapshot.orderStages)} />
         </Panel>
 
-        <div className="grid gap-4 @2xl:grid-cols-2 @4xl:col-span-2 @4xl:grid-cols-1">
+        <div className="grid gap-4 @md:grid-cols-2 @2xl:col-span-2 @2xl:grid-cols-1">
           <Panel
             title="Delivery urgency"
             description="Active orders by delivery date"
@@ -212,7 +212,7 @@ export function OrdersAnalyticsCharts({
         <Panel
           title="Orders and enquiries created"
           description={`Daily, ${periodLabel}`}
-          className="@4xl:col-span-5"
+          className="@2xl:col-span-5"
         >
           <ActivityTrendChart trends={periodActivity.trends} />
         </Panel>

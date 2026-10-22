@@ -38,12 +38,14 @@ export function WorkspaceDateRangeFilter({
   to,
   onValueChange,
   onRangeChange,
+  className,
 }: {
   value: DateFilter;
   from: string;
   to: string;
   onValueChange: (value: DateFilter) => void;
   onRangeChange: (from: string, to: string) => void;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const selected: DateRange | undefined =
@@ -67,7 +69,10 @@ export function WorkspaceDateRangeFilter({
           type="button"
           variant="outline"
           aria-label={`Created date: ${label}`}
-          className="h-9 max-w-full justify-between gap-2 px-3 font-normal"
+          className={cn(
+            "h-9 max-w-full justify-between gap-2 px-3 font-normal",
+            className,
+          )}
         >
           <span className="flex min-w-0 items-center gap-2">
             <CalendarDays

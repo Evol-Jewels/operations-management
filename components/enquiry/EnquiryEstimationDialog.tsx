@@ -70,7 +70,7 @@ export function EnquiryEstimationDialog(props: EnquiryEstimationDialogProps) {
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-2 text-xs"
+          className="h-9 gap-2 text-xs sm:h-8"
           disabled={props.disabled}
         >
           <Calculator className="size-4" />
@@ -338,7 +338,7 @@ function EnquiryCalculatorEditor({
           </p>
         ) : null}
       </fieldset>
-      <DialogFooter>
+      <DialogFooter className="sticky -bottom-4 z-10 -mx-4 -mb-4 border-t border-border bg-background px-4 py-3 max-sm:flex-row max-sm:[&>button]:flex-1 sm:-bottom-6 sm:-mx-6 sm:-mb-6 sm:px-6 sm:py-4">
         <Button
           type="button"
           variant="outline"

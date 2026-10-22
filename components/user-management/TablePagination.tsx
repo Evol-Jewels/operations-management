@@ -18,32 +18,38 @@ export function TablePagination({
   const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+    <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
       <output aria-live="polite">
         {start}–{Math.min(page * PAGE_SIZE, total)} of {total} {label}
       </output>
       {pages > 1 && (
         <nav
           aria-label={`${label} pagination`}
-          className="flex items-center gap-2"
+          className="flex items-center gap-1.5"
         >
           <Button
             type="button"
             variant="outline"
-            size="icon-sm"
+            size="icon"
+            className="size-10 sm:size-8"
             aria-label={`Previous ${label} page`}
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
           >
             <ChevronLeft className="size-4" />
           </Button>
-          <span>
-            Page {page} of {pages}
+          <span className="min-w-12 text-center tabular-nums">
+            <span className="hidden sm:inline">Page </span>
+            {page}
+            <span className="sm:hidden"> / </span>
+            <span className="hidden sm:inline"> of </span>
+            {pages}
           </span>
           <Button
             type="button"
             variant="outline"
-            size="icon-sm"
+            size="icon"
+            className="size-10 sm:size-8"
             aria-label={`Next ${label} page`}
             disabled={page >= pages}
             onClick={() => onPageChange(page + 1)}

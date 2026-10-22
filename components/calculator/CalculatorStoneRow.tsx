@@ -2,6 +2,7 @@
 
 import { Minus, Plus, Trash2 } from "lucide-react";
 import {
+  fieldLabelClassName,
   formatWeight,
   NumericLineInput,
 } from "@/components/calculator/CalculatorFields";
@@ -96,7 +97,7 @@ function StoneTypeCombobox({
       customValue={customValue}
       onCustomValueChange={onCustomValueChange}
       showMetadata
-      className="border-0 border-b bg-transparent px-0 shadow-none hover:bg-transparent"
+      className="h-10 border-0 border-b bg-transparent px-0 shadow-none hover:bg-transparent md:h-9"
     />
   );
 }
@@ -154,7 +155,7 @@ export function StoneRow({
     <div className="space-y-2.5 rounded-xl border border-border bg-muted/10 p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="text-xs font-semibold text-muted-foreground">
             Stone {index + 1}
           </p>
           {resolvedSlab ? (
@@ -193,11 +194,9 @@ export function StoneRow({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-end gap-3 min-[430px]:grid-cols-2 min-[430px]:gap-4">
+      <div className="grid grid-cols-2 items-end gap-3 sm:gap-4">
         <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Stone Type
-          </p>
+          <p className={fieldLabelClassName}>Stone type</p>
           <StoneTypeCombobox
             stoneTypes={settings.stoneTypes}
             value={stone.stoneTypeId}
@@ -219,9 +218,7 @@ export function StoneRow({
           />
         </div>
         <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Weight
-          </p>
+          <p className={fieldLabelClassName}>Weight</p>
           <NumericLineInput
             value={stone.weight}
             onChange={(weight) => onChange({ weight })}
@@ -232,17 +229,15 @@ export function StoneRow({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-end gap-3 min-[430px]:grid-cols-2 min-[430px]:gap-4">
+      <div className="grid grid-cols-2 items-end gap-3 sm:gap-4">
         <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Pieces
-          </p>
-          <div className="grid h-9 grid-cols-[32px_minmax(0,1fr)_32px] items-end gap-2">
+          <p className={fieldLabelClassName}>Pieces</p>
+          <div className="grid h-10 grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-end gap-1.5 md:h-9 md:grid-cols-[2rem_minmax(0,1fr)_2rem] md:gap-2">
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="h-8 w-8 rounded-md"
+              className="size-10 rounded-md md:size-8"
               onClick={() => updatePieces(Math.max(0, stone.quantity - 1))}
               aria-label={`Decrease pieces for stone ${index + 1}`}
             >
@@ -253,15 +248,15 @@ export function StoneRow({
               inputMode="numeric"
               value={stone.quantity || ""}
               onChange={(event) => updatePiecesInput(event.target.value)}
-              placeholder="pieces"
+              placeholder="0"
               aria-label={`Stone ${index + 1} pieces`}
-              className="h-8 min-w-0 border-b border-border bg-transparent px-0 text-center text-sm outline-none placeholder:text-muted-foreground/35 focus:border-foreground"
+              className="h-10 min-w-0 border-b border-border bg-transparent px-0 text-center text-base outline-none md:h-8 md:text-sm placeholder:text-muted-foreground/35 focus:border-foreground"
             />
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="h-8 w-8 rounded-md"
+              className="size-10 rounded-md md:size-8"
               onClick={() => updatePieces(stone.quantity + 1)}
               aria-label={`Increase pieces for stone ${index + 1}`}
             >
@@ -270,10 +265,8 @@ export function StoneRow({
           </div>
         </div>
         <div className="space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Price / Carat
-          </p>
-          <div className="flex h-9 items-end gap-2 border-b border-border pb-1.5 focus-within:border-foreground">
+          <p className={fieldLabelClassName}>Price / carat</p>
+          <div className="flex h-10 items-end gap-2 border-b border-border pb-1.5 focus-within:border-foreground md:h-9">
             <input
               type="number"
               inputMode="decimal"
@@ -287,12 +280,8 @@ export function StoneRow({
               }
               onChange={(event) => updatePricePerCarat(event.target.value)}
               onFocus={(event) => event.target.select()}
-              placeholder={
-                hasUnmatchedWeight
-                  ? "Enter price per carat"
-                  : "Auto match after weight + pieces"
-              }
-              className="min-w-0 flex-1 bg-transparent px-0 text-sm outline-none placeholder:text-muted-foreground/35"
+              placeholder={hasUnmatchedWeight ? "Enter rate" : "Auto"}
+              className="min-w-0 flex-1 bg-transparent px-0 text-base outline-none placeholder:text-muted-foreground/35 md:text-sm"
             />
             <span className="shrink-0 pb-0.5 text-sm text-muted-foreground">
               /ct

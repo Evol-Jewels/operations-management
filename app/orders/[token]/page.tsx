@@ -13,6 +13,10 @@ import { ComposeBox } from "@/components/order/ComposeBox";
 import { OrderPrintView } from "@/components/order/OrderPrintView";
 import { ProductionSpecCard } from "@/components/order/ProductionSpecCard";
 import { SendVendorEmailDialog } from "@/components/order/SendVendorEmailDialog";
+import {
+  RecordActionBar,
+  RecordActionBarSpacer,
+} from "@/components/order/RecordActionBar";
 import { StageBar } from "@/components/order/StageBar";
 import { StageHint } from "@/components/order/StageHint";
 import {
@@ -190,7 +194,7 @@ function OrderStatusControl({
 
   if (!canUpdate) {
     return (
-      <span className="inline-flex h-8 items-center rounded-md border border-border bg-muted/30 px-2.5 text-xs font-medium text-muted-foreground">
+      <span className="inline-flex h-8 items-center rounded-md border border-border bg-muted/30 px-2.5 text-xs font-medium text-muted-foreground max-md:h-10 max-md:flex-1 max-md:text-sm">
         {label}
       </span>
     );
@@ -228,7 +232,7 @@ function OrderStatusControl({
         >
           <SelectValue placeholder="Status" />
         </SelectTrigger>
-        <SelectContent align="end">
+        <SelectContent position="popper" align="end">
           {ORDER_STATUS_OPTIONS.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
@@ -371,88 +375,77 @@ export default function OrderPage() {
 
   return (
     <div className="@container/order-detail mx-auto w-full min-w-0 max-w-6xl">
-      {/* ── Back nav ─────────────────────────────────────────────────── */}
-      <div className="mb-5">
-        <Button
-          variant="ghost"
-          size="sm"
-          asChild
-          className="-ml-2 gap-1.5 text-muted-foreground"
-        >
-          <Link href="/orders-workspace">
-            <ArrowLeft className="h-3.5 w-3.5" />
-            All orders
-          </Link>
-        </Button>
-      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        asChild
+        className="-ml-2 mb-3 gap-1.5 text-muted-foreground sm:mb-5"
+      >
+        <Link href="/orders-workspace">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          All orders
+        </Link>
+      </Button>
 
-      {/* ── Page header ──────────────────────────────────────────────── */}
-      <div className="mb-6">
-        {/* Customer name — first on mobile for immediate context */}
-        <h1 className="mb-2 text-xl font-semibold tracking-tight text-foreground">
-          {order.customerName}
-          <span className="ml-2 font-normal text-muted-foreground">·</span>
-          <span className="ml-2 text-base font-normal text-muted-foreground">
-            {order.category}
-          </span>
-        </h1>
-
-        {/* Type + order number + urgency + actions — wraps cleanly on mobile */}
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <OrderTypeBadge
-            productType={order.productType}
-            isRefill={order.isRefill}
-            className="px-2.5"
-          />
-          {order.orderNumber && (
-            <span className="font-mono text-sm text-muted-foreground">
-              {order.orderNumber}
+      <header className="mb-4 flex flex-wrap items-start gap-x-4 gap-y-3 sm:mb-6">
+        <div className="min-w-0 flex-1 basis-64">
+          <h1 className="mb-2 text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            {order.customerName}
+            <span className="ml-2 font-normal text-muted-foreground">·</span>
+            <span className="ml-2 text-sm font-normal text-muted-foreground sm:text-base">
+              {order.category}
             </span>
-          )}
-          {/* Urgency */}
-          {order.deliveryDate && !isTerminalOrder && (
-            <span
-              className={cn(
-                "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                urgency === "overdue" &&
-                  "bg-red-500/10 text-red-600 dark:bg-red-500/10 dark:text-red-400",
-                urgency === "due-soon" &&
-                  "bg-amber-500/10 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
-                urgency === "on-track" &&
-                  "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
-              )}
-            >
-              <UrgencyDot level={urgency} />
-              {daysLabel}
-            </span>
-          )}
-          {/* Actions — pushed right, wraps on mobile if needed */}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <OrderStatusControl
-              refCode={refCode}
-              status={order.orderStatus}
-              canUpdate={canUpdateOrderStatus}
-              vendorName={order.vendorName}
-              vendorId={order.vendorId}
-              vendorDeliveryDate={order.vendorDeliveryDate}
+          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <OrderTypeBadge
+              productType={order.productType}
+              isRefill={order.isRefill}
+              className="px-2.5"
             />
-            {order.type === "enquiry" && order.status !== "closed" && (
-              <CloseEnquiryDialog orderId={order.id} />
+            {order.orderNumber && (
+              <span className="font-mono text-sm text-muted-foreground">
+                {order.orderNumber}
+              </span>
+            )}
+            {order.deliveryDate && !isTerminalOrder && (
+              <span
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                  urgency === "overdue" &&
+                    "bg-red-500/10 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+                  urgency === "due-soon" &&
+                    "bg-amber-500/10 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+                  urgency === "on-track" &&
+                    "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+                )}
+              >
+                <UrgencyDot level={urgency} />
+                {daysLabel}
+              </span>
             )}
           </div>
         </div>
+        <RecordActionBar className="md:ml-auto md:flex-wrap">
+          <OrderStatusControl
+            refCode={refCode}
+            status={order.orderStatus}
+            canUpdate={canUpdateOrderStatus}
+            vendorName={order.vendorName}
+            vendorId={order.vendorId}
+            vendorDeliveryDate={order.vendorDeliveryDate}
+          />
+          {order.type === "enquiry" && order.status !== "closed" && (
+            <CloseEnquiryDialog orderId={order.id} />
+          )}
+        </RecordActionBar>
+      </header>
 
-        {/* Actors bar */}
-      </div>
-
-      {/* ── Stage hint — contextual next step for this stage ─────────── */}
-      <div className="mb-5">
+      <div className="mb-4 sm:mb-5">
         <StageHint currentStage={order.currentStage} />
       </div>
 
-      {/* ── Stage Bar ────────────────────────────────────────────────── */}
       {order.orderStatus !== "CANCELLED" && (
-        <div className="mb-5 px-5 py-4">
+        <div className="mb-3 sm:mb-5 sm:px-5 sm:py-4">
           <StageBar
             currentStage={order.currentStage}
             cadDesignRequired={order.cadDesignRequired}
@@ -461,7 +454,7 @@ export default function OrderPage() {
       )}
 
       {/* Product requirements and order details */}
-      <div className="grid min-w-0 items-start gap-5 @[60rem]/order-detail:grid-cols-[minmax(0,1fr)_320px] @[60rem]/order-detail:gap-7">
+      <div className="grid min-w-0 items-start gap-5 @[52rem]/order-detail:grid-cols-[minmax(0,1fr)_300px] @[60rem]/order-detail:grid-cols-[minmax(0,1fr)_320px] @[52rem]/order-detail:gap-6 @[60rem]/order-detail:gap-7">
         <main className="min-w-0 space-y-5">
           <EnquiryProductList
             enquiryRefCode={order.refCode ?? 0}
@@ -496,7 +489,7 @@ export default function OrderPage() {
           />
         </main>
 
-        <aside className="min-w-0 @[60rem]/order-detail:sticky @[60rem]/order-detail:top-6 @[60rem]/order-detail:self-start">
+        <aside className="min-w-0 @[52rem]/order-detail:sticky @[52rem]/order-detail:top-6 @[52rem]/order-detail:self-start">
           {order.type === "order" && (
             <ProductionSpecCard
               order={order}
@@ -511,9 +504,9 @@ export default function OrderPage() {
       </div>
 
       {/* ── Timeline ─────────────────────────────────────────────────── */}
-      <div className="mt-8 overflow-hidden rounded-xl border border-border bg-card">
+      <div className="mt-6 overflow-hidden rounded-xl border border-border bg-card sm:mt-8">
         {/* Timeline header */}
-        <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3.5 sm:px-5">
           <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
             Activity
           </span>
@@ -524,15 +517,15 @@ export default function OrderPage() {
         </div>
 
         {/* Events */}
-        <div className="px-5 pt-5">
+        <div className="px-4 pt-5 sm:px-5">
           <ActivityTimeline entries={order.activityFeed} />
         </div>
 
         {/* Divider between timeline and compose */}
-        <div className="mx-5 border-t border-dashed border-border" />
+        <div className="mx-4 border-t border-dashed border-border sm:mx-5" />
 
         {/* Compose box — inline continuation of the thread */}
-        <div className="px-5 pb-5 pt-4">
+        <div className="px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
             Post an update
           </p>
@@ -546,7 +539,7 @@ export default function OrderPage() {
         <div id="timeline-end" />
       </div>
 
-      <div className="h-16" />
+      <RecordActionBarSpacer />
 
       {/* ── Print-only document — hidden in UI, shown when printing ── */}
       <OrderPrintView order={order} />

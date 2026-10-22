@@ -135,7 +135,13 @@ function SalespersonCell({ row }: { row: StockSalesAnalyticsBreakdownRow }) {
   );
 }
 
-function TargetCell({ row }: { row: StockSalesAnalyticsBreakdownRow }) {
+function TargetCell({
+  row,
+  className = "w-44",
+}: {
+  row: StockSalesAnalyticsBreakdownRow;
+  className?: string;
+}) {
   const progress = getTargetProgress(row.revenue, row.target);
 
   if (!progress || !row.target) {
@@ -143,7 +149,7 @@ function TargetCell({ row }: { row: StockSalesAnalyticsBreakdownRow }) {
   }
 
   return (
-    <div className="w-44">
+    <div className={className}>
       <div className="flex items-baseline justify-between gap-2 text-xs">
         <span
           className={cn(
@@ -172,6 +178,66 @@ function TargetCell({ row }: { row: StockSalesAnalyticsBreakdownRow }) {
   );
 }
 
+function SalesBreakdownList({
+  rows,
+  isAllTime,
+  selectedSalesPersonId,
+  onSelect,
+}: {
+  rows: StockSalesAnalyticsBreakdownRow[];
+  isAllTime: boolean;
+  selectedSalesPersonId: string;
+  onSelect: (salesPersonId: string) => void;
+}) {
+  return (
+    <ul className="grid grid-cols-1 divide-y divide-border/70 sm:grid-cols-2 sm:divide-y-0">
+      {rows.map((row) => {
+        const salesPersonId = row.salesPerson?.id;
+        const isSelected =
+          Boolean(salesPersonId) && salesPersonId === selectedSalesPersonId;
+        const meta = [
+          `${row.transactions} sales`,
+          `${row.revenueShare}% share`,
+          !isAllTime && row.incentive
+            ? `${formatSalesCurrency(row.incentive.payableAmount)} incentive`
+            : null,
+        ].filter(Boolean);
+
+        return (
+          <li
+            key={salesPersonId ?? row.label ?? row.rank}
+            className="border-border/70 sm:border-b sm:odd:border-r"
+          >
+            <button
+              type="button"
+              disabled={!salesPersonId}
+              aria-pressed={isSelected}
+              onClick={() => salesPersonId && onSelect(salesPersonId)}
+              className={cn(
+                "w-full space-y-2 px-4 py-3 text-left transition-colors focus-visible:bg-muted/50 focus-visible:outline-none",
+                isSelected ? "bg-muted/60" : "hover:bg-muted/40",
+              )}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <SalespersonCell row={row} />
+                <span className="shrink-0 font-semibold tabular-nums text-foreground">
+                  {formatSalesCurrency(row.revenue)}
+                </span>
+              </div>
+              <div className="pl-8">
+                <TargetCell row={row} className="w-full" />
+                <p className="mt-1.5 truncate text-xs text-muted-foreground">
+                  {meta.join(" · ")}
+                </p>
+              </div>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function SalesBreakdownTable({
   rows,
   isAllTime,
@@ -184,7 +250,7 @@ function SalesBreakdownTable({
   onSelect: (salesPersonId: string) => void;
 }) {
   return (
-    <Table className="min-w-[46rem]">
+    <Table className="min-w-[42rem]">
       <TableHeader>
         <TableRow className="hover:bg-transparent">
           <TableHead className="pl-4">Salesperson</TableHead>
@@ -316,13 +382,13 @@ export function SalesAnalyticsSection() {
   );
 
   return (
-    <section className="space-y-5 pb-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section className="space-y-4 pb-6 sm:space-y-5">
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-foreground">
+          <h2 className="truncate text-base font-semibold text-foreground">
             {periodLabel}
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="hidden text-sm text-muted-foreground sm:block">
             Store sales, targets and incentives by salesperson
           </p>
         </div>
@@ -372,16 +438,28 @@ export function SalesAnalyticsSection() {
         )}
 
         {rows.length > 0 && (
-          <SalesBreakdownTable
-            rows={rows}
-            isAllTime={isAllTime}
-            selectedSalesPersonId={selectedSalesPersonId}
-            onSelect={setSelectedSalesPersonId}
-          />
+          <>
+            <div className="lg:hidden">
+              <SalesBreakdownList
+                rows={rows}
+                isAllTime={isAllTime}
+                selectedSalesPersonId={selectedSalesPersonId}
+                onSelect={setSelectedSalesPersonId}
+              />
+            </div>
+            <div className="max-lg:hidden">
+              <SalesBreakdownTable
+                rows={rows}
+                isAllTime={isAllTime}
+                selectedSalesPersonId={selectedSalesPersonId}
+                onSelect={setSelectedSalesPersonId}
+              />
+            </div>
+          </>
         )}
       </Panel>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
+      <div className="grid gap-5 md:grid-cols-2 md:items-start xl:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
         <SalesLeaderboardCard
           highlightCurrentUser={false}
           onSelect={handleLeaderboardSelect}

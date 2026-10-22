@@ -46,6 +46,7 @@ export function BulkOrderItemCard({
       images={item.imageUrls}
       imageAlt={`${item.vendorDesignNumber} ${item.category}`}
       category={item.category}
+      compact
       dimmed={status === "Cancelled"}
       title={<span className="font-mono">{item.vendorDesignNumber}</span>}
       meta={
@@ -79,7 +80,18 @@ export function BulkOrderItemCard({
               <span className="truncate">{metal}</span>
             </CardChip>
           )}
+          <span className="text-[11px] font-semibold tabular-nums xl:hidden">
+            <DueValue
+              date={item.estimatedDeliveryDate}
+              urgency={getBulkItemUrgency(item)}
+            />
+          </span>
         </>
+      }
+      summary={
+        <span className={cn(status === "Cancelled" && "line-through")}>
+          {item.quantity} pcs · {formatCurrency(item.amounts.quoted)}
+        </span>
       }
       stats={[
         {

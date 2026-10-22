@@ -5,6 +5,8 @@ import { ArrowUpRight, LoaderCircle, RotateCcw } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { fetchAssistantCapabilities } from "@/lib/assistantApi";
+import { getSessionRole } from "@/lib/auth";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import type { AssistantMessage, AssistantPageContext } from "@/types/assistant";
 import { AssistantComposer, type ComposerHandle } from "./AssistantComposer";
@@ -13,7 +15,12 @@ import { EvolE } from "./EvolE";
 import { type AssistantChat, assistantKeys } from "./useAssistantChat";
 
 // Ordered by usefulness; only those the user's role can run are shown.
-const SUGGESTIONS = [
+const SUGGESTIONS: { prompt: string; tool: string; roles?: string[] }[] = [
+  {
+    prompt: "How's my performance this month?",
+    tool: "get_sales_performance",
+    roles: ["SALES"],
+  },
   { prompt: "I want to create a new enquiry", tool: "create_enquiry" },
   {
     prompt: "Which orders are overdue, and which are due this week?",
@@ -27,10 +34,7 @@ const SUGGESTIONS = [
   {
     prompt: "How are sales this month? Who is leading?",
     tool: "get_sales_analytics",
-  },
-  {
-    prompt: "How am I doing against my target this month?",
-    tool: "get_sales_performance",
+    roles: ["ADMIN"],
   },
   { prompt: "I need to log a repair for a customer", tool: "create_repair" },
   { prompt: "Invite a new team member", tool: "invite_team_member" },
@@ -45,13 +49,14 @@ function EmptyState({
   onPick: (prompt: string) => void;
   tools: Set<string>;
 }) {
-  const role = tools.has("get_sales_analytics");
+  const { data: session } = authClient.useSession();
+  const role = getSessionRole(session);
   const picks = SUGGESTIONS.filter(
     (item) =>
-      tools.has(item.tool) && !(item.tool === "get_sales_performance" && role),
+      tools.has(item.tool) && (!item.roles || item.roles.includes(role)),
   ).slice(0, compact ? 4 : 5);
   return (
-    <div className="flex min-h-full flex-col justify-center px-5 py-10">
+    <div className="flex min-h-full flex-col justify-center px-4 py-8 sm:px-5 sm:py-10">
       <div className="mx-auto w-full max-w-xl">
         <div className="flex flex-col items-center text-center">
           <EvolE size={compact ? 56 : 72} className="text-foreground" />
@@ -75,7 +80,7 @@ function EmptyState({
                 <button
                   type="button"
                   onClick={() => onPick(item.prompt)}
-                  className="group flex w-full items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="group flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   {item.prompt}
                   <ArrowUpRight className="size-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
@@ -182,7 +187,7 @@ export function AssistantPanel({
         ) : (
           <div
             className={cn(
-              "mx-auto w-full space-y-6 py-6",
+              "mx-auto w-full space-y-5 py-4 sm:space-y-6 sm:py-6",
               compact ? "px-4" : "max-w-2xl px-4",
             )}
           >
@@ -209,7 +214,9 @@ export function AssistantPanel({
       <div
         className={cn(
           "shrink-0 space-y-2 pt-2",
-          compact ? "px-3 pb-3" : "mx-auto w-full max-w-2xl px-4 pb-4",
+          compact
+            ? "px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+            : "mx-auto w-full max-w-2xl px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4 sm:pb-[max(1rem,env(safe-area-inset-bottom))]",
         )}
       >
         {chat.error && (

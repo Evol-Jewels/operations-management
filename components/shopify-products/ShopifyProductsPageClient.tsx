@@ -2,7 +2,6 @@
 
 import {
   ArrowUpRight,
-  ImageIcon,
   LayoutGrid,
   LoaderCircle,
   PackageSearch,
@@ -13,6 +12,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
+import {
+  editHref,
+  ProductGridCard,
+  ProductListRow,
+  ProductThumb,
+  productPrice,
+  productSubtitle,
+  statusBadge,
+} from "@/components/shopify-products/ProductListItems";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,24 +35,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useInfiniteShopifyProducts } from "@/hooks/useShopifyProducts";
-import type {
-  ShopifyProductStatus,
-  ShopifyProductStatusFilter,
-} from "@/types/shopify-products";
-
-function formatPrice(amount: string, currencyCode: string) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: currencyCode,
-    maximumFractionDigits: 0,
-  }).format(Number(amount));
-}
-
-function statusBadge(status: ShopifyProductStatus) {
-  if (status === "ACTIVE") return "default" as const;
-  if (status === "DRAFT") return "secondary" as const;
-  return "outline" as const;
-}
+import type { ShopifyProductStatusFilter } from "@/types/shopify-products";
 
 type ProductView = "table" | "grid";
 
@@ -121,36 +112,45 @@ export function ShopifyProductsPageClient() {
   }, [query.fetchNextPage, query.hasNextPage, query.isFetchingNextPage]);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 pb-12">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 pb-12 sm:gap-6">
+      <header className="flex items-center justify-between gap-3 sm:items-start">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Manage Shopify Store
+          <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            <span className="sm:hidden">Shopify Store</span>
+            <span className="hidden sm:inline">Manage Shopify Store</span>
           </h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          <p className="mt-1 hidden max-w-2xl text-sm text-muted-foreground sm:block">
             Browse the catalogue, prepare drafts, and manage products in Shopify
             Admin.
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <Button asChild size="sm" variant="outline">
+        <div className="flex shrink-0 gap-2">
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="max-sm:size-9 max-sm:px-0"
+          >
             <a
               href="https://evoljewels.myshopify.com/admin/products"
               target="_blank"
               rel="noreferrer"
+              aria-label="Open Shopify Admin"
             >
-              Shopify Admin <ArrowUpRight />
+              <span className="hidden sm:inline">Shopify Admin</span>
+              <ArrowUpRight />
             </a>
           </Button>
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="max-sm:h-9">
             <Link href="/shopify-products/new">
-              <Plus /> Upload new product
+              <Plus /> <span className="sm:hidden">New product</span>
+              <span className="hidden sm:inline">Upload new product</span>
             </Link>
           </Button>
         </div>
       </header>
 
-      <section className="space-y-5">
+      <section className="space-y-3 sm:space-y-5">
         <Tabs
           value={status}
           onValueChange={(value) =>
@@ -174,10 +174,12 @@ export function ShopifyProductsPageClient() {
           <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search title, SKU, tag..."
-              className="pl-9"
+              aria-label="Search products"
+              className="h-10 pl-9 sm:h-9"
             />
           </div>
           <fieldset className="flex shrink-0 items-center rounded-md border bg-background p-0.5">
@@ -190,7 +192,7 @@ export function ShopifyProductsPageClient() {
               aria-label="Show products as a table"
               aria-pressed={view === "table"}
               title="Table view"
-              className="shadow-none"
+              className="shadow-none max-sm:size-9"
             >
               <TableProperties />
             </Button>
@@ -202,7 +204,7 @@ export function ShopifyProductsPageClient() {
               aria-label="Show products as a grid"
               aria-pressed={view === "grid"}
               title="Grid view"
-              className="shadow-none"
+              className="shadow-none max-sm:size-9"
             >
               <LayoutGrid />
             </Button>
@@ -221,120 +223,54 @@ export function ShopifyProductsPageClient() {
             </Button>
           </div>
         ) : view === "grid" ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-4">
             {query.isPending ? <ProductGridSkeleton /> : null}
-            {products.map((product) => {
-              const image = product.featuredMedia?.preview?.image;
-              return (
-                <article
-                  key={product.id}
-                  className="group flex min-w-0 flex-col rounded-lg border bg-background p-3 transition-colors hover:border-foreground/20"
-                >
-                  <div
-                    role="img"
-                    className="grid aspect-square w-full place-items-center rounded-md bg-muted bg-cover bg-center"
-                    style={
-                      image?.url
-                        ? { backgroundImage: `url(${image.url})` }
-                        : undefined
-                    }
-                    aria-label={image?.altText || product.title}
-                  >
-                    {!image?.url ? (
-                      <ImageIcon className="size-7 text-muted-foreground/60" />
-                    ) : null}
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col pt-3">
-                    <p className="truncate font-medium">{product.title}</p>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">
-                      {[product.vendor, product.productType]
-                        .filter(Boolean)
-                        .join(" / ") || "Uncategorized"}
-                    </p>
-                    <div className="mt-3 flex items-center justify-between gap-2">
-                      <Badge variant={statusBadge(product.status)}>
-                        {product.status}
-                      </Badge>
-                      <p className="text-sm font-medium">
-                        {formatPrice(
-                          product.priceRangeV2.minVariantPrice.amount,
-                          product.priceRangeV2.minVariantPrice.currencyCode,
-                        )}
-                      </p>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between border-t pt-2">
-                      <span className="text-xs text-muted-foreground">
-                        {product.variantsCount.count}{" "}
-                        {product.variantsCount.count === 1
-                          ? "variant"
-                          : "variants"}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <Button asChild size="sm" variant="ghost">
-                          <Link
-                            href={`/shopify-products/${product.legacyResourceId}/edit`}
-                          >
-                            <Pencil /> Edit
-                          </Link>
-                        </Button>
-                        <Button asChild size="icon-sm" variant="ghost">
-                          <a
-                            href={product.adminUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={`Open ${product.title} in Shopify`}
-                          >
-                            <ArrowUpRight />
-                          </a>
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+            {products.map((product) => (
+              <ProductGridCard key={product.id} product={product} />
+            ))}
           </div>
         ) : (
-          <Table className="border-y">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-20">Media</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Variants</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {query.isPending ? <ProductTableSkeleton /> : null}
-              {products.map((product) => {
-                const image = product.featuredMedia?.preview?.image;
-                return (
+          <>
+            <ul className="divide-y border-y md:hidden">
+              {query.isPending ? (
+                <li className="space-y-3 py-3">
+                  <Skeleton className="h-14 w-full rounded-lg" />
+                  <Skeleton className="h-14 w-full rounded-lg" />
+                  <Skeleton className="h-14 w-full rounded-lg" />
+                </li>
+              ) : null}
+              {products.map((product) => (
+                <ProductListRow key={product.id} product={product} />
+              ))}
+            </ul>
+            <Table className="hidden border-y md:table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-20">Media</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    Variants
+                  </TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {query.isPending ? <ProductTableSkeleton /> : null}
+                {products.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell>
-                      <div
-                        role="img"
-                        className="grid size-12 place-items-center rounded-lg border bg-muted bg-cover bg-center"
-                        style={
-                          image?.url
-                            ? { backgroundImage: `url(${image.url})` }
-                            : undefined
-                        }
-                        aria-label={image?.altText || product.title}
-                      >
-                        {!image?.url ? (
-                          <ImageIcon className="size-5 text-muted-foreground" />
-                        ) : null}
-                      </div>
+                      <ProductThumb
+                        product={product}
+                        className="size-12 rounded-lg border"
+                      />
                     </TableCell>
                     <TableCell>
-                      <div className="max-w-md space-y-1">
+                      <div className="max-w-64 space-y-1 lg:max-w-md">
                         <p className="truncate font-medium">{product.title}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {[product.vendor, product.productType]
-                            .filter(Boolean)
-                            .join(" / ") || "Uncategorized"}
+                          {productSubtitle(product)}
                         </p>
                       </div>
                     </TableCell>
@@ -343,19 +279,14 @@ export function ShopifyProductsPageClient() {
                         {product.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{product.variantsCount.count}</TableCell>
-                    <TableCell>
-                      {formatPrice(
-                        product.priceRangeV2.minVariantPrice.amount,
-                        product.priceRangeV2.minVariantPrice.currencyCode,
-                      )}
+                    <TableCell className="hidden lg:table-cell">
+                      {product.variantsCount.count}
                     </TableCell>
+                    <TableCell>{productPrice(product)}</TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
                         <Button asChild size="sm" variant="ghost">
-                          <Link
-                            href={`/shopify-products/${product.legacyResourceId}/edit`}
-                          >
+                          <Link href={editHref(product)}>
                             <Pencil /> Edit
                           </Link>
                         </Button>
@@ -372,10 +303,10 @@ export function ShopifyProductsPageClient() {
                       </div>
                     </TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                ))}
+              </TableBody>
+            </Table>
+          </>
         )}
 
         {!query.isPending && !query.isError && products.length === 0 ? (

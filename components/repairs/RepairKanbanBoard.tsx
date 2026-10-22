@@ -21,9 +21,15 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Package } from "lucide-react";
+import { ArrowRightLeft, Package } from "lucide-react";
 import { useState } from "react";
 import {
+  KanbanStageStrip,
+  useStageScroller,
+} from "@/components/dashboard/KanbanStageStrip";
+import { MoveStageSheet } from "@/components/dashboard/MoveStageSheet";
+import {
+  formatRepairRefCode,
   isRepairTerminal,
   REPAIR_STAGES,
   type Repair,
@@ -47,9 +53,11 @@ const stageCollisionDetection: CollisionDetection = (args) => {
 function DraggableRepairCard({
   repair,
   disabled,
+  onMoveRequest,
 }: {
   repair: Repair;
   disabled: boolean;
+  onMoveRequest: (repair: Repair) => void;
 }) {
   const dragDisabled = disabled || isRepairTerminal(repair.stage);
   const {
@@ -65,15 +73,29 @@ function DraggableRepairCard({
     data: { type: "Card" },
   });
   return (
-    <RepairWorkspaceCard
-      repair={repair}
+    <div
       ref={setNodeRef}
-      {...(dragDisabled ? {} : attributes)}
-      {...listeners}
-      draggableCard={!dragDisabled}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn(isDragging && "pointer-events-none opacity-30")}
-    />
+      className={cn("relative", isDragging && "pointer-events-none opacity-30")}
+    >
+      <RepairWorkspaceCard
+        repair={repair}
+        {...(dragDisabled ? {} : attributes)}
+        {...listeners}
+        draggableCard={!dragDisabled}
+        className={cn(!dragDisabled && "max-xl:pr-12")}
+      />
+      {!dragDisabled && (
+        <button
+          type="button"
+          onClick={() => onMoveRequest(repair)}
+          aria-label={`Move ${repair.customerName || "stock repair"} to another stage`}
+          className="absolute right-1 top-1/2 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xl:hidden xl:pointer-coarse:flex"
+        >
+          <ArrowRightLeft className="size-4" aria-hidden="true" />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -81,10 +103,12 @@ function RepairColumn({
   stage,
   repairs,
   disabled,
+  onMoveRequest,
 }: {
   stage: RepairStage;
   repairs: Repair[];
   disabled: boolean;
+  onMoveRequest: (repair: Repair) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage,
@@ -94,8 +118,9 @@ function RepairColumn({
   return (
     <section
       ref={setNodeRef}
+      data-stage={stage}
       className={cn(
-        "flex min-h-80 w-[240px] shrink-0 flex-col snap-center rounded-xl border transition-colors duration-200",
+        "flex min-h-80 w-[calc(100vw-4rem)] max-w-80 shrink-0 snap-start flex-col rounded-xl border transition-colors duration-200 md:w-[280px] xl:w-[240px]",
         isOver
           ? "border-foreground/40 bg-foreground/5 shadow-lg"
           : "border-border bg-card/50",
@@ -134,6 +159,7 @@ function RepairColumn({
                 key={repair.id}
                 repair={repair}
                 disabled={disabled}
+                onMoveRequest={onMoveRequest}
               />
             ))
           ) : (
@@ -164,6 +190,10 @@ export function RepairKanbanBoard({
   onMove: (repair: Repair, stage: RepairStage) => void;
 }) {
   const [activeRepair, setActiveRepair] = useState<Repair | null>(null);
+  const [movingRepair, setMovingRepair] = useState<Repair | null>(null);
+  const { boardRef, activeId, scrollToStage } = useStageScroller(
+    REPAIR_STAGES[0],
+  );
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, {
@@ -197,9 +227,21 @@ export function RepairKanbanBoard({
         if (repair && stage && stage !== repair.stage) onMove(repair, stage);
       }}
     >
+      <KanbanStageStrip
+        label="Jump to stage"
+        className="mb-2.5 xl:hidden"
+        stages={REPAIR_STAGES.map((stage) => ({
+          id: stage,
+          label: stage,
+          count: repairs.filter((repair) => repair.stage === stage).length,
+        }))}
+        activeId={activeId}
+        onSelect={scrollToStage}
+      />
       <div
+        ref={boardRef}
         className={cn(
-          "flex gap-3 overflow-x-auto overflow-y-hidden pb-4 pt-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent",
+          "relative flex gap-3 overflow-x-auto overflow-y-hidden pb-4 pt-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent",
           activeRepair
             ? "snap-none scroll-auto"
             : "snap-x snap-mandatory scroll-smooth",
@@ -211,12 +253,28 @@ export function RepairKanbanBoard({
             stage={stage}
             repairs={repairs.filter((repair) => repair.stage === stage)}
             disabled={disabled}
+            onMoveRequest={setMovingRepair}
           />
         ))}
       </div>
-      <p className="mt-1 text-center text-[11px] text-muted-foreground/50 sm:hidden">
-        Swipe to see all stages →
-      </p>
+      <MoveStageSheet
+        open={Boolean(movingRepair)}
+        onOpenChange={(open) => {
+          if (!open) setMovingRepair(null);
+        }}
+        title="Move to stage"
+        description={
+          movingRepair
+            ? `${movingRepair.customerName || "Stock repair"} · ${formatRepairRefCode(movingRepair.refCode)}`
+            : undefined
+        }
+        stages={REPAIR_STAGES}
+        currentStage={movingRepair?.stage}
+        onSelect={(stage) => {
+          const target = REPAIR_STAGES.find((value) => value === stage);
+          if (movingRepair && target) onMove(movingRepair, target);
+        }}
+      />
       <DragOverlay dropAnimation={null}>
         {activeRepair && (
           <div className="pointer-events-none cursor-grabbing">

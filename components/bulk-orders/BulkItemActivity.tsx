@@ -35,8 +35,8 @@ export function BulkItemActivity({ item }: { item: BulkOrderItem }) {
   }
 
   return (
-    <section className="mt-8 overflow-hidden rounded-xl border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+    <section className="mt-6 overflow-hidden rounded-xl border border-border bg-card sm:mt-8">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3.5 sm:px-5">
         <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
           Activity
         </span>
@@ -44,11 +44,11 @@ export function BulkItemActivity({ item }: { item: BulkOrderItem }) {
           {count} {count === 1 ? "event" : "events"}
         </span>
       </div>
-      <div className="px-5 pt-5">
+      <div className="px-4 pt-5 sm:px-5">
         <ActivityTimeline entries={entries} />
       </div>
-      <div className="mx-5 border-t border-dashed border-border" />
-      <div className="px-5 pb-5 pt-4">
+      <div className="mx-4 border-t border-dashed border-border sm:mx-5" />
+      <div className="px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
         <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
           Post an update
         </p>

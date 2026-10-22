@@ -82,7 +82,7 @@ function StatTile({
   isLoading: boolean;
 }) {
   return (
-    <div className="min-w-0 rounded-md border border-border/70 bg-background/60 p-3">
+    <div className="min-w-0 rounded-md border border-border/70 bg-background/60 p-2.5 @sm:p-3">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
         {icon}
@@ -90,7 +90,7 @@ function StatTile({
       {isLoading ? (
         <Skeleton className="mt-2 h-6 w-24" />
       ) : (
-        <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight break-words text-foreground">
+        <p className="mt-1 text-base font-semibold tabular-nums tracking-tight break-words text-foreground @sm:text-lg">
           {value}
         </p>
       )}
@@ -106,11 +106,13 @@ export function SalesPerformanceCard({
   isLoading,
   title,
   showPerson = false,
+  className,
 }: {
   analytics?: StockSalesMeResponse;
   isLoading: boolean;
   title: string;
   showPerson?: boolean;
+  className?: string;
 }) {
   const person = analytics?.salesPerson;
   const revenue = analytics?.revenue ?? 0;
@@ -122,7 +124,12 @@ export function SalesPerformanceCard({
     : "Selected period";
 
   return (
-    <section className="@container flex min-w-0 flex-col rounded-lg border border-border/70 bg-card">
+    <section
+      className={cn(
+        "@container flex min-w-0 flex-col rounded-lg border border-border/70 bg-card",
+        className,
+      )}
+    >
       <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           {showPerson && (
@@ -157,8 +164,8 @@ export function SalesPerformanceCard({
         />
       </div>
 
-      <div className="grid flex-1 gap-4 p-4 @xl:grid-cols-[minmax(0,1fr)_14rem] @xl:items-center">
-        <div className="min-w-0 space-y-3">
+      <div className="grid flex-1 gap-4 p-3 @sm:p-4 @xl:grid-cols-[minmax(0,1fr)_14rem] @xl:items-center">
+        <div className="min-w-0 space-y-2.5 @sm:space-y-3">
           <div className="rounded-md border border-border/70 bg-background/60 p-3">
             <div className="flex items-end justify-between gap-3">
               <div className="min-w-0">
@@ -184,7 +191,7 @@ export function SalesPerformanceCard({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5 @sm:gap-3">
             <StatTile
               label="Sales value"
               value={formatSalesCurrency(revenue)}
@@ -234,7 +241,7 @@ export function SalesPerformanceCard({
   );
 }
 
-export function MySalesPerformanceCard() {
+export function MySalesPerformanceCard({ className }: { className?: string }) {
   const salesQuery = useMyStockSales({
     period: "month",
     saleMonth: getCurrentSaleMonth(),
@@ -245,6 +252,7 @@ export function MySalesPerformanceCard() {
       analytics={salesQuery.data}
       isLoading={salesQuery.isLoading}
       title="Your performance"
+      className={className}
     />
   );
 }

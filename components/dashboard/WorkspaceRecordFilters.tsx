@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, List, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useId } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { WorkspaceDateRangeFilter } from "./WorkspaceDateRangeFilter";
+import { FilterField, WorkspaceFiltersSheet } from "./WorkspaceFiltersSheet";
+import { WorkspaceViewToggle } from "./WorkspaceViewToggle";
 
 export type DateFilter = "all" | "7d" | "30d" | "90d" | "custom";
 export type SortBy = "createdAt" | "updatedAt" | "name" | "deliveryDate";
@@ -94,11 +95,72 @@ export function WorkspaceRecordFilters({
         }
       : null,
   ].filter((chip): chip is NonNullable<typeof chip> => chip !== null);
+  const sheetFilterCount =
+    (isOrder && orderType !== "all" ? 1 : 0) + (dateFilter !== "all" ? 1 : 0);
+
+  const orderTypeSelect = (triggerId: string, className: string) => (
+    <Select value={orderType} onValueChange={onOrderTypeChange}>
+      <SelectTrigger
+        id={triggerId}
+        aria-label="Order type"
+        className={className}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All types</SelectItem>
+        <SelectItem value="STOCK">Stock</SelectItem>
+        <SelectItem value="CUSTOMER">Customer</SelectItem>
+        <SelectItem value="STOCK_REFILL">Stock refill</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+  const dateRangeFilter = (className?: string) => (
+    <WorkspaceDateRangeFilter
+      value={dateFilter}
+      from={dateFrom}
+      to={dateTo}
+      onValueChange={onDateFilterChange}
+      onRangeChange={onCustomRangeChange}
+      className={className}
+    />
+  );
+  const sortSelect = (triggerId: string, className: string) => (
+    <Select
+      value={`${sortBy}:${sortOrder}`}
+      onValueChange={(value) => {
+        const [field, direction] = value.split(":") as [SortBy, "asc" | "desc"];
+        onSortChange(field, direction);
+      }}
+    >
+      <SelectTrigger
+        id={triggerId}
+        aria-label="Sort records"
+        className={className}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="updatedAt:desc">Recently updated</SelectItem>
+        <SelectItem value="updatedAt:asc">Least recently updated</SelectItem>
+        <SelectItem value="createdAt:desc">Newest created</SelectItem>
+        <SelectItem value="createdAt:asc">Oldest created</SelectItem>
+        <SelectItem value="name:asc">Customer Name A-Z</SelectItem>
+        <SelectItem value="name:desc">Customer Name Z-A</SelectItem>
+        {isOrder && (
+          <>
+            <SelectItem value="deliveryDate:asc">Delivery soonest</SelectItem>
+            <SelectItem value="deliveryDate:desc">Delivery latest</SelectItem>
+          </>
+        )}
+      </SelectContent>
+    </Select>
+  );
 
   return (
     <div className="min-w-0 flex-1 space-y-2.5">
-      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-        <div className="relative w-full min-w-0 sm:w-72 sm:shrink-0">
+      <div className="flex items-center gap-2 lg:flex-wrap lg:justify-end">
+        <div className="relative min-w-0 flex-1 lg:w-72 lg:flex-none lg:shrink-0">
           <Search
             aria-hidden="true"
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -110,124 +172,62 @@ export function WorkspaceRecordFilters({
             placeholder={isOrder ? "Search orders…" : "Search enquiries…"}
             aria-label={`Search ${isOrder ? "orders" : "enquiries"}`}
             maxLength={255}
-            className="h-9 pl-9"
+            className="h-10 pl-9 lg:h-9"
           />
         </div>
-        {viewMode === "table" && (
-          <Select value={status} onValueChange={onStatusChange}>
-            <SelectTrigger
-              id={`${id}-status`}
-              aria-label="Status"
-              className="h-9 w-[9.5rem]"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {(isOrder ? ORDER_STATUSES : ENQUIRY_STATUSES).map((value) => (
-                <SelectItem key={value} value={value}>
-                  {value}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        {isOrder && (
-          <Select value={orderType} onValueChange={onOrderTypeChange}>
-            <SelectTrigger
-              id={`${id}-type`}
-              aria-label="Order type"
-              className="h-9 w-[8.5rem]"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="STOCK">Stock</SelectItem>
-              <SelectItem value="CUSTOMER">Customer</SelectItem>
-              <SelectItem value="STOCK_REFILL">Stock refill</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-        <WorkspaceDateRangeFilter
-          value={dateFilter}
-          from={dateFrom}
-          to={dateTo}
-          onValueChange={onDateFilterChange}
-          onRangeChange={onCustomRangeChange}
-        />
-        <Select
-          value={`${sortBy}:${sortOrder}`}
-          onValueChange={(value) => {
-            const [field, direction] = value.split(":") as [
-              SortBy,
-              "asc" | "desc",
-            ];
-            onSortChange(field, direction);
+        <WorkspaceFiltersSheet
+          activeCount={sheetFilterCount}
+          className="lg:hidden"
+          onReset={() => {
+            if (orderType !== "all") onOrderTypeChange("all");
+            if (dateFilter !== "all") onDateFilterChange("all");
           }}
         >
-          <SelectTrigger
-            aria-label="Sort records"
-            className="h-9 w-[12rem] sm:w-[13rem]"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="updatedAt:desc">Recently updated</SelectItem>
-            <SelectItem value="updatedAt:asc">
-              Least recently updated
-            </SelectItem>
-            <SelectItem value="createdAt:desc">Newest created</SelectItem>
-            <SelectItem value="createdAt:asc">Oldest created</SelectItem>
-            <SelectItem value="name:asc">Customer Name A-Z</SelectItem>
-            <SelectItem value="name:desc">Customer Name Z-A</SelectItem>
-            {isOrder && (
-              <>
-                <SelectItem value="deliveryDate:asc">
-                  Delivery soonest
-                </SelectItem>
-                <SelectItem value="deliveryDate:desc">
-                  Delivery latest
-                </SelectItem>
-              </>
-            )}
-          </SelectContent>
-        </Select>
-        <fieldset className="ml-auto flex items-center gap-1 rounded-lg border border-border bg-background p-0.5 lg:hidden">
-          <legend className="sr-only">View mode</legend>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="Table view"
-            aria-pressed={viewMode === "table"}
-            onClick={() => onViewModeChange("table")}
-            className={cn(
-              "size-8",
-              viewMode === "table" && "bg-muted text-foreground",
-            )}
-          >
-            <List className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="Kanban view"
-            aria-pressed={viewMode === "kanban"}
-            onClick={() => onViewModeChange("kanban")}
-            className={cn(
-              "size-8",
-              viewMode === "kanban" && "bg-muted text-foreground",
-            )}
-          >
-            <LayoutGrid className="size-4" />
-          </Button>
-        </fieldset>
+          {isOrder && (
+            <FilterField label="Order type" htmlFor={`${id}-sheet-type`}>
+              {orderTypeSelect(`${id}-sheet-type`, "h-11 w-full")}
+            </FilterField>
+          )}
+          <FilterField label="Created">
+            {dateRangeFilter("h-11 w-full")}
+          </FilterField>
+          <FilterField label="Sort by" htmlFor={`${id}-sheet-sort`}>
+            {sortSelect(`${id}-sheet-sort`, "h-11 w-full")}
+          </FilterField>
+        </WorkspaceFiltersSheet>
+        <div className="hidden lg:contents">
+          {viewMode === "table" && (
+            <Select value={status} onValueChange={onStatusChange}>
+              <SelectTrigger
+                id={`${id}-status`}
+                aria-label="Status"
+                className="h-9 w-[9.5rem]"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {(isOrder ? ORDER_STATUSES : ENQUIRY_STATUSES).map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {isOrder && orderTypeSelect(`${id}-type`, "h-9 w-[8.5rem]")}
+          {dateRangeFilter()}
+          {sortSelect(`${id}-sort`, "h-9 w-[13rem]")}
+        </div>
+        <WorkspaceViewToggle
+          value={viewMode}
+          onChange={onViewModeChange}
+          className="lg:hidden"
+        />
       </div>
       {chips.length > 0 && (
         <ul
-          className="flex flex-wrap items-center gap-2 lg:justify-end"
+          className="hidden flex-wrap items-center gap-2 lg:flex lg:justify-end"
           aria-label="Selected record filters"
         >
           {chips.map((chip) => (

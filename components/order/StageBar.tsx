@@ -1,6 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface StageBarProps {
@@ -9,48 +10,66 @@ interface StageBarProps {
   stages?: readonly string[];
 }
 
+const ORDER_STAGES = [
+  "New",
+  "CAD Design",
+  "In Production",
+  "Certification",
+  "At Store",
+  "In Photoshoot",
+  "Editing",
+  "Post Editing",
+  "Website Upload",
+  "In Transit",
+  "Delivered",
+  "Closed",
+];
+
+const ENQUIRY_STAGES = [
+  "Enquiry",
+  "Estimation",
+  "CAD Design",
+  "Order Confirmed",
+];
+
 export function StageBar({
   currentStage,
   cadDesignRequired = true,
   stages,
 }: StageBarProps) {
-  const orderStages: string[] = [
-    "New",
-    "CAD Design",
-    "In Production",
-    "Certification",
-    "At Store",
-    "In Photoshoot",
-    "Editing",
-    "Post Editing",
-    "Website Upload",
-    "In Transit",
-    "Delivered",
-    "Closed",
-  ];
-  const enquiryStages: string[] = [
-    "Enquiry",
-    "Estimation",
-    "CAD Design",
-    "Order Confirmed",
-  ];
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const currentRef = useRef<HTMLDivElement>(null);
   const baseStages =
     stages ??
-    (orderStages.includes(currentStage) ? orderStages : enquiryStages);
+    (ORDER_STAGES.includes(currentStage) ? ORDER_STAGES : ENQUIRY_STAGES);
   const visibleStages = cadDesignRequired
     ? baseStages
     : baseStages.filter((s) => s !== "CAD Design");
 
   const currentIndex = visibleStages.indexOf(currentStage);
 
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    const current = currentRef.current;
+    if (!scroller || !current || currentIndex < 0) return;
+    scroller.scrollLeft =
+      current.offsetLeft - (scroller.clientWidth - current.offsetWidth) / 2;
+  }, [currentIndex]);
+
   return (
     <div className="w-full">
-      {/* Desktop: horizontal timeline */}
-      <div className="hidden overflow-x-auto pb-2 sm:block">
+      {currentIndex >= 0 ? (
+        <p className="mb-2 text-xs text-muted-foreground sm:hidden">
+          Step {currentIndex + 1} of {visibleStages.length}
+          <span className="mx-1.5 text-muted-foreground/50">·</span>
+          <span className="font-medium text-foreground">{currentStage}</span>
+        </p>
+      ) : null}
+      <div
+        ref={scrollerRef}
+        className="-mx-1 overflow-x-auto overscroll-x-contain px-1 pb-2 [scrollbar-width:none] sm:[scrollbar-width:auto]"
+      >
         <div className="relative flex min-w-max items-start">
-          {/* Connecting line behind nodes */}
-          <div className="absolute left-0 right-0 top-[14px] h-px bg-border" />
-
           {visibleStages.map((stage, i) => {
             const isPast = i < currentIndex;
             const isCurrent = i === currentIndex;
@@ -60,13 +79,14 @@ export function StageBar({
             return (
               <div
                 key={stage}
-                className="relative flex min-w-20 flex-1 flex-col items-center gap-2"
+                ref={isCurrent ? currentRef : undefined}
+                aria-current={isCurrent ? "step" : undefined}
+                className="relative flex w-[4.25rem] flex-col items-center gap-1.5 sm:w-auto sm:min-w-20 sm:flex-1 sm:gap-2"
               >
-                {/* Progress line — filled for past stages */}
                 {i > 0 && (
                   <div
                     className={cn(
-                      "absolute left-0 right-1/2 top-[14px] h-px transition-colors duration-500",
+                      "absolute left-0 right-1/2 top-3 h-px transition-colors duration-500 sm:top-[14px]",
                       isPast || isCurrent || isComplete
                         ? "bg-foreground"
                         : "bg-border",
@@ -76,94 +96,42 @@ export function StageBar({
                 {i < visibleStages.length - 1 && (
                   <div
                     className={cn(
-                      "absolute left-1/2 right-0 top-[14px] h-px transition-colors duration-500",
+                      "absolute left-1/2 right-0 top-3 h-px transition-colors duration-500 sm:top-[14px]",
                       isComplete ? "bg-foreground" : "bg-border",
                     )}
                   />
                 )}
 
-                {/* Node */}
                 <div
                   className={cn(
-                    "relative z-10 flex h-7 w-7 items-center justify-center rounded-full border-2 transition-all duration-300",
+                    "relative z-10 flex size-6 items-center justify-center rounded-full border-2 transition-all duration-300 sm:size-7",
                     isComplete &&
                       "border-foreground bg-foreground text-background",
                     isCurrent &&
                       !isComplete &&
-                      "border-foreground bg-background shadow-[0_0_0_3px_oklch(0.92_0.004_286.32)]",
+                      "border-foreground bg-background shadow-[0_0_0_3px_var(--color-muted)]",
                     isFuture && "border-border bg-background",
                   )}
                 >
                   {isComplete ? (
-                    <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    <Check className="size-3 sm:size-3.5" strokeWidth={2.5} />
                   ) : isCurrent ? (
-                    <div className="h-2.5 w-2.5 rounded-full bg-foreground" />
+                    <div className="size-2 rounded-full bg-foreground sm:size-2.5" />
                   ) : (
-                    <div className="h-2 w-2 rounded-full bg-border" />
+                    <div className="size-1.5 rounded-full bg-border sm:size-2" />
                   )}
                 </div>
 
-                {/* Label */}
                 <span
                   className={cn(
-                    "text-center text-[10px] leading-tight",
+                    "px-0.5 text-center text-[10px] leading-tight",
                     isCurrent && "font-semibold text-foreground",
                     isComplete && !isCurrent && "text-muted-foreground",
-                    isFuture && "text-muted-foreground/50",
+                    isFuture && "text-muted-foreground/60",
                   )}
                 >
                   {stage}
                 </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Mobile: compact vertical list */}
-      <div className="sm:hidden">
-        <div className="space-y-1">
-          {visibleStages.map((stage, i) => {
-            const isPast = i < currentIndex;
-            const isCurrent = i === currentIndex;
-            const isComplete = isPast || (isCurrent && stage === "Closed");
-
-            return (
-              <div key={stage} className="flex items-center gap-3">
-                <div
-                  className={cn(
-                    "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border",
-                    isComplete &&
-                      "border-foreground bg-foreground text-background",
-                    isCurrent &&
-                      !isComplete &&
-                      "border-foreground bg-background",
-                    !isComplete && !isCurrent && "border-border",
-                  )}
-                >
-                  {isComplete ? (
-                    <Check className="h-2.5 w-2.5" strokeWidth={3} />
-                  ) : isCurrent ? (
-                    <div className="h-1.5 w-1.5 rounded-full bg-foreground" />
-                  ) : null}
-                </div>
-                <span
-                  className={cn(
-                    "text-sm",
-                    isCurrent && "font-medium text-foreground",
-                    isComplete &&
-                      !isCurrent &&
-                      "text-muted-foreground line-through",
-                    !isComplete && !isCurrent && "text-muted-foreground/50",
-                  )}
-                >
-                  {stage}
-                </span>
-                {isCurrent && !isComplete && (
-                  <span className="ml-auto rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background">
-                    Current
-                  </span>
-                )}
               </div>
             );
           })}

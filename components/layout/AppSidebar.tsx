@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { GoldRatesDialog } from "@/components/layout/GoldRatesDialog";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -180,8 +181,13 @@ function GoldRateSidebarItem({ role }: { role: string }) {
 export function AppSidebar() {
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, setOpenMobile } = useSidebar();
   const { theme, setTheme } = useTheme();
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: close the mobile menu after navigating
+  useEffect(() => {
+    setOpenMobile(false);
+  }, [pathname, setOpenMobile]);
 
   const sessionRole = session ? getSessionRole(session) : "";
   const isPhotography = sessionRole === "PHOTOGRAPHY";

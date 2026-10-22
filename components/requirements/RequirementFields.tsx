@@ -68,7 +68,7 @@ export function TextField({
           value={value ?? ""}
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
-          className="h-9"
+          className="h-10 md:h-9"
         />
       )}
     </FormField>
@@ -196,7 +196,7 @@ export function OptionTextField({
                 }
               }}
               className={cn(
-                "h-9 pr-8",
+                "h-10 pr-8 md:h-9",
                 visualKind && value && options.includes(value) && "pl-10",
               )}
               autoComplete="off"
@@ -219,7 +219,7 @@ export function OptionTextField({
         <PopoverContent
           align="start"
           onOpenAutoFocus={(event) => event.preventDefault()}
-          className="max-h-60 w-(--radix-popover-trigger-width) overflow-y-auto p-1"
+          className="max-h-[min(15rem,45svh)] w-(--radix-popover-trigger-width) overflow-y-auto p-1"
           id={`${id}-suggestions`}
           role="listbox"
           aria-label={label}
@@ -239,7 +239,7 @@ export function OptionTextField({
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => selectOption(option)}
                   className={cn(
-                    "flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm transition-colors",
+                    "flex min-h-10 w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm transition-colors",
                     (selected || index === safeActiveIndex) &&
                       "bg-accent text-accent-foreground",
                   )}

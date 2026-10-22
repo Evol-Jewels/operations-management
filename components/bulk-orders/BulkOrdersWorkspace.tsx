@@ -91,9 +91,9 @@ export function BulkOrdersWorkspace({
     .filter(({ summary }) => matchesOrderFilter(filter, summary.status));
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="lg:mr-auto">
+    <div className="space-y-3 md:space-y-4">
+      <div className="flex flex-wrap items-center gap-2 lg:gap-3">
+        <div className="w-full lg:mr-auto lg:w-auto">
           {heading ? (
             heading(rows.length)
           ) : (
@@ -103,7 +103,7 @@ export function BulkOrdersWorkspace({
             </h2>
           )}
         </div>
-        <div className="relative min-w-0 lg:w-80">
+        <div className="relative min-w-0 flex-1 lg:w-80 lg:flex-none">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -111,11 +111,11 @@ export function BulkOrdersWorkspace({
             placeholder="Search vendor, packing list, or design"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="pl-9"
+            className="h-10 pl-9 lg:h-9"
             maxLength={255}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2">
           <Select
             value={filter}
             onValueChange={(value) =>
@@ -125,7 +125,10 @@ export function BulkOrdersWorkspace({
               )
             }
           >
-            <SelectTrigger aria-label="Filter bulk orders by fulfilment">
+            <SelectTrigger
+              aria-label="Filter bulk orders by fulfilment"
+              className="h-10 w-[9.5rem] sm:w-auto lg:h-9"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -171,7 +174,7 @@ export function BulkOrdersWorkspace({
         </div>
       ) : (
         <>
-          <div className="grid gap-3 sm:hidden">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3 lg:hidden">
             {rows.map(({ order, summary }) => {
               const isFilled =
                 summary.status === "Filled" || summary.status === "Cancelled";
@@ -185,7 +188,7 @@ export function BulkOrdersWorkspace({
                   }
                   onClick={() => router.push(getHref(order))}
                 >
-                  <div className="space-y-3 pl-2">
+                  <div className="space-y-2.5 pl-2">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-foreground">
@@ -201,36 +204,36 @@ export function BulkOrdersWorkspace({
                         className="shrink-0"
                       />
                     </div>
-                    <BulkOrderPreviewImages order={order} />
-                    <FulfilmentProgress
-                      filled={summary.filled}
-                      total={summary.pieces}
-                    />
-                    <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
-                      <span className="inline-flex items-center gap-1">
+                    <div className="flex items-center gap-3">
+                      <BulkOrderPreviewImages order={order} />
+                      <FulfilmentProgress
+                        filled={summary.filled}
+                        total={summary.pieces}
+                        className="flex-1"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+                      <span className="inline-flex shrink-0 items-center gap-1">
                         <CalendarDays className="size-3" aria-hidden="true" />
                         Due {formatBulkDate(order.expectedDeliveryDate)}
                       </span>
-                      <span className="font-medium tabular-nums text-foreground">
+                      <span className="min-w-0 truncate">
+                        {getFirstName(order.createdBy)} ·{" "}
+                        {formatDistanceToNowStrict(new Date(order.createdAt), {
+                          addSuffix: true,
+                        })}
+                      </span>
+                      <span className="ml-auto shrink-0 font-medium tabular-nums text-foreground">
                         {formatCurrency(summary.amounts.quoted)}
                       </span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Created by{" "}
-                      <span className="font-medium text-foreground">
-                        {getFirstName(order.createdBy)}
-                      </span>{" "}
-                      {formatDistanceToNowStrict(new Date(order.createdAt), {
-                        addSuffix: true,
-                      })}
-                    </p>
                   </div>
                 </WorkspaceCard>
               );
             })}
           </div>
 
-          <div className="hidden overflow-hidden rounded-xl border bg-card sm:block">
+          <div className="hidden overflow-hidden rounded-xl border bg-card lg:block">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

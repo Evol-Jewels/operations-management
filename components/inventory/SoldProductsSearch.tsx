@@ -32,7 +32,7 @@ export function SoldProductsSearch({
     return () => clearTimeout(timer);
   }, [text, value]);
   return (
-    <div className="relative min-w-0 flex-1 sm:w-60 sm:flex-none">
+    <div className="relative min-w-0 flex-1 md:w-60 md:flex-none">
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         type="search"
@@ -41,7 +41,7 @@ export function SoldProductsSearch({
         value={text}
         onChange={(event) => setText(event.target.value)}
         maxLength={255}
-        className="h-9 pl-9"
+        className="h-10 pl-9 md:h-9"
       />
     </div>
   );

@@ -6,6 +6,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { UrgencyDot } from "@/components/dashboard/UrgencyDot";
 import { SpecLine, SpecSection } from "@/components/order/SpecSection";
+import {
+  RecordActionBar,
+  RecordActionBarSpacer,
+} from "@/components/order/RecordActionBar";
 import { StageBar } from "@/components/order/StageBar";
 import { Button } from "@/components/ui/button";
 import {
@@ -141,89 +145,89 @@ export function RepairDetailPage({ id }: { id: string }) {
   const daysLabel = formatDaysRemaining(deliveryDate);
   return (
     <div className="@container/repair-detail mx-auto w-full min-w-0 max-w-6xl">
-      <div className="mb-5">
-        <Button
-          variant="ghost"
-          size="sm"
-          asChild
-          className="-ml-2 gap-1.5 text-muted-foreground"
-        >
-          <Link href="/orders-workspace?type=repair">
-            <ArrowLeft className="size-3.5" />
-            All repairs
-          </Link>
-        </Button>
-      </div>
-      <div className="mb-6">
-        <h1 className="mb-2 break-words text-xl font-semibold tracking-tight text-foreground">
-          {name}
-          <span className="ml-2 font-normal text-muted-foreground">·</span>
-          <span className="ml-2 text-base font-normal text-muted-foreground">
-            {repair.category || "Repair"}
-          </span>
-        </h1>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <RepairTypeBadge
-            productType={repair.productType}
-            className="px-2.5"
-          />
-          <span className="font-mono text-sm text-muted-foreground">
-            {formatRepairRefCode(repair.refCode)}
-          </span>
-          {deliveryDate && daysLabel && (
-            <span
-              className={cn(
-                "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                urgency === "overdue" &&
-                  "bg-red-500/10 text-red-600 dark:text-red-400",
-                urgency === "due-soon" &&
-                  "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-                urgency === "on-track" &&
-                  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-              )}
-            >
-              <UrgencyDot level={urgency} />
-              {daysLabel}
+      <Button
+        variant="ghost"
+        size="sm"
+        asChild
+        className="-ml-2 mb-3 gap-1.5 text-muted-foreground sm:mb-5"
+      >
+        <Link href="/orders-workspace?type=repair">
+          <ArrowLeft className="size-3.5" />
+          All repairs
+        </Link>
+      </Button>
+      <header className="mb-4 flex flex-wrap items-start gap-x-4 gap-y-3 sm:mb-6">
+        <div className="min-w-0 flex-1 basis-64">
+          <h1 className="mb-2 break-words text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            {name}
+            <span className="ml-2 font-normal text-muted-foreground">·</span>
+            <span className="ml-2 text-sm font-normal text-muted-foreground sm:text-base">
+              {repair.category || "Repair"}
             </span>
-          )}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <Select
-              value={repair.stage}
-              disabled={saving || terminal}
-              onValueChange={(value) => {
-                const stage = REPAIR_STAGES.find((stage) => stage === value);
-                if (!stage || stage === repair.stage) return;
-                if (
-                  canManageVendor &&
-                  stage !== "New" &&
-                  stage !== "Cancelled" &&
-                  Object.keys(validateRepairVendor(repair.vendor)).length
-                )
-                  setVendorEditor(stage);
-                else if (isRepairTerminal(stage)) setPendingStage(stage);
-                else void changeStage(stage);
-              }}
-            >
-              <SelectTrigger
-                size="sm"
-                aria-label="Repair status"
-                className="h-8 min-w-36 text-xs"
+          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <RepairTypeBadge
+              productType={repair.productType}
+              className="px-2.5"
+            />
+            <span className="font-mono text-sm text-muted-foreground">
+              {formatRepairRefCode(repair.refCode)}
+            </span>
+            {deliveryDate && daysLabel && (
+              <span
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                  urgency === "overdue" &&
+                    "bg-red-500/10 text-red-600 dark:text-red-400",
+                  urgency === "due-soon" &&
+                    "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                  urgency === "on-track" &&
+                    "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                )}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {REPAIR_STAGES.map((stage) => (
-                  <SelectItem key={stage} value={stage}>
-                    {stage}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <UrgencyDot level={urgency} />
+                {daysLabel}
+              </span>
+            )}
           </div>
         </div>
-      </div>
+        <RecordActionBar className="md:ml-auto">
+          <Select
+            value={repair.stage}
+            disabled={saving || terminal}
+            onValueChange={(value) => {
+              const stage = REPAIR_STAGES.find((stage) => stage === value);
+              if (!stage || stage === repair.stage) return;
+              if (
+                canManageVendor &&
+                stage !== "New" &&
+                stage !== "Cancelled" &&
+                Object.keys(validateRepairVendor(repair.vendor)).length
+              )
+                setVendorEditor(stage);
+              else if (isRepairTerminal(stage)) setPendingStage(stage);
+              else void changeStage(stage);
+            }}
+          >
+            <SelectTrigger
+              size="sm"
+              aria-label="Repair status"
+              className="h-8 min-w-36 text-xs"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper" align="end">
+              {REPAIR_STAGES.map((stage) => (
+                <SelectItem key={stage} value={stage}>
+                  {stage}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </RecordActionBar>
+      </header>
       {repair.stage !== "Cancelled" && (
-        <div className="mb-5 px-5 py-4">
+        <div className="mb-3 sm:mb-5 sm:px-5 sm:py-4">
           <StageBar currentStage={repair.stage} stages={REPAIR_FLOW_STAGES} />
         </div>
       )}
@@ -232,13 +236,13 @@ export function RepairDetailPage({ id }: { id: string }) {
           {saveError}
         </p>
       )}
-      <div className="grid min-w-0 items-start gap-5 @[60rem]/repair-detail:grid-cols-[minmax(0,1fr)_320px] @[60rem]/repair-detail:gap-7">
+      <div className="grid min-w-0 items-start gap-5 @[52rem]/repair-detail:grid-cols-[minmax(0,1fr)_300px] @[52rem]/repair-detail:gap-6 @[60rem]/repair-detail:grid-cols-[minmax(0,1fr)_320px] @[60rem]/repair-detail:gap-7">
         <main className="min-w-0">
           <RepairProductCard repair={repair} />
         </main>
-        <aside className="min-w-0 @[60rem]/repair-detail:sticky @[60rem]/repair-detail:top-6 @[60rem]/repair-detail:self-start">
+        <aside className="min-w-0 @[52rem]/repair-detail:sticky @[52rem]/repair-detail:top-6 @[52rem]/repair-detail:self-start">
           <section className="overflow-hidden rounded-xl border border-border bg-card">
-            <div className="space-y-6 px-5 py-4">
+            <div className="space-y-6 p-4 sm:px-5">
               <SpecSection icon={Wrench} title="Overview">
                 <SpecLine
                   label="Ref code"
@@ -317,7 +321,7 @@ export function RepairDetailPage({ id }: { id: string }) {
           }
         }}
       />
-      <div className="h-16" />
+      <RecordActionBarSpacer />
       {canManageVendor && vendorEditor && (
         <RepairVendorDialog
           open

@@ -125,7 +125,7 @@ function ChoiceChips({
               title={option.description}
               onClick={() => toggle(option.value)}
               className={cn(
-                "inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors disabled:opacity-60",
+                "inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors disabled:opacity-60 md:min-h-8 md:px-3",
                 active
                   ? "border-foreground bg-foreground text-background"
                   : "bg-background hover:bg-muted",
@@ -148,7 +148,7 @@ function ChoiceChips({
               if (!multi) onChange("");
             }}
             className={cn(
-              "inline-flex min-h-8 items-center rounded-full border border-dashed px-3 text-sm text-muted-foreground hover:bg-muted",
+              "inline-flex min-h-10 items-center rounded-full border border-dashed px-3.5 text-sm text-muted-foreground hover:bg-muted md:min-h-8 md:px-3",
               otherOpen && "border-foreground text-foreground",
             )}
           >
@@ -224,7 +224,7 @@ function SearchableChoice({
           aria-expanded={open}
           disabled={disabled}
           className={cn(
-            "h-auto min-h-9 w-full justify-between gap-2 px-3 py-1.5 text-left font-normal",
+            "h-auto min-h-10 w-full justify-between gap-2 px-3 py-1.5 text-left font-normal md:min-h-9",
             !selected.length && "text-muted-foreground",
           )}
         >
@@ -237,7 +237,7 @@ function SearchableChoice({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-(--radix-popover-trigger-width) min-w-64 p-0"
+        className="w-(--radix-popover-trigger-width) min-w-64 max-w-[calc(100vw-2rem)] p-0"
         align="start"
       >
         <Command>
@@ -441,7 +441,7 @@ export function QuestionForm({
   if (interaction.status !== "pending" || !actionable) {
     const answered = interaction.status === "answered";
     return (
-      <div className="rounded-xl border bg-card px-3.5 py-3 shadow-xs">
+      <div className="@container rounded-xl border bg-card px-3.5 py-3 shadow-xs">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {answered ? (
             <CircleCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -458,7 +458,7 @@ export function QuestionForm({
           )}
         </div>
         {answered && interaction.answers && (
-          <dl className="mt-2 grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
+          <dl className="mt-2 grid gap-x-6 gap-y-1.5 @md:grid-cols-2">
             {resolvedQuestions.map((question) => (
               <div key={question.id} className="min-w-0">
                 <dt className="text-[11px] text-muted-foreground">
@@ -526,7 +526,7 @@ export function QuestionForm({
               size="sm"
               disabled={submitting}
               title={option.description}
-              className="rounded-full"
+              className="h-10 rounded-full px-4 md:h-8 md:px-3"
               onClick={() => submit({ [question.id]: option.value })}
             >
               {option.label}
@@ -543,7 +543,7 @@ export function QuestionForm({
         event.preventDefault();
         submit();
       }}
-      className="overflow-hidden rounded-xl border bg-card shadow-sm"
+      className="@container overflow-hidden rounded-xl border bg-card shadow-sm"
       aria-label={interaction.title}
     >
       <div className="border-b bg-muted/30 px-4 py-3">
@@ -560,7 +560,7 @@ export function QuestionForm({
           </p>
         )}
       </div>
-      <div className="grid gap-4 px-4 py-4 sm:grid-cols-2">
+      <div className="grid gap-4 px-4 py-4 @lg:grid-cols-2 max-md:[&_input]:h-10">
         {resolvedQuestions.map((question) => {
           const id = `${toolCallId}-${question.id}`;
           const wide =
@@ -570,7 +570,7 @@ export function QuestionForm({
           return (
             <div
               key={question.id}
-              className={cn("space-y-1.5", wide && "sm:col-span-2")}
+              className={cn("min-w-0 space-y-1.5", wide && "@lg:col-span-2")}
             >
               <label
                 htmlFor={id}
@@ -622,7 +622,7 @@ export function QuestionForm({
           type="submit"
           size="sm"
           disabled={submitting}
-          className="gap-1.5"
+          className="h-10 shrink-0 gap-1.5 px-4 md:h-8 md:px-3"
         >
           {submitting ? (
             <LoaderCircle className="size-3.5 animate-spin" />
@@ -668,31 +668,35 @@ function FieldRows({
   files?: AssistantAttachment[];
 }) {
   return (
-    <dl className="divide-y">
-      {fields.map((field) => (
-        <div
-          key={field.label}
-          className="grid grid-cols-[minmax(0,8.5rem)_1fr] gap-3 px-4 py-2 text-sm"
-        >
-          <dt className="text-muted-foreground">{field.label}</dt>
-          <dd className="min-w-0 break-words">
-            {files.length > 0 && FILE_COUNT.test(field.value) ? (
-              <div className="flex flex-wrap gap-1.5 py-0.5">
-                {files.map((file) => (
-                  <MediaPreview
-                    key={file.url}
-                    file={file}
-                    className="size-14"
-                  />
-                ))}
-              </div>
-            ) : (
-              <ChangeValue field={field} />
-            )}
-          </dd>
-        </div>
-      ))}
-    </dl>
+    <div className="@container">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 px-4 py-2.5 @xs:block @xs:divide-y @xs:p-0">
+        {fields.map((field) => (
+          <div
+            key={field.label}
+            className="min-w-0 text-sm @xs:grid @xs:grid-cols-[minmax(0,8.5rem)_1fr] @xs:gap-3 @xs:px-4 @xs:py-2"
+          >
+            <dt className="text-muted-foreground @max-xs:text-xs">
+              {field.label}
+            </dt>
+            <dd className="min-w-0 break-words">
+              {files.length > 0 && FILE_COUNT.test(field.value) ? (
+                <div className="flex flex-wrap gap-1.5 py-0.5">
+                  {files.map((file) => (
+                    <MediaPreview
+                      key={file.url}
+                      file={file}
+                      className="size-14"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <ChangeValue field={field} />
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
@@ -813,15 +817,15 @@ export function ConfirmationCard({
           )}
         >
           <div className="min-w-0">
-            <p className="flex items-center gap-2 text-sm font-semibold">
+            <p className="flex items-start gap-2 text-sm font-semibold">
               <ShieldCheck
                 className={cn(
-                  "size-4 shrink-0",
+                  "mt-0.5 size-4 shrink-0",
                   danger ? "text-red-500" : "text-muted-foreground",
                 )}
                 aria-hidden="true"
               />
-              <span className="truncate">{confirmation.title}</span>
+              <span className="min-w-0">{confirmation.title}</span>
             </p>
             {confirmation.description && (
               <p className="mt-0.5 pl-6 text-xs text-muted-foreground">
@@ -860,7 +864,7 @@ export function ConfirmationCard({
           </p>
         )}
         {pending && actionable && (
-          <div className="flex items-center justify-end gap-2 border-t bg-muted/20 px-4 py-2.5">
+          <div className="flex items-center justify-end gap-2 border-t bg-muted/20 px-4 py-2.5 max-md:*:h-10 max-md:*:flex-1">
             <Button
               type="button"
               variant="ghost"

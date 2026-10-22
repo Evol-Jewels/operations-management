@@ -189,7 +189,7 @@ export function StageHint({ currentStage }: { currentStage: Stage }) {
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-xl border px-4 py-3.5",
+        "flex items-start gap-3 rounded-xl border px-3.5 py-3 sm:px-4 sm:py-3.5",
         TONE_STYLES[hint.tone],
       )}
     >
@@ -204,7 +204,9 @@ export function StageHint({ currentStage }: { currentStage: Stage }) {
           <span className="text-sm font-semibold">{hint.title}</span>
           <ActorBadge actor={hint.actor} />
         </div>
-        <p className="text-[13px] leading-snug opacity-90">{hint.body}</p>
+        <p className="text-xs leading-snug opacity-90 sm:text-[13px]">
+          {hint.body}
+        </p>
       </div>
     </div>
   );

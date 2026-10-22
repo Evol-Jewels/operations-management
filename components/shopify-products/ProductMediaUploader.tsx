@@ -62,7 +62,7 @@ export function ProductMediaUploader({
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="flex min-h-32 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/20 p-5 text-center transition-colors hover:bg-muted/50"
+        className="flex min-h-24 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed bg-muted/20 p-4 text-center transition-colors hover:bg-muted/50 sm:min-h-32 sm:gap-2 sm:p-5"
       >
         {uploading ? (
           <LoaderCircle className="size-6 animate-spin" />
@@ -88,57 +88,56 @@ export function ProductMediaUploader({
         }}
       />
 
-      <div className="space-y-2">
-        {existingMedia.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center gap-3 rounded-lg border p-3"
-          >
-            <div
-              className="size-12 rounded-md border bg-muted bg-cover bg-center"
-              style={
-                item.preview?.image?.url
-                  ? { backgroundImage: `url(${item.preview.image.url})` }
-                  : undefined
-              }
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">
-                {item.alt || item.mediaContentType}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Existing Shopify media · {item.status}
-              </p>
-            </div>
-          </div>
-        ))}
-        {media.map((item, index) => (
-          <div
-            key={`${item.originalSource}-${index}`}
-            className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3"
-          >
-            <div className="grid size-12 place-items-center rounded-md border bg-background">
-              <FileImage className="size-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">
-                {item.filename || "New product image"}
-              </p>
-              <p className="text-xs text-muted-foreground">Ready to attach</p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() =>
-                onChange(media.filter((_, itemIndex) => itemIndex !== index))
-              }
-            >
-              <Trash2 />
-            </Button>
-          </div>
-        ))}
-      </div>
+      {existingMedia.length || media.length ? (
+        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-3">
+          {existingMedia.map((item) => (
+            <li key={item.id} className="min-w-0">
+              <div
+                role="img"
+                aria-label={item.alt || item.mediaContentType}
+                title={item.alt || item.mediaContentType}
+                className="relative aspect-square overflow-hidden rounded-lg border bg-muted bg-cover bg-center"
+                style={
+                  item.preview?.image?.url
+                    ? { backgroundImage: `url(${item.preview.image.url})` }
+                    : undefined
+                }
+              >
+                <span className="absolute bottom-1 left-1 rounded bg-background/85 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur">
+                  {item.status}
+                </span>
+              </div>
+            </li>
+          ))}
+          {media.map((item, index) => (
+            <li key={`${item.originalSource}-${index}`} className="min-w-0">
+              <div className="relative flex aspect-square flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-primary/20 bg-primary/5 p-2 text-center">
+                <FileImage className="size-5 text-muted-foreground" />
+                <p className="w-full truncate text-[11px] font-medium">
+                  {item.filename || "New image"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Ready to attach
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  aria-label={`Remove ${item.filename || "image"}`}
+                  className="absolute top-1 right-1 size-8 rounded-full"
+                  onClick={() =>
+                    onChange(
+                      media.filter((_, itemIndex) => itemIndex !== index),
+                    )
+                  }
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </section>
   );
 }

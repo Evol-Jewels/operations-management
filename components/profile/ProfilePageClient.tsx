@@ -102,9 +102,7 @@ function PasswordInput({
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={id} className="text-xs font-medium uppercase">
-        {label}
-      </Label>
+      <Label htmlFor={id}>{label}</Label>
       <div className="relative">
         <Input
           id={id}
@@ -115,11 +113,11 @@ function PasswordInput({
           placeholder={placeholder}
           aria-invalid={Boolean(error)}
           disabled={disabled}
-          className="h-11 pr-11 text-base"
+          className="h-11 pr-12 text-base"
         />
         <button
           type="button"
-          className="absolute top-1/2 right-3 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="absolute top-1/2 right-1.5 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           onClick={onToggleVisible}
           disabled={disabled}
           aria-label={visible ? `Hide ${label}` : `Show ${label}`}
@@ -293,22 +291,19 @@ export function ProfilePageClient() {
   }
 
   return (
-    <div className="flex min-h-[calc(100dvh-5.25rem)] flex-col gap-6">
+    <div className="flex flex-col gap-4 sm:gap-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
           Settings
         </h1>
-        <p className="text-sm text-muted-foreground sm:text-base">
+        <p className="hidden text-sm text-muted-foreground sm:block sm:text-base">
           Review your account details and manage how you sign in.
         </p>
       </header>
 
-      <Tabs defaultValue="profile" className="gap-6">
+      <Tabs defaultValue="profile" className="gap-4 sm:gap-6">
         <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-0 border-border border-b bg-transparent p-0 text-muted-foreground">
-          <TabsTrigger
-            value="profile"
-            className={profileTabTriggerClassName}
-          >
+          <TabsTrigger value="profile" className={profileTabTriggerClassName}>
             <User className="size-4" />
             Profile
           </TabsTrigger>
@@ -323,16 +318,16 @@ export function ProfilePageClient() {
           ) : null}
         </TabsList>
 
-        <TabsContent value="profile" className="space-y-6">
-          <section className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <div className="relative w-fit">
-              <Avatar className="size-20 border border-border">
+        <TabsContent value="profile" className="space-y-4 sm:space-y-6">
+          <section className="flex items-center gap-4 sm:gap-5">
+            <div className="relative shrink-0">
+              <Avatar className="size-16 border border-border sm:size-20">
                 <AvatarImage
                   src={avatarPreview ?? user?.image ?? undefined}
                   alt={name}
                   className="object-cover"
                 />
-                <AvatarFallback className="text-2xl font-semibold text-foreground">
+                <AvatarFallback className="text-xl font-semibold text-foreground sm:text-2xl">
                   {initials(name)}
                 </AvatarFallback>
               </Avatar>
@@ -340,7 +335,7 @@ export function ProfilePageClient() {
                 type="button"
                 size="icon-sm"
                 variant="outline"
-                className="-right-1 -bottom-1 absolute rounded-full bg-background"
+                className="-right-1.5 -bottom-1.5 absolute size-8 rounded-full bg-background"
                 onClick={() => fileInputRef.current?.click()}
                 aria-label="Update avatar"
               >
@@ -355,8 +350,8 @@ export function ProfilePageClient() {
               />
             </div>
 
-            <div className="min-w-0 space-y-2">
-              <h2 className="text-xl font-semibold text-foreground">
+            <div className="min-w-0 space-y-1.5 sm:space-y-2">
+              <h2 className="truncate text-lg font-semibold text-foreground sm:text-xl">
                 {username}
               </h2>
               <Badge variant="secondary" className="capitalize">
@@ -381,16 +376,18 @@ export function ProfilePageClient() {
             </div>
           ) : null}
 
-          <Card className="max-w-2xl rounded-lg">
-            <CardHeader>
-              <CardTitle className="text-xl">Account details</CardTitle>
-              <CardDescription className="text-base">
+          <Card className="max-w-2xl gap-4 rounded-lg py-4 sm:gap-6 sm:py-6">
+            <CardHeader className="px-4 sm:px-6">
+              <CardTitle className="text-lg sm:text-xl">
+                Account details
+              </CardTitle>
+              <CardDescription className="text-sm sm:text-base">
                 Username, email, and role are managed by your administrator. You
                 can update your work location.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-5 md:grid-cols-2">
+            <CardContent className="space-y-6 px-4 sm:px-6">
+              <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
                 <div className="space-y-2">
                   <Label htmlFor={identityInputId}>{identityLabel}</Label>
                   <Input
@@ -459,10 +456,10 @@ export function ProfilePageClient() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="mt-2">
+            <CardFooter className="mt-2 px-4 sm:px-6">
               <Button
                 type="button"
-                className="w-full sm:w-auto"
+                className="h-11 w-full sm:h-9 sm:w-auto"
                 disabled={!canSaveLocation}
                 onClick={handleLocationSave}
               >
@@ -479,15 +476,17 @@ export function ProfilePageClient() {
 
         {hasUsername ? (
           <TabsContent value="password">
-            <Card className="max-w-2xl rounded-lg">
-              <CardHeader>
-                <CardTitle className="text-xl">Reset Password</CardTitle>
-                <CardDescription className="text-base">
+            <Card className="max-w-2xl gap-4 rounded-lg py-4 sm:gap-6 sm:py-6">
+              <CardHeader className="px-4 sm:px-6">
+                <CardTitle className="text-lg sm:text-xl">
+                  Reset Password
+                </CardTitle>
+                <CardDescription className="text-sm sm:text-base">
                   Change the password used with your internal username login.
                 </CardDescription>
               </CardHeader>
               <form onSubmit={handlePasswordReset}>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-5 px-4 sm:space-y-6 sm:px-6">
                   <PasswordInput
                     id="current-password"
                     label="Current password"
@@ -505,7 +504,7 @@ export function ProfilePageClient() {
                     disabled={changePassword.isPending}
                   />
 
-                  <div className="grid gap-5 md:grid-cols-2">
+                  <div className="grid gap-5 sm:grid-cols-2">
                     <PasswordInput
                       id="new-password"
                       label="New password"
@@ -569,10 +568,10 @@ export function ProfilePageClient() {
                   </div>
                 </CardContent>
 
-                <CardFooter className="flex flex-col gap-4 pt-8 sm:flex-row sm:items-center sm:justify-end">
+                <CardFooter className="flex flex-col gap-4 px-4 pt-6 sm:flex-row sm:items-center sm:justify-end sm:px-6 sm:pt-8">
                   <Button
                     type="submit"
-                    className="w-full sm:w-auto"
+                    className="h-11 w-full sm:h-9 sm:w-auto"
                     disabled={!canResetPassword}
                   >
                     {changePassword.isPending ? (

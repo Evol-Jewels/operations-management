@@ -6,8 +6,6 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   LoaderCircle,
   PackagePlus,
   Pencil,
@@ -39,6 +37,12 @@ import {
   revokeObjectUrls,
 } from "@/components/enquiries/enquiry-form-utils";
 import { EntryImportDialog } from "@/components/entry-import-dialog";
+import {
+  CreateFlowLayout,
+  CreateFlowProgress,
+  FLOW_PRIMARY_ACTION,
+  FLOW_SECONDARY_ACTION,
+} from "@/components/orders/create-flow-layout";
 import { CustomProductForm as V2CustomProductForm } from "@/components/requirements/CustomProductForm";
 import type { RequirementDraft } from "@/components/requirements/requirement-form-types";
 import {
@@ -132,6 +136,13 @@ interface ConvertFormData {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+const STEP_LABELS: Record<string, string> = {
+  requirements: "Requirements",
+  details: "Details",
+  customer: "Customer",
+  review: "Review",
+};
 
 function createOrderItemFromNewProduct(
   product: Product,
@@ -327,7 +338,6 @@ export function ConvertOrderForm({
     : ["requirements", "customer", "review"];
   const safeStep = Math.min(currentStep, steps.length - 1);
   const stepId = steps[safeStep];
-  const progress = ((safeStep + 1) / steps.length) * 100;
   const isFirstStep = safeStep === 0;
   const isLastStep = safeStep === steps.length - 1;
   const selectedItems = form.items.filter((item) =>
@@ -1315,42 +1325,87 @@ export function ConvertOrderForm({
   }
 
   return (
-    <div className="mx-auto max-w-3xl pb-28">
-      {!isConversion && !isRefill && isFirstStep && (
-        <EntryImportDialog entryType="order" onImport={importOrder} />
-      )}
-      {/* Progress bar */}
-      <div className="mb-2">
-        <div className="h-[2px] w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          />
+    <CreateFlowLayout
+      actions={
+        <>
+          {!isFirstStep && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={goBack}
+              disabled={isSubmitting}
+              className={FLOW_SECONDARY_ACTION}
+            >
+              <ArrowLeft className="size-4" />
+              Back
+            </Button>
+          )}
+          {isLastStep ? (
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting || !hasItems}
+              className={FLOW_PRIMARY_ACTION}
+            >
+              {isSubmitting
+                ? isConversion
+                  ? "Converting..."
+                  : "Creating..."
+                : isConversion
+                  ? "Confirm & Convert"
+                  : "Create order"}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={goNext}
+              disabled={isSubmitting || !hasItems}
+              className={FLOW_PRIMARY_ACTION}
+            >
+              {stepId === "details" && hasNextCustomRequirement ? (
+                <span>
+                  <span className="hidden sm:inline">Save &amp; </span>
+                  Next requirement
+                </span>
+              ) : (
+                "Save & Next"
+              )}
+              <ArrowRight className="size-3.5" />
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="mb-5 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.back()}
+            className="-ml-2 gap-1.5 text-muted-foreground"
+          >
+            <ArrowLeft className="size-3.5" />
+            {isConversion
+              ? "Back to enquiry"
+              : isRefill
+                ? "Back to recent sales"
+                : "Back to orders"}
+          </Button>
+          {!isConversion && !isRefill && isFirstStep && (
+            <EntryImportDialog entryType="order" onImport={importOrder} />
+          )}
         </div>
+        <CreateFlowProgress
+          step={safeStep + 1}
+          total={steps.length}
+          label={STEP_LABELS[stepId]}
+        />
       </div>
 
-      {/* Back button */}
-      <div className="mb-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.back()}
-          className="-ml-2 gap-1.5 text-muted-foreground"
-        >
-          <ArrowLeft className="size-3.5" />
-          {isConversion
-            ? "Back to enquiry"
-            : isRefill
-              ? "Back to recent sales"
-              : "Back to orders"}
-        </Button>
-      </div>
-
-      {/* Step content */}
       <div
         key={`step-${safeStep}-${stepId}`}
         className={cn(
-          "flex min-h-[68vh] flex-col justify-center px-1",
+          "flex flex-col",
           "animate-in fade-in-0 duration-300",
           animDir === "forward"
             ? "slide-in-from-bottom-3"
@@ -1484,69 +1539,7 @@ export function ConvertOrderForm({
           />
         )}
       </div>
-
-      {/* Floating bottom nav */}
-      <div className="pointer-events-none fixed right-0 bottom-6 left-0 z-40 md:left-[var(--sidebar-width)] group-data-[collapsible=icon]/sidebar-wrapper:md:left-[var(--sidebar-width-icon)]">
-        <div className="mx-auto flex max-w-3xl items-center gap-2 px-4">
-          <div className="pointer-events-auto flex items-center gap-1 rounded-lg border border-border bg-card shadow-md">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={goBack}
-              disabled={isSubmitting}
-              className="rounded-r-none text-muted-foreground"
-              aria-label="Previous step"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-            <div className="h-5 w-px bg-border" />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={goNext}
-              disabled={isLastStep || isSubmitting}
-              className="rounded-l-none text-muted-foreground"
-              aria-label="Next step"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </div>
-          {!isLastStep && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={goNext}
-              disabled={isSubmitting || !hasItems}
-              className="pointer-events-auto ml-auto gap-2 px-5 shadow-md"
-            >
-              {stepId === "details" && hasNextCustomRequirement
-                ? "Save & Next requirement"
-                : "Save & Next"}
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {isLastStep && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleSubmit}
-              disabled={isSubmitting || !hasItems}
-              className="pointer-events-auto ml-auto gap-2 px-5 shadow-md"
-            >
-              {isSubmitting
-                ? isConversion
-                  ? "Converting..."
-                  : "Creating..."
-                : isConversion
-                  ? "Confirm & Convert"
-                  : "Create order"}
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
+    </CreateFlowLayout>
   );
 }
 
@@ -1740,7 +1733,7 @@ function RequirementDetailsStep({
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           Edit requirement details
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 hidden text-sm text-muted-foreground sm:block">
           Confirm the custom details for every selected requirement.
         </p>
       </div>
@@ -1773,6 +1766,7 @@ function RequirementDetailsStep({
           onSubmit={() => undefined}
           showActions={false}
           hideDeliveryDate={isConversion}
+          className="border-0 bg-transparent p-0 shadow-none sm:border sm:bg-card sm:p-5 sm:shadow-sm"
         />
       ) : (
         <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm text-muted-foreground">
@@ -1811,12 +1805,6 @@ function RequirementConversionCard({
   ) => void;
   updateItemCadApproval: (itemId: string, cadApprovalRequired: boolean) => void;
 }) {
-  const deliveryOptions = [
-    { label: "Standard", days: 17 },
-    { label: "CAD", days: 20 },
-    { label: "Extended", days: 30 },
-  ];
-
   return (
     // biome-ignore lint/a11y/useSemanticElements: the selectable card contains its own form controls, so it cannot be a native checkbox input.
     <div
@@ -1854,7 +1842,7 @@ function RequirementConversionCard({
             checked={isSelected}
             onCheckedChange={(checked) => onSelectionChange?.(checked === true)}
             aria-label={`Select requirement ${index + 1}`}
-            className="mt-1"
+            className="mt-1 min-h-0"
           />
         )}
         <RequirementSnapshot item={item} index={index} />
@@ -1869,9 +1857,10 @@ function RequirementConversionCard({
             <p className="text-sm font-medium text-foreground">CAD approval</p>
             <Label
               htmlFor={`cad-approval-${item.id}`}
-              className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/20 px-3 text-sm transition-colors hover:bg-muted/35"
+              className="flex h-11 cursor-pointer items-center gap-2.5 rounded-md border border-border bg-muted/20 px-3 text-sm transition-colors hover:bg-muted/35 md:h-10"
             >
               <Checkbox
+                className="min-h-0"
                 id={`cad-approval-${item.id}`}
                 checked={item.cadApprovalRequired}
                 onCheckedChange={(checked) =>
@@ -1897,27 +1886,12 @@ function RequirementConversionCard({
             <p className="text-sm font-medium text-foreground">
               Delivery target
             </p>
-            <div className="flex flex-wrap gap-2">
-              {deliveryOptions.map((option) => {
-                const date = addDaysDateString(new Date(), option.days);
-                const isOptionSelected = item.estimatedDelivery === date;
-
-                return (
-                  <Button
-                    key={option.days}
-                    type="button"
-                    variant={isOptionSelected ? "default" : "outline"}
-                    size="sm"
-                    onClick={() =>
-                      updateItem(item.id, { estimatedDelivery: date })
-                    }
-                    className="h-8 text-xs"
-                  >
-                    {option.label} ({option.days} days)
-                  </Button>
-                );
-              })}
-            </div>
+            <DeliveryTargetPicker
+              value={item.estimatedDelivery}
+              onSelect={(estimatedDelivery) =>
+                updateItem(item.id, { estimatedDelivery })
+              }
+            />
           </div>
         </div>
       )}
@@ -1963,7 +1937,7 @@ function RequirementSnapshot({
         ) : null}
       </div>
 
-      <div className="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 text-xs lg:grid-cols-4">
         <RequirementFact label="Category" value={item.category} />
         <RequirementFact label="Metal" value={metal} />
         <RequirementFact label="Net weight" value={item.metalNetWeight} />
@@ -2150,12 +2124,6 @@ function OrderItemCard({
 }) {
   const canViewVendor = useVendorAccess();
   const isNew = item.source === "new-existing" || item.source === "new-custom";
-  const deliveryOptions = [
-    { label: "Standard", days: 17 },
-    { label: "CAD", days: 20 },
-    { label: "Extended", days: 30 },
-  ];
-
   return (
     <div className="space-y-4 rounded-lg border border-border bg-card p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -2189,18 +2157,22 @@ function OrderItemCard({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <div className="flex items-center gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm transition-colors hover:bg-muted/30">
+          <Label
+            htmlFor={`cad-required-${item.id}`}
+            className="flex min-h-11 flex-1 cursor-pointer items-center gap-2.5 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm transition-colors hover:bg-muted/30 sm:min-h-9 sm:flex-none"
+          >
             <Checkbox
+              id={`cad-required-${item.id}`}
               checked={item.cadApprovalRequired}
               onCheckedChange={(checked) =>
                 updateItemCadApproval(item.id, checked === true)
               }
-              aria-label="CAD required before order"
+              className="min-h-0"
             />
             <span className="font-medium text-foreground">
               CAD required before order
             </span>
-          </div>
+          </Label>
 
           {canRemove ? (
             <Button
@@ -2244,25 +2216,49 @@ function OrderItemCard({
           />
         </FormField>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {deliveryOptions.map((option) => {
-          const date = addDaysDateString(new Date(), option.days);
-          const isSelected = item.estimatedDelivery === date;
+      <DeliveryTargetPicker
+        value={item.estimatedDelivery}
+        onSelect={(estimatedDelivery) =>
+          updateItem(item.id, { estimatedDelivery })
+        }
+      />
+    </div>
+  );
+}
 
-          return (
-            <Button
-              key={option.days}
-              type="button"
-              variant={isSelected ? "default" : "outline"}
-              size="sm"
-              onClick={() => updateItem(item.id, { estimatedDelivery: date })}
-              className="h-8 text-xs"
-            >
-              {option.label} ({option.days} days)
-            </Button>
-          );
-        })}
-      </div>
+const DELIVERY_TARGETS = [
+  { label: "Standard", days: 17 },
+  { label: "CAD", days: 20 },
+  { label: "Extended", days: 30 },
+];
+
+function DeliveryTargetPicker({
+  value,
+  onSelect,
+}: {
+  value: string;
+  onSelect: (date: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+      {DELIVERY_TARGETS.map((option) => {
+        const date = addDaysDateString(new Date(), option.days);
+        return (
+          <Button
+            key={option.days}
+            type="button"
+            variant={value === date ? "default" : "outline"}
+            size="sm"
+            onClick={() => onSelect(date)}
+            className="h-11 flex-col gap-0 px-2 text-xs leading-tight sm:h-8 sm:flex-row sm:gap-1 sm:px-3"
+          >
+            {option.label}
+            <span className="font-normal opacity-80 sm:font-medium sm:opacity-100">
+              ({option.days} days)
+            </span>
+          </Button>
+        );
+      })}
     </div>
   );
 }
@@ -2279,7 +2275,7 @@ function CustomerStep({
   errors: Record<string, string>;
 }) {
   return (
-    <div className="mx-auto w-full max-w-lg space-y-5">
+    <div className="mx-auto w-full max-w-2xl space-y-5">
       <div>
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           Confirm customer details
@@ -2289,7 +2285,7 @@ function CustomerStep({
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Name" required>
           <Input
             value={form.customerName}
@@ -2298,6 +2294,8 @@ function CustomerStep({
             }
             className="h-11"
             placeholder="Customer name"
+            autoComplete="name"
+            autoCapitalize="words"
           />
           {errors.customerName && (
             <p className="text-[11px] text-destructive">
@@ -2314,6 +2312,9 @@ function CustomerStep({
             }
             className="h-11"
             placeholder="Phone number"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
           />
           {errors.customerPhone && (
             <p className="text-[11px] text-destructive">
@@ -2322,13 +2323,14 @@ function CustomerStep({
           )}
         </FormField>
 
-        <FormField label="Address" required>
+        <FormField label="Address" required className="sm:col-span-2">
           <Textarea
             value={form.customerAddress}
             onChange={(e) =>
               setForm((prev) => ({ ...prev, customerAddress: e.target.value }))
             }
             placeholder="Enter full delivery address..."
+            autoComplete="street-address"
             rows={3}
             className="resize-none"
           />
@@ -2369,11 +2371,11 @@ function ReviewStep({
   const canViewVendor = useVendorAccess();
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
-      <div className="text-center">
+      <div className="sm:text-center">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           {isRefill ? "Confirm refill" : "Confirm order details"}
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 hidden text-sm text-muted-foreground sm:block">
           Review the fields that will be sent to the order API.
         </p>
       </div>
@@ -2394,14 +2396,16 @@ function ReviewStep({
             Edit
           </Button>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <ReviewField label="Customer" value={form.customerName} />
           <ReviewField label="Phone" value={form.customerPhone} />
-          <ReviewField label="Address" value={form.customerAddress} />
+          <div className="col-span-2 sm:col-span-1">
+            <ReviewField label="Address" value={form.customerAddress} />
+          </div>
         </div>
       </div>
 
-      <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+      <div className="space-y-3 rounded-lg border border-border bg-card p-3 sm:p-4">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-foreground">
             {isConversion ? "Requirements to convert" : "Order products"}
@@ -2422,9 +2426,9 @@ function ReviewStep({
         {items.map((item, index) => (
           <div
             key={item.id}
-            className="space-y-3 rounded-md border border-border bg-muted/10 p-4"
+            className="space-y-3 rounded-md border border-border bg-muted/10 p-3 sm:p-4"
           >
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 items-center gap-3">
                 {item.imageUrl ? (
                   // biome-ignore lint/performance/noImgElement: remote inventory image
@@ -2449,7 +2453,7 @@ function ReviewStep({
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2">
                 {item.source === "enquiry-custom" ||
                 item.source === "new-custom" ? (
                   <Button
@@ -2465,7 +2469,7 @@ function ReviewStep({
                 ) : null}
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
               <ReviewField
                 label="Delivery date"
                 value={item.estimatedDelivery}

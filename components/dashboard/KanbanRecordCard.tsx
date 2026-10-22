@@ -3,11 +3,11 @@
 import { Gem, Images } from "lucide-react";
 import Image from "next/image";
 import { type ComponentProps, type ReactNode, useState } from "react";
-import { categoryPaths } from "@/components/jewelry/jewelry-icon-paths";
 import {
   JewelryVisual,
   normalizeCategoryVisual,
 } from "@/components/jewelry/JewelryVisual";
+import { categoryPaths } from "@/components/jewelry/jewelry-icon-paths";
 import { getStatusTone } from "@/lib/statusTones";
 import { cn, getDaysRemaining } from "@/lib/utils";
 import type { UrgencyLevel } from "@/types";
@@ -129,11 +129,13 @@ function CardMedia({
   alt,
   category,
   cornerBadge,
+  compact,
 }: {
   images: string[];
   alt: string;
   category?: string;
   cornerBadge?: ReactNode;
+  compact: boolean;
 }) {
   const [failed, setFailed] = useState<string[]>([]);
   const visible = images.filter((src) => !failed.includes(src));
@@ -143,6 +145,8 @@ function CardMedia({
     <div
       className={cn(
         "relative aspect-[4/3] overflow-hidden border-b border-border/60",
+        compact &&
+          "max-xl:aspect-square max-xl:size-14 max-xl:shrink-0 max-xl:rounded-lg max-xl:border",
         cover ? "bg-white" : "bg-muted/40",
       )}
     >
@@ -151,10 +155,13 @@ function CardMedia({
           src={cover}
           alt={alt}
           fill
-          sizes="280px"
+          sizes={compact ? "(min-width: 1280px) 280px, 56px" : "280px"}
           unoptimized
           draggable={false}
-          className="object-contain p-2 transition-transform duration-300 ease-out group-hover:scale-[1.04]"
+          className={cn(
+            "object-contain p-2 transition-transform duration-300 ease-out group-hover:scale-[1.04]",
+            compact && "max-xl:p-1",
+          )}
           onError={() => setFailed((current) => [...current, cover])}
         />
       ) : (
@@ -163,20 +170,33 @@ function CardMedia({
             <JewelryVisual
               kind="category"
               value={category}
-              className="size-16 text-current"
+              className={cn("size-16 text-current", compact && "max-xl:size-8")}
             />
           ) : (
-            <Gem className="size-12" strokeWidth={1} aria-hidden="true" />
+            <Gem
+              className={cn("size-12", compact && "max-xl:size-7")}
+              strokeWidth={1}
+              aria-hidden="true"
+            />
           )}
         </div>
       )}
 
       {cornerBadge && (
-        <div className="absolute right-2 top-2">{cornerBadge}</div>
+        <div
+          className={cn("absolute right-2 top-2", compact && "max-xl:hidden")}
+        >
+          {cornerBadge}
+        </div>
       )}
 
       {visible.length > 1 && (
-        <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-zinc-900/70 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white backdrop-blur-sm">
+        <span
+          className={cn(
+            "absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-zinc-900/70 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white backdrop-blur-sm",
+            compact && "max-xl:hidden",
+          )}
+        >
           <Images className="size-3" aria-hidden="true" />
           {visible.length}
         </span>
@@ -207,6 +227,8 @@ export function KanbanRecordCard({
   meta,
   chips,
   stats,
+  summary,
+  compact = false,
   dimmed = false,
   draggableCard = false,
   className,
@@ -221,6 +243,8 @@ export function KanbanRecordCard({
   meta?: ReactNode;
   chips?: ReactNode;
   stats: [CardStat, CardStat];
+  summary?: ReactNode;
+  compact?: boolean;
   dimmed?: boolean;
 }) {
   return (
@@ -229,6 +253,7 @@ export function KanbanRecordCard({
       {...props}
       className={cn(
         "group relative block w-full overflow-hidden rounded-xl border border-border bg-card text-left shadow-xs transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-foreground/15 hover:shadow-md focus-visible:outline-2 focus-visible:outline-ring",
+        compact && "max-xl:flex max-xl:items-center max-xl:gap-3 max-xl:p-2",
         draggableCard ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
         className,
       )}
@@ -238,9 +263,20 @@ export function KanbanRecordCard({
         alt={imageAlt}
         category={category}
         cornerBadge={cornerBadge}
+        compact={compact}
       />
-      <div className={cn(dimmed && "opacity-60")}>
-        <div className="space-y-2 px-3 pt-2.5">
+      <div
+        className={cn(
+          dimmed && "opacity-60",
+          compact && "max-xl:min-w-0 max-xl:flex-1",
+        )}
+      >
+        <div
+          className={cn(
+            "space-y-2 px-3 pt-2.5",
+            compact && "max-xl:space-y-1.5 max-xl:p-0",
+          )}
+        >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold leading-5 text-foreground">
@@ -252,15 +288,32 @@ export function KanbanRecordCard({
                 </div>
               )}
             </div>
-            {aside}
+            {aside && (
+              <div className={cn("shrink-0", compact && "max-xl:hidden")}>
+                {aside}
+              </div>
+            )}
           </div>
-          {chips && (
+          {(chips || (compact && (summary || cornerBadge))) && (
             <div className="flex flex-wrap items-center gap-1.5 empty:hidden">
               {chips}
+              {compact && cornerBadge && (
+                <span className="xl:hidden">{cornerBadge}</span>
+              )}
+              {compact && summary && (
+                <span className="ml-auto text-[11px] font-semibold tabular-nums xl:hidden">
+                  {summary}
+                </span>
+              )}
             </div>
           )}
         </div>
-        <dl className="mt-2.5 grid grid-cols-2 divide-x divide-border/60 border-t border-border/60">
+        <dl
+          className={cn(
+            "mt-2.5 grid grid-cols-2 divide-x divide-border/60 border-t border-border/60",
+            compact && "max-xl:hidden",
+          )}
+        >
           {stats.map((stat, index) => (
             <div
               key={stat.label}

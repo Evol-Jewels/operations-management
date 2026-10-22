@@ -53,7 +53,7 @@ export function RequirementImageCarousel({
   if (!image?.url) {
     if (item.videos.length > 0 || item.audios.length > 0) return null;
     return (
-      <div className="flex aspect-square w-full items-center justify-center rounded-xl border border-border bg-muted/30">
+      <div className="flex aspect-[4/3] max-h-56 w-full items-center justify-center rounded-xl border border-border bg-muted/30 @[40rem]/requirement:aspect-square @[40rem]/requirement:max-h-none">
         <div className="text-center text-muted-foreground">
           <ImageIcon className="mx-auto mb-2 size-7 opacity-60" />
           <p className="text-xs">No image added</p>
@@ -64,7 +64,7 @@ export function RequirementImageCarousel({
 
   return (
     <div className="space-y-2">
-      <div className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-muted/30">
+      <div className="group relative aspect-[4/3] max-h-64 w-full sm:max-h-80 overflow-hidden rounded-xl border border-border bg-muted/30 @[40rem]/requirement:aspect-square @[40rem]/requirement:max-h-none">
         <Image
           src={image.url}
           alt={image.name || item.title}
@@ -74,7 +74,7 @@ export function RequirementImageCarousel({
           unoptimized
         />
         {hasMany ? (
-          <div className="absolute right-2 bottom-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+          <div className="absolute right-2 bottom-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100">
             <ImageButton
               icon={ChevronLeft}
               label="Previous image"
@@ -104,7 +104,7 @@ export function RequirementImageCarousel({
               type="button"
               onClick={() => setIndex(imageIndex)}
               className={cn(
-                "relative size-12 shrink-0 overflow-hidden rounded-md border transition-all",
+                "relative size-11 shrink-0 overflow-hidden rounded-md border transition-all sm:size-12",
                 imageIndex === safeIndex
                   ? "border-foreground"
                   : "border-border opacity-65 hover:opacity-100",
@@ -198,10 +198,10 @@ function ImageButton({
       variant="outline"
       size="icon-xs"
       onClick={onClick}
-      className="size-6 border-transparent bg-transparent text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] shadow-none hover:bg-black/20 hover:text-white"
+      className="size-6 border-transparent bg-transparent text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] shadow-none hover:bg-black/20 hover:text-white pointer-coarse:size-9 pointer-coarse:rounded-full pointer-coarse:bg-black/35"
       aria-label={label}
     >
-      <Icon className="size-3" />
+      <Icon className="size-3 pointer-coarse:size-4" />
     </Button>
   );
 }

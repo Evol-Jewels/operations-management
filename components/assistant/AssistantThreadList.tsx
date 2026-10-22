@@ -123,7 +123,7 @@ export function AssistantThreadList({
                             onKeyDown={(event) => {
                               if (event.key === "Escape") setEditing(null);
                             }}
-                            className="h-8 text-sm"
+                            className="h-10 md:h-8"
                           />
                           <Button
                             type="submit"
@@ -156,13 +156,21 @@ export function AssistantThreadList({
                         }}
                         aria-current={active ? "page" : undefined}
                         className={cn(
-                          "flex w-full items-center rounded-lg px-2.5 py-1.5 pr-14 text-left text-sm text-foreground/80 transition-colors hover:bg-muted hover:text-foreground",
-                          active && "bg-muted font-medium text-foreground",
+                          "flex w-full items-center rounded-lg px-2.5 py-1.5 pr-14 text-left text-sm text-foreground/80 transition-colors hover:bg-muted hover:text-foreground pointer-coarse:py-3 pointer-coarse:pr-3",
+                          active &&
+                            "bg-muted font-medium text-foreground pointer-coarse:pr-20",
                         )}
                       >
                         <span className="truncate">{thread.title}</span>
                       </button>
-                      <div className="absolute top-1/2 right-1 flex -translate-y-1/2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                      <div
+                        className={cn(
+                          "absolute top-1/2 right-1 flex -translate-y-1/2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:[&_button]:size-9 pointer-coarse:[&_svg]:size-4",
+                          active
+                            ? "pointer-coarse:opacity-100"
+                            : "pointer-coarse:pointer-events-none",
+                        )}
+                      >
                         <Button
                           variant="ghost"
                           size="icon-xs"
