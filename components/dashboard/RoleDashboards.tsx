@@ -182,12 +182,10 @@ function ActivityToggle() {
       size="sm"
       onClick={toggle}
       aria-pressed={isOpen}
-      className="print-hide max-sm:size-10 max-sm:px-0"
+      className="print-hide hidden xl:inline-flex"
     >
       <Icon className="size-4" />
-      <span className="max-sm:sr-only">
-        {isOpen ? "Hide activity" : "Show activity"}
-      </span>
+      {isOpen ? "Hide activity" : "Show activity"}
     </Button>
   );
 }
@@ -203,11 +201,15 @@ function WithActivityColumn({ children }: { children: React.ReactNode }) {
       )}
     >
       <div className="min-w-0 space-y-5">{children}</div>
-      {isOpen && (
-        <aside className="min-w-0 xl:sticky xl:top-6 xl:self-start">
-          <RecentActivities className="max-h-[32rem] xl:max-h-[calc(100svh-3rem)]" />
-        </aside>
-      )}
+      {/* The toggle only exists where activity is a side column (xl); below that it always stacks underneath. */}
+      <aside
+        className={cn(
+          "min-w-0 xl:sticky xl:top-6 xl:self-start",
+          !isOpen && "xl:hidden",
+        )}
+      >
+        <RecentActivities className="max-h-[32rem] xl:max-h-[calc(100svh-3rem)]" />
+      </aside>
     </div>
   );
 }
