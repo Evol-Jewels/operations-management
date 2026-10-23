@@ -30,9 +30,10 @@ export function RecordActionBar({
 }) {
   return (
     <div
+      data-fab-avoid
       className={cn(
         "flex items-center gap-2 print-hide",
-        "max-md:fixed max-md:inset-x-0 max-md:bottom-[var(--mobile-nav-h,0px)] max-md:z-30 max-md:border-t max-md:border-border max-md:bg-background/95 max-md:py-2.5 max-md:pr-20 max-md:pl-4 max-md:shadow-[0_-4px_16px_-8px_rgb(0_0_0/0.12)] max-md:backdrop-blur max-md:[&_[data-slot=select-trigger]]:h-10! max-md:[&_[data-slot=select-trigger]]:flex-1 max-md:[&_[data-slot=select-trigger]]:text-sm max-md:[&>a]:h-10 max-md:[&>button]:h-10",
+        "max-md:fixed max-md:inset-x-0 max-md:bottom-[var(--mobile-nav-h,0px)] max-md:z-30 max-md:border-t max-md:border-border max-md:bg-background/95 max-md:px-4 max-md:py-2.5 max-md:shadow-[0_-4px_16px_-8px_rgb(0_0_0/0.12)] max-md:backdrop-blur max-md:[&_[data-slot=select-trigger]]:h-10! max-md:[&_[data-slot=select-trigger]]:flex-1 max-md:[&_[data-slot=select-trigger]]:text-sm max-md:[&>a]:h-10 max-md:[&>button]:h-10",
         className,
       )}
     >

@@ -10,7 +10,10 @@ export function MobileTopBar() {
   const { toggleSidebar } = useSidebar();
 
   return (
-    <header className="print-hide sticky top-0 z-30 flex h-(--mobile-top-h) shrink-0 items-center gap-2 border-b border-border/60 bg-background/90 px-2 backdrop-blur md:hidden">
+    <header
+      data-mobile-top-bar
+      className="print-hide sticky top-0 z-30 flex h-(--mobile-top-h) shrink-0 items-center gap-2 border-b border-border/60 bg-background/90 px-2 backdrop-blur md:hidden"
+    >
       <Button
         type="button"
         variant="ghost"

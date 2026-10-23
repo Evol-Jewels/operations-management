@@ -250,7 +250,10 @@ function ProductForm({ mode, productId = "", product }: FormProps) {
           </aside>
         </div>
 
-        <div className="sticky bottom-[var(--mobile-nav-h,0px)] z-20 -mx-4 flex border-t bg-background/95 py-3 pr-20 pl-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6 lg:hidden">
+        <div
+          data-fab-avoid
+          className="sticky bottom-[var(--mobile-nav-h,0px)] z-20 -mx-4 flex border-t bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6 lg:hidden"
+        >
           <Button
             type="submit"
             className="h-11 w-full sm:w-auto sm:min-w-60"
