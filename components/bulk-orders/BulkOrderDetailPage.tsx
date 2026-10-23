@@ -25,7 +25,9 @@ import {
   getUrgencyLevel,
 } from "@/lib/utils";
 import { AmountBreakdown } from "./AmountBreakdown";
+import { BulkDocumentTotals } from "./BulkDocumentTotals";
 import { FulfilmentBadge } from "./BulkOrderBadges";
+import { BulkOrderEditButton } from "./BulkOrderEditButton";
 import {
   BulkOrderItemsTracker,
   type BulkOrderView,
@@ -123,6 +125,7 @@ function OrderInfoCard({
         </SpecSection>
         <AmountBreakdown title="Amount summary" amounts={amounts} />
       </div>
+      <BulkDocumentTotals refCode={order.refCode} />
     </section>
   );
 }
@@ -182,6 +185,9 @@ function BulkOrderDashboard({ order }: { order: BulkOrder }) {
           <span className="font-mono text-base text-muted-foreground sm:text-lg">
             {formatBulkOrderRef(order.refCode)}
           </span>
+          <div className="ml-auto">
+            <BulkOrderEditButton refCode={order.refCode} />
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-xs text-muted-foreground sm:text-sm">
           <FulfilmentBadge
@@ -255,12 +261,12 @@ function BulkOrderDashboard({ order }: { order: BulkOrder }) {
             .join(" · ")}
         />
         <StatTile
-          label="Quoted total"
+          label="Active line total"
           value={formatCurrency(summary.amounts.quoted)}
           hint={
             summary.cancelledAmount
               ? `Excludes ${formatCurrency(summary.cancelledAmount)} cancelled`
-              : `${order.currency} · packing list total`
+              : `${order.currency} · line quotations`
           }
         />
       </div>
