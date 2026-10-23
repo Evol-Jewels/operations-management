@@ -257,12 +257,15 @@ function ProductSaleCard({
           </Button>
         ) : (
           <div
-            className={cn("grid gap-2", !isSelecting && "@[15rem]:grid-cols-2")}
+            className={cn(
+              "grid gap-1.5 @[13rem]:gap-2",
+              !isSelecting && "grid-cols-2",
+            )}
           >
             {!isSelecting ? (
               <Button
                 asChild
-                className="min-h-10 gap-2 px-2 @[17rem]:min-h-11"
+                className="min-h-10 gap-1.5 px-1.5 text-xs @[13rem]:gap-2 @[13rem]:px-2 @[13rem]:text-sm @[17rem]:min-h-11"
                 variant="outline"
               >
                 <Link
@@ -273,7 +276,10 @@ function ProductSaleCard({
                     })
                   }
                 >
-                  <PackagePlus className="size-4" aria-hidden="true" />
+                  <PackagePlus
+                    className="hidden size-4 @[13rem]:block"
+                    aria-hidden="true"
+                  />
                   <span>
                     Refill
                     <span className="hidden @[17rem]:inline"> product</span>
@@ -283,12 +289,17 @@ function ProductSaleCard({
             ) : null}
             <Button
               type="button"
-              className="min-h-10 gap-2 px-2 @[17rem]:min-h-11"
+              className="min-h-10 gap-1.5 px-1.5 text-xs @[13rem]:gap-2 @[13rem]:px-2 @[13rem]:text-sm @[17rem]:min-h-11"
               variant="outline"
               onClick={() => onQuantityChange(1)}
             >
-              <Layers className="size-4" aria-hidden="true" />
-              Bulk refill
+              <Layers
+                className="hidden size-4 @[13rem]:block"
+                aria-hidden="true"
+              />
+              <span>
+                Bulk<span className="hidden @[17rem]:inline"> refill</span>
+              </span>
             </Button>
           </div>
         )}

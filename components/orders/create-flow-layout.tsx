@@ -25,10 +25,11 @@ export function CreateFlowLayout({
       )}
     >
       <div className="flex-1 pb-6">{children}</div>
-      <div className="print-hide sticky bottom-0 z-30 -mx-4 -mb-5 border-t border-border bg-background/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur sm:-mx-6 sm:px-6 md:-mb-6">
-        <div className="flex items-center gap-2 pr-16 sm:pr-40 min-[1440px]:pr-0!">
-          {actions}
-        </div>
+      <div
+        data-fab-avoid
+        className="print-hide sticky bottom-0 z-30 -mx-4 -mb-5 border-t border-border bg-background/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur sm:-mx-6 sm:px-6 md:-mb-6"
+      >
+        <div className="flex items-center gap-2">{actions}</div>
       </div>
     </div>
   );

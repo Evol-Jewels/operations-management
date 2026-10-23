@@ -2,7 +2,7 @@
 
 import { Maximize2, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,13 +12,16 @@ import {
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { getSessionRole, getUserRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 import type { AssistantPageContext } from "@/types/assistant";
 import { AssistantHeader } from "./AssistantHeader";
 import { AssistantPanel } from "./AssistantPanel";
 import { EvolE } from "./EvolE";
 import { useAssistantChat } from "./useAssistantChat";
+import { useDraggableFab } from "./useDraggableFab";
 
 const ROLES = new Set(["ADMIN", "OPERATIONS", "SALES"]);
 
@@ -60,6 +63,9 @@ export function AssistantLauncher() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const chat = useAssistantChat({});
+  const fab = useDraggableFab(48);
+  const isMobile = useIsMobile();
+  const router = useRouter();
   const allowed =
     Boolean(session) &&
     getUserRole(session) === "internal" &&
@@ -85,10 +91,23 @@ export function AssistantLauncher() {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          if (fab.consumeDragClick()) return;
+          // Phones get the full assistant page; the side sheet is for larger screens.
+          if (isMobile)
+            router.push(`/assistant?from=${encodeURIComponent(context.path)}`);
+          else setOpen(true);
+        }}
+        {...fab.handlers}
+        style={fab.style}
         aria-label="Ask Evol-E"
-        title="Ask Evol-E (Ctrl/⌘ + J)"
-        className="print-hide fixed right-4 bottom-[calc(var(--mobile-nav-h,0px)+1rem)] z-40 flex h-12 items-center gap-1.5 rounded-full bg-foreground px-[5px] text-sm font-medium text-background shadow-lg transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none sm:right-6 md:bottom-6 sm:pr-4"
+        title="Ask Evol-E (Ctrl/⌘ + J). Drag to move."
+        className={cn(
+          "print-hide fixed right-4 bottom-[calc(var(--mobile-nav-h,0px)+1rem)] z-40 flex h-12 cursor-grab touch-none items-center gap-1.5 rounded-full bg-foreground px-[5px] text-sm font-medium text-background shadow-lg transition-[transform,box-shadow] select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none sm:right-6 sm:pr-4 md:bottom-6",
+          fab.isDragging
+            ? "scale-110 cursor-grabbing shadow-2xl"
+            : "hover:-translate-y-0.5",
+        )}
       >
         <EvolE size={38} className="text-background" />
         <span className="hidden sm:inline">Ask Evol-E</span>

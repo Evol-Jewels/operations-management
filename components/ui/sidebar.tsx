@@ -205,7 +205,10 @@ const Sidebar = React.forwardRef<
               <SheetTitle>Sidebar</SheetTitle>
               <SheetDescription>Displays the mobile sidebar.</SheetDescription>
             </SheetHeader>
-            <div className="flex h-full w-full flex-col">{children}</div>
+            {/* One scroll area on phones so nothing gets clipped between the nav and footer. */}
+            <div className="flex h-full w-full flex-col overflow-y-auto overscroll-contain [&>[data-sidebar=content]]:flex-none [&>[data-sidebar=content]]:overflow-visible">
+              {children}
+            </div>
           </SheetContent>
         </Sheet>
       );
@@ -379,7 +382,10 @@ const SidebarSeparator = React.forwardRef<
     <Separator
       ref={ref}
       data-sidebar="separator"
-      className={cn("mx-2 w-auto bg-sidebar-border", className)}
+      className={cn(
+        "mx-2 bg-sidebar-border data-[orientation=horizontal]:w-auto",
+        className,
+      )}
       {...props}
     />
   );

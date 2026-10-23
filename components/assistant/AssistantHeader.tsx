@@ -78,19 +78,21 @@ function ThreadHistory({
             <SheetDescription className="sr-only">
               Open or manage a previous conversation.
             </SheetDescription>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 gap-1.5"
-              disabled={chat.busy}
-              onClick={() => {
-                chat.select(null);
-                setOpen(false);
-              }}
-            >
-              <SquarePen className="size-4" />
-              New chat
-            </Button>
+            {chat.threadId ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-1.5"
+                disabled={chat.busy}
+                onClick={() => {
+                  chat.select(null);
+                  setOpen(false);
+                }}
+              >
+                <SquarePen className="size-4" />
+                New chat
+              </Button>
+            ) : null}
           </div>
           <AssistantThreadList chat={chat} onSelect={() => setOpen(false)} />
         </SheetContent>
@@ -139,17 +141,19 @@ export function AssistantHeader({
         drawer={historyDrawer}
         className={historyClassName}
       />
-      <HeaderAction label="New chat">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="New chat"
-          disabled={chat.busy}
-          onClick={() => chat.select(null)}
-        >
-          <SquarePen className="size-4" />
-        </Button>
-      </HeaderAction>
+      {chat.threadId ? (
+        <HeaderAction label="New chat">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="New chat"
+            disabled={chat.busy}
+            onClick={() => chat.select(null)}
+          >
+            <SquarePen className="size-4" />
+          </Button>
+        </HeaderAction>
+      ) : null}
       {children}
     </header>
   );

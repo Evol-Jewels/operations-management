@@ -27,8 +27,9 @@ export function CalculatorTotalBar({
 
   return (
     <div
+      data-fab-avoid
       className={cn(
-        "sticky bottom-[calc(var(--mobile-nav-h,0px)+0.5rem)] z-20 flex min-h-14 items-center gap-3 rounded-xl border border-border bg-background/95 py-2 pr-16 pl-4 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/80",
+        "sticky bottom-[calc(var(--mobile-nav-h,0px)+0.5rem)] z-20 flex min-h-14 items-center gap-3 rounded-xl border border-border bg-background/95 py-2 pr-2 pl-4 shadow-lg backdrop-blur supports-backdrop-filter:bg-background/80",
         className,
       )}
     >

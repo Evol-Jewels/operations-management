@@ -34,15 +34,21 @@ import {
 } from "@/lib/bulkOrders";
 import { getFirstName } from "@/lib/people";
 import { formatCurrency, getUrgencyLevel } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { FulfilmentBadge, FulfilmentProgress } from "./BulkOrderBadges";
 import { BulkOrderPreviewImages } from "./BulkOrderPreviewImages";
 import { CreatedByCell } from "./CreatedBy";
 
-const FILTERS: Array<{ value: FulfilmentFilter; label: string }> = [
-  { value: "all", label: "All bulk orders" },
-  { value: "pending", label: "Has pending items" },
-  { value: "filled", label: "Fully filled" },
+const FILTERS: Array<{
+  value: FulfilmentFilter;
+  label: string;
+  shortLabel: string;
+}> = [
+  { value: "all", label: "All bulk orders", shortLabel: "All" },
+  { value: "pending", label: "Has pending items", shortLabel: "Pending" },
+  { value: "filled", label: "Fully filled", shortLabel: "Filled" },
 ];
+const CHIP_ORDER: FulfilmentFilter[] = ["pending", "filled", "all"];
 
 function getHref(order: BulkOrderListRow) {
   return `/bulk-orders/${order.refCode}`;
@@ -103,7 +109,7 @@ export function BulkOrdersWorkspace({
             </h2>
           )}
         </div>
-        <div className="relative min-w-0 flex-1 lg:w-80 lg:flex-none">
+        <div className="relative min-w-0 basis-full lg:w-80 lg:basis-auto">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -115,7 +121,34 @@ export function BulkOrdersWorkspace({
             maxLength={255}
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 lg:w-auto">
+          <div
+            role="radiogroup"
+            aria-label="Filter bulk orders by fulfilment"
+            className="flex flex-1 gap-2 lg:hidden"
+          >
+            {CHIP_ORDER.map((value) => {
+              const option = FILTERS.find((item) => item.value === value);
+              const isActive = filter === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={isActive}
+                  onClick={() => setFilter(value)}
+                  className={cn(
+                    "h-9 rounded-full border px-3.5 text-sm font-medium transition-colors",
+                    isActive
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-background text-muted-foreground",
+                  )}
+                >
+                  {option?.shortLabel}
+                </button>
+              );
+            })}
+          </div>
           <Select
             value={filter}
             onValueChange={(value) =>
@@ -127,7 +160,7 @@ export function BulkOrdersWorkspace({
           >
             <SelectTrigger
               aria-label="Filter bulk orders by fulfilment"
-              className="h-10 w-[9.5rem] sm:w-auto lg:h-9"
+              className="hidden h-9 w-auto lg:flex"
             >
               <SelectValue />
             </SelectTrigger>
@@ -143,6 +176,7 @@ export function BulkOrdersWorkspace({
             <Button
               variant="ghost"
               size="sm"
+              className="h-9 shrink-0"
               onClick={() => {
                 setSearch("");
                 setFilter("pending");
