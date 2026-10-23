@@ -7,11 +7,18 @@ import {
   mapBackendBulkOrder,
   mapBackendBulkOrderRows,
 } from "@/lib/bulkOrderMappers";
-import { fetchBulkOrder, fetchBulkOrders } from "@/lib/bulkOrdersApi";
+import {
+  fetchBulkOrder,
+  fetchBulkOrders,
+  updateBulkOrder,
+  updateBulkOrderItem,
+} from "@/lib/bulkOrdersApi";
 import { updateOrderStatus } from "@/lib/ordersApi";
 import type {
   BackendBulkOrderDetails,
   ListBulkOrdersQuery,
+  UpdateBulkOrderInput,
+  UpdateBulkOrderItemInput,
 } from "@/types/bulk-order-api";
 import type { BackendOrderStatus } from "@/types/order-api";
 
@@ -37,6 +44,57 @@ export function useBulkOrder(refCode: number) {
     queryFn: () => fetchBulkOrder(refCode),
     select: mapBackendBulkOrder,
     enabled: Number.isInteger(refCode) && refCode > 0,
+  });
+}
+
+export function useBulkOrderRecord(refCode: number) {
+  return useQuery({
+    queryKey: bulkOrderKeys.detail(refCode),
+    queryFn: () => fetchBulkOrder(refCode),
+    enabled: Number.isInteger(refCode) && refCode > 0,
+  });
+}
+
+function useBulkEditSuccess(refCode: number, orderRefCode?: number) {
+  const queryClient = useQueryClient();
+  return async (record: BackendBulkOrderDetails) => {
+    await queryClient.cancelQueries({
+      queryKey: bulkOrderKeys.detail(refCode),
+    });
+    queryClient.setQueryData(bulkOrderKeys.detail(refCode), record);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: bulkOrderKeys.all }),
+      ...record.items
+        .filter(
+          (item) => orderRefCode === undefined || item.refCode === orderRefCode,
+        )
+        .flatMap((item) => [
+          queryClient.invalidateQueries({
+            queryKey: orderKeys.detail(item.refCode),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: sourceActivityKeys.activityLogs("ORDER", item.refCode),
+          }),
+        ]),
+    ]);
+  };
+}
+
+export function useUpdateBulkOrder(refCode: number) {
+  const onSuccess = useBulkEditSuccess(refCode);
+  return useMutation({
+    mutationFn: (input: UpdateBulkOrderInput) =>
+      updateBulkOrder(refCode, input),
+    onSuccess,
+  });
+}
+
+export function useUpdateBulkOrderItem(refCode: number, orderRefCode: number) {
+  const onSuccess = useBulkEditSuccess(refCode, orderRefCode);
+  return useMutation({
+    mutationFn: (input: UpdateBulkOrderItemInput) =>
+      updateBulkOrderItem(refCode, orderRefCode, input),
+    onSuccess,
   });
 }
 

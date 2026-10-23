@@ -22,11 +22,11 @@ import {
 } from "@/components/enquiry/requirements/RequirementDetailsPanel";
 import { RequirementImageCarousel } from "@/components/enquiry/requirements/RequirementMediaPanel";
 import type { RequirementDisplayItem } from "@/components/enquiry/requirements/requirement-display-utils";
-import { SpecLine, SpecSection } from "@/components/order/SpecSection";
 import {
   RecordActionBar,
   RecordActionBarSpacer,
 } from "@/components/order/RecordActionBar";
+import { SpecLine, SpecSection } from "@/components/order/SpecSection";
 import { StageBar } from "@/components/order/StageBar";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +58,7 @@ import { AmountBreakdown } from "./AmountBreakdown";
 import { BulkItemActivity } from "./BulkItemActivity";
 import { FulfilmentBadge } from "./BulkOrderBadges";
 import { BulkOrderLoading, BulkOrderNotFound } from "./BulkOrderDetailPage";
+import { BulkOrderEditButton } from "./BulkOrderEditButton";
 import { useBulkItemMove } from "./useBulkItemMove";
 
 const FULFILMENT_HINTS: Record<BulkItemStatus, string> = {
@@ -260,6 +261,10 @@ export function BulkOrderItemPage({
           </div>
         </div>
         <RecordActionBar className="md:ml-auto">
+          <BulkOrderEditButton
+            refCode={order.refCode}
+            orderRefCode={item.orderRefCode}
+          />
           <Select
             value={item.stage}
             disabled={isLocked}

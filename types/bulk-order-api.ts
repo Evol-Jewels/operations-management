@@ -2,6 +2,7 @@ import type {
   BackendCustomProductDetails,
   BackendOrderStatus,
   BackendOrderUserSummary,
+  CustomProductRequirementSpecification,
 } from "@/types/order-api";
 
 export type BackendBulkOrderStatus =
@@ -81,13 +82,76 @@ export interface BackendBulkOrderItem {
   status: BackendOrderStatus;
   notes: string | null;
   estimatedDeliveryDate: string | null;
+  vendorDeliveryDate: string | null;
+  isCadRequired: boolean;
   quotedSubtotal: string;
   quotationBreakdown: BackendQuotationBreakdown;
-  customProduct: BackendCustomProductDetails | null;
+  customProduct: BackendBulkCustomProduct | null;
+}
+
+export interface BulkCustomProductInput {
+  category: BackendCustomProductDetails["category"];
+  metalType?: string;
+  metalPurity?: string;
+  metalColor?: BackendCustomProductDetails["metalColor"];
+  size?: number;
+  metalNetWeight?: string;
+  metalGrossWeight?: string;
+  metalPureWeight?: string;
+  stones: BackendCustomProductDetails["stones"];
+}
+
+export type BackendBulkCustomProduct = {
+  [Key in keyof BulkCustomProductInput]: BulkCustomProductInput[Key] | null;
+} & {
+  id: string;
+  orderId: string;
+  category: BulkCustomProductInput["category"];
+  stones: BulkCustomProductInput["stones"];
+  requirementSpecification: CustomProductRequirementSpecification | null;
+};
+
+export type UpdateBulkOrderInput = Partial<
+  Pick<
+    BackendBulkOrder,
+    | "vendorId"
+    | "vendorCity"
+    | "packingListNumber"
+    | "quotationDate"
+    | "expectedDeliveryDate"
+    | "quotedSubtotal"
+    | "taxRate"
+    | "taxAmount"
+    | "roundingAmount"
+    | "quotedTotal"
+    | "documentUrl"
+  >
+>;
+
+export interface UpdateBulkOrderItemInput {
+  vendorDesignNumber?: string;
+  quantity?: number;
+  isCadRequired?: boolean;
+  estimatedDeliveryDate?: string | null;
+  vendorDeliveryDate?: string | null;
+  notes?: string | null;
+  customProduct?: BulkCustomProductInput;
+  requirementSpecification?: CustomProductRequirementSpecification;
+  quotedSubtotal?: string;
+  quotationBreakdown?: BackendQuotationBreakdown;
+}
+
+export interface BulkOrderReconciliation {
+  lineSubtotal: string;
+  expectedTotal: string;
+  subtotalDifference: string;
+  totalDifference: string;
+  hasDifference: boolean;
 }
 
 export interface BackendBulkOrderDetails extends BackendBulkOrder {
   items: BackendBulkOrderItem[];
+  reconciliation: BulkOrderReconciliation;
 }
 
 export interface ListBulkOrdersQuery {
