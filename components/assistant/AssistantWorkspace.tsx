@@ -1,7 +1,11 @@
 "use client";
 
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { AssistantHeader } from "./AssistantHeader";
+import { describePage } from "./AssistantLauncher";
 import { AssistantPanel } from "./AssistantPanel";
 import { AssistantThreadList } from "./AssistantThreadList";
 import { useAssistantChat } from "./useAssistantChat";
@@ -15,6 +19,14 @@ export function AssistantWorkspace() {
   const title = chat.threadId
     ? (chat.thread.data?.title ?? "Conversation")
     : "Evol-E";
+  // Set when opened from the Evol-E button on a phone, so "this order" still works.
+  const from = searchParams.get("from");
+  const source = from?.startsWith("/")
+    ? (() => {
+        const url = new URL(from, "http://local");
+        return describePage(url.pathname, url.searchParams);
+      })()
+    : null;
 
   return (
     <section className="flex h-[calc(100svh-var(--mobile-top-h,0px))] flex-col md:p-2">
@@ -32,12 +44,30 @@ export function AssistantWorkspace() {
             historyClassName="lg:hidden"
             className="h-12 border-b md:h-14 md:border-b-0 md:pl-5"
             title={
-              <h1 className="truncate text-[15px] font-semibold tracking-tight">
-                {title}
-              </h1>
+              <div className="flex min-w-0 items-center gap-1">
+                {from && source ? (
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="-ml-2 size-10 shrink-0 md:hidden"
+                  >
+                    <Link href={from} aria-label="Back">
+                      <ArrowLeft className="size-5" />
+                    </Link>
+                  </Button>
+                ) : null}
+                <h1 className="truncate text-[15px] font-semibold tracking-tight">
+                  {title}
+                </h1>
+              </div>
             }
           />
-          <AssistantPanel chat={chat} />
+          <AssistantPanel
+            chat={chat}
+            context={source?.context}
+            contextLabel={source?.label}
+          />
         </div>
       </div>
     </section>

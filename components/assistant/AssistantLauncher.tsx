@@ -2,7 +2,7 @@
 
 import { Maximize2, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
   SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { getSessionRole, getUserRole } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,8 @@ export function AssistantLauncher() {
   useEffect(() => setMounted(true), []);
   const chat = useAssistantChat({});
   const fab = useDraggableFab(48);
+  const isMobile = useIsMobile();
+  const router = useRouter();
   const allowed =
     Boolean(session) &&
     getUserRole(session) === "internal" &&
@@ -89,7 +92,11 @@ export function AssistantLauncher() {
       <button
         type="button"
         onClick={() => {
-          if (!fab.consumeDragClick()) setOpen(true);
+          if (fab.consumeDragClick()) return;
+          // Phones get the full assistant page; the side sheet is for larger screens.
+          if (isMobile)
+            router.push(`/assistant?from=${encodeURIComponent(context.path)}`);
+          else setOpen(true);
         }}
         {...fab.handlers}
         style={fab.style}
