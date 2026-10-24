@@ -62,9 +62,7 @@ export type BulkOrderListRow = Omit<BulkOrder, "items"> & {
 
 export const BULK_ITEM_STAGES = [
   "New",
-  "CAD Design",
   "In Production",
-  "Certification",
   "At Store",
   "In Photoshoot",
   "Editing",

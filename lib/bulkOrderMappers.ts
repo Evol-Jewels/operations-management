@@ -33,9 +33,7 @@ const BULK_ORDER_STATUS_LABELS: Record<
 
 export const BULK_STAGE_TO_STATUS: Record<BulkItemStage, BackendOrderStatus> = {
   New: "NEW",
-  "CAD Design": "CAD_DESIGN",
   "In Production": "IN_PRODUCTION",
-  Certification: "CERTIFICATION",
   "At Store": "AT_STORE",
   "In Photoshoot": "IN_PHOTOSHOOT",
   Editing: "EDITING",
@@ -57,6 +55,9 @@ function toTitleCase(value?: string | null) {
 }
 
 function toBulkItemStage(status: BackendOrderStatus): BulkItemStage {
+  if (status === "CAD_DESIGN" || status === "CERTIFICATION") {
+    return "In Production";
+  }
   const stage = mapBackendOrderStatusToStage(status);
   return BULK_ITEM_STAGES.find((value) => value === stage) ?? "New";
 }
